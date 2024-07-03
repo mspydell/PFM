@@ -45,14 +45,14 @@ def make_dir(pth, clean=False):
 # get the path to the directory where all SDPM folders should be
 parent = Path(__file__).absolute().parent.parent.parent
 
-LO = parent / 'SDPM'
+LO = parent / 'PFM'
 # the location of user some user specified grid etc
-LOu = parent / 'SDPM_user'
+LOu = parent / 'PFM_user'
 # data is where the input files, atm, ocn IC, ocn BC, etc are found
-data = parent / 'SDPM_data'
+data = parent / 'PFM_data'
 # LOo is the location where his.nc files etc will go
-LOo = parent / 'SDPM_output'
-LOtest = parent / 'SDPM_test'
+LOo = parent / 'PFM_output'
+LOtest = parent / 'PFM_test'
 
 for ii in [LOu,data,LOo]:
     dum = os.path.isdir(ii)
@@ -65,7 +65,7 @@ for ii in [LOu,data,LOo]:
         print(str(ii) + ' is already a directory')
 
 # this file comes with git clone and is needed in ...
-fnm0 = str(LO) + '/get_sdpm_info.py'
+fnm0 = str(LO) + '/driver/get_sdpm_info.py'
 # this is the file that the model needs
 fnm = str(LOu) + '/get_sdpm_info.py'
 
@@ -73,9 +73,9 @@ dum = os.path.isfile(fnm)
 # move the standard get_sdpm_info.py file to the user directory.
 if dum == False:
     print('need to copy ' + fnm0)
-    print('to '+ LOu + ' ...')
-    os.system('cp ' + str(fnm0) + ' ' + str(fnm))
+    print('to '+ str(LOu) + ' ...')
+    os.system('scp ' + str(fnm0) + ' ' + str(fnm))
     print('... done')  
 else:
-    print(fnm + ' alread exists in the right spot')
+    print(fnm + ' already exists in the right spot')
 
