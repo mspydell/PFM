@@ -45,14 +45,14 @@ def make_dir(pth, clean=False):
 # get the path to the directory where all SDPM folders should be
 parent = Path(__file__).absolute().parent.parent.parent
 
-LO = parent / 'SDPM'
+LO = parent / 'PFM'
 # the location of user some user specified grid etc
-LOu = parent / 'SDPM_user'
+LOu = parent / 'PFM_user'
 # data is where the input files, atm, ocn IC, ocn BC, etc are found
-data = parent / 'SDPM_data'
+data = parent / 'PFM_data'
 # LOo is the location where his.nc files etc will go
-LOo = parent / 'SDPM_output'
-LOtest = parent / 'SDPM_test'
+LOo = parent / 'PFM_output'
+LOtest = parent / 'PFM_test'
 
 for ii in [LOu,data,LOo]:
     dum = os.path.isdir(ii)
@@ -77,5 +77,5 @@ if dum == False:
     os.system('cp ' + str(fnm0) + ' ' + str(fnm))
     print('... done')  
 else:
-    print(fnm + ' alread exists in the right spot')
+    print(fnm + ' already exists in the right spot')
 
