@@ -37,6 +37,8 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method):
         d1=fore_date
         t2 = t # an ndarray of days, t is from atm import
         t3 = d1 + t2 * timedelta(days=1/24)
+        print('ocn forecast data is being grabbed for:')
+        print(t3)
         # t3 looks good and is the correct time stamps of the forecast.
         # But for ROMS we need ocean_time which is relative to 1970,1,1. 
         # in seconds. So...
@@ -204,8 +206,69 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method):
                         'units':'m/s',
                         'coordinates':'z,lat,lon',
                         'time':'ocean_time'}
-        OCN['vinfo']['eta'] = {'long_name':'ocean sea surface height',
+        OCN['vinfo']['surf_el'] = {'long_name':'ocean sea surface height',
                         'units':'m',
                         'coordinates':'lat,lon',
                         'time':'ocean_time'}
     return OCN
+
+
+def hycom_to_roms_latlon(HY,RMG):
+    # HYcom and RoMsGrid come in as dicts with ROMS variable names    
+    # The output of this, HYrm, is a dict with 
+    # hycom fields on roms horizontal grid points
+    # but hycom z levels.
+    # velocity will be on both (lat_u,lon_u)
+    # and (lat_v,lon_v).
+    
+    # set up the interpolator now and pass to function
+    
+
+    Fz = RegularGridInterpolator((HY['lat'],HY['lon']),HY['surf_el'])
+    
+    # the names of the variables that need to go on the ROMS grid
+    vnames = ['surf_el', 'temp', 'salt', 'u', 'v']
+    lnhy = HY['lon']
+    lthy = HY['lat']
+    NR,NC = np.shape(RMG['lon_rho'])
+    NZ = len(HY['depth'])
+    NT = len(HY['ocean_time'])
+
+    HYrm = dict()
+    HYrm['surf_el'] = np.zeros((NT,NR, NC))
+    HYrm['sal'] = np.zeros((NT,NZ, NR, NC))
+    HYrm['temp'] = np.zeros((NT,NZ, NR, NC))
+    HYrm['u_on_u'] = np.zeros((NT,NZ, NR, NC-1))
+    HYrm['v_on_u'] = np.zeros((NT,NZ, NR, NC-1))
+    HYrm['u_on_v'] = np.zeros((NT,NZ, NR-1, NC))
+    HYrm['v_on_v'] = np.zeros((NT,NZ, NR-1, NC))
+    HYrm['lat_rho'] = RMG['lat_rho']
+    HYrm['lon_rho'] = RMG['lat_rho']
+    HYrm['lat_u'] = RMG['lat_u']
+    HYrm['lon_u'] = RMG['lon_u']
+    HYrm['lat_v'] = RMG['lat_v']
+    HYrm['lon_v'] = RMG['lon_v']
+    HYrm['depth'] = HY['depth'] # depths are from hycom
+
+
+    for aa in vnames:
+        zhy  = HY[aa]
+        if aa=='zeta':
+            HYrm[aa] = interp_hycom_to_roms(lnhy,lthy,zhy,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],rf,Imr,Fz)            
+        elif aa=='temp' or aa=='salt':
+            for bb in range(NZ):
+                zhy2 = zhy[bb,:,:]
+                HYrm[aa][bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],rf,Imr,Fz)
+        elif aa=='u':
+            for bb in range(NZ):
+                zhy2= zhy[bb,:,:]
+                HYrm['u_on_u'][bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_u'],RMG['lat_u'],RMG['mask_u'],rf,Imru,Fz)
+                HYrm['u_on_v'][bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_v'],RMG['lat_v'],RMG['mask_v'],rf,Imrv,Fz)
+        elif aa=='v':
+            for bb in range(NZ):
+                zhy2= zhy[bb,:,:]
+                HYrm['v_on_u'][bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_u'],RMG['lat_u'],RMG['mask_u'],rf,Imru,Fz)
+                HYrm['v_on_v'][bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_v'],RMG['lat_v'],RMG['mask_v'],rf,Imrv,Fz)
+ 
+    return HYrm
+

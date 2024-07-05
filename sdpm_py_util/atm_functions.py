@@ -9,7 +9,7 @@ import xarray as xr
 import netCDF4 as nc
 
 
-def get_atm_data_as_dict(yyyymmdd,run_type,atm_mod,get_method):
+def get_atm_data_as_dict(yyyymmdd,hhmm,run_type,atm_mod,get_method):
     from datetime import datetime
     from pydap.client import open_url
     import pygrib
@@ -31,8 +31,11 @@ def get_atm_data_as_dict(yyyymmdd,run_type,atm_mod,get_method):
         from datetime import datetime, timedelta
 
         d1=datetime.fromisoformat(fore_date)
+        d1 = d1 + int(hhmm[0:2])*timedelta(days=1/24) # d1 is the start time of the forecast
         t2 = t-t[0] # an ndarray of days, t is from atm import
         t3 = d1 + t2 * timedelta(days=1)
+        print('getting atm forecast for:')
+        print(t3)
         # t3 looks good and is the correct time stamps of the forecast.
         # But for ROMS we need ocean_time which is relative to 1970,1,1. 
         # in seconds. So...
@@ -48,11 +51,11 @@ def get_atm_data_as_dict(yyyymmdd,run_type,atm_mod,get_method):
 
         # nam_nest is at 3 hr resolution, for 2.5 days
         # 0.03 deg horizontal resolution
-        nam_nest = 'https://nomads.ncep.noaa.gov/dods/nam/nam' + yyyymmdd + '/nam_conusnest_00z'
+        nam_nest = 'https://nomads.ncep.noaa.gov/dods/nam/nam' + yyyymmdd + '/nam_conusnest_' + hhmm[0:2] + 'z'
 
         # nam_1hr is at 1 hr resolution, for 1.5 days
         # 0.11 deg horizontal resolution
-        nam_1hr = 'https://nomads.ncep.noaa.gov/dods/nam/nam' + yyyymmdd + '/nam1hr_00z'
+        nam_1hr = 'https://nomads.ncep.noaa.gov/dods/nam/nam' + yyyymmdd + '/nam1hr_' + hhmm[0:2] + 'z'
 
         # hires_fv3 is at 1 hr resolution, for 2.5 days
         # 0.05 deg horizontal resolution
@@ -62,11 +65,11 @@ def get_atm_data_as_dict(yyyymmdd,run_type,atm_mod,get_method):
         # hrrr is at 1 hr resolution, for 2 days, for 00z forecast
         # 0.03 deg horizontal resolution 
         # this is clearly the highest resolution product
-        hrrr = 'https://nomads.ncep.noaa.gov/dods/hrrr/hrrr' + yyyymmdd + '/hrrr_sfc.t00z'
+        hrrr = 'https://nomads.ncep.noaa.gov/dods/hrrr/hrrr' + yyyymmdd + '/hrrr_sfc.t' + hhmm[0:2] + 'z'
 
         # gfs is at 1 hr resolution, for 5 days
         # 0.25 deg horizontal resolution
-        gfs = 'https://nomads.ncep.noaa.gov/dods/gfs_0p25_1hr/gfs' + yyyymmdd + '/gfs_0p25_1hr_00z'
+        gfs = 'https://nomads.ncep.noaa.gov/dods/gfs_0p25_1hr/gfs' + yyyymmdd + '/gfs_0p25_1hr_' + hhmm[0:2] + 'z'
 
         if atm_mod == 'nam_nest':
             atm_name = nam_nest

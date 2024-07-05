@@ -1,4 +1,5 @@
 # grid functions
+import netCDF4 as nc
 
 def roms_grid_to_dict(fng):
     gr = nc.Dataset(fng)    
