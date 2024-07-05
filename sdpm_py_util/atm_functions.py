@@ -289,3 +289,112 @@ def get_atm_data_as_dict(yyyymmdd,run_type,atm_mod,get_method):
                         'note':'these velocity velocities are in earth coordinate'}
 
     return ATM
+
+
+
+def get_atm_data_on_roms_grid(ATM,RMG):
+    # this function takes the ATM data, in a dict, and the roms grid, as a dict
+    # and returns the ATM data but on the roms grid. It returns atm2
+    # the wind directions in atm2 are rotated to be in ROMS xi,eta directions.
+    
+    field_names = ['lwrad', 'lwrad_down', 'swrad', 'rain', 'Tair', 'Pair', 'Qair', 'Uwind', 'Vwind']
+    # these are the 2d fields that need to be interpreted onto the roms grid
+    # dimensions of all fields are [ntime,nlat,nlon]
+    
+    t = ATM['ocean_time']
+    nt = len(t)
+    lon = ATM['lon']
+    lat = ATM['lat']
+    Lt_r = RMG['lat_rho']
+    Ln_r = RMG['lon_rho']
+    nlt,nln = np.shape(Lt_r)
+
+    # set the flag to determine if we have created the interpolant yet.
+    got_F = 0 
+    
+    # this is the complete list of variables that need to be in the netcdf file
+    vlist = ['lon','lat','ocean_time','ocean_time_ref','lwrad','lwrad_down','swrad','rain','Tair','Pair','Qair','Uwind','Vwind','tair_time','pair_time','qair_time','wind_time','rain_time','srf_time','lrf_time']
+
+    # copy vinfo from ATM to atm2
+    atm2 = dict()
+    atm2['vinfo'] = dict()
+    for aa in vlist:
+        atm2['vinfo'][aa] = ATM['vinfo'][aa]
+
+    # copy the right coordinates too
+    vlist2 = ['ocean_time','tair_time','pair_time','qair_time','wind_time','rain_time','srf_time','lrf_time']
+    for aa in vlist2:
+        atm2[aa] = ATM[aa]
+
+    # the lat lons are from the roms grid
+    atm2['lat'] = RMG['lat_rho']
+    atm2['lon'] = RMG['lon_rho']
+
+    # these two are useful later
+    atm2['ocean_time_ref'] = ATM['ocean_time_ref']
+
+    # this for loop puts the ATM fields onto the ROMS grid
+    for a in field_names:
+        #print(a)
+        f1 = ATM[a]
+        frm2 = np.zeros( (nt,nlt,nln) ) # need to initialize the dict, or there are problems
+        atm2[a] = frm2
+
+        for b in range(nt):
+            f2 = np.squeeze( f1[b,:,:] )
+
+            if got_F == 0:
+                F = RegularGridInterpolator((lat,lon),f2)
+                got_F = 1
+            else:                
+                setattr(F,'values',f2)
+
+            froms = F((Lt_r,Ln_r),method='linear')
+            atm2[a][b,:,:] = froms
+        
+
+    # atm2 is now has velocities on the roms grid. but we need to rotate the winds from N-S, E-W to ROMS (xi,eta)
+    angr = RMG['angle']
+    cosang = np.cos(angr)
+    sinang = np.sin(angr)
+    Cosang = np.tile(cosang,(nt,1,1))
+    Sinang = np.tile(sinang,(nt,1,1))
+    ur = Cosang * atm2['Uwind'] + Sinang * atm2['Vwind']
+    vr = Cosang * atm2['Vwind'] - Sinang * atm2['Uwind']
+ 
+    atm2['Uwind'] = ur
+    atm2['Vwind'] = vr
+        
+    return atm2
+
+def atm_roms_dict_to_netcdf(ATM_R,fn_out):
+    ds = xr.Dataset(
+        data_vars = dict(
+            Tair       = (["tair_time","er","xr"],ATM_R['Tair'],ATM_R['vinfo']['Tair']),
+            Pair       = (["pair_time","er","xr"],ATM_R['Pair'],ATM_R['vinfo']['Pair']),
+            Qair       = (["qair_time","er","xr"],ATM_R['Qair'],ATM_R['vinfo']['Qair']),
+            Uwind      = (["wind_time","er","xr"],ATM_R['Uwind'],ATM_R['vinfo']['Uwind']),
+            Vwind      = (["wind_time","er","xr"],ATM_R['Vwind'],ATM_R['vinfo']['Vwind']),
+            rain       = (["rain_time","er","xr"],ATM_R['rain'],ATM_R['vinfo']['rain']),
+            swrad      = (["srf_time","er","xr"],ATM_R['swrad'],ATM_R['vinfo']['swrad']),
+            lwrad      = (["lrf_time","er","xr"],ATM_R['lwrad'],ATM_R['vinfo']['lwrad']),
+            lwrad_down = (["lrf_time","er","xr"],ATM_R['lwrad_down'],ATM_R['vinfo']['lwrad_down']),
+        ),
+        coords=dict(
+            lat =(["er","xr"],ATM_R['lat'], ATM_R['vinfo']['lat']),
+            lon =(["er","xr"],ATM_R['lon'], ATM_R['vinfo']['lon']),
+            ocean_time = (["time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
+            tair_time = (["tair_time"],ATM_R['ocean_time'], ATM_R['vinfo']['tair_time']),
+            pair_time = (["pair_time"],ATM_R['ocean_time'], ATM_R['vinfo']['pair_time']),
+            qair_time = (["qair_time"],ATM_R['ocean_time'], ATM_R['vinfo']['qair_time']),
+            wind_time = (["wind_time"],ATM_R['ocean_time'], ATM_R['vinfo']['wind_time']),
+            rain_time = (["rain_time"],ATM_R['ocean_time'], ATM_R['vinfo']['rain_time']),
+            srf_time = (["srf_time"],ATM_R['ocean_time'], ATM_R['vinfo']['srf_time']),
+            lrf_time = (["lrf_time"],ATM_R['ocean_time'], ATM_R['vinfo']['lrf_time']),
+        ),
+        attrs={'type':'atmospheric forcing file fields for surface fluxes',
+            'time info':'ocean time is from '+ ATM_R['ocean_time_ref'].strftime("%Y/%m/%d %H:%M:%S") },
+        )
+    print(ds)
+
+    ds.to_netcdf(fn_out)
