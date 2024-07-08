@@ -213,6 +213,134 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method):
     return OCN
 
 
+def earth_rad(lat_deg):
+    """
+    Calculate the Earth radius (m) at a latitude
+    (from http://en.wikipedia.org/wiki/Earth_radius) for oblate spheroid
+
+    INPUT: latitude in degrees
+
+    OUTPUT: Earth radius (m) at that latitute
+    """
+    a = 6378.137 * 1000; # equatorial radius (m)
+    b = 6356.7523 * 1000; # polar radius (m)
+    cl = np.cos(np.pi*lat_deg/180)
+    sl = np.sin(np.pi*lat_deg/180)
+    RE = np.sqrt(((a*a*cl)**2 + (b*b*sl)**2) / ((a*cl)**2 + (b*sl)**2))
+    return RE
+
+def ll2xy(lon, lat, lon0, lat0):
+    """
+    This converts lon, lat into meters relative to lon0, lat0.
+    It should work for lon, lat scalars or arrays.
+    NOTE: lat and lon are in degrees!!
+    """
+    R = earth_rad(lat0)
+    clat = np.cos(np.pi*lat0/180)
+    x = R * clat * np.pi * (lon - lon0) / 180
+    y = R * np.pi * (lat - lat0) / 180
+    return x, y
+
+
+def extrap_nearest_to_masked(X, Y, fld, fld0=0):
+    """
+    INPUT: fld is a 2D array (np.ndarray or np.ma.MaskedArray) on spatial grid X, Y
+    OUTPUT: a numpy array of the same size with no mask
+    and no missing values.        
+    If input is a masked array:        
+        * If it is ALL masked then return an array filled with fld0.         
+        * If it is PARTLY masked use nearest neighbor interpolation to
+        fill missing values, and then return data.        
+        * If it is all unmasked then return the data.    
+    If input is not a masked array:        
+        * Return the array.    
+    """
+    from scipy.spatial import cKDTree
+    
+    # first make sure nans are masked
+    if np.ma.is_masked(fld) == False:
+        fld = np.ma.masked_where(np.isnan(fld), fld)
+        
+    if fld.all() is np.ma.masked:
+        #print('  filling with ' + str(fld0))
+        fldf = fld0 * np.ones(fld.data.shape)
+        fldd = fldf.data
+        checknan(fldd)
+        return fldd
+    else:
+        # do the extrapolation using nearest neighbor
+        fldf = fld.copy() # initialize the "filled" field
+        xyorig = np.array((X[~fld.mask],Y[~fld.mask])).T
+        xynew = np.array((X[fld.mask],Y[fld.mask])).T
+        a = cKDTree(xyorig).query(xynew)
+        aa = a[1]
+        fldf[fld.mask] = fld[~fld.mask][aa]
+        fldd = fldf.data
+        checknan(fldd)
+        return fldd
+
+
+def check_all_nans(z):
+    # this assumes z is a masked array...
+    nfin = z.count()
+    if nfin == 0:
+        allnan = True
+    else:
+        allnan = False
+
+    return allnan
+
+
+def interp_hycom_to_roms(ln_h,lt_h,zz_h,Ln_r,Lt_r,msk_r,Fz):
+    # ln_h and lt_h are hycom lon and lat, vectors
+    # zz_h is the hycom field that is getting interpolated
+    # Ln_r and Lt_r are the roms lon and lat, matrices
+    # msk_r is the roms mask, to NaN values
+    # mf is the refinement of the hycom  grid before going 
+    # nearest neighbor interpolating to ROMS
+
+    # 1st check if field is all NaNs
+    allnan = check_all_nans(zz_h)
+
+    if allnan == True:
+        # if all NaNs, just return all NaNs, no need to interpolate
+        zz_r = np.nan * Ln_r
+    else:
+        Ln_h, Lt_h = np.meshgrid(ln_h, lt_h, indexing='xy')
+        X, Y = ll2xy(Ln_h, Lt_h, ln_h.mean(), lt_h.mean())
+        # fill in the hycom NaNs with nearest neighbor values
+        # ie. land is now filled with numbers
+        zz_hf =  extrap_nearest_to_masked(X, Y, zz_h) 
+
+        # interpolate the filled hycom values to the refined grid
+        #Fz = RegularGridInterpolator((lt_h, ln_h), zz_hf)
+        # change the z values of the interpolator here
+        setattr(Fz,'values',zz_hf)
+
+        lininterp=1
+        if lininterp==1:
+            zz_rf = Fz((Lt_r,Ln_r),method='linear')
+        else:
+            # refine the hycom grid
+            #lnhi = np.linspace(ln_h[0],ln_h[-1],mf*len(ln_h))
+            #lthi = np.linspace(lt_h[0],lt_h[-1],mf*len(lt_h))
+            #Lnhi, Lthi = np.meshgrid(lnhi,lthi, indexing='xy')
+            #zz_hfi=Fz((Lthi,Lnhi))
+
+            # now nearest neighbor interpolate to the ROMS grid
+            #XYin = np.array((Lnhi.flatten(), Lthi.flatten())).T
+            #XYr = np.array((Ln_r.flatten(), Lt_r.flatten())).T
+            # nearest neighbor interpolation from XYin to XYr is done below...
+            #IMr = cKDTree(XYin).query(XYr)[1]    
+            #zz_rf = zz_hf.flatten()[IMr].reshape(Ln_r.shape)
+            print('somethin went wrong!') 
+
+        # now mask zz_r
+        zz_r = zz_rf.copy()
+        zz_r[msk_r==0] = np.nan
+
+    return zz_r
+
 def hycom_to_roms_latlon(HY,RMG):
     # HYcom and RoMsGrid come in as dicts with ROMS variable names    
     # The output of this, HYrm, is a dict with 
@@ -222,8 +350,6 @@ def hycom_to_roms_latlon(HY,RMG):
     # and (lat_v,lon_v).
     
     # set up the interpolator now and pass to function
-    
-
     Fz = RegularGridInterpolator((HY['lat'],HY['lon']),HY['surf_el'])
     
     # the names of the variables that need to go on the ROMS grid
@@ -253,22 +379,24 @@ def hycom_to_roms_latlon(HY,RMG):
 
     for aa in vnames:
         zhy  = HY[aa]
-        if aa=='zeta':
-            HYrm[aa] = interp_hycom_to_roms(lnhy,lthy,zhy,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],rf,Imr,Fz)            
-        elif aa=='temp' or aa=='salt':
-            for bb in range(NZ):
-                zhy2 = zhy[bb,:,:]
-                HYrm[aa][bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],rf,Imr,Fz)
-        elif aa=='u':
-            for bb in range(NZ):
-                zhy2= zhy[bb,:,:]
-                HYrm['u_on_u'][bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_u'],RMG['lat_u'],RMG['mask_u'],rf,Imru,Fz)
-                HYrm['u_on_v'][bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_v'],RMG['lat_v'],RMG['mask_v'],rf,Imrv,Fz)
-        elif aa=='v':
-            for bb in range(NZ):
-                zhy2= zhy[bb,:,:]
-                HYrm['v_on_u'][bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_u'],RMG['lat_u'],RMG['mask_u'],rf,Imru,Fz)
-                HYrm['v_on_v'][bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_v'],RMG['lat_v'],RMG['mask_v'],rf,Imrv,Fz)
+        for cc in range(NT):
+            if aa=='zeta':
+                zhy2 = zhy[cc,:,:]
+                HYrm[aa] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],Fz)            
+            elif aa=='temp' or aa=='salt':
+                for bb in range(NZ):
+                    zhy2 = zhy[cc,bb,:,:]
+                    HYrm[aa][bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],Fz)
+            elif aa=='u':
+                for bb in range(NZ):
+                    zhy2= zhy[bb,:,:]
+                    HYrm['u_on_u'][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_u'],RMG['lat_u'],RMG['mask_u'],Fz)
+                    HYrm['u_on_v'][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_v'],RMG['lat_v'],RMG['mask_v'],Fz)
+            elif aa=='v':
+                for bb in range(NZ):
+                    zhy2= zhy[bb,:,:]
+                    HYrm['v_on_u'][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_u'],RMG['lat_u'],RMG['mask_u'],Fz)
+                    HYrm['v_on_v'][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_v'],RMG['lat_v'],RMG['mask_v'],Fz)
  
     return HYrm
 
