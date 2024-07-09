@@ -279,10 +279,18 @@ def extrap_nearest_to_masked(X, Y, fld, fld0=0):
         checknan(fldd)
         return fldd
 
+def checknan(fld):
+    """
+    A utility function that issues a working if there are nans in fld.
+    """
+    if np.isnan(fld).sum() > 0:
+        print('WARNING: nans in data field')    
+
 
 def check_all_nans(z):
-    # this assumes z is a masked array...
-    nfin = z.count()
+    # this assumes z is NOT a masked array...
+
+    nfin = np.count_nonzero(~np.isnan(z))
     if nfin == 0:
         allnan = True
     else:
@@ -350,10 +358,10 @@ def hycom_to_roms_latlon(HY,RMG):
     # and (lat_v,lon_v).
     
     # set up the interpolator now and pass to function
-    Fz = RegularGridInterpolator((HY['lat'],HY['lon']),HY['surf_el'])
+    Fz = RegularGridInterpolator((HY['lat'],HY['lon']),HY['surf_el'][0,:,:])
     
     # the names of the variables that need to go on the ROMS grid
-    vnames = ['surf_el', 'temp', 'salt', 'u', 'v']
+    vnames = ['surf_el', 'temp', 'sal', 'u', 'v']
     lnhy = HY['lon']
     lthy = HY['lat']
     NR,NC = np.shape(RMG['lon_rho'])
@@ -375,6 +383,8 @@ def hycom_to_roms_latlon(HY,RMG):
     HYrm['lat_v'] = RMG['lat_v']
     HYrm['lon_v'] = RMG['lon_v']
     HYrm['depth'] = HY['depth'] # depths are from hycom
+    HYrm['ocean_time'] = HY['ocean_time']
+    HYrm['ocean_time_ref'] = HY['ocean_time_ref']
 
 
     for aa in vnames:
@@ -383,20 +393,50 @@ def hycom_to_roms_latlon(HY,RMG):
             if aa=='zeta':
                 zhy2 = zhy[cc,:,:]
                 HYrm[aa] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],Fz)            
-            elif aa=='temp' or aa=='salt':
+            elif aa=='temp' or aa=='sal':
                 for bb in range(NZ):
                     zhy2 = zhy[cc,bb,:,:]
-                    HYrm[aa][bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],Fz)
+                    HYrm[aa][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],Fz)
             elif aa=='u':
                 for bb in range(NZ):
-                    zhy2= zhy[bb,:,:]
+                    zhy2= zhy[cc,bb,:,:]
                     HYrm['u_on_u'][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_u'],RMG['lat_u'],RMG['mask_u'],Fz)
                     HYrm['u_on_v'][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_v'],RMG['lat_v'],RMG['mask_v'],Fz)
             elif aa=='v':
                 for bb in range(NZ):
-                    zhy2= zhy[bb,:,:]
+                    zhy2= zhy[cc,bb,:,:]
                     HYrm['v_on_u'][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_u'],RMG['lat_u'],RMG['mask_u'],Fz)
                     HYrm['v_on_v'][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_v'],RMG['lat_v'],RMG['mask_v'],Fz)
- 
+
+    angr = RMG['angle_u']
+    cosang = np.cos(angr)
+    sinang = np.sin(angr)
+    Cosang = np.tile(cosang,(NT,NZ,1,1))
+    Sinang = np.tile(sinang,(NT,NZ,1,1))
+    HYrm['urm'] = Cosang * HYrm['u_on_u'] + Sinang * HYrm['v_on_u']
+    
+    angr = RMG['angle_v']
+    cosang = np.cos(angr)
+    sinang = np.sin(angr)
+    Cosang = np.tile(cosang,(NT,NZ,1,1))
+    Sinang = np.tile(sinang,(NT,NZ,1,1))
+    HYrm['vrm'] = Cosang * HYrm['v_on_v'] - Sinang * HYrm['u_on_v']
+
+
+    # we need the roms depths on the hycom grid.
+    Hu = 0.5 * (RMG['h'][:,1:-1:1] + RMG['h'][:,0:-2:1])
+    Hv = 0.5 * (RMG['h'][0:-2:1,:] + RMG['h'][1:-1:1,:])
+    hz = HYrm['depth']
+    # do ubar
+    for aa in range(NR): # lat loop
+        for bb in range(NC-1): # lon loop
+            for cc in range(NT): # time loop
+                uonhz = HYrm['urm'][cc,:,aa,bb]
+                # get indices of non-nan u
+                ig = np.argwhere(np.isfinite(uonhz))
+                Hz = Hu[aa,bb]
+
+
+
     return HYrm
 
