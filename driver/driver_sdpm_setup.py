@@ -65,7 +65,7 @@ for ii in [LOu,data,LOo]:
         print(str(ii) + ' is already a directory')
 
 # this file comes with git clone and is needed in ...
-fnm0 = str(LO) + '/get_sdpm_info.py'
+fnm0 = str(LO) + '/driver/get_sdpm_info.py'
 # this is the file that the model needs
 fnm = str(LOu) + '/get_sdpm_info.py'
 
@@ -73,8 +73,8 @@ dum = os.path.isfile(fnm)
 # move the standard get_sdpm_info.py file to the user directory.
 if dum == False:
     print('need to copy ' + fnm0)
-    print('to '+ LOu + ' ...')
-    os.system('cp ' + str(fnm0) + ' ' + str(fnm))
+    print('to '+ str(LOu) + ' ...')
+    os.system('scp ' + str(fnm0) + ' ' + str(fnm))
     print('... done')  
 else:
     print(fnm + ' already exists in the right spot')
