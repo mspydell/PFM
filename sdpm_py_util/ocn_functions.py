@@ -376,6 +376,8 @@ def hycom_to_roms_latlon(HY,RMG):
     HYrm['v_on_u'] = np.zeros((NT,NZ, NR, NC-1))
     HYrm['u_on_v'] = np.zeros((NT,NZ, NR-1, NC))
     HYrm['v_on_v'] = np.zeros((NT,NZ, NR-1, NC))
+    HYrm['ubar']   = np.zeros((NT,NR,NC-1))
+    HYrm['vbar']   = np.zeros((NT,NR-1,NC))
     HYrm['lat_rho'] = RMG['lat_rho']
     HYrm['lon_rho'] = RMG['lat_rho']
     HYrm['lat_u'] = RMG['lat_u']
@@ -408,35 +410,97 @@ def hycom_to_roms_latlon(HY,RMG):
                     HYrm['v_on_u'][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_u'],RMG['lat_u'],RMG['mask_u'],Fz)
                     HYrm['v_on_v'][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_v'],RMG['lat_v'],RMG['mask_v'],Fz)
 
+    # rotate the velocities so that the velocities are in roms eta,xi coordinates
     angr = RMG['angle_u']
     cosang = np.cos(angr)
     sinang = np.sin(angr)
-    Cosang = np.tile(cosang,(NT,NZ,1,1))
-    Sinang = np.tile(sinang,(NT,NZ,1,1))
-    HYrm['urm'] = Cosang * HYrm['u_on_u'] + Sinang * HYrm['v_on_u']
+    #Cosang = np.tile(cosang,(NT,NZ,1,1))
+    #Sinang = np.tile(sinang,(NT,NZ,1,1))
+    #urm = Cosang * HYrm['u_on_u'] + Sinang * HYrm['v_on_u']
+    urm = cosang[None,None,:,:] * HYrm['u_on_u'][:,:,:,:] + sinang[None,None,:,:] * HYrm['v_on_u'][:,:,:,:]
+    urm[np.isnan(HYrm['u_on_u'])==1] = np.nan
+    HYrm['urm'] = urm
     
     angr = RMG['angle_v']
     cosang = np.cos(angr)
     sinang = np.sin(angr)
-    Cosang = np.tile(cosang,(NT,NZ,1,1))
-    Sinang = np.tile(sinang,(NT,NZ,1,1))
-    HYrm['vrm'] = Cosang * HYrm['v_on_v'] - Sinang * HYrm['u_on_v']
+    #Cosang = np.tile(cosang,(NT,NZ,1,1))
+    #Sinang = np.tile(sinang,(NT,NZ,1,1))
+    #vrm = Cosang * HYrm['v_on_v'] - Sinang * HYrm['u_on_v']
+    vrm = cosang[None,None,:,:] * HYrm['v_on_v'][:,:,:,:] - sinang[None,None,:,:] * HYrm['u_on_v'][:,:,:,:]
+    vrm[np.isnan(HYrm['u_on_v'])==1] = np.nan
+    HYrm['vrm'] = vrm
 
+    # we need the roms depths on roms u and v grids
+    Hru = 0.5 * (RMG['h'][:,0:-1] + RMG['h'][:,1:])
+    Hrv = 0.5 * (RMG['h'][0:-1,:] + RMG['h'][1:,:])
+    # get the locations in z of the hycom output
+    hyz = HYrm['depth'].copy()
+    
+    #print(np.shape(Hru))
+    #print(np.shape(HYrm['urm']))
 
-    # we need the roms depths on the hycom grid.
-    Hu = 0.5 * (RMG['h'][:,1:-1:1] + RMG['h'][:,0:-2:1])
-    Hv = 0.5 * (RMG['h'][0:-2:1,:] + RMG['h'][1:-1:1,:])
-    hz = HYrm['depth']
-    # do ubar
-    for aa in range(NR): # lat loop
-        for bb in range(NC-1): # lon loop
-            for cc in range(NT): # time loop
-                uonhz = HYrm['urm'][cc,:,aa,bb]
-                # get indices of non-nan u
-                ig = np.argwhere(np.isfinite(uonhz))
-                Hz = Hu[aa,bb]
+    # do ubar, the depth average velocity in roms (eta,xi) coordinates
+    # so ubar and vbar are calculated from hycom depths before interpolating to roms depths
 
+    use_for = 0 
+    if use_for == 1:
+        # for looping this is VERY slow. Need to make faster
+        for aa in range(NR): # lat loop
+            for bb in range(NC-1): # lon loop
+                # get indices of non nan u based depths
+                # this is where the hycom depths are less than the roms depth 
+                igu = np.argwhere(hyz <= Hru[aa,bb])
+                for cc in range(NT): # time loop
+                    uonhyz = HYrm['urm'][cc,:,aa,bb]
+                    ug = uonhyz[igu]
+                    hgu = hyz[igu]
+                    HYrm['ubar'][cc,aa,bb] = ( np.sum( 0.5 * (ug[0:-1]+ug[1:])*(hgu[1:]-hgu[0:-1])) + ug[-1]*(Hru[aa,bb]-hgu[-1]) ) / Hru[aa,bb]
+        # do vbar
+        for aa in range(NR-1): # lat loop
+            for bb in range(NC): # lon loop
+                # get indices of non nan v based depths 
+                igv = np.argwhere(hyz <= Hrv[aa,bb])
+                for cc in range(NT): # time loop
+                    vonhyz = HYrm['vrm'][cc,:,aa,bb]
+                    vg = vonhyz[igv]
+                    hgv = hyz[igv]
+                    HYrm['vbar'][cc,aa,bb] = ( np.sum( 0.5 * (vg[0:-1]+vg[1:])*(hgv[1:]-hgv[0:-1])) + vg[-1]*(Hrv[aa,bb]-hgv[-1]) ) / Hrv[aa,bb]
+    else:
+        # set up mask
 
+        # use python "broadcasting" to mask velocity
+        # and put zeros in the right place
+        utst = Hru[None,:,:] - hyz[:,None,None]
+        vtst = Hrv[None,:,:] - hyz[:,None,None]
+        dz = hyz[1:]-hyz[0:-1]
 
+        umsk = 0*utst
+        vmsk = 0*vtst
+        umsk[utst>=0] = 1 # this should put zeros at all depths below the bottom
+        vmsk[vtst>=0] = 1 # and ones at all depths above the bottom
+
+        HYrm['umsk'] = umsk
+
+        # get velocities and a slice
+        u0 = HYrm['urm'][0,0,:,:].copy()
+        v0 = HYrm['vrm'][0,0,:,:].copy()
+        u2 = HYrm['urm'].copy()
+        v2 = HYrm['vrm'].copy()
+        # fill in the nans for now
+        u2[np.isnan(u2)==1]=0
+        v2[np.isnan(v2)==1]=0
+        for aa in range(NT):
+            uu = umsk * u2[aa,:,:,:]
+            vv = vmsk * v2[aa,:,:,:]
+            um = 0.5 * (uu[0:-1,:,:]+uu[1:,:,:])
+            vm = 0.5 * (vv[0:-1,:,:]+vv[1:,:,:])
+            ub = np.sum( um * dz[:,None,None], axis=0) / Hru
+            vb = np.sum( vm * dz[:,None,None], axis=0) / Hrv
+            ub[np.isnan(u0)==1] = np.nan
+            vb[np.isnan(v0)==1] = np.nan
+            HYrm['ubar'][aa,:,:] = ub
+            HYrm['vbar'][aa,:,:] = vb
+        
     return HYrm
 
