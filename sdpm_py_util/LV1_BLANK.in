@@ -386,14 +386,14 @@ LtracerSponge == F F                            ! temperature, salinity, inert
 ! Set vertical, terrain-following coordinates transformation equation and
 ! stretching function (see below for details), [1:Ngrids].
 
- Vtransform == $VTRANSFORM$               ! transformation equation
- Vstretching == $VSTRETCHING$              ! stretching function
+ Vtransform == $vtransform$               ! transformation equation
+ Vstretching == $vstretching$              ! stretching function
 
 ! Vertical S-coordinates parameters (see below for details), [1:Ngrids].
 
-     THETA_S == $THETA_S$              ! surface stretching parameter
-     THETA_B == $THETA_B$              ! bottom  stretching parameter
-      TCLINE == $TCLINE$               ! critical depth (m)
+     THETA_S == $theta_s$              ! surface stretching parameter
+     THETA_B == $theta_b$              ! bottom  stretching parameter
+      TCLINE == $tcline$               ! critical depth (m)
 
 ! Mean Density and Brunt-Vaisala frequency.
 
