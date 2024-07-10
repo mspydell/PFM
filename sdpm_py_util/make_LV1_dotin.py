@@ -175,10 +175,13 @@ D['tcline']='50.0d0'
 
 
 # END DERIVED VALUES
-
+dot_in_dir = '.'
+run_dir = '.'
+blank_infile = dot_in_dir +'/' +  'LV1_BLANK.in'
+lv1_infile = run_dir + '/' + 'LV1_forecast_run.in'
 ## create liveocean.in ##########################
-f = open(dot_in_dir / 'LV1_BLANK.in','r')
-f2 = open(run_dir / 'LV1_forecast_run.in','w')   # change this name to be LV1_forecast_yyyymmddd_HHMMZ.in
+f = open( blank_infile,'r')
+f2 = open( lv1_infile,'w')   # change this name to be LV1_forecast_yyyymmddd_HHMMZ.in
 for line in f:
     for var in D.keys():
         if '$'+var+'$' in line:
@@ -188,7 +191,6 @@ for line in f:
             line2 = line
     f2.write(line2)
 
-
-    f.close()
+f.close()
 f2.close()
 
