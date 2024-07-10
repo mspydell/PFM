@@ -548,8 +548,8 @@ def ocn_r_2_ICdict(OCN_R,RMG):
     Tcl  = RMG['TCLINE']                      # critical depth (m): 50
 
     # get the roms z's
-    zrom = get_roms_zlevels(Nz,Vtr,Vst,th_s,th_b,Tcl,eta,hb)
-    vgrid = s_coordinate_4(h, theta_b, theta_s, Tcline, N, hraw=hraw, zeta=zeta)    
+    zrom = get_roms_zlevels(Nz,Vtr,Vst,th_s,th_b,Tcl,eta=0*RMG['h'],RMG['h'])
+    zrom = s_coordinate_4(RMG['h'], theta_b, theta_s, Tcline, Nz, hraw=hraw, eta=0*RMG['h'])    
     
     for vn in varin3d:
         ff = OCN_R[vn][i0,:,:,:]
