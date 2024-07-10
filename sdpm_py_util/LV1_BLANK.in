@@ -960,7 +960,7 @@ Dout(iTvdif) == T F     ! temp_vdiff, ...    vertical diffusion
 ! Input NetCDF file names, [1:Ngrids].
 
      GRDNAME == $grid_dir$/LV1_grid.nc
-     ININAME == $ini_fullname$
+     ININAME == $ininame$
      ITLNAME == ocean_itl.nc
      IRPNAME == ocean_irp.nc
      IADNAME == ocean_iad.nc

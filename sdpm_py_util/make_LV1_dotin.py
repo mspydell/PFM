@@ -22,47 +22,48 @@ from datetime import datetime, timedelta
 pth = Path(__file__).absolute().parent.parent.parent / 'lo_tools' / 'lo_tools'
 if str(pth) not in sys.path:
     sys.path.append(str(pth))
-import dot_in_argfun as dfun
-import Lfun
+#import dot_in_argfun as dfun
+#import Lfun
+import get_PFM_info as gpfm
 
 dot_in_dir = Path(__file__).absolute().parent
 
-Ldir = dfun.intro() # this handles all the argument passing
+#Ldir = dfun.intro() # this handles all the argument passing
 
 # check that the folder name matches the arguments (cludgey)
-ppth = Path(__file__).absolute().parent.name
-gridname_check, tag_check, ex_name_check = (str(ppth)).split('_')
-if Ldir['gridname'] != gridname_check:
-    print('WARNING: gridname mismatch')
-    sys.exit()
-if Ldir['tag'] != tag_check:
-    print('WARNING: tag mismatch')
-    sys.exit()
-if Ldir['ex_name'] != ex_name_check:
-    print('WARNING: ex_name mismatch')
-    sys.exit()
+#ppth = Path(__file__).absolute().parent.name
+#gridname_check, tag_check, ex_name_check = (str(ppth)).split('_')
+#if Ldir['gridname'] != gridname_check:
+#    print('WARNING: gridname mismatch')
+#    sys.exit()
+#if Ldir['tag'] != tag_check:
+#    print('WARNING: tag mismatch')
+#    sys.exit()
+#if Ldir['ex_name'] != ex_name_check:
+#    print('WARNING: ex_name mismatch')
+#    sys.exit()
 
-fdt = datetime.strptime(Ldir['date_string'], Lfun.ds_fmt)
-fdt_yesterday = fdt - timedelta(days=1)
+#fdt = datetime.strptime(Ldir['date_string'], Lfun.ds_fmt)
+#fdt_yesterday = fdt - timedelta(days=1)
 
 ## This stuff above is all about directories.  The important thing below
 ## is that the run_dir needs to be set and the 
 
 #### FF fixed up the stuff below.
 
-print(' --- making dot_in for ' + Ldir['date_string'])
+print(' --- making dot_in for ')  # + Ldir['date_string'])
 
 # initialize dict to hold values that we will substitute into the dot_in file.
 D = dict()
 
-D['EX_NAME'] = Ldir['ex_name'].upper()
+#D['EX_NAME'] = Ldir['ex_name'].upper()
 
 # this is where the varinfo.yaml file is located.
 
-D['roms_varinfo_dir'] = Ldir['parent'] / 'LO_roms_source_alt' / 'varinfo'  ## FIX!
+#D['roms_varinfo_dir'] = Ldir['parent'] / 'LO_roms_source_alt' / 'varinfo'  ## FIX!
 #### USER DEFINED VALUES ####
 
-Ldir['run_type'] == 'forecast':
+#Ldir['run_type'] == 'forecast'
 
 ## number of grid points in each direction
 
@@ -74,9 +75,9 @@ D['nrows'] = nrows
 D['nz'] = nz
 
 # The LV1 TILING shoudl be hard coded
- ntilei = 6  # number of tiles in I-direction
- ntilej = 18 # number of tiles in J-direction
- nnodes = 3  # number of nodes to be used.  not for .in file but for slurm!
+ntilei = 6  # number of tiles in I-direction
+ntilej = 18 # number of tiles in J-direction
+nnodes = 3  # number of nodes to be used.  not for .in file but for slurm!
 D['ntilei'] = ntilei
 D['ntilej'] = ntilej
 D['nnodes'] = nnodes
@@ -96,8 +97,8 @@ dtsec = 60
 #    print('Unsupported number of blow ups: %d' % (Ldir['blow_ups']))
 
 D['ndtfast'] = 15
-
-days_to_run = float(Ldir['forecast_days'])
+forecast_days=2;
+days_to_run = forecast_days  #float(Ldir['forecast_days'])
 
 his_interval = 3600 # seconds to define and write to history files
 rst_interval = 1 # days between writing to the restart file (e.g. 5)
@@ -125,7 +126,7 @@ else:
 D['dt'] = dt
 
 # this is the number of time steps to run runs for.  dtsec is BC timestep
-  D['ntimes'] = int(days_to_run*86400/dtsec)
+D['ntimes'] = int(days_to_run*86400/dtsec)
 
 D['ninfo'] = int(his_interval/dtsec) # how often to write info to the log file (# of time steps)
 D['nhis'] = int(his_interval/dtsec) # how often to write to the history files
@@ -133,24 +134,28 @@ D['ndefhis'] = D['nhis'] # how often to create new history files
 D['nrst'] = int(rst_interval*86400/dtsec)
 
 # file location stuff
-date_string_yesterday = fdt_yesterday.strftime(Lfun.ds_fmt)
-D['dstart'] = int(Lfun.datetime_to_modtime(fdt) / 86400.)
+#date_string_yesterday = fdt_yesterday.strftime(Lfun.ds_fmt)
+#D['dstart'] = int(Lfun.datetime_to_modtime(fdt) / 86400.)
 
 # Paths to forcing various file locations
-D['grid_dir'] = Ldir['grid']
-run_dir = Ldir['LOo'] / 'forcing' / Ldir['gridname'] / ('f' + Ldir['date_string']) ## FIX!!
+D['grid_dir'] = gpfm.SDP['grid_lv1']
+run_dir = gpfm.SDP['roms_bin_lv1']     #Ldir['LOo'] / 'forcing' / Ldir['gridname'] / ('f' + Ldir['date_string']) ## FIX!!
 D['run_dir'] = run_dir
 
-if Ldir['start_type'] == 'perfect':
+start_type = 'new'
+
+if start_type == 'perfect':
     nrrec = '-1' # '-1' for a perfect restart
     ininame = 'ocean_rst.nc' # start from restart file
-    ini_fullname = run_dir / ininame
-elif Ldir['start_type'] == 'new':
+else: 
     nrrec = '0' # '0' for a history or ini file
     ininame = 'ocean_ini.nc' # start from ini file
-    ini_fullname = run_dir / D['ocn'] / ininame
+
+
+#ini_fullname = run_dir / ininame    
+
 D['nrrec'] = nrrec
-D['ini_fullname'] = ini_fullname
+D['ininame'] = ininame
 
 vtransform = 2
 vstretching = 4

@@ -23,10 +23,10 @@ data = parent / 'PFM_data'
 LOo = parent / 'PFM_output'
 # where are the grids??? We keep them in LO so that they come with
 # git clone.
-gridl1 = str(LOu) + '/grids/GRID_SDTJRE_LV1.nc'
-gridl2 = str(LOu) + '/grids/GRID_SDTJRE_LV2.nc'
-gridl3 = str(LOu) + '/grids/GRID_SDTJRE_LV3.nc'
-gridl4 = str(LOu) + '/grids/GRID_SDTJRE_LV4.nc'
+grid_lv1 = str(LOu) + '/grids/GRID_SDTJRE_LV1.nc'
+grid_lv2 = str(LOu) + '/grids/GRID_SDTJRE_LV2.nc'
+grid_lv3 = str(LOu) + '/grids/GRID_SDTJRE_LV3.nc'
+grid_lv4 = str(LOu) + '/grids/GRID_SDTJRE_LV4.nc'
 # what is the ocean / atm model used to force?
 ocn_model = 'hycom'
 atm_model = 'wrf'
@@ -64,11 +64,14 @@ if str(HOME) == '/Users/mspydell':
 
 elif (str(HOME) == '/home/mspydell') & ('swell' in HOSTNAME):
     lo_env = 'mss_swell'
-    roms_bin_lv1 = 'path_to_roms_binary_on_swell'
-    roms_bin_lv2 = roms_bin_lv1
-    roms_bin_lv3 = roms_bin_lv2
-    roms_bin_lv4 = roms_bin_lv3
-
+    roms_bin_lv1='/oasis/mspydell/LV1_forecast'    
+#    roms_bin_lv2 = roms_bin_lv1
+#    roms_bin_lv3 = roms_bin_lv2
+#    roms_bin_lv4 = roms_bin_lv3
+else:
+    lo_env = '.'
+    roms_bin_lv1='/oasis/mspydell/LV1_forecast'
+    
 # this it the one place where the model time reference is set
 modtime0 = datetime(1970,1,1,0,0)
 # correct string for time units in ROMS forcing files
@@ -94,18 +97,18 @@ SDP['LO'] = LO
 SDP['LOo'] = LOo
 SDP['LOu'] = LOu
 SDP['data'] = data
-SDP['rombinl1'] = roms_bin_lv1
-SDP['rombinl2'] = roms_bin_lv2
-SDP['rombinl3'] = roms_bin_lv3
-SDP['rombinl4'] = roms_bin_lv4
+SDP['roms_bin_lv1'] = roms_bin_lv1
+#SDP['roms_bin_lv2'] = roms_bin_lv2
+#SDP['roms_bin_lv3'] = roms_bin_lv3
+#SDP['roms_bin_lv4'] = roms_bin_lv4
 SDP['modtime0'] = modtime0
 SDP['roms_time_units'] = roms_time_units
 SDP['ds_fmt'] = ds_fmt
 SDP['forecast_days'] = fdays
-SDP['gridl1'] = gridl1
-SDP['gridl2'] = gridl2
-SDP['gridl3'] = gridl3
-SDP['gridl4'] = gridl4
+SDP['grid_lv1'] = grid_lv1
+#SDP['grid_lv2'] = grid_lv2
+#SDP['grid_lv3'] = grid_lv3
+#SDP['grid_lv4'] = grid_lv4
 SDP['daystep'] = daystep
 SDP['daystep_ocn'] = daystep_ocn
 SDP['daystep_atm'] = daystep_atm
