@@ -18,4 +18,14 @@ def roms_grid_to_dict(fng):
     RM['angle'] = gr.variables['angle'][:,:]
     RM['angle_u'] = 0.5*(RM['angle'][:,0:-1]+RM['angle'][:,1:])
     RM['angle_v'] = 0.5*(RM['angle'][0:-1,:]+RM['angle'][1:,:])
+
+    # this is hard coded here but should be read in from get_PFM_info.py
+    # these are the vertical numbers for LV1 !!!
+    RM['Nz'] = 40                            # number of vertical rho points
+    RM['Vtransform']=2                       # transformation equation
+    RM['Vstretching'] = 4                    # stretching function
+    RM['THETA_S'] = 8.0                      # surface stretching parameter
+    RM['THETA_B'] = 3.0                      # bottom  stretching parameter
+    RM['TCLINE'] = 50.0                      # critical depth (m)
+
     return RM

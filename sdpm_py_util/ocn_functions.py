@@ -504,3 +504,58 @@ def hycom_to_roms_latlon(HY,RMG):
         
     return HYrm
 
+def get_roms_zlevels(Nz,Vtr,Vst,th_s,th_b,Tcl,eta,hb):
+    # this return zrom a 3d (z,lat,lon) array of roms depths in meters
+    # Nz, Vtr, Vst, th_s, th_b, Tcl are scalars that define the vertical
+    # roms stretching. eta and hb are both 2d arrays of surface height and
+    # the roms bottom. both are (lat,lon)
+
+
+    return zrom
+
+def ocn_r_2_ICdict(OCN_R,RMG):
+    # this slices the OCN_R dictionary at the first time for all needed 
+    # variables for the initial condition for roms
+    # it then interpolates from the hycom z values that the vars are on
+    # and places them on the ROMS z levels
+    # this returns another dictionary OCN_IC that has all needed fields 
+    # for making the .nc file
+
+    i0 = 0 # we will use the first time as the initial condition
+    
+    OCN_IC = dict()
+    # fill in the dict with slicing
+    OCN_IC['ocean_time'] = OCN_R['ocean_time'][i0]
+    OCN_IC['surf_el'] = OCN_R['surf_el'][i0,:,:]
+    OCN_IC['ubar'] = OCN_R['ubar'][i0,:,:]
+    OCN_IC['vbar'] = OCN_R['vbar'][i0,:,:]
+
+    # the variables that are the same
+    var_same = ['lat_rho','lon_rho','lat_u','lon_u','lat_v','lon_v','ocean_time_ref']
+    for vn in var_same:
+        OCN_IC[vn] = OCN_R[vn]
+
+    # these variables need to be time sliced and then vertically interpolated
+    varin3d = ['temp','sal','urm','vrm']
+    zhy = OCN_R['depth']
+    eta = OCN_IC['surf_el']
+
+    Nz   = RMG['Nz']                              # number of vertical levels: 40
+    Vtr  = RMG['Vtransform']                       # transformation equation: 2
+    Vst  = RMG['Vstretching']                    # stretching function: 4 
+    th_s = RMG['THETA_S']                      # surface stretching parameter: 8
+    th_b = RMG['THETA_B']                      # bottom  stretching parameter: 3
+    Tcl  = RMG['TCLINE']                      # critical depth (m): 50
+
+    # get the roms z's
+    zrom = get_roms_zlevels(Nz,Vtr,Vst,th_s,th_b,Tcl,eta,hb)
+    vgrid = s_coordinate_4(h, theta_b, theta_s, Tcline, N, hraw=hraw, zeta=zeta)    
+    
+    for vn in varin3d:
+        ff = OCN_R[vn][i0,:,:,:]
+
+
+    
+
+    return OCN_IC
+
