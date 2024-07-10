@@ -45,7 +45,10 @@ if Ldir['ex_name'] != ex_name_check:
 fdt = datetime.strptime(Ldir['date_string'], Lfun.ds_fmt)
 fdt_yesterday = fdt - timedelta(days=1)
 
-multi_core = True # use more than one core
+## This stuff above is all about directories.  The important thing below
+## is that the run_dir needs to be set and the 
+
+#### FF fixed up the stuff below.
 
 print(' --- making dot_in for ' + Ldir['date_string'])
 
@@ -56,7 +59,7 @@ D['EX_NAME'] = Ldir['ex_name'].upper()
 
 # this is where the varinfo.yaml file is located.
 
-D['roms_varinfo_dir'] = Ldir['parent'] / 'LO_roms_source_alt' / 'varinfo'
+D['roms_varinfo_dir'] = Ldir['parent'] / 'LO_roms_source_alt' / 'varinfo'  ## FIX!
 #### USER DEFINED VALUES ####
 
 Ldir['run_type'] == 'forecast':
@@ -70,10 +73,10 @@ D['ncols'] = ncols
 D['nrows'] = nrows
 D['nz'] = nz
 
-# The TILING shoudl be hard coded
- ntilei = '6' # number of tiles in I-direction
- ntilej = '18' # number of tiles in J-direction
- nnodes = '3'  # number of nodes to be used.  not for .in file but for slurm!
+# The LV1 TILING shoudl be hard coded
+ ntilei = 6  # number of tiles in I-direction
+ ntilej = 18 # number of tiles in J-direction
+ nnodes = 3  # number of nodes to be used.  not for .in file but for slurm!
 D['ntilei'] = ntilei
 D['ntilej'] = ntilej
 D['nnodes'] = nnodes
@@ -90,7 +93,7 @@ dtsec = 60
 #elif Ldir['blow_ups'] == 2:
 #    dtsec = 30
 #else:
-    print('Unsupported number of blow ups: %d' % (Ldir['blow_ups']))
+#    print('Unsupported number of blow ups: %d' % (Ldir['blow_ups']))
 
 D['ndtfast'] = 15
 
@@ -102,25 +105,14 @@ rst_interval = 1 # days between writing to the restart file (e.g. 5)
 # Find which forcings to look for (search the csv file in this directory).
 # We use the csv file because driver_roms_mox.py also uses it to copy forcing
 # without extra stuff.
-this_dir = Path(__file__).absolute().parent
-with open(this_dir / 'forcing_list.csv', 'r') as f:
-    for line in f:
-        which_force, force_choice = line.strip().split(',')
-        D[which_force] = force_choice
+#this_dir = Path(__file__).absolute().parent
+#with open(this_dir / 'forcing_list.csv', 'r') as f:
+#    for line in f:
+#        which_force, force_choice = line.strip().split(',')
+#        D[which_force] = force_choice
         # Note that the last of these will not be a force, but will
         # instead encode the open boundaries, e.g.: D['open'] = 'NSW'
 
-## FF this should be hard coded        
-# populate open boundary choices
-#for O in list('NSEW'):
-#    if O in list(D['open']):
-#        D[O+'fs'] = 'Cha'
-#        D[O+'2']  = 'Fla'
-#        D[O+'3']  = 'RadNud'
-#    else:
-#        D[O+'fs'] = 'Clo'
-#        D[O+'2']  = 'Clo'
-#        D[O+'3']  = 'Clo'
 
 #### END USER DEFINED VALUES ####
 
@@ -146,17 +138,17 @@ D['dstart'] = int(Lfun.datetime_to_modtime(fdt) / 86400.)
 
 # Paths to forcing various file locations
 D['grid_dir'] = Ldir['grid']
-force_dir = Ldir['LOo'] / 'forcing' / Ldir['gridname'] / ('f' + Ldir['date_string'])
-D['force_dir'] = force_dir
+run_dir = Ldir['LOo'] / 'forcing' / Ldir['gridname'] / ('f' + Ldir['date_string']) ## FIX!!
+D['run_dir'] = run_dir
 
 if Ldir['start_type'] == 'perfect':
     nrrec = '-1' # '-1' for a perfect restart
     ininame = 'ocean_rst.nc' # start from restart file
-    ini_fullname = out_dir_yesterday / ininame
+    ini_fullname = run_dir / ininame
 elif Ldir['start_type'] == 'new':
     nrrec = '0' # '0' for a history or ini file
     ininame = 'ocean_ini.nc' # start from ini file
-    ini_fullname = force_dir / D['ocn'] / ininame
+    ini_fullname = run_dir / D['ocn'] / ininame
 D['nrrec'] = nrrec
 D['ini_fullname'] = ini_fullname
 
@@ -168,31 +160,20 @@ D['theta_s']='8.0d0'
 D['theta_b']='3.0d0'
 D['tcline']='50.0d0'
 
-# get horizontal coordinate info
-#with open(Ldir['grid'] / 'XY_COORDINATE_INFO.csv','r') as xyf:
-#    for line in xyf:
-#        ltup = line.split(',')
-#        D[ltup[0]] = int(ltup[1]) - 2
-#
-# get vertical coordinate info
-#with open(Ldir['grid'] / 'S_COORDINATE_INFO.csv','r') as sf:
-#    for line in sf:
-#        ltup = line.split(',')
-#        if ltup[0] != 'ITEMS':
-#            D[ltup[0]] = int(ltup[1])
+
 
 # the output directory and the one from the day before
-out_dir = Ldir['roms_out'] / Ldir['gtagex'] / ('f' + Ldir['date_string'])
-D['out_dir'] = out_dir
-out_dir_yesterday = Ldir['roms_out'] / Ldir['gtagex'] / ('f' + date_string_yesterday)
-Lfun.make_dir(out_dir, clean=True) # make sure it exists and is empty
+#out_dir = Ldir['roms_out'] / Ldir['gtagex'] / ('f' + Ldir['date_string'])
+#D['out_dir'] = out_dir
+#out_dir_yesterday = Ldir['roms_out'] / Ldir['gtagex'] / ('f' + date_string_yesterday)
+#Lfun.make_dir(out_dir, clean=True) # make sure it exists and is empty
 
 
 # END DERIVED VALUES
 
 ## create liveocean.in ##########################
 f = open(dot_in_dir / 'LV1_BLANK.in','r')
-f2 = open(out_dir / 'liveocean.in','w')   # change this name to be LV1_forecast_yyyymmddd_HHMMZ.in
+f2 = open(run_dir / 'LV1_forecast_run.in','w')   # change this name to be LV1_forecast_yyyymmddd_HHMMZ.in
 for line in f:
     for var in D.keys():
         if '$'+var+'$' in line:
@@ -201,6 +182,8 @@ for line in f:
         else:
             line2 = line
     f2.write(line2)
-f.close()
+
+
+    f.close()
 f2.close()
 

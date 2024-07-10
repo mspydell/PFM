@@ -391,9 +391,9 @@ LtracerSponge == F F                            ! temperature, salinity, inert
 
 ! Vertical S-coordinates parameters (see below for details), [1:Ngrids].
 
-     THETA_S == $THETA_S$.0d0              ! surface stretching parameter
-     THETA_B == $THETA_B$.0d0              ! bottom  stretching parameter
-      TCLINE == $TCLINE$.0d0               ! critical depth (m)
+     THETA_S == $THETA_S$              ! surface stretching parameter
+     THETA_B == $THETA_B$              ! bottom  stretching parameter
+      TCLINE == $TCLINE$               ! critical depth (m)
 
 ! Mean Density and Brunt-Vaisala frequency.
 
@@ -959,7 +959,7 @@ Dout(iTvdif) == T F     ! temp_vdiff, ...    vertical diffusion
 
 ! Input NetCDF file names, [1:Ngrids].
 
-     GRDNAME == $grid_dir$/grid.nc
+     GRDNAME == $grid_dir$/LV1_grid.nc
      ININAME == $ini_fullname$
      ITLNAME == ocean_itl.nc
      IRPNAME == ocean_irp.nc
@@ -985,7 +985,7 @@ Dout(iTvdif) == T F     ! temp_vdiff, ...    vertical diffusion
      CLMNAME == ocean_clm.nc
 
      NBCFILES == 1                          ! number of boundary files
-     BRYNAME == $force_dir$/$ocn$/LV1_ocean_bry.nc
+     BRYNAME == $run_dir$/LV1_ocean_bry.nc
 
 ! Input climatology nudging coefficients file name.
 
@@ -997,7 +997,7 @@ Dout(iTvdif) == T F     ! temp_vdiff, ...    vertical diffusion
 
 ! Input tidal forcing file name.
 
-    TIDENAME == $force_dir$/$tide$/tides.nc
+    TIDENAME == $run_dir$/tides.nc
 
 ! Input forcing NetCDF file name(s).
 !
@@ -1017,31 +1017,24 @@ Dout(iTvdif) == T F     ! temp_vdiff, ...    vertical diffusion
 ! continuation (\) or a vertical bar (|) symbol after each entry, except
 ! the last one.
 
-     NFFILES == 8                          ! number of unique forcing files
+     NFFILES == 1                          ! number of unique forcing files
 
-     FRCNAME == $force_dir$/$atm$/lwrad_down.nc \
-                $force_dir$/$atm$/Pair.nc \
-                $force_dir$/$atm$/Qair.nc \
-                $force_dir$/$atm$/rain.nc \
-                $force_dir$/$atm$/swrad.nc \
-                $force_dir$/$atm$/Tair.nc \
-                $force_dir$/$atm$/Uwind.nc \
-                $force_dir$/$atm$/Vwind.nc  
+     FRCNAME == $run_dir$/ATM_FORCING.nc
 
 
 ! Output NetCDF file names, [1:Ngrids].
 
      DAINAME == ocean_dai.nc
      GSTNAME == ocean_gst.nc
-     RSTNAME == $out_dir$/ocean_rst.nc
-     HISNAME == $out_dir$/ocean_his.nc
+     RSTNAME == $run_dir$/LV1_ocean_rst.nc
+     HISNAME == $run_dir$/LV1_ocean_his.nc
      QCKNAME == ocean_qck.nc
      TLMNAME == ocean_tlm.nc
      TLFNAME == ocean_tlf.nc
      ADJNAME == ocean_adj.nc
      AVGNAME == ocean_avg_coupled.nc
      HARNAME == ocean_har.nc
-     DIANAME == $out_dir$/ocean_dia.nc
+     DIANAME == $run_dir$/ocean_dia.nc
      STANAME == ocean_sta.nc
      FLTNAME == ocean_flt.nc
 
