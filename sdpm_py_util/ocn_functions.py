@@ -373,13 +373,14 @@ def hycom_to_roms_latlon(HY,RMG):
     NT = len(HY['ocean_time'])
 
     HYrm = dict()
+    Tmp = dict()
     HYrm['surf_el'] = np.zeros((NT,NR, NC))
     HYrm['sal'] = np.zeros((NT,NZ, NR, NC))
     HYrm['temp'] = np.zeros((NT,NZ, NR, NC))
-    HYrm['u_on_u'] = np.zeros((NT,NZ, NR, NC-1))
-    HYrm['v_on_u'] = np.zeros((NT,NZ, NR, NC-1))
-    HYrm['u_on_v'] = np.zeros((NT,NZ, NR-1, NC))
-    HYrm['v_on_v'] = np.zeros((NT,NZ, NR-1, NC))
+    Tmp['u_on_u'] = np.zeros((NT,NZ, NR, NC-1))
+    Tmp['v_on_u'] = np.zeros((NT,NZ, NR, NC-1))
+    Tmp['u_on_v'] = np.zeros((NT,NZ, NR-1, NC))
+    Tmp['v_on_v'] = np.zeros((NT,NZ, NR-1, NC))
     HYrm['ubar']   = np.zeros((NT,NR,NC-1))
     HYrm['vbar']   = np.zeros((NT,NR-1,NC))
     HYrm['lat_rho'] = RMG['lat_rho']
@@ -406,13 +407,13 @@ def hycom_to_roms_latlon(HY,RMG):
             elif aa=='u':
                 for bb in range(NZ):
                     zhy2= zhy[cc,bb,:,:]
-                    HYrm['u_on_u'][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_u'],RMG['lat_u'],RMG['mask_u'],Fz)
-                    HYrm['u_on_v'][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_v'],RMG['lat_v'],RMG['mask_v'],Fz)
+                    Tmp['u_on_u'][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_u'],RMG['lat_u'],RMG['mask_u'],Fz)
+                    Tmp['u_on_v'][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_v'],RMG['lat_v'],RMG['mask_v'],Fz)
             elif aa=='v':
                 for bb in range(NZ):
                     zhy2= zhy[cc,bb,:,:]
-                    HYrm['v_on_u'][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_u'],RMG['lat_u'],RMG['mask_u'],Fz)
-                    HYrm['v_on_v'][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_v'],RMG['lat_v'],RMG['mask_v'],Fz)
+                    Tmp['v_on_u'][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_u'],RMG['lat_u'],RMG['mask_u'],Fz)
+                    Tmp['v_on_v'][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_v'],RMG['lat_v'],RMG['mask_v'],Fz)
 
     # rotate the velocities so that the velocities are in roms eta,xi coordinates
     angr = RMG['angle_u']
@@ -421,8 +422,8 @@ def hycom_to_roms_latlon(HY,RMG):
     #Cosang = np.tile(cosang,(NT,NZ,1,1))
     #Sinang = np.tile(sinang,(NT,NZ,1,1))
     #urm = Cosang * HYrm['u_on_u'] + Sinang * HYrm['v_on_u']
-    urm = cosang[None,None,:,:] * HYrm['u_on_u'][:,:,:,:] + sinang[None,None,:,:] * HYrm['v_on_u'][:,:,:,:]
-    urm[np.isnan(HYrm['u_on_u'])==1] = np.nan
+    urm = cosang[None,None,:,:] * Tmp['u_on_u'][:,:,:,:] + sinang[None,None,:,:] * Tmp['v_on_u'][:,:,:,:]
+    urm[np.isnan(Tmp['u_on_u'])==1] = np.nan
     HYrm['urm'] = urm
     
     angr = RMG['angle_v']
@@ -431,16 +432,15 @@ def hycom_to_roms_latlon(HY,RMG):
     #Cosang = np.tile(cosang,(NT,NZ,1,1))
     #Sinang = np.tile(sinang,(NT,NZ,1,1))
     #vrm = Cosang * HYrm['v_on_v'] - Sinang * HYrm['u_on_v']
-    vrm = cosang[None,None,:,:] * HYrm['v_on_v'][:,:,:,:] - sinang[None,None,:,:] * HYrm['u_on_v'][:,:,:,:]
-    vrm[np.isnan(HYrm['u_on_v'])==1] = np.nan
+    vrm = cosang[None,None,:,:] * Tmp['v_on_v'][:,:,:,:] - sinang[None,None,:,:] * Tmp['u_on_v'][:,:,:,:]
+    vrm[np.isnan(Tmp['u_on_v'])==1] = np.nan
     HYrm['vrm'] = vrm
-
+    
     # we need the roms depths on roms u and v grids
     Hru = 0.5 * (RMG['h'][:,0:-1] + RMG['h'][:,1:])
     Hrv = 0.5 * (RMG['h'][0:-1,:] + RMG['h'][1:,:])
     # get the locations in z of the hycom output
     hyz = HYrm['depth'].copy()
-    
     #print(np.shape(Hru))
     #print(np.shape(HYrm['urm']))
 
@@ -477,6 +477,7 @@ def hycom_to_roms_latlon(HY,RMG):
         # and put zeros in the right place
         utst = Hru[None,:,:] - hyz[:,None,None]
         vtst = Hrv[None,:,:] - hyz[:,None,None]
+    
         dz = hyz[1:]-hyz[0:-1]
 
         umsk = 0*utst
@@ -484,27 +485,61 @@ def hycom_to_roms_latlon(HY,RMG):
         umsk[utst>=0] = 1 # this should put zeros at all depths below the bottom
         vmsk[vtst>=0] = 1 # and ones at all depths above the bottom
 
-        HYrm['umsk'] = umsk
+        # put zeros at hycom depths below the bottom
+        HYrm['urm'] = HYrm['urm']*umsk[None,:,:,:]
+        HYrm['vrm'] = HYrm['vrm']*vmsk[None,:,:,:]
+
+        #HYrm['umsk'] = umsk
 
         # get velocities and a slice
-        u0 = HYrm['urm'][0,0,:,:].copy()
-        v0 = HYrm['vrm'][0,0,:,:].copy()
-        u2 = HYrm['urm'].copy()
-        v2 = HYrm['vrm'].copy()
+#        u0 = HYrm['urm'][0,0,:,:].copy()
+#        v0 = HYrm['vrm'][0,0,:,:].copy()
+        # make copies to make ubar
+        uu = HYrm['urm'].copy()
+        vv = HYrm['vrm'].copy()
+
+        # make the 4d mask of where there is water
+        # roms land will still be nan'd 
+        oo = np.ones(np.shape(HYrm['ocean_time']))
+        umsk4d = oo[:,None,None,None] * umsk[None,:,:,:]
+        vmsk4d = oo[:,None,None,None] * vmsk[None,:,:,:]
+
+        #print(np.shape(umsk4d))
+        #print(np.shape(HYrm['urm']))
+
+    #    HYrm['urm'][umsk4d==0] = np.nan
+    #    HYrm['vrm'][vmsk4d==0] = np.nan
+
         # fill in the nans for now
-        u2[np.isnan(u2)==1]=0
-        v2[np.isnan(v2)==1]=0
-        for aa in range(NT):
-            uu = umsk * u2[aa,:,:,:]
-            vv = vmsk * v2[aa,:,:,:]
-            um = 0.5 * (uu[0:-1,:,:]+uu[1:,:,:])
-            vm = 0.5 * (vv[0:-1,:,:]+vv[1:,:,:])
-            ub = np.sum( um * dz[:,None,None], axis=0) / Hru
-            vb = np.sum( vm * dz[:,None,None], axis=0) / Hrv
-            ub[np.isnan(u0)==1] = np.nan
-            vb[np.isnan(v0)==1] = np.nan
-            HYrm['ubar'][aa,:,:] = ub
-            HYrm['vbar'][aa,:,:] = vb
+        # this fills the land mask too
+        uu[np.isnan(uu)==1]=0
+        vv[np.isnan(vv)==1]=0
+        #u2[np.isnan(u2)==1]=0
+        #v2[np.isnan(v2)==1]=0
+
+        ubar = np.squeeze( np.sum( 0.5 * (uu[:,0:-1,:,:]+uu[:,1:,:,:]) * dz[None,:,None,None], axis=1 ) ) / Hru[None,:,:]
+        vbar = np.squeeze( np.sum( 0.5 * (vv[:,0:-1,:,:]+vv[:,1:,:,:]) * dz[None,:,None,None], axis=1 ) ) / Hrv[None,:,:]
+
+        # reapply the land mask...
+        umsk2 = np.squeeze( np.isnan( urm[:,0,:,:]))
+        vmsk2 = np.squeeze( np.isnan( vrm[:,0,:,:]))
+        ubar[umsk2==1] = np.nan
+        vbar[vmsk2==1] = np.nan
+
+        HYrm['ubar'] = ubar
+        HYrm['vbar'] = vbar
+ 
+ #       for aa in range(NT):
+ #           uu = umsk * u2[aa,:,:,:]
+ #           vv = vmsk * v2[aa,:,:,:]
+ #           um = 0.5 * (uu[0:-1,:,:]+uu[1:,:,:])
+ #           vm = 0.5 * (vv[0:-1,:,:]+vv[1:,:,:])
+ #           ub = np.sum( um * dz[:,None,None], axis=0) / Hru
+ #           vb = np.sum( vm * dz[:,None,None], axis=0) / Hrv
+ #           ub[np.isnan(u0)==1] = np.nan
+ #           vb[np.isnan(v0)==1] = np.nan
+ #           HYrm['ubar'][aa,:,:] = ub
+ #           HYrm['vbar'][aa,:,:] = vb
         
     return HYrm
 
