@@ -12,6 +12,10 @@ import xarray as xr
 import netCDF4 as nc
 from scipy.interpolate import RegularGridInterpolator
 
+import util_functions as utlfuns 
+from util_functions import s_coordinate_4
+
+
 
 def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method):
     from datetime import datetime
@@ -548,11 +552,16 @@ def ocn_r_2_ICdict(OCN_R,RMG):
     Tcl  = RMG['TCLINE']                      # critical depth (m): 50
 
     # get the roms z's
-    zrom = get_roms_zlevels(Nz,Vtr,Vst,th_s,th_b,Tcl,eta=0*RMG['h'],RMG['h'])
-    zrom = s_coordinate_4(RMG['h'], theta_b, theta_s, Tcline, Nz, hraw=hraw, eta=0*RMG['h'])    
-    
-    for vn in varin3d:
-        ff = OCN_R[vn][i0,:,:,:]
+    #zrom = get_roms_zlevels(Nz,Vtr,Vst,th_s,th_b,Tcl,eta=0*RMG['h'],RMG['h'])
+    #zrom = s_coordinate_4(RMG['h'], theta_b, theta_s, Tcline, Nz, hraw=hraw, eta=0*RMG['h'])    
+
+    hraw = None
+    h = RMG['h']
+    eta = 0 * h
+    zrom = s_coordinate_4(h, 3.0 , 8.0 , 50.0 , 40, hraw=hraw, zeta=eta)
+
+    #for vn in varin3d:
+    #    ff = OCN_R[vn][i0,:,:,:]
 
 
     
