@@ -18,13 +18,17 @@ be really useful for debugging.
 from pathlib import Path
 import sys
 from datetime import datetime, timedelta
+from get_PFM_info import get_PFM_info
 
 pth = Path(__file__).absolute().parent.parent.parent / 'lo_tools' / 'lo_tools'
 if str(pth) not in sys.path:
     sys.path.append(str(pth))
 #import dot_in_argfun as dfun
 #import Lfun
-import get_PFM_info as gpfm
+
+
+PFM = get_PFM_info()
+
 
 dot_in_dir = Path(__file__).absolute().parent
 
@@ -138,8 +142,8 @@ D['nrst'] = int(rst_interval*86400/dtsec)
 #D['dstart'] = int(Lfun.datetime_to_modtime(fdt) / 86400.)
 
 # Paths to forcing various file locations
-D['grid_dir'] = gpfm.SDP['grid_lv1']
-run_dir = gpfm.SDP['roms_bin_lv1']     #Ldir['LOo'] / 'forcing' / Ldir['gridname'] / ('f' + Ldir['date_string']) ## FIX!!
+D['grid_dir'] = PFM['grid_lv1']
+run_dir = PFM['roms_bin_lv1']     #Ldir['LOo'] / 'forcing' / Ldir['gridname'] / ('f' + Ldir['date_string']) ## FIX!!
 D['run_dir'] = run_dir
 
 start_type = 'new'
