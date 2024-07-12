@@ -19,6 +19,7 @@ from pathlib import Path
 import sys
 from datetime import datetime, timedelta
 from get_PFM_info import get_PFM_info
+from get_PFM_info import make_PFM_directory
 
 pth = Path(__file__).absolute().parent.parent.parent / 'lo_tools' / 'lo_tools'
 if str(pth) not in sys.path:
@@ -142,8 +143,8 @@ D['nrst'] = int(rst_interval*86400/dtsec)
 #D['dstart'] = int(Lfun.datetime_to_modtime(fdt) / 86400.)
 
 # Paths to forcing various file locations
-D['grid_dir'] = PFM['grid_lv1']
-run_dir = PFM['roms_bin_lv1']     #Ldir['LOo'] / 'forcing' / Ldir['gridname'] / ('f' + Ldir['date_string']) ## FIX!!
+D['grid_dir'] = PFM['lv1_grid_file']
+D['lv1_run_dir'] = PFM['lv1_run_dir']     #Ldir['LOo'] / 'forcing' / Ldir['gridname'] / ('f' + Ldir['date_string']) ## FIX!!
 D['run_dir'] = run_dir
 
 start_type = 'new'

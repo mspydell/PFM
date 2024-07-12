@@ -49,7 +49,7 @@ def get_PFM_info():
 #    LOo = parent / 'PFM_output'
 # where are the grids??? We keep them in LO so that they come with
 # git clone.
-   lv1_grid_file = str(lv1_grid_dir) + '/GRID_SDTJRE_LV1_rx020_hmask.nc'
+   lv1_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV1_rx020_hmask.nc'
 #   lv2_grid_file = str(lv2_grid_dir) + '/GRID_SDTJRE_LV1_rx020_hmask.nc'
 #   lv3_grid_file = str(lv3_grid_dir) + '/GRID_SDTJRE_LV1_rx020_hmask.nc'   
 
@@ -106,19 +106,16 @@ def get_PFM_info():
    SDP['lv1_his_dir'] = lv1_his_dir
    SDP['lv1_plot_dir'] = lv1_plot_dir         
    SDP['lv1_grid_file'] = lv1_grid_file
-   SDP['lv2_run_dir'] = lv2_run_dir
-   SDP['lv2_grid_dir'] = pfm_grid_dir
-   SDP['lv2_his_dir'] = lv2_his_dir
-   SDP['lv2_plot_dir'] = lv2_plot_dir         
+#   SDP['lv2_run_dir'] = lv2_run_dir
+#   SDP['lv2_grid_dir'] = pfm_grid_dir
+#   SDP['lv2_his_dir'] = lv2_his_dir
+#   SDP['lv2_plot_dir'] = lv2_plot_dir         
 
    SDP['modtime0'] = modtime0
    SDP['roms_time_units'] = roms_time_units
    SDP['ds_fmt'] = ds_fmt
    SDP['forecast_days'] = fdays
-   SDP['grid_lv1'] = grid_lv1
-    #SDP['grid_lv2'] = grid_lv2
-    #SDP['grid_lv3'] = grid_lv3
-    #SDP['grid_lv4'] = grid_lv4
+ 
    SDP['daystep'] = daystep
    SDP['daystep_ocn'] = daystep_ocn
    SDP['daystep_atm'] = daystep_atm
@@ -129,3 +126,48 @@ def get_PFM_info():
 
    return SDP
 
+
+def make_PFM_directory( parent ):
+
+
+   pfm_root_dir = parent + '/PFM/'
+
+   pfm_grid_dir =  pfm_root_dir +  'Grids'       
+   lv1_root_dir =  pfm_root_dir +  'LV1_Forecast/'
+   lv1_run_dir = lv1_root_dir + 'Run'
+   lv1_his_dir = lv1_root_dir + 'His'
+   lv1_forc_dir = lv1_root_dir + 'Forc'
+   lv1_plot_dir = lv1_root_dir + 'Plots'          
+
+   if os.path.isdir(pfm_root_dir)==FALSE:
+       os.mkdir(pfm_root_dir)
+   else:
+       printf( pfm_root_dir + ' exists')
+
+   if os.path.isdir(lv1_root_dir)==FALSE:
+       os.mkdir(lv1_root_dir)
+   else:
+       printf( lv1_root_dir + ' exists')
+
+   if os.path.isdir(lv1_run_dir)==FALSE:
+       os.mkdir(lv1_run_dir)
+   else:
+       printf( lv1_run_dir + ' exists')
+
+   if os.path.isdir(lv1_his_dir)==FALSE:
+       os.mkdir(lv1_his_dir)
+   else:
+       printf( lv1_his_dir + ' exists')
+
+   if os.path.isdir(lv1_forc_dir)==FALSE:
+       os.mkdir(lv1_forc_dir)
+   else:
+       printf( lv1_forc_dir + ' exists')
+
+   if os.path.isdir(lv1_plot_dir)==FALSE:
+       os.mkdir(lv1_plot_dir)
+   else:
+       printf( lv1_plot_dir + ' exists')
+
+   return
+    
