@@ -27,7 +27,7 @@ import ocn_functions as ocnfuns
 import grid_functions as grdfuns
 import util_functions as utlfuns 
 from util_functions import s_coordinate_4
-
+from get_PFM_info import get_PFM_info
 # row after setting suitable values for theta_b, theta_s, Tcline, Nz, hraw, eta, we could probably run the line:
 
 PFM=get_PFM_info()
@@ -46,10 +46,8 @@ atm_mod = 'nam_nest'
 get_method = 'open_dap_nc'
 
 # get the ROMS grid as a dict
-fngr = '/Users/mspydell/research/FF2024/models/SDPM_mss/PFM_user/grids/GRID_SDTJRE_LV1.nc'
-RMG = grdfuns.roms_grid_to_dict(fngr)
-
-
+#fngr = '/Users/mspydell/research/FF2024/models/SDPM_mss/PFM_user/grids/GRID_SDTJRE_LV1.nc'
+RMG = grdfuns.roms_grid_to_dict(PFM['grid_lv1'])
 
 # %%
 

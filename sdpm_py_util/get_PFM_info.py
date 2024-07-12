@@ -22,32 +22,21 @@ def get_PFM_info():
 
    print('hello there')
    print(HOSTNAME)
-   lv1_root_dir = '.'
    
    if str(HOSTNAME) == 'swell':
-       lv1_root_dir = '/oasis/PFM/LV1_forecast'
-       lv1_grid_dir = '/oasis/PFM/grids'
+       pfm_root_dir = '/scratch/PFM/'
        lo_env = 'mss_swell'
-   else:      
-       lo_env = 'mss_mac'
-       lv1_root_dir = '.'
-       lv1_grid_dir = '.'
+   else:
+       pfm_root_dir = '.'
+       lo_env = 'mss'
 
-   roms_bin_lv1 = lv1_root_dir
-    
-#        roms_bin_lv2 = roms_bin_lv1
-#        roms_bin_lv3 = roms_bin_lv2
-#        roms_bin_lv4 = roms_bin_lv3
-
-#    elif (str(HOME) == '/home/mspydell') & ('swell' in HOSTNAME):
-#        lo_env = 'mss_swell'
-#        roms_bin_lv1='/oasis/mspydell/LV1_forecast'    
-#    roms_bin_lv2 = roms_bin_lv1
-#    roms_bin_lv3 = roms_bin_lv2
-#    roms_bin_lv4 = roms_bin_lv3
-#    else:
-#        lo_env = '.'
-#        roms_bin_lv1='/oasis/mspydell/LV1_forecast'
+   pfm_grid_dir =  pfm_root_dir +  'Grids'       
+   lv1_root_dir =  pfm_root_dir +  'LV1_Forecast/'
+   lv1_run_dir = lv1_root_dir + 'Run'
+   lv1_his_dir = lv1_root_dir + 'His'
+   lv1_forc_dir = lv1_root_dir + 'Forc'
+   lv1_plot_dir = lv1_root_dir + 'Plots'          
+       
      
 # defaults that should work on all machines
    parent = Path(__file__).absolute().parent.parent
@@ -60,10 +49,10 @@ def get_PFM_info():
 #    LOo = parent / 'PFM_output'
 # where are the grids??? We keep them in LO so that they come with
 # git clone.
-   grid_lv1 = str(lv1_grid_dir) + '/grids/GRID_SDTJRE_LV1.nc'
-#    grid_lv2 = str(LOu) + '/grids/GRID_SDTJRE_LV2.nc'
-#    grid_lv3 = str(LOu) + '/grids/GRID_SDTJRE_LV3.nc'
-#    grid_lv4 = str(LOu) + '/grids/GRID_SDTJRE_LV4.nc'
+   lv1_grid_file = str(lv1_grid_dir) + '/GRID_SDTJRE_LV1_rx020_hmask.nc'
+#   lv2_grid_file = str(lv2_grid_dir) + '/GRID_SDTJRE_LV1_rx020_hmask.nc'
+#   lv3_grid_file = str(lv3_grid_dir) + '/GRID_SDTJRE_LV1_rx020_hmask.nc'   
+
 # what is the ocean / atm model used to force?
    ocn_model = 'hycom'
    atm_model = 'wrf'
@@ -112,10 +101,16 @@ def get_PFM_info():
 #    SDP['LOo'] = LOo
 #    SDP['LOu'] = LOu
 #    SDP['data'] = data
-   SDP['roms_bin_lv1'] = roms_bin_lv1
-    #SDP['roms_bin_lv2'] = roms_bin_lv2
-    #SDP['roms_bin_lv3'] = roms_bin_lv3
-    #SDP['roms_bin_lv4'] = roms_bin_lv4
+   SDP['lv1_run_dir'] = lv1_run_dir
+   SDP['lv1_grid_dir'] = pfm_grid_dir
+   SDP['lv1_his_dir'] = lv1_his_dir
+   SDP['lv1_plot_dir'] = lv1_plot_dir         
+   SDP['lv1_grid_file'] = lv1_grid_file
+   SDP['lv2_run_dir'] = lv2_run_dir
+   SDP['lv2_grid_dir'] = pfm_grid_dir
+   SDP['lv2_his_dir'] = lv2_his_dir
+   SDP['lv2_plot_dir'] = lv2_plot_dir         
+
    SDP['modtime0'] = modtime0
    SDP['roms_time_units'] = roms_time_units
    SDP['ds_fmt'] = ds_fmt
