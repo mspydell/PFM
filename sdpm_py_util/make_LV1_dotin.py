@@ -145,7 +145,6 @@ D['nrst'] = int(rst_interval*86400/dtsec)
 # Paths to forcing various file locations
 D['grid_dir'] = PFM['lv1_grid_file']
 D['lv1_run_dir'] = PFM['lv1_run_dir']     #Ldir['LOo'] / 'forcing' / Ldir['gridname'] / ('f' + Ldir['date_string']) ## FIX!!
-D['run_dir'] = run_dir
 
 start_type = 'new'
 
