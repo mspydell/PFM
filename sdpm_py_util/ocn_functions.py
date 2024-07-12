@@ -613,42 +613,54 @@ def ocn_r_2_ICdict(OCN_R,RMG):
     zr_v=np.squeeze(zrom_v.z_r[0,:,:,:])    
 
     for aa in range(nlt):
-        for bb in range(nln):
-            
+        for bb in range(nln):            
             fofz = np.squeeze(OCN_R['temp'][i0,:,aa,bb])
             ig = np.argwhere(np.isfinite(fofz))
-            fofz2 = fofz[ig]
-            Fz = interp1d(-zhy[ig],fofz2,bounds_error=False,kind='linear',fill_value=(fofz2[0],fofz2[-1]))
-            OCN_IC['temp'][:,aa,bb] = Fz(zr[:,aa,bb])
-            
-            fofz = np.squeeze(OCN_R['salt'][i0,:,aa,bb])
-            ig = np.argwhere(np.isfinite(fofz))
-            fofz2 = fofz[ig]
-            Fz = interp1d(-zhy[ig],fofz2,bounds_error=False,kind='linear',fill_value=(fofz2[0],fofz2[-1]))  
-            OCN_IC['salt'][:,aa,bb] = Fz(zr[:,aa,bb])
+            if len(ig) < 2: # you get in here if all f(z) is nan, ie. we are in land
+                # we also make sure that if there is only 1 good value, we also return nans
+                OCN_IC['temp'][:,aa,bb] = np.nan*zr[:,aa,bb]
+                OCN_IC['salt'][:,aa,bb] = np.nan*zr[:,aa,bb]
+            else:
+                fofz2 = fofz[ig]
+                Fz = interp1d(np.squeeze(-zhy[ig]),np.squeeze(fofz2),bounds_error=False,kind='linear',fill_value=(fofz2[0],fofz2[-1]))
+                OCN_IC['temp'][:,aa,bb] = Fz(zr[:,aa,bb])
+                
+                fofz = np.squeeze(OCN_R['salt'][i0,:,aa,bb])
+                ig = np.argwhere(np.isfinite(fofz))
+                fofz2 = fofz[ig]
+                Fz = interp1d(np.squeeze(-zhy[ig]),np.squeeze(fofz2),bounds_error=False,kind='linear',fill_value=(fofz2[0],fofz2[-1]))  
+                OCN_IC['salt'][:,aa,bb] = Fz(zr[:,aa,bb])
 
-            if bb < nln-1:
-                fofz = np.squeeze(OCN_R['urm'][i0,:,aa,bb])
-                ig = np.argwhere(np.isfinite(fofz))
-                fofz2 = fofz[ig]
-                Fz = interp1d(-zhy[ig],fofz2,bounds_error=False,kind='linear',fill_value=(fofz2[0],fofz2[-1])) 
-                uu =  Fz(zr_u[:,aa,bb])                
-                OCN_IC['u'][:,aa,bb] = uu
-                z2 = np.squeeze(zr_u[:,aa,bb])
-                z3 = np.append(z2,eta_u[aa,bb])
-                dz = np.diff(z3)
-                OCN_IC['ubar'][aa,bb] = np.sum(uu*dz) / hb_u[aa,bb]
-            if aa < nlt-1:
-                fofz = np.squeeze(OCN_R['vrm'][i0,:,aa,bb])
-                ig = np.argwhere(np.isfinite(fofz))
-                fofz2 = fofz[ig]
-                Fz = interp1d(-zhy[ig],fofz2,bounds_error=False,kind='linear',fill_value=(fofz2[0],fofz2[-1]))  
-                vv = Fz(zr_v[:,aa,bb])
-                OCN_IC['v'][:,aa,bb] = vv
-                z2 = np.squeeze(zr_v[:,aa,bb])
-                z3 = np.append(z2,eta_v[aa,bb])
-                dz = np.diff(z3)
-                OCN_IC['vbar'][aa,bb] = np.sum(vv*dz) / hb_v[aa,bb]
+                if bb < nln-1:
+                    fofz = np.squeeze(OCN_R['urm'][i0,:,aa,bb])
+                    ig = np.argwhere(np.isfinite(fofz))
+                    if len(ig) < 2:
+                        OCN_IC['u'][:,aa,bb] = np.nan*zr_u[:,aa,bb]
+                        OCN_IC['ubar'][aa,bb] = np.nan
+                    else:
+                        fofz2 = fofz[ig]
+                        Fz = interp1d(np.squeeze(-zhy[ig]),np.squeeze(fofz2),bounds_error=False,kind='linear',fill_value=(fofz2[0],fofz2[-1])) 
+                        uu =  Fz(zr_u[:,aa,bb])                
+                        OCN_IC['u'][:,aa,bb] = uu
+                        z2 = np.squeeze(zr_u[:,aa,bb])
+                        z3 = np.append(z2,eta_u[aa,bb])
+                        dz = np.diff(z3)
+                        OCN_IC['ubar'][aa,bb] = np.sum(uu*dz) / hb_u[aa,bb]
+                if aa < nlt-1:
+                    fofz = np.squeeze(OCN_R['vrm'][i0,:,aa,bb])
+                    ig = np.argwhere(np.isfinite(fofz))
+                    if len(ig) < 2:
+                        OCN_IC['v'][:,aa,bb] = np.nan*zr_v[:,aa,bb]
+                        OCN_IC['vbar'][aa,bb] = np.nan
+                    else:
+                        fofz2 = fofz[ig]
+                        Fz = interp1d(np.squeeze(-zhy[ig]),np.squeeze(fofz2),bounds_error=False,kind='linear',fill_value=(fofz2[0],fofz2[-1]))  
+                        vv = Fz(zr_v[:,aa,bb])
+                        OCN_IC['v'][:,aa,bb] = vv
+                        z2 = np.squeeze(zr_v[:,aa,bb])
+                        z3 = np.append(z2,eta_v[aa,bb])
+                        dz = np.diff(z3)
+                        OCN_IC['vbar'][aa,bb] = np.sum(vv*dz) / hb_v[aa,bb]
 
     # ROMS wants potential temperature, not temperature
     # this needs the seawater package, conda install seawater, did this for me
