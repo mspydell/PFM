@@ -27,7 +27,7 @@ def get_PFM_info():
        pfm_root_dir = '/scratch/PFM/'
        lo_env = 'mss_swell'
    else:
-       pfm_root_dir = '.'
+       pfm_root_dir = './PFM/'
        lo_env = 'mss'
 
    pfm_grid_dir =  pfm_root_dir +  'Grids'       
@@ -102,6 +102,7 @@ def get_PFM_info():
 #    SDP['LOu'] = LOu
 #    SDP['data'] = data
    SDP['lv1_run_dir'] = lv1_run_dir
+   SDP['lv1_forc_dir'] = lv1_forc_dir   
    SDP['lv1_grid_dir'] = pfm_grid_dir
    SDP['lv1_his_dir'] = lv1_his_dir
    SDP['lv1_plot_dir'] = lv1_plot_dir         
