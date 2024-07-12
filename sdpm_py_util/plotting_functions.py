@@ -138,7 +138,7 @@ def plot_atm_fields(ATM, RMG, product_name, fields_to_plot=None):
         plt.close(fig)
 
 # ATM_R Fields Plotting Function
-def plot_atm_r_fields(ATM_R, RMG, product_name, fields_to_plot=None):
+def plot_atm_r_fields(ATM_R, RMG, product_name, fields_to_plot=None, flag=True):
     """
     Plot specified fields from the ATM_R dataset with timestamps and product names, and save them as PNG files.
     
@@ -232,12 +232,16 @@ def plot_atm_r_fields(ATM_R, RMG, product_name, fields_to_plot=None):
         annotation = f'Timestamp: {start_time.strftime("%Y-%m-%d %H:%M:%S")} | Model: {product_name} | Forecast Hour: {forecast_hours[0]:.1f}'
         ax.text(0.5, 1.05, annotation, transform=ax.transAxes, ha='center', fontsize=12)
         
-        # Will have to change this chunk to save plots to suitable directories!
-        output_dir = '/home/a1jadhav/pfm_root/plots/ATM_R_plots' #created a dir named plots and storing the plots in it.
-        for field in fields_to_plot:
-            filename = f'{output_dir}/{timestamp}_{product_name}_ATM_R_{field}.png'
-            plt.savefig(filename, dpi=300)
-        plt.close(fig)
+        #Will have to change this chunk to save plots to suitable directories!
+        if flag is True:
+            output_dir = '/home/a1jadhav/pfm_root/plots/ATM_R_plots' #created a dir named plots and storing the plots in it.
+            for field in fields_to_plot:
+                filename = f'{output_dir}/{timestamp}_{product_name}_ATM_R_{field}.png'
+                plt.savefig(filename, dpi=300)
+            plt.close(fig)
+        else:     
+            plt.tight_layout()
+            plt.show()
 
 # For both ATM and ATM_R fields
 def plot_all_fields_in_one(ATM, ATM_R, RMG, product_name, fields_to_plot=None):
@@ -384,3 +388,38 @@ def plot_all_fields_in_one(ATM, ATM_R, RMG, product_name, fields_to_plot=None):
         filename = f'{output_dir}/{timestamp}_ {product_name}_ATMandATMR_{field}'
         plt.savefig(filename, dpi=300)
     plt.close(fig)
+
+def load_and_plot_atm(file_path, RMG, product_name, fields_to_plot=None):
+    """
+    Load the atm.nc file and plot specified fields.
+
+    Parameters:
+    file_path (str): Path to the atm.nc file.
+    RMG (dict): The ROMS grid data dictionary.
+    product_name (str): The name of the forecast model.
+    fields_to_plot (list or str): The fields to plot. If None, plot all fields.
+    """
+    # Load the atm.nc file
+    file_path = "C:/Users/abhis/Downloads/atm_test_file_v2.nc"
+    ds = nc.Dataset(file_path)
+    
+    # Create the ATM dictionary
+    ATM = {
+        'lon': ds.variables['lon'][:],
+        'lat': ds.variables['lat'][:],
+        'ocean_time': ds.variables['ocean_time'][:],
+        'Uwind': ds.variables['Uwind'][:],
+        'Vwind': ds.variables['Vwind'][:],
+        'Pair': ds.variables['Pair'][:],
+        'Tair': ds.variables['Tair'][:],
+        'lwrad_down': ds.variables['lwrad_down'][:],
+        'rain': ds.variables['rain'][:],
+        'Qair': ds.variables['Qair'][:],
+        'swrad': ds.variables['swrad'][:]
+    }
+    
+    # Close the dataset
+    ds.close()
+    
+    # Plot the ATM fields
+    plot_atm_r_fields(ATM, RMG, product_name, fields_to_plot, flag=False)
