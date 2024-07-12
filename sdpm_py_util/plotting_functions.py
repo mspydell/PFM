@@ -131,7 +131,7 @@ def plot_atm_fields(ATM, RMG, product_name, fields_to_plot=None):
         annotation = f'Timestamp: {start_time.strftime("%Y-%m-%d %H:%M:%S")} | Model: {product_name} | Forecast Hour: {forecast_hours[0]:.1f}'
         ax.text(0.5, 1.05, annotation, transform=ax.transAxes, ha='center', fontsize=12)
     
-        output_dir = '/home/a1jadhav/pfm_root/PFM/plots/ATM_plots' #created a dir named plots and storing the plots in it.
+        output_dir = '/home/a1jadhav/pfm_root/plots/ATM_plots' #created a dir named plots and storing the plots in it.
         for field in fields_to_plot:
             filename = f'{output_dir}/{timestamp}_{product_name}_ATM_{field}.png'
             plt.savefig(filename, dpi=300)
@@ -233,7 +233,7 @@ def plot_atm_r_fields(ATM_R, RMG, product_name, fields_to_plot=None):
         ax.text(0.5, 1.05, annotation, transform=ax.transAxes, ha='center', fontsize=12)
         
         # Will have to change this chunk to save plots to suitable directories!
-        output_dir = '/home/a1jadhav/pfm_root/PFM/plots/ATM_R_plots' #created a dir named plots and storing the plots in it.
+        output_dir = '/home/a1jadhav/pfm_root/plots/ATM_R_plots' #created a dir named plots and storing the plots in it.
         for field in fields_to_plot:
             filename = f'{output_dir}/{timestamp}_{product_name}_ATM_R_{field}.png'
             plt.savefig(filename, dpi=300)
@@ -379,7 +379,7 @@ def plot_all_fields_in_one(ATM, ATM_R, RMG, product_name, fields_to_plot=None):
             ax.text(0.5, 1.05, annotation, transform=ax.transAxes, ha='center', fontsize=12)
     
     # Save the plot
-    output_dir = '/home/a1jadhav/pfm_root/PFM/plots/ATM_plots/Comparison_plots' #created a dir named plots and storing the plots in it.
+    output_dir = '/home/a1jadhav/pfm_root/plots/comparison_plots' #created a dir named plots and storing the plots in it.
     for field in fields_to_plot:
         filename = f'{output_dir}/{timestamp}_ {product_name}_ATMandATMR_{field}'
         plt.savefig(filename, dpi=300)
