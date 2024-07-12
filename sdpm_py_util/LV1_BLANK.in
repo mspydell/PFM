@@ -959,8 +959,8 @@ Dout(iTvdif) == T F     ! temp_vdiff, ...    vertical diffusion
 
 ! Input NetCDF file names, [1:Ngrids].
 
-     GRDNAME == $grid_dir$/LV1_grid.nc
-     ININAME == $ininame$
+     GRDNAME == $lv1_grid_dir$/GRID_SDTJRE_LV1_rx020_hmask.nc
+     ININAME == $lv1_ininame$
      ITLNAME == ocean_itl.nc
      IRPNAME == ocean_irp.nc
      IADNAME == ocean_iad.nc
@@ -985,7 +985,7 @@ Dout(iTvdif) == T F     ! temp_vdiff, ...    vertical diffusion
      CLMNAME == ocean_clm.nc
 
      NBCFILES == 1                          ! number of boundary files
-     BRYNAME == $run_dir$/LV1_ocean_bry.nc
+     BRYNAME == $lv1_forc_dir$/LV1_ocean_bry.nc
 
 ! Input climatology nudging coefficients file name.
 
@@ -997,7 +997,7 @@ Dout(iTvdif) == T F     ! temp_vdiff, ...    vertical diffusion
 
 ! Input tidal forcing file name.
 
-    TIDENAME == $run_dir$/tides.nc
+    TIDENAME == $lv1_forc_dir$/tides.nc
 
 ! Input forcing NetCDF file name(s).
 !
@@ -1019,22 +1019,22 @@ Dout(iTvdif) == T F     ! temp_vdiff, ...    vertical diffusion
 
      NFFILES == 1                          ! number of unique forcing files
 
-     FRCNAME == $run_dir$/ATM_FORCING.nc
+     FRCNAME == $lv1_forc_dir$/ATM_FORCING.nc
 
 
 ! Output NetCDF file names, [1:Ngrids].
 
      DAINAME == ocean_dai.nc
      GSTNAME == ocean_gst.nc
-     RSTNAME == $run_dir$/LV1_ocean_rst.nc
-     HISNAME == $run_dir$/LV1_ocean_his.nc
+     RSTNAME == $lv1_forc_dir$/LV1_ocean_rst.nc
+     HISNAME == $lv1_his_dir$/LV1_ocean_his.nc
      QCKNAME == ocean_qck.nc
      TLMNAME == ocean_tlm.nc
      TLFNAME == ocean_tlf.nc
      ADJNAME == ocean_adj.nc
      AVGNAME == ocean_avg_coupled.nc
      HARNAME == ocean_har.nc
-     DIANAME == $run_dir$/ocean_dia.nc
+     DIANAME == $lv1_his_dir$/ocean_dia.nc
      STANAME == ocean_sta.nc
      FLTNAME == ocean_flt.nc
 

@@ -18,13 +18,17 @@ be really useful for debugging.
 from pathlib import Path
 import sys
 from datetime import datetime, timedelta
+from get_PFM_info import get_PFM_info
+
 
 pth = Path(__file__).absolute().parent.parent.parent / 'lo_tools' / 'lo_tools'
 if str(pth) not in sys.path:
     sys.path.append(str(pth))
 #import dot_in_argfun as dfun
 #import Lfun
-import get_PFM_info as gpfm
+
+
+PFM = get_PFM_info()
 
 dot_in_dir = Path(__file__).absolute().parent
 
@@ -138,9 +142,11 @@ D['nrst'] = int(rst_interval*86400/dtsec)
 #D['dstart'] = int(Lfun.datetime_to_modtime(fdt) / 86400.)
 
 # Paths to forcing various file locations
-D['grid_dir'] = gpfm.SDP['grid_lv1']
-run_dir = gpfm.SDP['roms_bin_lv1']     #Ldir['LOo'] / 'forcing' / Ldir['gridname'] / ('f' + Ldir['date_string']) ## FIX!!
-D['run_dir'] = run_dir
+D['lv1_grid_dir'] = PFM['lv1_grid_dir']
+D['lv1_run_dir'] = PFM['lv1_run_dir']     
+D['lv1_forc_dir'] = PFM['lv1_forc_dir']   
+D['lv1_his_dir'] = PFM['lv1_his_dir']
+
 
 start_type = 'new'
 
@@ -155,7 +161,7 @@ else:
 #ini_fullname = run_dir / ininame    
 
 D['nrrec'] = nrrec
-D['ininame'] = ininame
+D['lv1_ininame'] = PFM['lv1_forc_dir'] + '/' + ininame
 
 vtransform = 2
 vstretching = 4
@@ -178,7 +184,7 @@ D['tcline']='50.0d0'
 dot_in_dir = '.'
 run_dir = '.'
 blank_infile = dot_in_dir +'/' +  'LV1_BLANK.in'
-lv1_infile = run_dir + '/' + 'LV1_forecast_run.in'
+lv1_infile = D['lv1_run_dir'] + '/' + 'LV1_forecast_run.in'
 ## create liveocean.in ##########################
 f = open( blank_infile,'r')
 f2 = open( lv1_infile,'w')   # change this name to be LV1_forecast_yyyymmddd_HHMMZ.in

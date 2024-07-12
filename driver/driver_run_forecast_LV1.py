@@ -20,17 +20,17 @@ import numpy as np
 # %%
 
 
-sys.path.append('/Users/mspydell/research/FF2024/models/SDPM_mss/PFM/sdpm_py_util')
+sys.path.append('/Users/falk/PathogenForecastModel/PFM/sdpm_py_util')
 
 import atm_functions as atmfuns
 import ocn_functions as ocnfuns
 import grid_functions as grdfuns
 import util_functions as utlfuns 
 from util_functions import s_coordinate_4
-
+from get_PFM_info import get_PFM_info
 # row after setting suitable values for theta_b, theta_s, Tcline, Nz, hraw, eta, we could probably run the line:
 
-
+PFM=get_PFM_info()
 
 # %%
 run_type = 'forecast'
@@ -46,14 +46,12 @@ atm_mod = 'nam_nest'
 get_method = 'open_dap_nc'
 
 # get the ROMS grid as a dict
-fngr = '/Users/mspydell/research/FF2024/models/SDPM_mss/PFM_user/grids/GRID_SDTJRE_LV1.nc'
-RMG = grdfuns.roms_grid_to_dict(fngr)
-
-
+#fngr = '/Users/mspydell/research/FF2024/models/SDPM_mss/PFM_user/grids/GRID_SDTJRE_LV1.nc'
+RMG = grdfuns.roms_grid_to_dict(PFM['grid_lv1'])
 
 # %%
 
-hraw = None
+
 h = RMG['h']
 eta = 0 * h
 zrom = s_coordinate_4(h, 3.0 , 8.0 , 50.0 , 40, hraw=hraw, zeta=eta)
