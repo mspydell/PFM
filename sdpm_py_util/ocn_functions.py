@@ -11,6 +11,9 @@ import scipy.ndimage as ndimage
 import xarray as xr
 import netCDF4 as nc
 from scipy.interpolate import RegularGridInterpolator
+from scipy.interpolate import interp1d
+import seawater
+
 
 import util_functions as utlfuns 
 from util_functions import s_coordinate_4
@@ -181,8 +184,8 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method):
         OCN['u'] = u
         OCN['v'] = v
         OCN['temp'] = temp
-        OCN['sal'] = sal
-        OCN['surf_el'] = eta
+        OCN['salt'] = sal
+        OCN['zeta'] = eta
         OCN['depth'] = z
     
         # put the units in OCN...
@@ -198,7 +201,7 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method):
                         'units':'degrees C',
                         'coordinates':'z,lat,lon',
                         'time':'ocean_time'}
-        OCN['vinfo']['sal'] = {'long_name':'ocean salinity',
+        OCN['vinfo']['salt'] = {'long_name':'ocean salinity',
                         'units':'psu',
                         'coordinates':'z,lat,lon',
                         'time':'ocean_time'}
@@ -210,7 +213,7 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method):
                         'units':'m/s',
                         'coordinates':'z,lat,lon',
                         'time':'ocean_time'}
-        OCN['vinfo']['surf_el'] = {'long_name':'ocean sea surface height',
+        OCN['vinfo']['zeta'] = {'long_name':'ocean sea surface height',
                         'units':'m',
                         'coordinates':'lat,lon',
                         'time':'ocean_time'}
@@ -362,10 +365,10 @@ def hycom_to_roms_latlon(HY,RMG):
     # and (lat_v,lon_v).
     
     # set up the interpolator now and pass to function
-    Fz = RegularGridInterpolator((HY['lat'],HY['lon']),HY['surf_el'][0,:,:])
+    Fz = RegularGridInterpolator((HY['lat'],HY['lon']),HY['zeta'][0,:,:])
     
     # the names of the variables that need to go on the ROMS grid
-    vnames = ['surf_el', 'temp', 'sal', 'u', 'v']
+    vnames = ['zeta', 'temp', 'salt', 'u', 'v']
     lnhy = HY['lon']
     lthy = HY['lat']
     NR,NC = np.shape(RMG['lon_rho'])
@@ -374,8 +377,8 @@ def hycom_to_roms_latlon(HY,RMG):
 
     HYrm = dict()
     Tmp = dict()
-    HYrm['surf_el'] = np.zeros((NT,NR, NC))
-    HYrm['sal'] = np.zeros((NT,NZ, NR, NC))
+    HYrm['zeta'] = np.zeros((NT,NR, NC))
+    HYrm['salt'] = np.zeros((NT,NZ, NR, NC))
     HYrm['temp'] = np.zeros((NT,NZ, NR, NC))
     Tmp['u_on_u'] = np.zeros((NT,NZ, NR, NC-1))
     Tmp['v_on_u'] = np.zeros((NT,NZ, NR, NC-1))
@@ -383,14 +386,14 @@ def hycom_to_roms_latlon(HY,RMG):
     Tmp['v_on_v'] = np.zeros((NT,NZ, NR-1, NC))
     HYrm['ubar']   = np.zeros((NT,NR,NC-1))
     HYrm['vbar']   = np.zeros((NT,NR-1,NC))
-    HYrm['lat_rho'] = RMG['lat_rho']
-    HYrm['lon_rho'] = RMG['lat_rho']
-    HYrm['lat_u'] = RMG['lat_u']
-    HYrm['lon_u'] = RMG['lon_u']
-    HYrm['lat_v'] = RMG['lat_v']
-    HYrm['lon_v'] = RMG['lon_v']
-    HYrm['depth'] = HY['depth'] # depths are from hycom
-    HYrm['ocean_time'] = HY['ocean_time']
+    HYrm['lat_rho'] = RMG['lat_rho'][:]
+    HYrm['lon_rho'] = RMG['lon_rho'][:]
+    HYrm['lat_u'] = RMG['lat_u'][:]
+    HYrm['lon_u'] = RMG['lon_u'][:]
+    HYrm['lat_v'] = RMG['lat_v'][:]
+    HYrm['lon_v'] = RMG['lon_v'][:]
+    HYrm['depth'] = HY['depth'][:] # depths are from hycom
+    HYrm['ocean_time'] = HY['ocean_time'][:]
     HYrm['ocean_time_ref'] = HY['ocean_time_ref']
 
 
@@ -399,8 +402,8 @@ def hycom_to_roms_latlon(HY,RMG):
         for cc in range(NT):
             if aa=='zeta':
                 zhy2 = zhy[cc,:,:]
-                HYrm[aa] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],Fz)            
-            elif aa=='temp' or aa=='sal':
+                HYrm[aa][cc,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],Fz)            
+            elif aa=='temp' or aa=='salt':
                 for bb in range(NZ):
                     zhy2 = zhy[cc,bb,:,:]
                     HYrm[aa][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],Fz)
@@ -448,7 +451,7 @@ def hycom_to_roms_latlon(HY,RMG):
     # so ubar and vbar are calculated from hycom depths before interpolating to roms depths
 
     use_for = 0 
-    if use_for == 1:
+    if use_for == 1: # we will not use this to get ubar. could be removed 
         # for looping this is VERY slow. Need to make faster
         for aa in range(NR): # lat loop
             for bb in range(NC-1): # lon loop
@@ -500,9 +503,9 @@ def hycom_to_roms_latlon(HY,RMG):
 
         # make the 4d mask of where there is water
         # roms land will still be nan'd 
-        oo = np.ones(np.shape(HYrm['ocean_time']))
-        umsk4d = oo[:,None,None,None] * umsk[None,:,:,:]
-        vmsk4d = oo[:,None,None,None] * vmsk[None,:,:,:]
+        #oo = np.ones(np.shape(HYrm['ocean_time']))
+        #umsk4d = oo[:,None,None,None] * umsk[None,:,:,:]
+        #vmsk4d = oo[:,None,None,None] * vmsk[None,:,:,:]
 
         #print(np.shape(umsk4d))
         #print(np.shape(HYrm['urm']))
@@ -543,14 +546,6 @@ def hycom_to_roms_latlon(HY,RMG):
         
     return HYrm
 
-def get_roms_zlevels(Nz,Vtr,Vst,th_s,th_b,Tcl,eta,hb):
-    # this return zrom a 3d (z,lat,lon) array of roms depths in meters
-    # Nz, Vtr, Vst, th_s, th_b, Tcl are scalars that define the vertical
-    # roms stretching. eta and hb are both 2d arrays of surface height and
-    # the roms bottom. both are (lat,lon)
-
-
-    return zrom
 
 def ocn_r_2_ICdict(OCN_R,RMG):
     # this slices the OCN_R dictionary at the first time for all needed 
@@ -565,19 +560,28 @@ def ocn_r_2_ICdict(OCN_R,RMG):
     OCN_IC = dict()
     # fill in the dict with slicing
     OCN_IC['ocean_time'] = OCN_R['ocean_time'][i0]
-    OCN_IC['surf_el'] = OCN_R['surf_el'][i0,:,:]
-    OCN_IC['ubar'] = OCN_R['ubar'][i0,:,:]
-    OCN_IC['vbar'] = OCN_R['vbar'][i0,:,:]
+    OCN_IC['zeta'] = np.squeeze(OCN_R['zeta'][i0,:,:])
+    #OCN_IC['ubar'] = np.squeeze(OCN_R['ubar'][i0,:,:])
+    #OCN_IC['vbar'] = np.squeeze(OCN_R['vbar'][i0,:,:])
 
     # the variables that are the same
-    var_same = ['lat_rho','lon_rho','lat_u','lon_u','lat_v','lon_v','ocean_time_ref']
+    var_same = ['lat_rho','lon_rho','lat_u','lon_u','lat_v','lon_v'] 
     for vn in var_same:
-        OCN_IC[vn] = OCN_R[vn]
+        OCN_IC[vn] = OCN_R[vn][:]
+
+    OCN_IC['ocean_time_ref'] = OCN_R['ocean_time_ref']
+
 
     # these variables need to be time sliced and then vertically interpolated
-    varin3d = ['temp','sal','urm','vrm']
-    zhy = OCN_R['depth']
-    eta = OCN_IC['surf_el']
+    #varin3d = ['temp','salt','urm','vrm']
+    zhy = OCN_R['depth'] # these are the hycom depths
+    eta = OCN_IC['zeta']
+    eta_u = 0.5 * (eta[:,0:-1]+eta[:,1:])
+    eta_v = 0.5 * (eta[0:-1,:]+eta[1:,:])
+    hb = RMG['h']
+    hb_u = 0.5 * (hb[:,0:-1]+hb[:,1:])
+    hb_v = 0.5 * (hb[0:-1,:]+hb[1:,:])
+    nlt,nln = np.shape(eta)
 
     Nz   = RMG['Nz']                              # number of vertical levels: 40
     Vtr  = RMG['Vtransform']                       # transformation equation: 2
@@ -586,20 +590,70 @@ def ocn_r_2_ICdict(OCN_R,RMG):
     th_b = RMG['THETA_B']                      # bottom  stretching parameter: 3
     Tcl  = RMG['TCLINE']                      # critical depth (m): 50
 
+    OCN_IC['temp'] = np.zeros((Nz,nlt,nln))
+    OCN_IC['pottemp'] = np.zeros((Nz,nlt,nln))
+    OCN_IC['salt'] = np.zeros((Nz,nlt,nln))
+    OCN_IC['u'] = np.zeros((Nz,nlt,nln-1))
+    OCN_IC['v'] = np.zeros((Nz,nlt-1,nln))
+    OCN_IC['ubar'] = np.zeros((nlt,nln-1))
+    OCN_IC['vbar'] = np.zeros((nlt-1,nln))
+
     # get the roms z's
     #zrom = get_roms_zlevels(Nz,Vtr,Vst,th_s,th_b,Tcl,eta=0*RMG['h'],RMG['h'])
     #zrom = s_coordinate_4(RMG['h'], theta_b, theta_s, Tcline, Nz, hraw=hraw, eta=0*RMG['h'])    
 
     hraw = None
-    h = RMG['h']
-    eta = 0 * h
-    zrom = s_coordinate_4(h, 3.0 , 8.0 , 50.0 , 40, hraw=hraw, zeta=eta)
+    if Vst == 4:
+        zrom = s_coordinate_4(hb, th_b , th_s , Tcl , Nz, hraw=hraw, zeta=eta)
+        zrom_u = s_coordinate_4(hb_u, th_b , th_s , Tcl , Nz, hraw=hraw, zeta=eta_u)
+        zrom_v = s_coordinate_4(hb_v, th_b , th_s , Tcl , Nz, hraw=hraw, zeta=eta_v)
 
-    #for vn in varin3d:
-    #    ff = OCN_R[vn][i0,:,:,:]
+    zr=np.squeeze(zrom.z_r[0,:,:,:])    
+    zr_u=np.squeeze(zrom_u.z_r[0,:,:,:])    
+    zr_v=np.squeeze(zrom_v.z_r[0,:,:,:])    
 
+    for aa in range(nlt):
+        for bb in range(nln):
+            
+            fofz = np.squeeze(OCN_R['temp'][i0,:,aa,bb])
+            ig = np.argwhere(np.isfinite(fofz))
+            fofz2 = fofz[ig]
+            Fz = interp1d(-zhy[ig],fofz2,bounds_error=False,kind='linear',fill_value=(fofz2[0],fofz2[-1]))
+            OCN_IC['temp'][:,aa,bb] = Fz(zr[:,aa,bb])
+            
+            fofz = np.squeeze(OCN_R['salt'][i0,:,aa,bb])
+            ig = np.argwhere(np.isfinite(fofz))
+            fofz2 = fofz[ig]
+            Fz = interp1d(-zhy[ig],fofz2,bounds_error=False,kind='linear',fill_value=(fofz2[0],fofz2[-1]))  
+            OCN_IC['salt'][:,aa,bb] = Fz(zr[:,aa,bb])
 
-    
+            if bb < nln-1:
+                fofz = np.squeeze(OCN_R['urm'][i0,:,aa,bb])
+                ig = np.argwhere(np.isfinite(fofz))
+                fofz2 = fofz[ig]
+                Fz = interp1d(-zhy[ig],fofz2,bounds_error=False,kind='linear',fill_value=(fofz2[0],fofz2[-1])) 
+                uu =  Fz(zr_u[:,aa,bb])                
+                OCN_IC['u'][:,aa,bb] = uu
+                z2 = np.squeeze(zr_u[:,aa,bb])
+                z3 = np.append(z2,eta_u[aa,bb])
+                dz = np.diff(z3)
+                OCN_IC['ubar'][aa,bb] = np.sum(uu*dz) / hb_u[aa,bb]
+            if aa < nlt-1:
+                fofz = np.squeeze(OCN_R['vrm'][i0,:,aa,bb])
+                ig = np.argwhere(np.isfinite(fofz))
+                fofz2 = fofz[ig]
+                Fz = interp1d(-zhy[ig],fofz2,bounds_error=False,kind='linear',fill_value=(fofz2[0],fofz2[-1]))  
+                vv = Fz(zr_v[:,aa,bb])
+                OCN_IC['v'][:,aa,bb] = vv
+                z2 = np.squeeze(zr_v[:,aa,bb])
+                z3 = np.append(z2,eta_v[aa,bb])
+                dz = np.diff(z3)
+                OCN_IC['vbar'][aa,bb] = np.sum(vv*dz) / hb_v[aa,bb]
+
+    # ROMS wants potential temperature, not temperature
+    # this needs the seawater package, conda install seawater, did this for me
+    pdb = -zr # pressure in dbar
+    OCN_IC['pottemp'] = seawater.ptmp(OCN_IC['salt'], OCN_IC['temp'],pdb)  
 
     return OCN_IC
 
