@@ -139,35 +139,46 @@ def make_PFM_directory( parent ):
    lv1_forc_dir = lv1_root_dir + 'Forc'
    lv1_plot_dir = lv1_root_dir + 'Plots'          
 
-   if os.path.isdir(pfm_root_dir)==FALSE:
+   if os.path.isdir(pfm_root_dir)==False:
        os.mkdir(pfm_root_dir)
+       print('making ' + pfm_root_dir)
    else:
-       printf( pfm_root_dir + ' exists')
+       print( pfm_root_dir + ' exists')
 
-   if os.path.isdir(lv1_root_dir)==FALSE:
+   if os.path.isdir(pfm_grid_dir)==False:
+       os.mkdir(pfm_grid_dir)
+       print('making ' + pfm_grid_dir)       
+   else:
+       print( pfm_grid_dir + ' exists')
+       
+   if os.path.isdir(lv1_root_dir)==False:
        os.mkdir(lv1_root_dir)
+       print('making ' + lv1_root_dir)              
    else:
-       printf( lv1_root_dir + ' exists')
+       print( lv1_root_dir + ' exists')
 
-   if os.path.isdir(lv1_run_dir)==FALSE:
+   if os.path.isdir(lv1_run_dir)==False:
        os.mkdir(lv1_run_dir)
+       print('making ' + lv1_run_dir)                     
    else:
-       printf( lv1_run_dir + ' exists')
+       print( lv1_run_dir + ' exists')
 
-   if os.path.isdir(lv1_his_dir)==FALSE:
+   if os.path.isdir(lv1_his_dir)==False:
        os.mkdir(lv1_his_dir)
+       print('making ' + lv1_his_dir)                            
    else:
-       printf( lv1_his_dir + ' exists')
+       print( lv1_his_dir + ' exists')
 
-   if os.path.isdir(lv1_forc_dir)==FALSE:
+   if os.path.isdir(lv1_forc_dir)==False:
        os.mkdir(lv1_forc_dir)
+       print('making ' + lv1_forc_dir)                                   
    else:
-       printf( lv1_forc_dir + ' exists')
+       print( lv1_forc_dir + ' exists')
 
-   if os.path.isdir(lv1_plot_dir)==FALSE:
+   if os.path.isdir(lv1_plot_dir)==False:
        os.mkdir(lv1_plot_dir)
    else:
-       printf( lv1_plot_dir + ' exists')
+       print( lv1_plot_dir + ' exists')
 
    return
     
