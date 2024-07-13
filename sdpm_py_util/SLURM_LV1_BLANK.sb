@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # job name
-#SBATCH --job-name=L1I06J18
+#SBATCH --job-name=LV1_FORECAST
 
 # slurm job output file
 #SBATCH --output=%j.out
@@ -17,7 +17,7 @@
 #SBATCH --mem=128G
 
 # number of nodes to use
-#SBATCH --nodes=3
+#SBATCH --nodes=$nnodes$
 
 # number of tasks per node
 #SBATCH --ntasks-per-node=36
@@ -34,5 +34,5 @@ export LD_LIBRARY_PATH=/cm/shared/apps/netcdf/gcc/64/4.8.1/lib:$LD_LIBRARY_PATH
 
 MYAPP=$lv1_run_dir$
 
-mpirun -v -np $np$  $MYAPP  $lv1_infile$  > $lv_outfile$
+mpirun -v -np $np$  $MYAPP  $lv1_infile_local$  > $lv1_logfile_local$
 

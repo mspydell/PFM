@@ -12,6 +12,11 @@ If you call with -short_roms True it will create a .in that runs for a shorter t
 writes history files more frequently (exact behavior is in the code below).  This can
 be really useful for debugging.
 
+--- to reload a module ---
+import sys, importlib
+importlib.reload(sys.modules['foo'])
+from foo import bar
+
 """
 
 # NOTE: we limit the imports to modules that exist in python3 on mox
@@ -81,9 +86,12 @@ D['nz'] = nz
 # The LV1 TILING shoudl be hard coded
 ntilei = 6  # number of tiles in I-direction
 ntilej = 18 # number of tiles in J-direction
+np = ntilei*ntilej  # total number of processors
 nnodes = 3  # number of nodes to be used.  not for .in file but for slurm!
+
 D['ntilei'] = ntilei
 D['ntilej'] = ntilej
+D['np'] = np
 D['nnodes'] = nnodes
 
 ### time stuff
@@ -179,15 +187,40 @@ D['tcline']='50.0d0'
 #out_dir_yesterday = Ldir['roms_out'] / Ldir['gtagex'] / ('f' + date_string_yesterday)
 #Lfun.make_dir(out_dir, clean=True) # make sure it exists and is empty
 
+lv1_infile_local = 'LV1_forecast_run.in'
+lv1_logfile_local = 'LV1_forecast.log'
+lv1_sbfile_local = 'LV1_SLURM.sb'
+D['lv1_infile_local'] = lv1_infile_local
+D['lv1_logfile_local'] = lv1_logfile_local
 
 # END DERIVED VALUES
 dot_in_dir = '.'
-run_dir = '.'
 blank_infile = dot_in_dir +'/' +  'LV1_BLANK.in'
-lv1_infile = D['lv1_run_dir'] + '/' + 'LV1_forecast_run.in'
-## create liveocean.in ##########################
+blank_sbfile = dot_in_dir +'/' +  'LV1_SLURM_BLANK.sb'
+
+lv1_infile = D['lv1_run_dir'] + '/' + lv1_infile_local
+lv1_sbfile = D['lv1_run_dir'] + '/' + lv1_sbfile_local
+
+
+## create lv1_infile_local .in ##########################
 f = open( blank_infile,'r')
 f2 = open( lv1_infile,'w')   # change this name to be LV1_forecast_yyyymmddd_HHMMZ.in
+for line in f:
+    for var in D.keys():
+        if '$'+var+'$' in line:
+            line2 = line.replace('$'+var+'$', str(D[var]))
+            line = line2 # needed because we loop over all "var" for line
+        else:
+            line2 = line
+    f2.write(line2)
+
+f.close()
+f2.close()
+
+
+## create slurb lv1 .sb file  ##########################
+f = open( blank_sbfile,'r')
+f2 = open( lv1_sbfile,'w')   # change this name to be LV1_forecast_yyyymmddd_HHMMZ.in
 for line in f:
     for var in D.keys():
         if '$'+var+'$' in line:
