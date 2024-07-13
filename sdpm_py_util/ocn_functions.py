@@ -195,6 +195,7 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method):
                         'units':'degrees_north'}
         OCN['vinfo']['ocean_time'] = {'long_name':'OCN forcing time',
                             'units':'days since tref'}
+        OCN['vinfo']['ocean_time_ref'] = {'long_name': 'the reference data tref'}
         OCN['vinfo']['depth'] = {'long_name':'ocean depth',
                             'units':'m'}
         OCN['vinfo']['temp'] = {'long_name':'ocean temperature',
@@ -396,6 +397,55 @@ def hycom_to_roms_latlon(HY,RMG):
     HYrm['ocean_time'] = HY['ocean_time'][:]
     HYrm['ocean_time_ref'] = HY['ocean_time_ref']
 
+    HYrm['vinfo']=dict()
+    HYrm['vinfo']['depth'] = HY['vinfo']['depth']
+    HYrm['vinfo']['ocean_time'] = HY['vinfo']['ocean_time']
+    HYrm['vinfo']['ocean_time_ref'] = HY['vinfo']['ocean_time_ref']
+    HYrm['vinfo']['lon_rho'] = {'long_name':'rho point longitude',
+                        'units':'degrees_east'}
+    HYrm['vinfo']['lat_rho'] = {'long_name':'rho point latitude',
+                        'units':'degrees_north'}
+    HYrm['vinfo']['lon_u'] = {'long_name':'rho point longitude',
+                        'units':'degrees_east'}
+    HYrm['vinfo']['lat_u'] = {'long_name': 'u point latitude',
+                        'units':'degrees_north'}
+    HYrm['vinfo']['lon_v'] = {'long_name':'v point longitude',
+                        'units':'degrees_east'}
+    HYrm['vinfo']['lat_v'] = {'long_name':'v point latitude',
+                        'units':'degrees_north'}
+    HYrm['vinfo']['temp'] = {'long_name':'ocean temperature',
+                        'units':'degrees C',
+                        'coordinates':'z,lat_rho,lon_rho',
+                        'time':'ocean_time'}
+    HYrm['vinfo']['salt'] = {'long_name':'ocean salinity',
+                        'units':'psu',
+                        'coordinates':'z,lat_rho,lon_rho',
+                        'time':'ocean_time'}
+    HYrm['vinfo']['zeta'] = {'long_name':'ocean sea surface height',
+                        'units':'m',
+                        'coordinates':'lat_rho,lon_rho',
+                        'time':'ocean_time'}
+    HYrm['vinfo']['urm'] = {'long_name':'ocean xi velocity',
+                        'units':'m/s',
+                        'coordinates':'z,lat_u,lon_u',
+                        'time':'ocean_time',
+                        'note':'this is now rotated in the roms xi direction'}
+    HYrm['vinfo']['vrm'] = {'long_name':'ocean eta velocity',
+                        'units':'m/s',
+                        'coordinates':'z,lat_v,lon_v',
+                        'time':'ocean_time',
+                        'note':'this is now rotated in the roms eta direction'}
+    HYrm['vinfo']['ubar'] = {'long_name':'ocean xi depth avg velocity',
+                        'units':'m/s',
+                        'coordinates':'lat_u,lon_u',
+                        'time':'ocean_time',
+                        'note':'uses hycom depths and this is now rotated in the roms xi direction'}
+    HYrm['vinfo']['vbar'] = {'long_name':'ocean eta depth avg velocity',
+                        'units':'m/s',
+                        'coordinates':'lat_v,lon_v',
+                        'time':'ocean_time',
+                        'note':'uses hycom depths and this is now rotated in the roms eta direction'}
+
 
     for aa in vnames:
         zhy  = HY[aa]
@@ -492,33 +542,12 @@ def hycom_to_roms_latlon(HY,RMG):
         HYrm['urm'] = HYrm['urm']*umsk[None,:,:,:]
         HYrm['vrm'] = HYrm['vrm']*vmsk[None,:,:,:]
 
-        #HYrm['umsk'] = umsk
-
-        # get velocities and a slice
-#        u0 = HYrm['urm'][0,0,:,:].copy()
-#        v0 = HYrm['vrm'][0,0,:,:].copy()
         # make copies to make ubar
         uu = HYrm['urm'].copy()
         vv = HYrm['vrm'].copy()
 
-        # make the 4d mask of where there is water
-        # roms land will still be nan'd 
-        #oo = np.ones(np.shape(HYrm['ocean_time']))
-        #umsk4d = oo[:,None,None,None] * umsk[None,:,:,:]
-        #vmsk4d = oo[:,None,None,None] * vmsk[None,:,:,:]
-
-        #print(np.shape(umsk4d))
-        #print(np.shape(HYrm['urm']))
-
-    #    HYrm['urm'][umsk4d==0] = np.nan
-    #    HYrm['vrm'][vmsk4d==0] = np.nan
-
-        # fill in the nans for now
-        # this fills the land mask too
         uu[np.isnan(uu)==1]=0
         vv[np.isnan(vv)==1]=0
-        #u2[np.isnan(u2)==1]=0
-        #v2[np.isnan(v2)==1]=0
 
         ubar = np.squeeze( np.sum( 0.5 * (uu[:,0:-1,:,:]+uu[:,1:,:,:]) * dz[None,:,None,None], axis=1 ) ) / Hru[None,:,:]
         vbar = np.squeeze( np.sum( 0.5 * (vv[:,0:-1,:,:]+vv[:,1:,:,:]) * dz[None,:,None,None], axis=1 ) ) / Hrv[None,:,:]
@@ -529,21 +558,10 @@ def hycom_to_roms_latlon(HY,RMG):
         ubar[umsk2==1] = np.nan
         vbar[vmsk2==1] = np.nan
 
+        # this ubar isn't used but is returned for reference
         HYrm['ubar'] = ubar
         HYrm['vbar'] = vbar
- 
- #       for aa in range(NT):
- #           uu = umsk * u2[aa,:,:,:]
- #           vv = vmsk * v2[aa,:,:,:]
- #           um = 0.5 * (uu[0:-1,:,:]+uu[1:,:,:])
- #           vm = 0.5 * (vv[0:-1,:,:]+vv[1:,:,:])
- #           ub = np.sum( um * dz[:,None,None], axis=0) / Hru
- #           vb = np.sum( vm * dz[:,None,None], axis=0) / Hrv
- #           ub[np.isnan(u0)==1] = np.nan
- #           vb[np.isnan(v0)==1] = np.nan
- #           HYrm['ubar'][aa,:,:] = ub
- #           HYrm['vbar'][aa,:,:] = vb
-        
+         
     return HYrm
 
 
@@ -590,13 +608,56 @@ def ocn_r_2_ICdict(OCN_R,RMG):
     th_b = RMG['THETA_B']                      # bottom  stretching parameter: 3
     Tcl  = RMG['TCLINE']                      # critical depth (m): 50
 
+    TMP = dict()
+    TMP['temp'] = np.zeros((Nz,nlt,nln)) # a helper becasue we convert to potential temp below
     OCN_IC['temp'] = np.zeros((Nz,nlt,nln))
-    OCN_IC['pottemp'] = np.zeros((Nz,nlt,nln))
     OCN_IC['salt'] = np.zeros((Nz,nlt,nln))
     OCN_IC['u'] = np.zeros((Nz,nlt,nln-1))
     OCN_IC['v'] = np.zeros((Nz,nlt-1,nln))
     OCN_IC['ubar'] = np.zeros((nlt,nln-1))
     OCN_IC['vbar'] = np.zeros((nlt-1,nln))
+
+    OCN_IC['vinfo']=dict()
+    OCN_IC['vinfo']['ocean_time'] = OCN_R['vinfo']['ocean_time']
+    OCN_IC['vinfo']['ocean_time_ref'] = OCN_R['vinfo']['ocean_time_ref']
+    OCN_IC['vinfo']['lat_rho'] = OCN_R['vinfo']['lat_rho']
+    OCN_IC['vinfo']['lon_rho'] = OCN_R['vinfo']['lat_rho']
+    OCN_IC['vinfo']['lat_u'] = OCN_R['vinfo']['lat_u']
+    OCN_IC['vinfo']['lon_u'] = OCN_R['vinfo']['lon_u']
+    OCN_IC['vinfo']['lat_v'] = OCN_R['vinfo']['lat_v']
+    OCN_IC['vinfo']['lon_v'] = OCN_R['vinfo']['lon_v']
+
+    OCN_IC['vinfo']['temp'] = {'long_name':'ocean potential temperature',
+                        'units':'degrees C',
+                        'coordinates':'s,lat_rho,lon_rho',
+                        'time':'ocean_time'}
+    OCN_IC['vinfo']['salt'] = {'long_name':'ocean salinity',
+                        'units':'psu',
+                        'coordinates':'s,lat_rho,lon_rho',
+                        'time':'ocean_time'}
+    OCN_IC['vinfo']['zeta'] = {'long_name':'ocean sea surface height',
+                        'units':'m',
+                        'coordinates':'lat_rho,lon_rho',
+                        'time':'ocean_time'}
+    OCN_IC['vinfo']['u'] = {'long_name':'ocean xi velocity',
+                        'units':'m/s',
+                        'coordinates':'s,lat_u,lon_u',
+                        'time':'ocean_time'}
+    OCN_IC['vinfo']['v'] = {'long_name':'ocean eta velocity',
+                        'units':'m/s',
+                        'coordinates':'s,lat_v,lon_v',
+                        'time':'ocean_time'}
+    OCN_IC['vinfo']['ubar'] = {'long_name':'ocean xi depth avg velocity',
+                        'units':'m/s',
+                        'coordinates':'lat_u,lon_u',
+                        'time':'ocean_time',
+                        'note':'uses roms depths'}
+    OCN_IC['vinfo']['vbar'] = {'long_name':'ocean eta depth avg velocity',
+                        'units':'m/s',
+                        'coordinates':'lat_v,lon_v',
+                        'time':'ocean_time',
+                        'note':'uses roms depths'}
+
 
     # get the roms z's
     #zrom = get_roms_zlevels(Nz,Vtr,Vst,th_s,th_b,Tcl,eta=0*RMG['h'],RMG['h'])
@@ -618,12 +679,12 @@ def ocn_r_2_ICdict(OCN_R,RMG):
             ig = np.argwhere(np.isfinite(fofz))
             if len(ig) < 2: # you get in here if all f(z) is nan, ie. we are in land
                 # we also make sure that if there is only 1 good value, we also return nans
-                OCN_IC['temp'][:,aa,bb] = np.nan*zr[:,aa,bb]
+                TMP['temp'][:,aa,bb] = np.nan*zr[:,aa,bb]
                 OCN_IC['salt'][:,aa,bb] = np.nan*zr[:,aa,bb]
             else:
                 fofz2 = fofz[ig]
                 Fz = interp1d(np.squeeze(-zhy[ig]),np.squeeze(fofz2),bounds_error=False,kind='linear',fill_value=(fofz2[0],fofz2[-1]))
-                OCN_IC['temp'][:,aa,bb] = Fz(zr[:,aa,bb])
+                TMP['temp'][:,aa,bb] = Fz(zr[:,aa,bb])
                 
                 fofz = np.squeeze(OCN_R['salt'][i0,:,aa,bb])
                 ig = np.argwhere(np.isfinite(fofz))
@@ -665,7 +726,7 @@ def ocn_r_2_ICdict(OCN_R,RMG):
     # ROMS wants potential temperature, not temperature
     # this needs the seawater package, conda install seawater, did this for me
     pdb = -zr # pressure in dbar
-    OCN_IC['pottemp'] = seawater.ptmp(OCN_IC['salt'], OCN_IC['temp'],pdb)  
+    OCN_IC['temp'] = seawater.ptmp(OCN_IC['salt'], TMP['temp'],pdb)  
 
     return OCN_IC
 
