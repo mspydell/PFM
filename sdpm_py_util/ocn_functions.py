@@ -730,3 +730,30 @@ def ocn_r_2_ICdict(OCN_R,RMG):
 
     return OCN_IC
 
+def ocn_roms_IC_dict_to_netcdf(ATM_R,fn_out):
+    ds = xr.Dataset(
+        data_vars = dict(
+            temp       = (["depth","er","xr"],ATM_R['temp'],ATM_R['vinfo']['temp']),
+            salt       = (["depth","er","xr"],ATM_R['salt'],ATM_R['vinfo']['salt']),
+            u          = (["depth","er","xr"],ATM_R['u'],ATM_R['vinfo']['u']),
+            v          = (["depth","er","xr"],ATM_R['v'],ATM_R['vinfo']['v']),
+            ubar       = (["er","xr"],ATM_R['ubar'],ATM_R['vinfo']['ubar']),
+            vbar       = (["er","xr"],ATM_R['vbar'],ATM_R['vinfo']['vbar']),
+            zeta       = (["er","xr"],ATM_R['zeta'],ATM_R['vinfo']['zeta']),
+        ),
+        coords=dict(
+            lat_rho =(["er","xr"],ATM_R['lat_rho'], ATM_R['vinfo']['lat_rho']),
+            lon_rho =(["er","xr"],ATM_R['lon_rho'], ATM_R['vinfo']['lon_rho']),
+            lat_u   =(["er","xr"],ATM_R['lat_u'], ATM_R['vinfo']['lat_u']),
+            lon_u   =(["er","xr"],ATM_R['lon_u'], ATM_R['vinfo']['lon_u']),
+            lat_v   =(["er","xr"],ATM_R['lat_v'], ATM_R['vinfo']['lat_v']),
+            lon_v   =(["er","xr"],ATM_R['lon_v'], ATM_R['vinfo']['lon_v']),   
+            ocean_time = (["time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
+         ),
+        attrs={'type':'ocean initial condition file fields for starting roms',
+            'time info':'ocean time is from '+ ATM_R['ocean_time_ref'].strftime("%Y/%m/%d %H:%M:%S") },
+        )
+    print(ds)
+
+    ds.to_netcdf(fn_out)
+
