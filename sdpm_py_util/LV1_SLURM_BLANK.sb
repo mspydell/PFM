@@ -32,7 +32,7 @@ module load slurm
 
 export LD_LIBRARY_PATH=/cm/shared/apps/netcdf/gcc/64/4.8.1/lib:$LD_LIBRARY_PATH
 
-MYAPP=$lv1_run_dir$
+MYAPP=$lv1_executable$
 
 mpirun -v -np $np$  $MYAPP  $lv1_infile_local$  > $lv1_logfile_local$
 

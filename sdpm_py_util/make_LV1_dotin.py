@@ -193,6 +193,9 @@ lv1_sbfile_local = 'LV1_SLURM.sb'
 D['lv1_infile_local'] = lv1_infile_local
 D['lv1_logfile_local'] = lv1_logfile_local
 
+lv1_executable = 'lv1_oceanM'
+D['lv1_executable'] = lv1_executable
+
 # END DERIVED VALUES
 dot_in_dir = '.'
 blank_infile = dot_in_dir +'/' +  'LV1_BLANK.in'
