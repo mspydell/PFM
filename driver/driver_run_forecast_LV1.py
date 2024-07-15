@@ -47,9 +47,9 @@ get_method = 'open_dap_nc'
 
 # get the ROMS grid as a dict
 #fngr = '/Users/mspydell/research/FF2024/models/SDPM_mss/PFM_user/grids/GRID_SDTJRE_LV1.nc'
-RMG = grdfuns.roms_grid_to_dict(PFM['grid_lv1'])
+RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
 
-import ipdb; ipdb.set_trace()
+#import ipdb; ipdb.set_trace()
 
 # %%
 # make the atm .nc file here.

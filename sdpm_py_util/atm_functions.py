@@ -12,7 +12,7 @@ import netCDF4 as nc
 def get_atm_data_as_dict(yyyymmdd,hhmm,run_type,atm_mod,get_method):
     from datetime import datetime
     from pydap.client import open_url
-    import pygrib
+#    import pygrib
 
     
     # this function will returm ATM, a dict of all atmospheric fields ROMS requires
