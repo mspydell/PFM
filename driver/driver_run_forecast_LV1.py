@@ -91,9 +91,11 @@ OCN_R  = ocnfuns.hycom_to_roms_latlon(OCN,RMG)
 # get the OCN_IC dictionary
 OCN_IC = ocnfuns.ocn_r_2_ICdict(OCN_R,RMG)
 
+# output to .nc file
+#ocnfuns.ocn_roms_IC_dict_to_netcdf(OCN_IC,fn_ic_out)
+
 # %%
 # get the OCN_BC dictionary
-#OCN_BC = ocnfuns.ocn_r_2_BCdict(OCN_R,RMG)
 
 # %%
 #make_roms_dotin

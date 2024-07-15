@@ -579,9 +579,7 @@ def ocn_r_2_ICdict(OCN_R,RMG):
     
     OCN_IC = dict()
     # fill in the dict with slicing
-    OCN_IC['ocean_time'] = OCN_R['ocean_time'][i0]
-    OCN_IC['zeta'] = np.squeeze(OCN_R['zeta'][i0,:,:])
-    #OCN_IC['ubar'] = np.squeeze(OCN_R['ubar'][i0,:,:])
+       #OCN_IC['ubar'] = np.squeeze(OCN_R['ubar'][i0,:,:])
     #OCN_IC['vbar'] = np.squeeze(OCN_R['vbar'][i0,:,:])
 
     # the variables that are the same
@@ -594,14 +592,21 @@ def ocn_r_2_ICdict(OCN_R,RMG):
 
     # these variables need to be time sliced and then vertically interpolated
     #varin3d = ['temp','salt','urm','vrm']
-    zhy = OCN_R['depth'] # these are the hycom depths
-    eta = OCN_IC['zeta']
-    eta_u = 0.5 * (eta[:,0:-1]+eta[:,1:])
-    eta_v = 0.5 * (eta[0:-1,:]+eta[1:,:])
-    hb = RMG['h']
+    hb = np.squeeze(RMG['h'])
     hb_u = 0.5 * (hb[:,0:-1]+hb[:,1:])
     hb_v = 0.5 * (hb[0:-1,:]+hb[1:,:])
-    nlt,nln = np.shape(eta)
+    nlt,nln = np.shape(hb)
+
+    OCN_IC['ocean_time'] = np.zeros((1))
+    OCN_IC['zeta'] = np.zeros((1,nlt,nln))
+    OCN_IC['ocean_time'][0] = OCN_R['ocean_time'][i0]
+    OCN_IC['zeta'][0,:,:] = OCN_R['zeta'][i0,:,:]
+ 
+    zhy = OCN_R['depth'] # these are the hycom depths
+    eta = OCN_IC['zeta']
+    eta_u = 0.5 * (eta[:,:,0:-1]+eta[:,:,1:])
+    eta_v = 0.5 * (eta[:,0:-1,:]+eta[:,1:,:])
+
 
     Nz   = RMG['Nz']                              # number of vertical levels: 40
     Vtr  = RMG['Vtransform']                       # transformation equation: 2
@@ -619,13 +624,13 @@ def ocn_r_2_ICdict(OCN_R,RMG):
     OCN_IC['hc'] = RMG['hc']
 
     TMP = dict()
-    TMP['temp'] = np.zeros((Nz,nlt,nln)) # a helper becasue we convert to potential temp below
-    OCN_IC['temp'] = np.zeros((Nz,nlt,nln))
-    OCN_IC['salt'] = np.zeros((Nz,nlt,nln))
-    OCN_IC['u'] = np.zeros((Nz,nlt,nln-1))
-    OCN_IC['v'] = np.zeros((Nz,nlt-1,nln))
-    OCN_IC['ubar'] = np.zeros((nlt,nln-1))
-    OCN_IC['vbar'] = np.zeros((nlt-1,nln))
+    TMP['temp'] = np.zeros((1,Nz,nlt,nln)) # a helper becasue we convert to potential temp below
+    OCN_IC['temp'] = np.zeros((1,Nz,nlt,nln))
+    OCN_IC['salt'] = np.zeros((1,Nz,nlt,nln))
+    OCN_IC['u'] = np.zeros((1,Nz,nlt,nln-1))
+    OCN_IC['v'] = np.zeros((1,Nz,nlt-1,nln))
+    OCN_IC['ubar'] = np.zeros((1,nlt,nln-1))
+    OCN_IC['vbar'] = np.zeros((1,nlt-1,nln))
 
     OCN_IC['vinfo']=dict()
     OCN_IC['vinfo']['Nz'] = {'long_name':'number of vertical rho levels',
@@ -694,78 +699,71 @@ def ocn_r_2_ICdict(OCN_R,RMG):
         zrom_v = s_coordinate_4(hb_v, th_b , th_s , Tcl , Nz, hraw=hraw, zeta=eta_v)
 
     
-    OCN_IC['Cs_r'] = []
-    OCN_IC['sc_r'] = []
+    OCN_IC['Cs_r'] = zrom.Cs_r
     OCN_IC['vinfo']['Cs_r'] = {'long_name':'S-coordinate stretching curves at RHO-points',
                         'units':'nondimensional',
                         'valid min':'-1',
                         'valid max':'0',
                         'field':'Cs_r, scalar, series'}
-    OCN_IC['vinfo']['Cs_r'] = {'long_name':'S-coordinate at RHO-points',
-                        'units':'nondimensional',
-                        'valid min':'-1',
-                        'valid max':'0',
-                        'field':'sc_r, scalar, series'}
-
-    zr=np.squeeze(zrom.z_r[0,:,:,:])    
-    zr_u=np.squeeze(zrom_u.z_r[0,:,:,:])    
-    zr_v=np.squeeze(zrom_v.z_r[0,:,:,:])
-
-
+    
+    zr=zrom.z_r  
+    zr_u=zrom_u.z_r 
+    zr_v=zrom_v.z_r
 
     for aa in range(nlt):
+        print(aa)
         for bb in range(nln):            
             fofz = np.squeeze(OCN_R['temp'][i0,:,aa,bb])
             ig = np.argwhere(np.isfinite(fofz))
             if len(ig) < 2: # you get in here if all f(z) is nan, ie. we are in land
                 # we also make sure that if there is only 1 good value, we also return nans
-                TMP['temp'][:,aa,bb] = np.nan*zr[:,aa,bb]
-                OCN_IC['salt'][:,aa,bb] = np.nan*zr[:,aa,bb]
+                TMP['temp'][0,:,aa,bb] = np.nan*zr[i0,:,aa,bb]
+                OCN_IC['salt'][0,:,aa,bb] = np.nan*zr[i0,:,aa,bb]
             else:
                 fofz2 = fofz[ig]
                 Fz = interp1d(np.squeeze(-zhy[ig]),np.squeeze(fofz2),bounds_error=False,kind='linear',fill_value=(fofz2[0],fofz2[-1]))
-                TMP['temp'][:,aa,bb] = Fz(zr[:,aa,bb])
+                TMP['temp'][0,:,aa,bb] = Fz(zr[i0,:,aa,bb])
                 
                 fofz = np.squeeze(OCN_R['salt'][i0,:,aa,bb])
                 ig = np.argwhere(np.isfinite(fofz))
                 fofz2 = fofz[ig]
                 Fz = interp1d(np.squeeze(-zhy[ig]),np.squeeze(fofz2),bounds_error=False,kind='linear',fill_value=(fofz2[0],fofz2[-1]))  
-                OCN_IC['salt'][:,aa,bb] = Fz(zr[:,aa,bb])
+                OCN_IC['salt'][0,:,aa,bb] = Fz(zr[i0,:,aa,bb])
 
                 if bb < nln-1:
                     fofz = np.squeeze(OCN_R['urm'][i0,:,aa,bb])
                     ig = np.argwhere(np.isfinite(fofz))
                     if len(ig) < 2:
-                        OCN_IC['u'][:,aa,bb] = np.nan*zr_u[:,aa,bb]
-                        OCN_IC['ubar'][aa,bb] = np.nan
+                        OCN_IC['u'][0,:,aa,bb] = np.nan*zr_u[i0,:,aa,bb]
+                        OCN_IC['ubar'][0,aa,bb] = np.nan
                     else:
                         fofz2 = fofz[ig]
                         Fz = interp1d(np.squeeze(-zhy[ig]),np.squeeze(fofz2),bounds_error=False,kind='linear',fill_value=(fofz2[0],fofz2[-1])) 
-                        uu =  Fz(zr_u[:,aa,bb])                
-                        OCN_IC['u'][:,aa,bb] = uu
-                        z2 = np.squeeze(zr_u[:,aa,bb])
-                        z3 = np.append(z2,eta_u[aa,bb])
+                        uu =  np.squeeze(Fz(zr_u[i0,:,aa,bb]))                
+                        OCN_IC['u'][0,:,aa,bb] = uu
+                        z2 = np.squeeze(zr_u[i0,:,aa,bb])
+                        z3 = np.append(z2,eta_u[i0,aa,bb])
                         dz = np.diff(z3)
-                        OCN_IC['ubar'][aa,bb] = np.sum(uu*dz) / hb_u[aa,bb]
+                        OCN_IC['ubar'][0,aa,bb] = np.sum(uu*dz) / hb_u[aa,bb]
                 if aa < nlt-1:
                     fofz = np.squeeze(OCN_R['vrm'][i0,:,aa,bb])
                     ig = np.argwhere(np.isfinite(fofz))
                     if len(ig) < 2:
-                        OCN_IC['v'][:,aa,bb] = np.nan*zr_v[:,aa,bb]
-                        OCN_IC['vbar'][aa,bb] = np.nan
+                        OCN_IC['v'][0,:,aa,bb] = np.nan*zr_v[i0,:,aa,bb]
+                        OCN_IC['vbar'][0,aa,bb] = np.nan
                     else:
                         fofz2 = fofz[ig]
                         Fz = interp1d(np.squeeze(-zhy[ig]),np.squeeze(fofz2),bounds_error=False,kind='linear',fill_value=(fofz2[0],fofz2[-1]))  
-                        vv = Fz(zr_v[:,aa,bb])
-                        OCN_IC['v'][:,aa,bb] = vv
-                        z2 = np.squeeze(zr_v[:,aa,bb])
-                        z3 = np.append(z2,eta_v[aa,bb])
+                        vv = np.squeeze(Fz(zr_v[i0,:,aa,bb]))
+                        OCN_IC['v'][0,:,aa,bb] = vv
+                        z2 = np.squeeze(zr_v[i0,:,aa,bb])
+                        z3 = np.append(z2,eta_v[i0,aa,bb])
                         dz = np.diff(z3)
-                        OCN_IC['vbar'][aa,bb] = np.sum(vv*dz) / hb_v[aa,bb]
+                        OCN_IC['vbar'][0,aa,bb] = np.sum(vv*dz) / hb_v[aa,bb]
 
     # ROMS wants potential temperature, not temperature
     # this needs the seawater package, conda install seawater, did this for me
-    pdb = -zr # pressure in dbar
+    pdb = -zr[i0,:,:,:] # pressure in dbar
     OCN_IC['temp'] = seawater.ptmp(OCN_IC['salt'], TMP['temp'],pdb)  
 
     return OCN_IC
@@ -789,15 +787,13 @@ def ocn_roms_IC_dict_to_netcdf(ATM_R,fn_out):
             lat_v   =(["er","xr"],ATM_R['lat_v'], ATM_R['vinfo']['lat_v']),
             lon_v   =(["er","xr"],ATM_R['lon_v'], ATM_R['vinfo']['lon_v']),   
             ocean_time = (["temp_time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
-            Vtransform = ([]),
-            Vstretching = ([]),
-            theta_s = ([]),
-            theta_b = ([])
-            Tcline = ([])
-            hc = ([])
-            Cs_r = (["s_rho"])
-            sc_r = (["s_rho"])
-
+            Cs_r = (["s_rho"],ATM_R['Cs_r'],ATM_R['vinfo']['Cs_r']),
+            Vtransform = (["one"],ATM_R['Vtr'],ATM_R['vinfo']['Vtr']),
+            Vstretching = (["one"],ATM_R['Vst'],ATM_R['vinfo']['Vst']),
+            theta_s = (["one"],ATM_R['th_s'],ATM_R['vinfo']['th_s']),
+            theta_b = (["one"],ATM_R['th_b'],ATM_R['vinfo']['th_b']),
+            Tcline = (["one"],ATM_R['Tcl'],ATM_R['vinfo']['Tcl']),
+            hc = (["one"],ATM_R['hc'],ATM_R['vinfo']['hc']),
          ),
         attrs={'type':'ocean initial condition file fields for starting roms',
             'time info':'ocean time is from '+ ATM_R['ocean_time_ref'].strftime("%Y/%m/%d %H:%M:%S") },
