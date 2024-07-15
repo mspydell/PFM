@@ -35,7 +35,7 @@ PFM=get_PFM_info()
 # %%
 run_type = 'forecast'
 # the year, month, day of the 
-yyyymmdd='20240706'
+yyyymmdd='20240714'
 # the hour in Z of the forecast, hycom has forecasts once per day starting at 1200Z
 hhmm='1200'
 # we will use hycom for IC and BC
@@ -52,9 +52,6 @@ RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
 #import ipdb; ipdb.set_trace()
 
 # %%
-# make the atm .nc file here.
-# fn_out is the name of the atm.nc file used by roms
-fn_out = '/Users/mspydell/research/FF2024/models/SDPM_mss/atm_stuff/atm_test_file_v2.nc'
 # make a switch to see if this file exists. If it exists, we don't need to run the code in this block
 # first the atm data
 # get the data as a dict
@@ -65,7 +62,12 @@ ATM = atmfuns.get_atm_data_as_dict(yyyymmdd,hhmm,run_type,atm_mod,get_method)
 # put the atm data on the roms grid, and rotate the velocities
 # everything in this dict turn into the atm.nc file
 ATM_R  = atmfuns.get_atm_data_on_roms_grid(ATM,RMG)
+
 # output a netcdf file of ATM_R
+# make the atm .nc file here.
+# fn_out is the name of the atm.nc file used by roms
+fn_out = PFM['lv1_forc_dir'] + '/ATM_FORCING.nc'    #'/Users/mspydell/research/FF2024/models/SDPM_mss/atm_stuff/atm_test_file_v2.nc'
+print(fn_out)
 atmfuns.atm_roms_dict_to_netcdf(ATM_R,fn_out)
 # put in a function to plot the atm.nc file if we want to
 

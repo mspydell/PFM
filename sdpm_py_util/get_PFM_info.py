@@ -20,8 +20,8 @@ def get_PFM_info():
    except KeyError:
        HOSTNAME = 'BLANK'
 
-   print('hello there')
-   print(HOSTNAME)
+
+   print('get_PFM_info(): running on' + HOSTNAME)
    
    if str(HOSTNAME) == 'swell':
        pfm_root_dir = '/scratch/PFM/'
