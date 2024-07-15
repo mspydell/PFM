@@ -6,7 +6,7 @@ This program is meant to be loaded as a module by Lfun which then adds more
 entries to the Ldir dict based on which model run you are working on.
 Users should copy this to PFM_user/get_sdpm_info.py and edit it appropriately.
 """
-
+ 
 import os
 import sys
 from pathlib import Path
@@ -20,8 +20,8 @@ def get_PFM_info():
    except KeyError:
        HOSTNAME = 'BLANK'
 
-   print('hello there')
-   print(HOSTNAME)
+
+   print('get_PFM_info(): running on' + HOSTNAME)
    
    if str(HOSTNAME) == 'swell':
        pfm_root_dir = '/scratch/PFM/'
