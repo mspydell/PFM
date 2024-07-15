@@ -7,6 +7,8 @@ import sys
 import pickle
 import matplotlib.pyplot as plt
 import numpy as np
+import os
+from datetime import datetime
 #import cartopy.crs as ccrs
 #import cartopy.feature as cfeature
 #import matplotlib.pyplot as plt
@@ -15,6 +17,8 @@ import numpy as np
 #import xarray as xr
 #import netCDF4 as nc
 #from scipy.interpolate import RegularGridInterpolator
+
+
 
 
 # %%
@@ -28,7 +32,12 @@ import grid_functions as grdfuns
 import util_functions as utlfuns 
 from util_functions import s_coordinate_4
 from get_PFM_info import get_PFM_info
+from make_LV1_dotin_and_SLURM import make_LV1_dotin_and_SLURM
 # row after setting suitable values for theta_b, theta_s, Tcline, Nz, hraw, eta, we could probably run the line:
+
+
+start_time = datetime.now()
+print("Starting: driver_run_forecast_LV1: Current Time =", start_time )
 
 PFM=get_PFM_info()
 
@@ -67,9 +76,11 @@ ATM_R  = atmfuns.get_atm_data_on_roms_grid(ATM,RMG)
 # make the atm .nc file here.
 # fn_out is the name of the atm.nc file used by roms
 fn_out = PFM['lv1_forc_dir'] + '/ATM_FORCING.nc'    #'/Users/mspydell/research/FF2024/models/SDPM_mss/atm_stuff/atm_test_file_v2.nc'
-print(fn_out)
+print('driver_run_forcast_LV1: saving ATM file to ' + fn_out)
 atmfuns.atm_roms_dict_to_netcdf(ATM_R,fn_out)
+print('driver_run_forecast_LV1:  done with writing ATM file, Current time ', datetime.now())
 # put in a function to plot the atm.nc file if we want to
+
 
 # %%
 # make the ocn IC and BC .nc files here
@@ -80,7 +91,9 @@ lv1_forc_dir = PFM['lv1_forc_dir']   #'/Users/mspydell/research/FF2024/models/SD
 # note, this function is hard wired to return 2.5 days of data
 # also note that the first time of this data is yyyymmdd 12:00Z
 # so we grab nam atm forecast data starting at this hour too.
-OCN = ocnfuns.get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method)
+#OCN = ocnfuns.get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method)
+#print('driver_run_forecast_LV1: done with get_ocn_data_as_dict: Current time ',datetime.now() )
+
 # note this takes 24.5 minutes to run on my laptop
 # 3 times this timed out
 # will likely need to use a wget method and directly download .nc files (arh)
@@ -89,18 +102,29 @@ OCN = ocnfuns.get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method)
 
 # %%
 # put the ocn data on the roms grid
-OCN_R  = ocnfuns.hycom_to_roms_latlon(OCN,RMG)
+#OCN_R  = ocnfuns.hycom_to_roms_latlon(OCN,RMG)
+#print('driver_run_forecast_LV1: done with hycom_to_roms_latlon')
 
 # %%
 # get the OCN_IC dictionary
-OCN_IC = ocnfuns.ocn_r_2_ICdict(OCN_R,RMG)
+#OCN_IC = ocnfuns.ocn_r_2_ICdict(OCN_R,RMG)
+#print('driver_run_forecast_LV1: done with ocn_r_2_ICdict')
 
 # %%
 # get the OCN_BC dictionary
 #OCN_BC = ocnfuns.ocn_r_2_BCdict(OCN_R,RMG)
-
+#print('driver_run_forecast_LV1: done with ocn_r_2_BCdict')
 # %%
-make_LV1_and_SLURM_dotin(PFM) 
+print('driver_run_forecast_LV1:  now make .in and .sb files')
+
+pfm_driver_src_dir = os.getcwd()
+os.chdir('../sdpm_py_util')
+make_LV1_dotin_and_SLURM( PFM )
+
+os.chdir(PFM['lv1_run_dir'])
+print('current directory is now: ', os.getcwd() )
+
+os.chdir(pfm_driver_src_dir)
 
 #run_slurm_script
 

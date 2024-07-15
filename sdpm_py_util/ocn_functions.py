@@ -23,7 +23,7 @@ from util_functions import s_coordinate_4
 def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method):
     from datetime import datetime
     from pydap.client import open_url
-    import pygrib
+#    import pygrib
 
     
     # this function will returm OCN, a dict of all ocean fields ROMS requires
