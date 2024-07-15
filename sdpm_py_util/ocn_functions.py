@@ -792,11 +792,11 @@ def ocn_roms_IC_dict_to_netcdf(ATM_R,fn_out):
             Vtransform = ([]),
             Vstretching = ([]),
             theta_s = ([]),
-            theta_b = ([])
-            Tcline = ([])
-            hc = ([])
-            Cs_r = (["s_rho"])
-            sc_r = (["s_rho"])
+            theta_b = ([]),
+            Tcline = ([]),
+            hc = ([]),
+            Cs_r = (["s_rho"]),
+            sc_r = (["s_rho"]),
 
          ),
         attrs={'type':'ocean initial condition file fields for starting roms',

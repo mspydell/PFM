@@ -20,7 +20,7 @@ import numpy as np
 # %%
 
 
-sys.path.append('/Users/falk/PathogenForecastModel/PFM/sdpm_py_util')
+sys.path.append('../sdpm_py_util')
 
 import atm_functions as atmfuns
 import ocn_functions as ocnfuns
@@ -48,6 +48,8 @@ get_method = 'open_dap_nc'
 # get the ROMS grid as a dict
 #fngr = '/Users/mspydell/research/FF2024/models/SDPM_mss/PFM_user/grids/GRID_SDTJRE_LV1.nc'
 RMG = grdfuns.roms_grid_to_dict(PFM['grid_lv1'])
+
+import ipdb; ipdb.set_trace()
 
 # %%
 # make the atm .nc file here.
