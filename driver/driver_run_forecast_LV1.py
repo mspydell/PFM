@@ -70,8 +70,8 @@ atmfuns.atm_roms_dict_to_netcdf(ATM_R,fn_out)
 # %%
 # make the ocn IC and BC .nc files here
 # fn*_out are the names of the the IC.nc and BC.nc roms files
-fn_ic_out = '/Users/mspydell/research/FF2024/models/SDPM_mss/atm_stuff/ocn_test_IC_file.nc'
-fn_bc_out = '/Users/mspydell/research/FF2024/models/SDPM_mss/atm_stuff/ocn_test_BC_file.nc'
+lv1_forc_dir = PFM['lv1_forc_dir']   #'/Users/mspydell/research/FF2024/models/SDPM_mss/atm_stuff/ocn_test_IC_file.nc'
+
 
 # note, this function is hard wired to return 2.5 days of data
 # also note that the first time of this data is yyyymmdd 12:00Z
@@ -96,8 +96,8 @@ OCN_IC = ocnfuns.ocn_r_2_ICdict(OCN_R,RMG)
 #OCN_BC = ocnfuns.ocn_r_2_BCdict(OCN_R,RMG)
 
 # %%
-#make_roms_dotin
-#make_slurm_script
+make_LV1_and_SLURM_dotin(PFM) 
+
 #run_slurm_script
 
 
