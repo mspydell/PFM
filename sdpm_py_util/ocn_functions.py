@@ -193,9 +193,11 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method):
                         'units':'degrees_east'}
         OCN['vinfo']['lat'] = {'long_name':'latitude',
                         'units':'degrees_north'}
-        OCN['vinfo']['ocean_time'] = {'long_name':'OCN forcing time',
-                            'units':'days since tref'}
-        OCN['vinfo']['ocean_time_ref'] = {'long_name': 'the reference data tref'}
+        OCN['vinfo']['ocean_time'] = {'long_name':'time since initialization',
+                        'units':'days',
+                        'coordinates':'temp_time',
+                        'field':'ocean_time, scalar, series'}
+        OCN['vinfo']['ocean_time_ref'] = {'long_name': 'the reference date tref (initialization time)'}
         OCN['vinfo']['depth'] = {'long_name':'ocean depth',
                             'units':'m'}
         OCN['vinfo']['temp'] = {'long_name':'ocean temperature',
@@ -608,6 +610,14 @@ def ocn_r_2_ICdict(OCN_R,RMG):
     th_b = RMG['THETA_B']                      # bottom  stretching parameter: 3
     Tcl  = RMG['TCLINE']                      # critical depth (m): 50
 
+    OCN_IC['Nz'] = RMG['Nz']
+    OCN_IC['Vtr'] = RMG['Vtransform']
+    OCN_IC['Vst'] = RMG['Vstretching']
+    OCN_IC['th_s'] = RMG['THETA_S']
+    OCN_IC['th_b'] = RMG['THETA_B']
+    OCN_IC['Tcl'] = RMG['TCLINE']
+    OCN_IC['hc'] = RMG['hc']
+
     TMP = dict()
     TMP['temp'] = np.zeros((Nz,nlt,nln)) # a helper becasue we convert to potential temp below
     OCN_IC['temp'] = np.zeros((Nz,nlt,nln))
@@ -618,6 +628,22 @@ def ocn_r_2_ICdict(OCN_R,RMG):
     OCN_IC['vbar'] = np.zeros((nlt-1,nln))
 
     OCN_IC['vinfo']=dict()
+    OCN_IC['vinfo']['Nz'] = {'long_name':'number of vertical rho levels',
+                             'units':'none'}
+    OCN_IC['vinfo']['Vtr'] = {'long_name':'vertical terrain-following transformation equation'}
+    OCN_IC['vinfo']['Vst'] = {'long_name':'vertical terrain-following stretching function'}
+    OCN_IC['vinfo']['th_s'] = {'long_name':'S-coordinate surface control parameter',
+                               'units':'nondimensional',
+                               'field': 'theta_s, scalar, series'}
+    OCN_IC['vinfo']['th_b'] = {'long_name':'S-coordinate bottom control parameter',
+                               'units':'nondimensional',
+                               'field': 'theta_b, scalar, series'}
+    OCN_IC['vinfo']['Tcl'] = {'long_name':'S-coordinate surface/bottom layer width',
+                               'units':'meter',
+                               'field': 'Tcline, scalar, series'}
+    OCN_IC['vinfo']['hc'] = {'long_name':'S-coordinate parameter, critical depth',
+                               'units':'meter',
+                               'field': 'hc, scalar, series'}
     OCN_IC['vinfo']['ocean_time'] = OCN_R['vinfo']['ocean_time']
     OCN_IC['vinfo']['ocean_time_ref'] = OCN_R['vinfo']['ocean_time_ref']
     OCN_IC['vinfo']['lat_rho'] = OCN_R['vinfo']['lat_rho']
@@ -629,33 +655,31 @@ def ocn_r_2_ICdict(OCN_R,RMG):
 
     OCN_IC['vinfo']['temp'] = {'long_name':'ocean potential temperature',
                         'units':'degrees C',
-                        'coordinates':'s,lat_rho,lon_rho',
+                        'coordinates':'time,s,lat_rho,lon_rho',
                         'time':'ocean_time'}
     OCN_IC['vinfo']['salt'] = {'long_name':'ocean salinity',
                         'units':'psu',
-                        'coordinates':'s,lat_rho,lon_rho',
+                        'coordinates':'tiem,s,lat_rho,lon_rho',
                         'time':'ocean_time'}
     OCN_IC['vinfo']['zeta'] = {'long_name':'ocean sea surface height',
                         'units':'m',
-                        'coordinates':'lat_rho,lon_rho',
+                        'coordinates':'time,lat_rho,lon_rho',
                         'time':'ocean_time'}
     OCN_IC['vinfo']['u'] = {'long_name':'ocean xi velocity',
                         'units':'m/s',
-                        'coordinates':'s,lat_u,lon_u',
+                        'coordinates':'time,s,lat_u,lon_u',
                         'time':'ocean_time'}
     OCN_IC['vinfo']['v'] = {'long_name':'ocean eta velocity',
                         'units':'m/s',
-                        'coordinates':'s,lat_v,lon_v',
+                        'coordinates':'time,s,lat_v,lon_v',
                         'time':'ocean_time'}
     OCN_IC['vinfo']['ubar'] = {'long_name':'ocean xi depth avg velocity',
                         'units':'m/s',
-                        'coordinates':'lat_u,lon_u',
-                        'time':'ocean_time',
+                        'coordinates':'time,lat_u,lon_u',
                         'note':'uses roms depths'}
     OCN_IC['vinfo']['vbar'] = {'long_name':'ocean eta depth avg velocity',
                         'units':'m/s',
-                        'coordinates':'lat_v,lon_v',
-                        'time':'ocean_time',
+                        'coordinates':'time,lat_v,lon_v',
                         'note':'uses roms depths'}
 
 
@@ -669,9 +693,25 @@ def ocn_r_2_ICdict(OCN_R,RMG):
         zrom_u = s_coordinate_4(hb_u, th_b , th_s , Tcl , Nz, hraw=hraw, zeta=eta_u)
         zrom_v = s_coordinate_4(hb_v, th_b , th_s , Tcl , Nz, hraw=hraw, zeta=eta_v)
 
+    
+    OCN_IC['Cs_r'] = []
+    OCN_IC['sc_r'] = []
+    OCN_IC['vinfo']['Cs_r'] = {'long_name':'S-coordinate stretching curves at RHO-points',
+                        'units':'nondimensional',
+                        'valid min':'-1',
+                        'valid max':'0',
+                        'field':'Cs_r, scalar, series'}
+    OCN_IC['vinfo']['Cs_r'] = {'long_name':'S-coordinate at RHO-points',
+                        'units':'nondimensional',
+                        'valid min':'-1',
+                        'valid max':'0',
+                        'field':'sc_r, scalar, series'}
+
     zr=np.squeeze(zrom.z_r[0,:,:,:])    
     zr_u=np.squeeze(zrom_u.z_r[0,:,:,:])    
-    zr_v=np.squeeze(zrom_v.z_r[0,:,:,:])    
+    zr_v=np.squeeze(zrom_v.z_r[0,:,:,:])
+
+
 
     for aa in range(nlt):
         for bb in range(nln):            
@@ -733,13 +773,13 @@ def ocn_r_2_ICdict(OCN_R,RMG):
 def ocn_roms_IC_dict_to_netcdf(ATM_R,fn_out):
     ds = xr.Dataset(
         data_vars = dict(
-            temp       = (["depth","er","xr"],ATM_R['temp'],ATM_R['vinfo']['temp']),
-            salt       = (["depth","er","xr"],ATM_R['salt'],ATM_R['vinfo']['salt']),
-            u          = (["depth","er","xr"],ATM_R['u'],ATM_R['vinfo']['u']),
-            v          = (["depth","er","xr"],ATM_R['v'],ATM_R['vinfo']['v']),
-            ubar       = (["er","xr"],ATM_R['ubar'],ATM_R['vinfo']['ubar']),
-            vbar       = (["er","xr"],ATM_R['vbar'],ATM_R['vinfo']['vbar']),
-            zeta       = (["er","xr"],ATM_R['zeta'],ATM_R['vinfo']['zeta']),
+            temp       = (["temp_time","s_rho","er","xr"],ATM_R['temp'],ATM_R['vinfo']['temp']),
+            salt       = (["temp_time","s_rho","er","xr"],ATM_R['salt'],ATM_R['vinfo']['salt']),
+            u          = (["temp_time","s_rho","er","xr"],ATM_R['u'],ATM_R['vinfo']['u']),
+            v          = (["temp_time","s_rho","er","xr"],ATM_R['v'],ATM_R['vinfo']['v']),
+            ubar       = (["temp_time","er","xr"],ATM_R['ubar'],ATM_R['vinfo']['ubar']),
+            vbar       = (["temp_time","er","xr"],ATM_R['vbar'],ATM_R['vinfo']['vbar']),
+            zeta       = (["temp_time","er","xr"],ATM_R['zeta'],ATM_R['vinfo']['zeta']),
         ),
         coords=dict(
             lat_rho =(["er","xr"],ATM_R['lat_rho'], ATM_R['vinfo']['lat_rho']),
@@ -748,7 +788,16 @@ def ocn_roms_IC_dict_to_netcdf(ATM_R,fn_out):
             lon_u   =(["er","xr"],ATM_R['lon_u'], ATM_R['vinfo']['lon_u']),
             lat_v   =(["er","xr"],ATM_R['lat_v'], ATM_R['vinfo']['lat_v']),
             lon_v   =(["er","xr"],ATM_R['lon_v'], ATM_R['vinfo']['lon_v']),   
-            ocean_time = (["time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
+            ocean_time = (["temp_time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
+            Vtransform = ([]),
+            Vstretching = ([]),
+            theta_s = ([]),
+            theta_b = ([])
+            Tcline = ([])
+            hc = ([])
+            Cs_r = (["s_rho"])
+            sc_r = (["s_rho"])
+
          ),
         attrs={'type':'ocean initial condition file fields for starting roms',
             'time info':'ocean time is from '+ ATM_R['ocean_time_ref'].strftime("%Y/%m/%d %H:%M:%S") },

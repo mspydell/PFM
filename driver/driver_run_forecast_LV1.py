@@ -50,17 +50,6 @@ get_method = 'open_dap_nc'
 RMG = grdfuns.roms_grid_to_dict(PFM['grid_lv1'])
 
 # %%
-
-
-h = RMG['h']
-eta = 0 * h
-zrom = s_coordinate_4(h, 3.0 , 8.0 , 50.0 , 40, hraw=hraw, zeta=eta)
-
-
-# %%
-zr = zrom.z_r[0,:,:,:]
-
-# %%
 # make the atm .nc file here.
 # fn_out is the name of the atm.nc file used by roms
 fn_out = '/Users/mspydell/research/FF2024/models/SDPM_mss/atm_stuff/atm_test_file_v2.nc'
@@ -94,30 +83,9 @@ OCN = ocnfuns.get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method)
 # maybe downloading the netcdf file would be quicker? 
 
 
-### should work to here! ####
-
-
-# %%
-# save the OCN dict so that we can restart the python session
-# and not have to worry about opendap timing out
-with open(fnout,'wb') as fp:
-    pickle.dump(OCN,fp)
-    print('OCN dict saved with pickle')
-
-# %%
-fnout='/Users/mspydell/research/FF2024/models/SDPM_mss/atm_stuff/ocn_hycom_dict_file.pkl'
-
-with open(fnout,'rb') as fp:
-    OCN = pickle.load(fp)
-
-
 # %%
 # put the ocn data on the roms grid
 OCN_R  = ocnfuns.hycom_to_roms_latlon(OCN,RMG)
-
-
-# %%
-print(OCN_R.keys())
 
 # %%
 # get the OCN_IC dictionary
@@ -125,105 +93,11 @@ OCN_IC = ocnfuns.ocn_r_2_ICdict(OCN_R,RMG)
 
 # %%
 # get the OCN_BC dictionary
-OCN_BC = ocnfuns.ocn_r_2_BCdict(OCN_R,RMG)
+#OCN_BC = ocnfuns.ocn_r_2_BCdict(OCN_R,RMG)
 
 # %%
-ilat = 100
-ilon = 145
-#print(OCN_R.keys())
-print(np.shape(OCN_R['urm']))
-dum = OCN_R['urm'][0,:,ilat,ilon]
-
-#dum = OCN_R['ubar'][0,:,:]
-dum2 = 0*dum
-dum2[np.isnan(dum)==1] = 1
-print(np.sum(dum2))
-print(np.prod(dum.shape))
-
-# %%
-fig, ax = plt.subplots(nrows=1, ncols=2)
-yy = OCN_R['depth'][:]
-ilat = 100
-ilon = 145
-
-plevs=np.arange(0,4500,1)
-cmap=plt.get_cmap('turbo')
-plt.set_cmap(cmap)
-cset1=ax[0].contourf(RMG['lon_rho'],RMG['lat_rho'],RMG['h'],plevs)
-ax[0].plot(RMG['lon_rho'][ilat,ilon],RMG['lat_rho'][ilat,ilon],'wx')
-
-xx = OCN_R['urm'][0,:,ilat,ilon]
-ib = np.argwhere(np.isnan(xx))
-ig = np.argwhere(np.isfinite(xx))
-print(len(ib))
-print(len(ig))
-
-ax[1].plot(xx,-yy,'-o')
-hrm = RMG['h'][ilat,ilon]
-#hrm2 = np.max(xx)
-#hrm1 = np.min(xx)
-ax[1].plot([0,.25],[-hrm,-hrm],'--')
-xx2 = OCN_R['ubar'][0,ilat,ilon]
-ax[1].plot([0,0],[-yy[0],-yy[-1]])
-ax[1].plot([xx2,xx2],[-yy[0],-yy[-1]],'-.')
-
-hyz = OCN_R['depth']
-igu = np.argwhere(hyz <= RMG['h'][ilat,ilon])
-ax[1].plot(xx[igu],-yy[igu],'--')
-
-dz = yy[1:]-yy[0:-1]
-um = 0.5*( xx[1:] + xx[0:-1] )
-ubar2 = np.sum(xx[igu]*dz[igu]) / yy[igu[-1]]
-ubar3 = np.sum(xx[igu]*dz[igu]) / hrm
-ubar4 = np.sum(um[igu]*dz[igu]) / hrm
-print('the raw mean of the good vels is:')
-print(np.mean(xx[igu]))
-print('the depth average velocity calculated in ofun is:')
-print(xx2)
-print('simple depth average velocity is:')
-print(ubar3)
-print('midpoint formula depth avg vel is:')
-print(ubar4)
-print('looks like the ubar from ocnfun is good!!!')
-
-#ib = np.argwhere(np.isnan(xx))
-#ig = np.argwhere(np.isfinite(xx))
-
-#print(np.shape(OCN_R['temp']))
-#print(RMG['lat_rho'][ilat,ilon])
-#print(RMG['lon_rho'][ilat,ilon])
-#print(ib)
-#print(yy[ib])
-#print(RMG['h'][ilat,ilon])
-
-#print(ig)
-
-
-
-# %%
-fig, ax = plt.subplots()
-plevs=np.arange(-.2,.2,.001)
-cmap=plt.get_cmap('turbo')
-plt.set_cmap(cmap)
-cset1=ax.contourf(RMG['lon_v'],RMG['lat_v'],OCN_R['vrm'][0,0,:,:],plevs)
-cbar=fig.colorbar(cset1,ax=ax,orientation='vertical')
-
-
-
-
-# %%
-OCN_Rz = ocnfuns.ocn_r_hycomz_2_romsz(OCN_R,RMG)
-
-# output OCN_R dict to roms IC
-ocn_roms_dict_to_IC_netcdf
-# ouput OCN_R dict to roms BC
-ocn_roms_dict_to_BC_netcdf
-
-
-
-# %%
-make_roms_dotin
-make_slurm_script
-run_slurm_script
+#make_roms_dotin
+#make_slurm_script
+#run_slurm_script
 
 

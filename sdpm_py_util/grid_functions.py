@@ -27,5 +27,6 @@ def roms_grid_to_dict(fng):
     RM['THETA_S'] = 8.0                      # surface stretching parameter
     RM['THETA_B'] = 3.0                      # bottom  stretching parameter
     RM['TCLINE'] = 50.0                      # critical depth (m)
+    RM['hc'] = 50.0                          # not sure the difference with tcline
 
     return RM
