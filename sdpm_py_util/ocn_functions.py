@@ -916,6 +916,7 @@ def ocn_r_2_ICdict_old(OCN_R,RMG):
 
 
     for aa in range(nlt):
+        print(aa)
         for bb in range(nln):            
             fofz = np.squeeze(OCN_R['temp'][i0,:,aa,bb])
             ig = np.argwhere(np.isfinite(fofz))
