@@ -132,8 +132,12 @@ make_LV1_dotin_and_SLURM( PFM )
 os.chdir(PFM['lv1_run_dir'])
 print('current directory is now: ', os.getcwd() )
 
+# run command will be
+#run_slurm_script
+
 os.chdir(pfm_driver_src_dir)
 
-#run_slurm_script
+# postprocess figure generation
+
 
 
