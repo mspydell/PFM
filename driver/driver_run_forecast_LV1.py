@@ -99,6 +99,7 @@ lv1_forc_dir = PFM['lv1_forc_dir']   #'/Users/mspydell/research/FF2024/models/SD
 # so we grab nam atm forecast data starting at this hour too.
 OCN = ocnfuns.get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method)
 print('driver_run_forecast_LV1: done with get_ocn_data_as_dict: Current time ',datetime.now() )
+# add OCN plotting function here !!!!
 
 # note this takes 24.5 minutes to run on my laptop
 # 3 times this timed out
@@ -110,11 +111,13 @@ print('driver_run_forecast_LV1: done with get_ocn_data_as_dict: Current time ',d
 # put the ocn data on the roms grid
 OCN_R  = ocnfuns.hycom_to_roms_latlon(OCN,RMG)
 print('driver_run_forecast_LV1: done with hycom_to_roms_latlon')
+# add OCN + OCN_R plotting function here !!!
 
 # %%
 # get the OCN_IC dictionary
 OCN_IC = ocnfuns.ocn_r_2_ICdict(OCN_R,RMG)
 print('driver_run_forecast_LV1: done with ocn_r_2_ICdict')
+# add OCN_IC.nc plotting function here !!!!
 
 # %%
 # get the OCN_BC dictionary
@@ -135,5 +138,5 @@ print('current directory is now: ', os.getcwd() )
 os.chdir(pfm_driver_src_dir)
 
 #run_slurm_script
-
+# plot fields from his.nc
 
