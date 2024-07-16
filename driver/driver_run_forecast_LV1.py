@@ -1,7 +1,6 @@
-# %%
-# scratch code to get ocn forcing .nc files
+# -- driver_run_forecast_LV1.py  --
+# master python script to do a full LV1 forecast simulation
 
-#from datetime import datetime
 
 import sys
 import pickle
@@ -18,11 +17,7 @@ from datetime import datetime
 #import netCDF4 as nc
 #from scipy.interpolate import RegularGridInterpolator
 
-
-
-
-# %%
-
+##############
 
 sys.path.append('../sdpm_py_util')
 
@@ -91,8 +86,8 @@ lv1_forc_dir = PFM['lv1_forc_dir']   #'/Users/mspydell/research/FF2024/models/SD
 # note, this function is hard wired to return 2.5 days of data
 # also note that the first time of this data is yyyymmdd 12:00Z
 # so we grab nam atm forecast data starting at this hour too.
-#OCN = ocnfuns.get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method)
-#print('driver_run_forecast_LV1: done with get_ocn_data_as_dict: Current time ',datetime.now() )
+OCN = ocnfuns.get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method)
+print('driver_run_forecast_LV1: done with get_ocn_data_as_dict: Current time ',datetime.now() )
 
 # note this takes 24.5 minutes to run on my laptop
 # 3 times this timed out
@@ -102,19 +97,21 @@ lv1_forc_dir = PFM['lv1_forc_dir']   #'/Users/mspydell/research/FF2024/models/SD
 
 # %%
 # put the ocn data on the roms grid
-#OCN_R  = ocnfuns.hycom_to_roms_latlon(OCN,RMG)
-#print('driver_run_forecast_LV1: done with hycom_to_roms_latlon')
+OCN_R  = ocnfuns.hycom_to_roms_latlon(OCN,RMG)
+print('driver_run_forecast_LV1: done with hycom_to_roms_latlon')
 
 # %%
 # get the OCN_IC dictionary
-#OCN_IC = ocnfuns.ocn_r_2_ICdict(OCN_R,RMG)
-#print('driver_run_forecast_LV1: done with ocn_r_2_ICdict')
+OCN_IC = ocnfuns.ocn_r_2_ICdict(OCN_R,RMG)
+print('driver_run_forecast_LV1: done with ocn_r_2_ICdict')
 
 # %%
 # get the OCN_BC dictionary
-#OCN_BC = ocnfuns.ocn_r_2_BCdict(OCN_R,RMG)
-#print('driver_run_forecast_LV1: done with ocn_r_2_BCdict')
+OCN_BC = ocnfuns.ocn_r_2_BCdict(OCN_R,RMG)
+print('driver_run_forecast_LV1: done with ocn_r_2_BCdict')
 # %%
+
+
 print('driver_run_forecast_LV1:  now make .in and .sb files')
 
 pfm_driver_src_dir = os.getcwd()
