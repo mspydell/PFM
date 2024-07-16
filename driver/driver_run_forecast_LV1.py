@@ -51,7 +51,7 @@ PFM=get_PFM_info()
 # %%
 run_type = 'forecast'
 # the year, month, day of the 
-yyyymmdd='20240714'
+#yyyymmdd='20240714'
 # the hour in Z of the forecast, hycom has forecasts once per day starting at 1200Z
 hhmm='1200'
 # we will use hycom for IC and BC
