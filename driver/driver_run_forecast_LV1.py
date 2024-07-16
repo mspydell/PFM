@@ -53,6 +53,9 @@ run_type = 'forecast'
 #yyyymmdd='20240714'
 # the hour in Z of the forecast, hycom has forecasts once per day starting at 1200Z
 hhmm='1200'
+
+forecastZdatestr = yyymmdd+hhmm+'Z'   # this could be used for model output to indicate when model was initialized.
+
 # we will use hycom for IC and BC
 ocn_mod = 'hycom'
 # we will use nam_nest for the atm forcing
