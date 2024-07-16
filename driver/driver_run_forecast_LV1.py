@@ -44,7 +44,6 @@ print("Starting: driver_run_forecast_LV1: Current local Time =", start_time )
 yyyymmdd = "%d%02d%02d" % (year_utc, month_utc, hour_utc)
 print("Preparing forecast starting on ",yyyymmdd)
 
-breakpoint()
 
 PFM=get_PFM_info()
 
