@@ -7,7 +7,7 @@ import pickle
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 #import cartopy.crs as ccrs
 #import cartopy.feature as cfeature
 #import matplotlib.pyplot as plt
@@ -30,9 +30,21 @@ from get_PFM_info import get_PFM_info
 from make_LV1_dotin_and_SLURM import make_LV1_dotin_and_SLURM
 # row after setting suitable values for theta_b, theta_s, Tcline, Nz, hraw, eta, we could probably run the line:
 
-
+# figure out what the time is local and UTC
 start_time = datetime.now()
-print("Starting: driver_run_forecast_LV1: Current Time =", start_time )
+utc_time = datetime.now(timezone.utc)
+year_utc = utc_time.year
+month_utc = utc_time.month
+day_utc = utc_time.day
+hour_utc = utc_time.hour
+
+
+print("Starting: driver_run_forecast_LV1: Current local Time =", start_time )
+
+yyyymmdd = "%d%02d%02d" % (year_utc, month_utc, hour_utc)
+print("Preparing forecast starting on ",yyyymmdd)
+
+breakpoint()
 
 PFM=get_PFM_info()
 
