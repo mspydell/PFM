@@ -77,12 +77,12 @@ RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
 ATM = atmfuns.get_atm_data_as_dict(yyyymmdd,hhmm,run_type,atm_mod,get_method)
 # put in a function to check to make sure that all the data is good
 # put in a function to plot the raw atm data if we want to
-pltfuns.plot_atm_fields(ATM, RMG)
+pltfuns.plot_atm_fields(ATM, RMG, PFM)
 # put the atm data on the roms grid, and rotate the velocities
 # everything in this dict turn into the atm.nc file
 ATM_R  = atmfuns.get_atm_data_on_roms_grid(ATM,RMG)
 # all the fields plotted with the data on roms grid
-pltfuns.plot_all_fields_in_one(ATM, ATM_R, RMG)
+pltfuns.plot_all_fields_in_one(ATM, ATM_R, RMG, PFM)
 
 # output a netcdf file of ATM_R
 # make the atm .nc file here.
