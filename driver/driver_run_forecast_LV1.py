@@ -121,6 +121,8 @@ print('driver_run_forecast_LV1: done with hycom_to_roms_latlon')
 OCN_IC = ocnfuns.ocn_r_2_ICdict(OCN_R,RMG)
 print('driver_run_forecast_LV1: done with ocn_r_2_ICdict')
 # add OCN_IC.nc plotting function here !!!!
+ocnfuns.ocn_roms_IC_dict_to_netcdf(OCN_IC,PFM['IC_file'])
+
 
 # %%
 # get the OCN_BC dictionary

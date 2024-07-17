@@ -567,7 +567,7 @@ def hycom_to_roms_latlon(HY,RMG):
     return HYrm
 
 
-def ocn_r_2_ICdict(OCN_R,RMG):
+def ocn_r_2_ICdict_slow(OCN_R,RMG):
     # this slices the OCN_R dictionary at the first time for all needed 
     # variables for the initial condition for roms
     # it then interpolates from the hycom z values that the vars are on
@@ -830,6 +830,14 @@ def ocn_r_2_ICdict_old(OCN_R,RMG):
     OCN_IC['vbar'] = np.zeros((nlt-1,nln))
 
     OCN_IC['vinfo']=dict()
+    OCN_IC['vinfo']['ocean_time'] = OCN_R['vinfo']['ocean_time']
+    OCN_IC['vinfo']['ocean_time_ref'] = OCN_R['vinfo']['ocean_time_ref']
+    OCN_IC['vinfo']['lat_rho'] = OCN_R['vinfo']['lat_rho']
+    OCN_IC['vinfo']['lon_rho'] = OCN_R['vinfo']['lat_rho']
+    OCN_IC['vinfo']['lat_u'] = OCN_R['vinfo']['lat_u']
+    OCN_IC['vinfo']['lon_u'] = OCN_R['vinfo']['lon_u']
+    OCN_IC['vinfo']['lat_v'] = OCN_R['vinfo']['lat_v']
+    OCN_IC['vinfo']['lon_v'] = OCN_R['vinfo']['lon_v']
     OCN_IC['vinfo']['Nz'] = {'long_name':'number of vertical rho levels',
                              'units':'none'}
     OCN_IC['vinfo']['Vtr'] = {'long_name':'vertical terrain-following transformation equation'}
@@ -846,15 +854,7 @@ def ocn_r_2_ICdict_old(OCN_R,RMG):
     OCN_IC['vinfo']['hc'] = {'long_name':'S-coordinate parameter, critical depth',
                                'units':'meter',
                                'field': 'hc, scalar, series'}
-    OCN_IC['vinfo']['ocean_time'] = OCN_R['vinfo']['ocean_time']
-    OCN_IC['vinfo']['ocean_time_ref'] = OCN_R['vinfo']['ocean_time_ref']
-    OCN_IC['vinfo']['lat_rho'] = OCN_R['vinfo']['lat_rho']
-    OCN_IC['vinfo']['lon_rho'] = OCN_R['vinfo']['lat_rho']
-    OCN_IC['vinfo']['lat_u'] = OCN_R['vinfo']['lat_u']
-    OCN_IC['vinfo']['lon_u'] = OCN_R['vinfo']['lon_u']
-    OCN_IC['vinfo']['lat_v'] = OCN_R['vinfo']['lat_v']
-    OCN_IC['vinfo']['lon_v'] = OCN_R['vinfo']['lon_v']
-
+    # note we put potential temperature in, not temp. 
     OCN_IC['vinfo']['temp'] = {'long_name':'ocean potential temperature',
                         'units':'degrees C',
                         'coordinates':'time,s,lat_rho,lon_rho',
@@ -884,11 +884,7 @@ def ocn_r_2_ICdict_old(OCN_R,RMG):
                         'coordinates':'time,lat_v,lon_v',
                         'note':'uses roms depths'}
 
-
     # get the roms z's
-    #zrom = get_roms_zlevels(Nz,Vtr,Vst,th_s,th_b,Tcl,eta=0*RMG['h'],RMG['h'])
-    #zrom = s_coordinate_4(RMG['h'], theta_b, theta_s, Tcline, Nz, hraw=hraw, eta=0*RMG['h'])    
-
     hraw = None
     if Vst == 4:
         zrom = s_coordinate_4(hb, th_b , th_s , Tcl , Nz, hraw=hraw, zeta=eta)
@@ -896,24 +892,23 @@ def ocn_r_2_ICdict_old(OCN_R,RMG):
         zrom_v = s_coordinate_4(hb_v, th_b , th_s , Tcl , Nz, hraw=hraw, zeta=eta_v)
 
     
-    OCN_IC['Cs_r'] = []
-    OCN_IC['sc_r'] = []
+    OCN_IC['Cs_r'] = np.squeeze(zrom.Cs_r)
     OCN_IC['vinfo']['Cs_r'] = {'long_name':'S-coordinate stretching curves at RHO-points',
                         'units':'nondimensional',
                         'valid min':'-1',
                         'valid max':'0',
                         'field':'Cs_r, scalar, series'}
-    OCN_IC['vinfo']['Cs_r'] = {'long_name':'S-coordinate at RHO-points',
-                        'units':'nondimensional',
-                        'valid min':'-1',
-                        'valid max':'0',
-                        'field':'sc_r, scalar, series'}
+    # do we need sc_r ???
+    #OCN_IC['sc_r'] = []
+    #OCN_IC['vinfo']['sc_r'] = {'long_name':'S-coordinate at RHO-points',
+    #                    'units':'nondimensional',
+    #                    'valid min':'-1',
+    #                    'valid max':'0',
+    #                    'field':'sc_r, scalar, series'}
 
     zr=np.squeeze(zrom.z_r[0,:,:,:])    
     zr_u=np.squeeze(zrom_u.z_r[0,:,:,:])    
     zr_v=np.squeeze(zrom_v.z_r[0,:,:,:])
-
-
 
     for aa in range(nlt):
         print(aa)
@@ -985,7 +980,8 @@ def ocn_r_2_ICdict_new(OCN_R,RMG):
     
     OCN_IC = dict()
     # fill in the dict with slicing
-    OCN_IC['ocean_time'] = OCN_R['ocean_time'][i0]
+    OCN_IC['ocean_time'] = np.zeros((1))
+    OCN_IC['ocean_time'][0] = OCN_R['ocean_time'][i0]
     #OCN_IC['ubar'] = np.squeeze(OCN_R['ubar'][i0,:,:])
     #OCN_IC['vbar'] = np.squeeze(OCN_R['vbar'][i0,:,:])
 
@@ -1012,20 +1008,20 @@ def ocn_r_2_ICdict_new(OCN_R,RMG):
     th_b = RMG['THETA_B']                      # bottom  stretching parameter: 3
     Tcl  = RMG['TCLINE']                      # critical depth (m): 50
 
-    OCN_IC['zeta'] = np.zeros((Nz,nlt,nln))
+    OCN_IC['zeta'] = np.zeros((1,nlt,nln))
     OCN_IC['zeta'][0,:,:] = OCN_R['zeta'][i0,:,:]
 
     eta = np.squeeze(OCN_IC['zeta'][0,:,:])
     eta_u = 0.5 * (eta[:,0:-1]+eta[:,1:])
     eta_v = 0.5 * (eta[0:-1,:]+eta[1:,:])
 
-    OCN_IC['Nz'] = RMG['Nz']
-    OCN_IC['Vtr'] = RMG['Vtransform']
-    OCN_IC['Vst'] = RMG['Vstretching']
-    OCN_IC['th_s'] = RMG['THETA_S']
-    OCN_IC['th_b'] = RMG['THETA_B']
-    OCN_IC['Tcl'] = RMG['TCLINE']
-    OCN_IC['hc'] = RMG['hc']
+    OCN_IC['Nz'] = np.squeeze(RMG['Nz'])
+    OCN_IC['Vtr'] = np.squeeze(RMG['Vtransform'])
+    OCN_IC['Vst'] = np.squeeze(RMG['Vstretching'])
+    OCN_IC['th_s'] = np.squeeze(RMG['THETA_S'])
+    OCN_IC['th_b'] = np.squeeze(RMG['THETA_B'])
+    OCN_IC['Tcl'] = np.squeeze(RMG['TCLINE'])
+    OCN_IC['hc'] = np.squeeze(RMG['hc'])
 
     TMP = dict()
     TMP['temp'] = np.zeros((1,Nz,nlt,nln)) # a helper becasue we convert to potential temp below
@@ -1037,6 +1033,15 @@ def ocn_r_2_ICdict_new(OCN_R,RMG):
     OCN_IC['vbar'] = np.zeros((1,nlt-1,nln))
 
     OCN_IC['vinfo']=dict()
+    OCN_IC['vinfo']['ocean_time'] = OCN_R['vinfo']['ocean_time']
+    OCN_IC['vinfo']['ocean_time_ref'] = OCN_R['vinfo']['ocean_time_ref']
+    OCN_IC['vinfo']['lat_rho'] = OCN_R['vinfo']['lat_rho']
+    OCN_IC['vinfo']['lon_rho'] = OCN_R['vinfo']['lat_rho']
+    OCN_IC['vinfo']['lat_u'] = OCN_R['vinfo']['lat_u']
+    OCN_IC['vinfo']['lon_u'] = OCN_R['vinfo']['lon_u']
+    OCN_IC['vinfo']['lat_v'] = OCN_R['vinfo']['lat_v']
+    OCN_IC['vinfo']['lon_v'] = OCN_R['vinfo']['lon_v']
+
     OCN_IC['vinfo']['Nz'] = {'long_name':'number of vertical rho levels',
                              'units':'none'}
     OCN_IC['vinfo']['Vtr'] = {'long_name':'vertical terrain-following transformation equation'}
@@ -1053,15 +1058,6 @@ def ocn_r_2_ICdict_new(OCN_R,RMG):
     OCN_IC['vinfo']['hc'] = {'long_name':'S-coordinate parameter, critical depth',
                                'units':'meter',
                                'field': 'hc, scalar, series'}
-    OCN_IC['vinfo']['ocean_time'] = OCN_R['vinfo']['ocean_time']
-    OCN_IC['vinfo']['ocean_time_ref'] = OCN_R['vinfo']['ocean_time_ref']
-    OCN_IC['vinfo']['lat_rho'] = OCN_R['vinfo']['lat_rho']
-    OCN_IC['vinfo']['lon_rho'] = OCN_R['vinfo']['lat_rho']
-    OCN_IC['vinfo']['lat_u'] = OCN_R['vinfo']['lat_u']
-    OCN_IC['vinfo']['lon_u'] = OCN_R['vinfo']['lon_u']
-    OCN_IC['vinfo']['lat_v'] = OCN_R['vinfo']['lat_v']
-    OCN_IC['vinfo']['lon_v'] = OCN_R['vinfo']['lon_v']
-
     OCN_IC['vinfo']['temp'] = {'long_name':'ocean potential temperature',
                         'units':'degrees C',
                         'coordinates':'time,s,lat_rho,lon_rho',
@@ -1093,34 +1089,30 @@ def ocn_r_2_ICdict_new(OCN_R,RMG):
 
 
     # get the roms z's
-    #zrom = get_roms_zlevels(Nz,Vtr,Vst,th_s,th_b,Tcl,eta=0*RMG['h'],RMG['h'])
-    #zrom = s_coordinate_4(RMG['h'], theta_b, theta_s, Tcline, Nz, hraw=hraw, eta=0*RMG['h'])    
-
     hraw = None
     if Vst == 4:
         zrom = s_coordinate_4(hb, th_b , th_s , Tcl , Nz, hraw=hraw, zeta=eta)
         zrom_u = s_coordinate_4(hb_u, th_b , th_s , Tcl , Nz, hraw=hraw, zeta=eta_u)
         zrom_v = s_coordinate_4(hb_v, th_b , th_s , Tcl , Nz, hraw=hraw, zeta=eta_v)
-
     
-    OCN_IC['Cs_r'] = []
-    OCN_IC['sc_r'] = []
+    OCN_IC['Cs_r'] = np.squeeze(zrom.Cs_r)
     OCN_IC['vinfo']['Cs_r'] = {'long_name':'S-coordinate stretching curves at RHO-points',
                         'units':'nondimensional',
                         'valid min':'-1',
                         'valid max':'0',
                         'field':'Cs_r, scalar, series'}
-    OCN_IC['vinfo']['Cs_r'] = {'long_name':'S-coordinate at RHO-points',
-                        'units':'nondimensional',
-                        'valid min':'-1',
-                        'valid max':'0',
-                        'field':'sc_r, scalar, series'}
+    
+    # do we need sc_r ???
+    #OCN_IC['sc_r'] = []
+    #OCN_IC['vinfo']['sc_r'] = {'long_name':'S-coordinate at RHO-points',
+    #                    'units':'nondimensional',
+    #                    'valid min':'-1',
+    #                    'valid max':'0',
+    #                    'field':'sc_r, scalar, series'}
 
     zr=np.squeeze(zrom.z_r[0,:,:,:])    
     zr_u=np.squeeze(zrom_u.z_r[0,:,:,:])    
     zr_v=np.squeeze(zrom_v.z_r[0,:,:,:])
-
-
 
     for aa in range(nlt):
         for bb in range(nln):            
@@ -1183,29 +1175,29 @@ def ocn_r_2_ICdict_new(OCN_R,RMG):
 def ocn_roms_IC_dict_to_netcdf(ATM_R,fn_out):
     ds = xr.Dataset(
         data_vars = dict(
-            temp       = (["temp_time","s_rho","er","xr"],ATM_R['temp'],ATM_R['vinfo']['temp']),
-            salt       = (["temp_time","s_rho","er","xr"],ATM_R['salt'],ATM_R['vinfo']['salt']),
-            u          = (["temp_time","s_rho","er","xr"],ATM_R['u'],ATM_R['vinfo']['u']),
-            v          = (["temp_time","s_rho","er","xr"],ATM_R['v'],ATM_R['vinfo']['v']),
-            ubar       = (["temp_time","er","xr"],ATM_R['ubar'],ATM_R['vinfo']['ubar']),
-            vbar       = (["temp_time","er","xr"],ATM_R['vbar'],ATM_R['vinfo']['vbar']),
-            zeta       = (["temp_time","er","xr"],ATM_R['zeta'],ATM_R['vinfo']['zeta']),
+            temp       = (["time","s_rho","er","xr"],ATM_R['temp'],ATM_R['vinfo']['temp']),
+            salt       = (["time","s_rho","er","xr"],ATM_R['salt'],ATM_R['vinfo']['salt']),
+            u          = (["time","s_rho","er","xr_u"],ATM_R['u'],ATM_R['vinfo']['u']),
+            v          = (["time","s_rho","er_v","xr"],ATM_R['v'],ATM_R['vinfo']['v']),
+            ubar       = (["time","er","xr_u"],ATM_R['ubar'],ATM_R['vinfo']['ubar']),
+            vbar       = (["time","er_v","xr"],ATM_R['vbar'],ATM_R['vinfo']['vbar']),
+            zeta       = (["time","er","xr"],ATM_R['zeta'],ATM_R['vinfo']['zeta']),
         ),
         coords=dict(
             lat_rho =(["er","xr"],ATM_R['lat_rho'], ATM_R['vinfo']['lat_rho']),
             lon_rho =(["er","xr"],ATM_R['lon_rho'], ATM_R['vinfo']['lon_rho']),
-            lat_u   =(["er","xr"],ATM_R['lat_u'], ATM_R['vinfo']['lat_u']),
-            lon_u   =(["er","xr"],ATM_R['lon_u'], ATM_R['vinfo']['lon_u']),
-            lat_v   =(["er","xr"],ATM_R['lat_v'], ATM_R['vinfo']['lat_v']),
-            lon_v   =(["er","xr"],ATM_R['lon_v'], ATM_R['vinfo']['lon_v']),   
-            ocean_time = (["temp_time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
+            lat_u   =(["er","xr_u"],ATM_R['lat_u'], ATM_R['vinfo']['lat_u']),
+            lon_u   =(["er","xr_u"],ATM_R['lon_u'], ATM_R['vinfo']['lon_u']),
+            lat_v   =(["er_v","xr"],ATM_R['lat_v'], ATM_R['vinfo']['lat_v']),
+            lon_v   =(["er_v","xr"],ATM_R['lon_v'], ATM_R['vinfo']['lon_v']),   
+            ocean_time = (["time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
             Cs_r = (["s_rho"],ATM_R['Cs_r'],ATM_R['vinfo']['Cs_r']),
-            Vtransform = (["one"],ATM_R['Vtr'],ATM_R['vinfo']['Vtr']),
-            Vstretching = (["one"],ATM_R['Vst'],ATM_R['vinfo']['Vst']),
-            theta_s = (["one"],ATM_R['th_s'],ATM_R['vinfo']['th_s']),
-            theta_b = (["one"],ATM_R['th_b'],ATM_R['vinfo']['th_b']),
-            Tcline = (["one"],ATM_R['Tcl'],ATM_R['vinfo']['Tcl']),
-            hc = (["one"],ATM_R['hc'],ATM_R['vinfo']['hc']),
+            Vtransform = ([],ATM_R['Vtr'],ATM_R['vinfo']['Vtr']),
+            Vstretching = ([],ATM_R['Vst'],ATM_R['vinfo']['Vst']),
+            theta_s = ([],ATM_R['th_s'],ATM_R['vinfo']['th_s']),
+            theta_b = ([],ATM_R['th_b'],ATM_R['vinfo']['th_b']),
+            Tcline = ([],ATM_R['Tcl'],ATM_R['vinfo']['Tcl']),
+            hc = ([],ATM_R['hc'],ATM_R['vinfo']['hc']),
          ),
         attrs={'type':'ocean initial condition file fields for starting roms',
             'time info':'ocean time is from '+ ATM_R['ocean_time_ref'].strftime("%Y/%m/%d %H:%M:%S") },
