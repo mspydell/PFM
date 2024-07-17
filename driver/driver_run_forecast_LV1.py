@@ -25,10 +25,10 @@ import atm_functions as atmfuns
 import ocn_functions as ocnfuns
 import grid_functions as grdfuns
 import util_functions as utlfuns 
+import plotting_functions as pltfuns
 from util_functions import s_coordinate_4
 from get_PFM_info import get_PFM_info
 from make_LV1_dotin_and_SLURM import make_LV1_dotin_and_SLURM
-# row after setting suitable values for theta_b, theta_s, Tcline, Nz, hraw, eta, we could probably run the line:
 
 # figure out what the time is local and UTC
 start_time = datetime.now()
@@ -77,9 +77,12 @@ RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
 ATM = atmfuns.get_atm_data_as_dict(yyyymmdd,hhmm,run_type,atm_mod,get_method)
 # put in a function to check to make sure that all the data is good
 # put in a function to plot the raw atm data if we want to
+pltfuns.plot_atm_fields(ATM, RMG)
 # put the atm data on the roms grid, and rotate the velocities
 # everything in this dict turn into the atm.nc file
 ATM_R  = atmfuns.get_atm_data_on_roms_grid(ATM,RMG)
+# all the fields plotted with the data on roms grid
+pltfuns.plot_all_fields_in_one(ATM, ATM_R, RMG)
 
 # output a netcdf file of ATM_R
 # make the atm .nc file here.
@@ -89,6 +92,7 @@ print('driver_run_forcast_LV1: saving ATM file to ' + fn_out)
 atmfuns.atm_roms_dict_to_netcdf(ATM_R,fn_out)
 print('driver_run_forecast_LV1:  done with writing ATM file, Current time ', datetime.now())
 # put in a function to plot the atm.nc file if we want to
+pltfuns.load_and_plot_atm()
 
 
 # %%
