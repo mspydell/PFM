@@ -29,6 +29,7 @@ import plotting_functions as pltfuns
 from util_functions import s_coordinate_4
 from get_PFM_info import get_PFM_info
 from make_LV1_dotin_and_SLURM import make_LV1_dotin_and_SLURM
+from run_SLURM_LV1 import run_SLURM_LV1
 
 # figure out what the time is local and UTC
 start_time = datetime.now()
@@ -141,13 +142,15 @@ pfm_driver_src_dir = os.getcwd()
 os.chdir('../sdpm_py_util')
 make_LV1_dotin_and_SLURM( PFM )
 
-os.chdir(PFM['lv1_run_dir'])
-print('current directory is now: ', os.getcwd() )
 
 # run command will be
-#run_slurm_script
+run_slurm_LV1(PFM)
+
 
 os.chdir(pfm_driver_src_dir)
+
+
+
 
 # postprocess figure generation
 # plot fields from his.nc
