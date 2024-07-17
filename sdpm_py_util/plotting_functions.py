@@ -388,7 +388,7 @@ def plot_all_fields_in_one(ATM, ATM_R, RMG, PFM, fields_to_plot=None):
         plt.show()
         
 
-def load_and_plot_atm(fields_to_plot=None):
+def load_and_plot_atm(PFM, fields_to_plot=None):
     """
     Load the atm.nc file and plot specified fields.
 
@@ -421,4 +421,6 @@ def load_and_plot_atm(fields_to_plot=None):
     # Close the dataset
     ds.close()
 
+    # Plot the ATM fields
+    plot_atm_r_fields(ATM, RMG, PFM, fields_to_plot, flag=False)
 

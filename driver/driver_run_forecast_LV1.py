@@ -92,7 +92,7 @@ print('driver_run_forcast_LV1: saving ATM file to ' + fn_out)
 atmfuns.atm_roms_dict_to_netcdf(ATM_R,fn_out)
 print('driver_run_forecast_LV1:  done with writing ATM file, Current time ', datetime.now())
 # put in a function to plot the atm.nc file if we want to
-pltfuns.load_and_plot_atm()
+pltfuns.load_and_plot_atm(PFM)
 
 
 # %%
