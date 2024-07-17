@@ -42,6 +42,10 @@ hour_utc = utc_time.hour
 print("Starting: driver_run_forecast_LV1: Current local Time =", start_time )
 
 yyyymmdd = "%d%02d%02d" % (year_utc, month_utc, hour_utc)
+# the hour in Z of the forecast, hycom has forecasts once per day starting at 1200Z
+hhmm='1200'
+forecastZdatestr = yyymmdd+hhmm+'Z'   # this could be used for model output to indicate when model was initialized.
+
 print("Preparing forecast starting on ",yyyymmdd)
 
 
@@ -51,10 +55,6 @@ PFM=get_PFM_info()
 run_type = 'forecast'
 # the year, month, day of the 
 #yyyymmdd='20240714'
-# the hour in Z of the forecast, hycom has forecasts once per day starting at 1200Z
-hhmm='1200'
-
-forecastZdatestr = yyymmdd+hhmm+'Z'   # this could be used for model output to indicate when model was initialized.
 
 # we will use hycom for IC and BC
 ocn_mod = 'hycom'
