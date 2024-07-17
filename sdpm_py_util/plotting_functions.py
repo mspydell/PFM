@@ -3,9 +3,6 @@ import numpy as np
 import cartopy.crs as ccrs
 from datetime import datetime, timedelta
 import netCDF4 as nc
-from get_PFM_info import get_PFM_info
-
-PFM = get_PFM_info()
 
 def plot_roms_box(axx, RMG):
     xr1 = RMG['lon_rho'][0, :]
@@ -41,7 +38,7 @@ def extract_timestamp(ATM):
     return timestamp.strftime('%Y%m%d_%H%M%S')
 
 # ATM Fields Plotting Function
-def plot_atm_fields(ATM, RMG, fields_to_plot=None):
+def plot_atm_fields(ATM, RMG, PFM, fields_to_plot=None):
     """
     Plot specified fields from the ATM dataset with timestamps and product names, and save them as PNG files.
     
@@ -140,7 +137,7 @@ def plot_atm_fields(ATM, RMG, fields_to_plot=None):
         plt.tight_layout()
         plt.show()
 
-def plot_atm_r_fields(ATM_R, RMG, fields_to_plot=None, flag=True):
+def plot_atm_r_fields(ATM_R, RMG, PFM, fields_to_plot=None, flag=True):
     """
     Plot specified fields from the ATM_R dataset with timestamps and product names, and save them as PNG files.
     
@@ -246,7 +243,7 @@ def plot_atm_r_fields(ATM_R, RMG, fields_to_plot=None, flag=True):
             plt.show()
 
 # For both ATM and ATM_R fields
-def plot_all_fields_in_one(ATM, ATM_R, RMG, fields_to_plot=None):
+def plot_all_fields_in_one(ATM, ATM_R, RMG, PFM, fields_to_plot=None):
     """
     Plot specified fields from both the ATM and ATM_R datasets with timestamps and product names, and save them in separate PNG files.
     
@@ -383,15 +380,15 @@ def plot_all_fields_in_one(ATM, ATM_R, RMG, fields_to_plot=None):
             ax.text(0.5, 1.05, annotation, transform=ax.transAxes, ha='center', fontsize=12)
         
         # Save the plot for each field
-        output_dir = "C:/Users/abhis/Downloads"
-        # output_dir = PFM['lv1_plot_dir']
+        # output_dir = "C:/Users/abhis/Downloads"
+        output_dir = PFM['lv1_plot_dir']
         filename = f'{output_dir}/{timestamp}_nam_nest_ATMandATMR_{field}.png'
         plt.savefig(filename, dpi=300, bbox_inches='tight')
         plt.tight_layout()
         plt.show()
         
 
-def load_and_plot_atm(fields_to_plot=None):
+def load_and_plot_atm(PFM, fields_to_plot=None):
     """
     Load the atm.nc file and plot specified fields.
 
@@ -424,4 +421,6 @@ def load_and_plot_atm(fields_to_plot=None):
     # Close the dataset
     ds.close()
 
+    # Plot the ATM fields
+    plot_atm_r_fields(ATM, RMG, PFM, fields_to_plot, flag=False)
 
