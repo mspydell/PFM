@@ -243,7 +243,7 @@ def plot_atm_r_fields(ATM_R, RMG, PFM, show=False, fields_to_plot=None, flag=Tru
             else:
                 plt.close()
         else:
-            filename = f'{output_dir}/exported_plots_{field}.png'
+            filename = f'{output_dir}/{timestamp}_nam_nest_ATM_R_{field}_exported.png'
             plt.savefig(filename, dpi=300)
             if show is True:
                 plt.tight_layout()
