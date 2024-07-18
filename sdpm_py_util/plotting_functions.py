@@ -409,7 +409,7 @@ def load_and_plot_atm(RMG, PFM, fields_to_plot=None):
     fields_to_plot (list or str): The fields to plot. If None, plot all fields.
     """
     # Load the atm.nc file
-    file_path = PFM['lv1_forc_dir'] + '/ATM_FORCING.nc' 
+    file_path = PFM['lv1_forc_dir'] + '/' + PFM['lv1_atm_file'] # LV1 atm forcing filename
     ds = nc.Dataset(file_path)
     RMG = RMG
     
