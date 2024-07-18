@@ -960,7 +960,7 @@ Dout(iTvdif) == T F     ! temp_vdiff, ...    vertical diffusion
 ! Input NetCDF file names, [1:Ngrids].
 
      GRDNAME == $lv1_grid_dir$/GRID_SDTJRE_LV1_rx020_hmask.nc
-     ININAME == $lv1_ininame$
+     ININAME == $lv1_ini_file$
      ITLNAME == ocean_itl.nc
      IRPNAME == ocean_irp.nc
      IADNAME == ocean_iad.nc
@@ -985,7 +985,7 @@ Dout(iTvdif) == T F     ! temp_vdiff, ...    vertical diffusion
      CLMNAME == ocean_clm.nc
 
      NBCFILES == 1                          ! number of boundary files
-     BRYNAME == $lv1_forc_dir$/LV1_ocean_bry.nc
+     BRYNAME == $lv1_bc_file$
 
 ! Input climatology nudging coefficients file name.
 

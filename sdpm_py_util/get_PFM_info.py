@@ -1,6 +1,6 @@
 """
 This is the one place where you set the path structure for the PFM.
-The info is stored in the dict SDP.
+The info is stored in the dict PFM.
 All? paths are pathlib.Path objects.
 This program is meant to be loaded as a module by Lfun which then adds more
 entries to the Ldir dict based on which model run you are working on.
@@ -94,38 +94,43 @@ def get_PFM_info():
    SS['L1','THETA_B'] = 3.0                      # bottom  stretching parameter
    SS['L1','TCLINE'] = 50.0                      # critical depth (m)
 
-   SDP = dict()
-   SDP['lo_env'] = lo_env
-   SDP['parent'] = parent
-#    SDP['LO'] = LO
-#    SDP['LOo'] = LOo
-#    SDP['LOu'] = LOu
-#    SDP['data'] = data
-   SDP['lv1_run_dir'] = lv1_run_dir
-   SDP['lv1_forc_dir'] = lv1_forc_dir   
-   SDP['lv1_grid_dir'] = pfm_grid_dir
-   SDP['lv1_his_dir'] = lv1_his_dir
-   SDP['lv1_plot_dir'] = lv1_plot_dir         
-   SDP['lv1_grid_file'] = lv1_grid_file
-#   SDP['lv2_run_dir'] = lv2_run_dir
-#   SDP['lv2_grid_dir'] = pfm_grid_dir
-#   SDP['lv2_his_dir'] = lv2_his_dir
-#   SDP['lv2_plot_dir'] = lv2_plot_dir         
+   PFM = dict()
+   PFM['lo_env'] = lo_env
+   PFM['parent'] = parent
+#    PFM['LO'] = LO
+#    PFM['LOo'] = LOo
+#    PFM['LOu'] = LOu
+#    PFM['data'] = data
+   PFM['lv1_run_dir'] = lv1_run_dir
+   PFM['lv1_forc_dir'] = lv1_forc_dir   
+   PFM['lv1_grid_dir'] = pfm_grid_dir
+   PFM['lv1_his_dir'] = lv1_his_dir
+   PFM['lv1_plot_dir'] = lv1_plot_dir         
+   PFM['lv1_grid_file'] = lv1_grid_file
 
-   SDP['modtime0'] = modtime0
-   SDP['roms_time_units'] = roms_time_units
-   SDP['ds_fmt'] = ds_fmt
-   SDP['forecast_days'] = fdays
+   PFM['lv1_atm_file'] = 'LV1_ATM_FORCING.nc'
+   PFM['lv1_ini_file'] = 'LV1_OCEAN_IC.nc'
+   PFM['lv1_bc_file'] =  'LV1_OCEAN_BC.nc'   
+   
+#   PFM['lv2_run_dir'] = lv2_run_dir
+#   PFM['lv2_grid_dir'] = pfm_grid_dir
+#   PFM['lv2_his_dir'] = lv2_his_dir
+#   PFM['lv2_plot_dir'] = lv2_plot_dir         
+
+   PFM['modtime0'] = modtime0
+   PFM['roms_time_units'] = roms_time_units
+   PFM['ds_fmt'] = ds_fmt
+   PFM['forecast_days'] = fdays
  
-   SDP['daystep'] = daystep
-   SDP['daystep_ocn'] = daystep_ocn
-   SDP['daystep_atm'] = daystep_atm
-   SDP['ocn_model'] = ocn_model
-   SDP['atm_model'] = atm_model
-   SDP['latlonbox'] = latlonbox
-   SDP['stretching'] = SS
+   PFM['daystep'] = daystep
+   PFM['daystep_ocn'] = daystep_ocn
+   PFM['daystep_atm'] = daystep_atm
+   PFM['ocn_model'] = ocn_model
+   PFM['atm_model'] = atm_model
+   PFM['latlonbox'] = latlonbox
+   PFM['stretching'] = SS
 
-   return SDP
+   return PFM
 
 
 def make_PFM_directory( parent ):

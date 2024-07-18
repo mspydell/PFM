@@ -29,7 +29,7 @@ import plotting_functions as pltfuns
 from util_functions import s_coordinate_4
 from get_PFM_info import get_PFM_info
 from make_LV1_dotin_and_SLURM import make_LV1_dotin_and_SLURM
-from run_SLURM_LV1 import run_SLURM_LV1
+from run_slurm_LV1 import run_slurm_LV1
 
 # figure out what the time is local and UTC
 start_time = datetime.now()
@@ -40,13 +40,21 @@ day_utc = utc_time.day
 hour_utc = utc_time.hour
 
 
-print("Starting: driver_run_forecast_LV1: Current local Time =", start_time )
 
-yyyymmdd = "%d%02d%02d" % (year_utc, month_utc, hour_utc)
+print("Starting: driver_run_forecast_LV1: Current local Time =", start_time, "UTC = ",utc_time)
+
+if hour_utc < 12:
+    hour_utc=12
+    day_utc=day_utc-1
+
+yyyymmdd = "%d%02d%02d" % (year_utc, month_utc, day_utc)
+    
+#yyyymmdd = '20240717'
 # the hour in Z of the forecast, hycom has forecasts once per day starting at 1200Z
 hhmm='1200'
-forecastZdatestr = yyymmdd+hhmm+'Z'   # this could be used for model output to indicate when model was initialized.
+forecastZdatestr = yyyymmdd+hhmm+'Z'   # this could be used for model output to indicate when model was initialized.
 
+yyyymmdd = '20240716'
 print("Preparing forecast starting on ",yyyymmdd)
 
 
@@ -54,8 +62,6 @@ PFM=get_PFM_info()
 
 # %%
 run_type = 'forecast'
-# the year, month, day of the 
-#yyyymmdd='20240714'
 
 # we will use hycom for IC and BC
 ocn_mod = 'hycom'
@@ -79,21 +85,27 @@ ATM = atmfuns.get_atm_data_as_dict(yyyymmdd,hhmm,run_type,atm_mod,get_method)
 # put in a function to check to make sure that all the data is good
 # put in a function to plot the raw atm data if we want to
 pltfuns.plot_atm_fields(ATM, RMG, PFM)
+print('done with plotting ATM fields')
+
 # put the atm data on the roms grid, and rotate the velocities
 # everything in this dict turn into the atm.nc file
 ATM_R  = atmfuns.get_atm_data_on_roms_grid(ATM,RMG)
+print('done with: atmfuns.get_atm_data_on_roms_grid(ATM,RMG)')
 # all the fields plotted with the data on roms grid
+
 pltfuns.plot_all_fields_in_one(ATM, ATM_R, RMG, PFM)
+print('done with: pltfuns.plot_all_fields_in_one(ATM, ATM_R, RMG, PFM)')
 
 # output a netcdf file of ATM_R
 # make the atm .nc file here.
 # fn_out is the name of the atm.nc file used by roms
-fn_out = PFM['lv1_forc_dir'] + '/ATM_FORCING.nc'    #'/Users/mspydell/research/FF2024/models/SDPM_mss/atm_stuff/atm_test_file_v2.nc'
+fn_out = PFM['lv1_forc_dir'] + '/' + PFM['lv1_atm_file'] # LV1 atm forcing filename
 print('driver_run_forcast_LV1: saving ATM file to ' + fn_out)
 atmfuns.atm_roms_dict_to_netcdf(ATM_R,fn_out)
 print('driver_run_forecast_LV1:  done with writing ATM file, Current time ', datetime.now())
 # put in a function to plot the atm.nc file if we want to
 pltfuns.load_and_plot_atm(PFM)
+printf('done with pltfuns.load_and_plot_atm(PFM)')
 
 
 # %%
@@ -126,11 +138,13 @@ print('driver_run_forecast_LV1: done with hycom_to_roms_latlon')
 OCN_IC = ocnfuns.ocn_r_2_ICdict(OCN_R,RMG)
 print('driver_run_forecast_LV1: done with ocn_r_2_ICdict')
 # add OCN_IC.nc plotting function here !!!!
-ocnfuns.ocn_roms_IC_dict_to_netcdf(OCN_IC,PFM['IC_file'])
+ic_file_out = PFM['lv1_forc_dir'] + '/' + PFM['lv1_ini_file']
+ocnfuns.ocn_roms_IC_dict_to_netcdf(OCN_IC, icfileout)
 
 
 # %%
 # get the OCN_BC dictionary
+bc_file_out = PFM['lv1_forc_dir'] + '/' + PFM['lv1_bc_file']
 OCN_BC = ocnfuns.ocn_r_2_BCdict(OCN_R,RMG)
 print('driver_run_forecast_LV1: done with ocn_r_2_BCdict')
 # %%
