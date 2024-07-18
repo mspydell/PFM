@@ -1375,17 +1375,11 @@ def ocn_r_2_BCdict(OCN_R,RMG):
     # get the roms z's
     hraw = None
     if Vst == 4:
-        zrom_s = s_coordinate_4(hb[0,:], th_b , th_s , Tcl , Nz, hraw=hraw, zeta=np.squeeze(eta[:,0,:]))
-        zrom_us = s_coordinate_4(hb_u[0,:], th_b , th_s , Tcl , Nz, hraw=hraw, zeta=np.squeeze(eta_u[:,0,:]))
-        zrom_vs = s_coordinate_4(hb_v[0,:], th_b , th_s , Tcl , Nz, hraw=hraw, zeta=np.squeeze(eta_v[:,0,:]))
-        zrom_n = s_coordinate_4(hb[-1,:], th_b , th_s , Tcl , Nz, hraw=hraw, zeta=np.squeeze(eta[:,-1,:]))
-        zrom_un = s_coordinate_4(hb_u[-1,:], th_b , th_s , Tcl , Nz, hraw=hraw, zeta=np.squeeze(eta_u[:,-1,:]))
-        zrom_vn = s_coordinate_4(hb_v[-1,:], th_b , th_s , Tcl , Nz, hraw=hraw, zeta=np.squeeze(eta_v[:,-1,:]))
-        zrom_w = s_coordinate_4(hb[:,0], th_b , th_s , Tcl , Nz, hraw=hraw, zeta=np.squeeze(eta[:,:,0]))
-        zrom_uw = s_coordinate_4(hb_u[:,0], th_b , th_s , Tcl , Nz, hraw=hraw, zeta=np.squeeze(eta_u[:,:,0]))
-        zrom_vw = s_coordinate_4(hb_v[:,0], th_b , th_s , Tcl , Nz, hraw=hraw, zeta=np.squeeze(eta_v[:,:,0]))
+        zrom = s_coordinate_4(hb, th_b , th_s , Tcl , Nz, hraw=hraw, zeta=np.squeeze(eta))
+        zrom_u = s_coordinate_4(hb_u, th_b , th_s , Tcl , Nz, hraw=hraw, zeta=np.squeeze(eta_u))
+        zrom_v = s_coordinate_4(hb_v, th_b , th_s , Tcl , Nz, hraw=hraw, zeta=np.squeeze(eta_v))
     
-    OCN_BC['Cs_r'] = np.squeeze(zrom_s.Cs_r)
+    OCN_BC['Cs_r'] = np.squeeze(zrom.Cs_r)
     OCN_BC['vinfo']['Cs_r'] = {'long_name':'S-coordinate stretching curves at RHO-points',
                         'units':'nondimensional',
                         'valid min':'-1',
@@ -1400,15 +1394,15 @@ def ocn_r_2_BCdict(OCN_R,RMG):
     #                    'valid max':'0',
     #                    'field':'sc_r, scalar, series'}
 
-    zr_s=np.squeeze(zrom_s.z_r)    
-    zr_us=np.squeeze(zrom_us.z_r)    
-    zr_vs=np.squeeze(zrom_vs.z_r)
-    zr_n=np.squeeze(zrom_n.z_r)    
-    zr_un=np.squeeze(zrom_un.z_r)    
-    zr_vn=np.squeeze(zrom_vn.z_r)
-    zr_w=np.squeeze(zrom_w.z_r)    
-    zr_uw=np.squeeze(zrom_uw.z_r)    
-    zr_vw=np.squeeze(zrom_vw.z_r)
+    zr_s=np.squeeze(zrom.z_r[:,:,0,:])    
+    zr_us=np.squeeze(zrom_u.z_r[:,:,0,:])    
+    zr_vs=np.squeeze(zrom_v.z_r[:,:,0,:])
+    zr_n=np.squeeze(zrom.z_r[:,:,-1,:])    
+    zr_un=np.squeeze(zrom_u.z_r[:,:,-1,:])    
+    zr_vn=np.squeeze(zrom_v.z_r[:,:,-1,:])
+    zr_w=np.squeeze(zrom.z_r[:,:,:,0])    
+    zr_uw=np.squeeze(zrom_u.z_r[:,:,:,0])    
+    zr_vw=np.squeeze(zrom_v.z_r[:,:,:,0])
 
     for aa in range(Nt):
         for bb in range(nln):
@@ -1422,8 +1416,8 @@ def ocn_r_2_BCdict(OCN_R,RMG):
             else:    
                 fofz2 = fofz[ig]
                 Fz = interp1d(np.squeeze(-zhy[ig]),np.squeeze(fofz2),bounds_error=False,kind='linear',fill_value=(fofz2[0],fofz2[-1]))
-                print(np.shape(zr_s))
-                print(np.shape(TMP['temp_south']))
+                #print(np.shape(zr_s))
+                #print(np.shape(TMP['temp_south']))
                 TMP['temp_south'][aa,:,bb] = np.squeeze(Fz(zr_s[aa,:,bb]))
                 
                 fofz = np.squeeze(OCN_R['salt'][aa,:,0,bb])
@@ -1435,7 +1429,7 @@ def ocn_r_2_BCdict(OCN_R,RMG):
             fofz = np.squeeze(OCN_R['vrm'][aa,:,0,bb])
             ig = np.argwhere(np.isfinite(fofz))
             if len(ig) < 2:
-                OCN_BC['v_south'][aa,:,bb] = np.squeeze(np.nan*zr_vs[:,aa,bb])
+                OCN_BC['v_south'][aa,:,bb] = np.squeeze(np.nan*zr_vs[aa,:,bb])
                 OCN_BC['vbar_south'][aa,bb] = np.nan
             else:
                 fofz2 = fofz[ig]
@@ -1451,7 +1445,7 @@ def ocn_r_2_BCdict(OCN_R,RMG):
                 fofz = np.squeeze(OCN_R['urm'][aa,:,0,bb])
                 ig = np.argwhere(np.isfinite(fofz))
                 if len(ig) < 2:
-                    OCN_BC['u_south'][aa,:,bb] = np.squeeze(np.nan*zr_us[:,aa,bb])
+                    OCN_BC['u_south'][aa,:,bb] = np.squeeze(np.nan*zr_us[aa,:,bb])
                     OCN_BC['ubar_south'][aa,bb] = np.nan
                 else:
                     fofz2 = fofz[ig]
@@ -1484,7 +1478,7 @@ def ocn_r_2_BCdict(OCN_R,RMG):
             fofz = np.squeeze(OCN_R['vrm'][aa,:,-1,bb])
             ig = np.argwhere(np.isfinite(fofz))
             if len(ig) < 2:
-                OCN_BC['v_north'][aa,:,bb] = np.squeeze(np.nan*zr_vn[:,aa,bb])
+                OCN_BC['v_north'][aa,:,bb] = np.squeeze(np.nan*zr_vn[aa,:,bb])
                 OCN_BC['vbar_north'][aa,bb] = np.nan
             else:
                 fofz2 = fofz[ig]
@@ -1500,7 +1494,7 @@ def ocn_r_2_BCdict(OCN_R,RMG):
                 fofz = np.squeeze(OCN_R['urm'][aa,:,-1,bb])
                 ig = np.argwhere(np.isfinite(fofz))
                 if len(ig) < 2:
-                    OCN_BC['u_north'][aa,:,bb] = np.squeeze(np.nan*zr_un[:,aa,bb])
+                    OCN_BC['u_north'][aa,:,bb] = np.squeeze(np.nan*zr_un[aa,:,bb])
                     OCN_BC['ubar_north'][aa,bb] = np.nan
                 else:
                     fofz2 = fofz[ig]
@@ -1513,7 +1507,7 @@ def ocn_r_2_BCdict(OCN_R,RMG):
                     OCN_BC['ubar_north'][aa,bb] = np.sum(uu*dz) / hb_u[-1,bb]
 
         for cc in range(nlt):
-            fofz = np.squeeze(OCN_R['temp'][aa,:,:,0])
+            fofz = np.squeeze(OCN_R['temp'][aa,:,cc,0])
             ig = np.argwhere(np.isfinite(fofz))
             if len(ig) < 2: # you get in here if all f(z) is nan, ie. we are in land
                 # we also make sure that if there is only 1 good value, we also return nans
@@ -1532,7 +1526,7 @@ def ocn_r_2_BCdict(OCN_R,RMG):
                 OCN_BC['salt_west'][aa,:,cc] = np.squeeze(Fz(zr_w[aa,:,cc]))
 
             if cc < nlt-1:    
-                fofz = np.squeeze(OCN_R['vrm'][aa,:,cc,:])
+                fofz = np.squeeze(OCN_R['vrm'][aa,:,cc,0])
                 ig = np.argwhere(np.isfinite(fofz))
                 if len(ig) < 2:
                     OCN_BC['v_west'][aa,:,cc] = np.squeeze(np.nan*zr_vw[aa,:,cc])
@@ -1541,11 +1535,11 @@ def ocn_r_2_BCdict(OCN_R,RMG):
                     fofz2 = fofz[ig]
                     Fz = interp1d(np.squeeze(-zhy[ig]),np.squeeze(fofz2),bounds_error=False,kind='linear',fill_value=(fofz2[0],fofz2[-1])) 
                     vv =  np.squeeze(Fz(zr_vw[aa,:,cc]))                
-                    OCN_BC['v_south'][aa,:,cc] = vv
-                    z2 = np.squeeze(zr_vs[aa,:,cc])
-                    z3 = np.append(z2,eta_v[aa,0,cc])
+                    OCN_BC['v_west'][aa,:,cc] = vv
+                    z2 = np.squeeze(zr_vw[aa,:,cc])
+                    z3 = np.append(z2,eta_v[aa,cc,0])
                     dz = np.diff(z3)
-                    OCN_BC['vbar_south'][aa,cc] = np.sum(vv*dz) / hb_v[cc,0]
+                    OCN_BC['vbar_west'][aa,cc] = np.sum(vv*dz) / hb_v[cc,0]
 
             fofz = np.squeeze(OCN_R['urm'][aa,:,cc,0])
             ig = np.argwhere(np.isfinite(fofz))
@@ -1558,7 +1552,7 @@ def ocn_r_2_BCdict(OCN_R,RMG):
                 uu =  np.squeeze(Fz(zr_uw[aa,:,cc]))                
                 OCN_BC['u_west'][aa,:,cc] = uu
                 z2 = np.squeeze(zr_uw[aa,:,cc])
-                z3 = np.append(z2,eta_u[aa,0,cc])
+                z3 = np.append(z2,eta_u[aa,cc,0])
                 dz = np.diff(z3)
                 OCN_BC['ubar_west'][aa,cc] = np.sum(uu*dz) / hb_u[cc,0]
 
@@ -1581,27 +1575,27 @@ def ocn_roms_IC_dict_to_netcdf(ATM_R,fn_out):
         data_vars = dict(
             temp       = (["time","s_rho","er","xr"],ATM_R['temp'],ATM_R['vinfo']['temp']),
             salt       = (["time","s_rho","er","xr"],ATM_R['salt'],ATM_R['vinfo']['salt']),
-            u          = (["time","s_rho","er","xr_u"],ATM_R['u'],ATM_R['vinfo']['u']),
-            v          = (["time","s_rho","er_v","xr"],ATM_R['v'],ATM_R['vinfo']['v']),
-            ubar       = (["time","er","xr_u"],ATM_R['ubar'],ATM_R['vinfo']['ubar']),
-            vbar       = (["time","er_v","xr"],ATM_R['vbar'],ATM_R['vinfo']['vbar']),
+            u          = (["time","s_rho","eu","xu"],ATM_R['u'],ATM_R['vinfo']['u']),
+            v          = (["time","s_rho","ev","xv"],ATM_R['v'],ATM_R['vinfo']['v']),
+            ubar       = (["time","eu","xu"],ATM_R['ubar'],ATM_R['vinfo']['ubar']),
+            vbar       = (["time","ev","xv"],ATM_R['vbar'],ATM_R['vinfo']['vbar']),
             zeta       = (["time","er","xr"],ATM_R['zeta'],ATM_R['vinfo']['zeta']),
-        ),
-        coords=dict(
-            lat_rho =(["er","xr"],ATM_R['lat_rho'], ATM_R['vinfo']['lat_rho']),
-            lon_rho =(["er","xr"],ATM_R['lon_rho'], ATM_R['vinfo']['lon_rho']),
-            lat_u   =(["er","xr_u"],ATM_R['lat_u'], ATM_R['vinfo']['lat_u']),
-            lon_u   =(["er","xr_u"],ATM_R['lon_u'], ATM_R['vinfo']['lon_u']),
-            lat_v   =(["er_v","xr"],ATM_R['lat_v'], ATM_R['vinfo']['lat_v']),
-            lon_v   =(["er_v","xr"],ATM_R['lon_v'], ATM_R['vinfo']['lon_v']),   
-            ocean_time = (["time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
-            Cs_r = (["s_rho"],ATM_R['Cs_r'],ATM_R['vinfo']['Cs_r']),
             Vtransform = ([],ATM_R['Vtr'],ATM_R['vinfo']['Vtr']),
             Vstretching = ([],ATM_R['Vst'],ATM_R['vinfo']['Vst']),
             theta_s = ([],ATM_R['th_s'],ATM_R['vinfo']['th_s']),
             theta_b = ([],ATM_R['th_b'],ATM_R['vinfo']['th_b']),
             Tcline = ([],ATM_R['Tcl'],ATM_R['vinfo']['Tcl']),
             hc = ([],ATM_R['hc'],ATM_R['vinfo']['hc']),
+        ),
+        coords=dict(
+            lat_rho =(["er","xr"],ATM_R['lat_rho'], ATM_R['vinfo']['lat_rho']),
+            lon_rho =(["er","xr"],ATM_R['lon_rho'], ATM_R['vinfo']['lon_rho']),
+            lat_u   =(["eu","xu"],ATM_R['lat_u'], ATM_R['vinfo']['lat_u']),
+            lon_u   =(["eu","xu"],ATM_R['lon_u'], ATM_R['vinfo']['lon_u']),
+            lat_v   =(["ev","xv"],ATM_R['lat_v'], ATM_R['vinfo']['lat_v']),
+            lon_v   =(["ev","xv"],ATM_R['lon_v'], ATM_R['vinfo']['lon_v']),   
+            ocean_time = (["time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
+            Cs_r = (["s_rho"],ATM_R['Cs_r'],ATM_R['vinfo']['Cs_r']),
          ),
         attrs={'type':'ocean initial condition file fields for starting roms',
             'time info':'ocean time is from '+ ATM_R['ocean_time_ref'].strftime("%Y/%m/%d %H:%M:%S") },
@@ -1610,3 +1604,44 @@ def ocn_roms_IC_dict_to_netcdf(ATM_R,fn_out):
 
     ds.to_netcdf(fn_out)
 
+def ocn_roms_BC_dict_to_netcdf(ATM_R,fn_out):
+    ds = xr.Dataset(
+        data_vars = dict(
+            temp_south       = (["time","s_rho","xr"],ATM_R['temp_south'],ATM_R['vinfo']['temp_south']),
+            salt_south       = (["time","s_rho","xr"],ATM_R['salt_south'],ATM_R['vinfo']['salt_south']),
+            u_south          = (["time","s_rho","xu"],ATM_R['u_south'],ATM_R['vinfo']['u_south']),
+            v_south          = (["time","s_rho","xv"],ATM_R['v_south'],ATM_R['vinfo']['v_south']),
+            ubar_south       = (["time","xu"],ATM_R['ubar_south'],ATM_R['vinfo']['ubar_south']),
+            vbar_south       = (["time","xv"],ATM_R['vbar_south'],ATM_R['vinfo']['vbar_south']),
+            zeta_south       = (["time","xr"],ATM_R['zeta_south'],ATM_R['vinfo']['zeta_south']),
+            temp_north       = (["time","s_rho","xr"],ATM_R['temp_north'],ATM_R['vinfo']['temp_north']),
+            salt_north       = (["time","s_rho","xr"],ATM_R['salt_north'],ATM_R['vinfo']['salt_north']),
+            u_north          = (["time","s_rho","xu"],ATM_R['u_north'],ATM_R['vinfo']['u_north']),
+            v_north          = (["time","s_rho","xv"],ATM_R['v_north'],ATM_R['vinfo']['v_north']),
+            ubar_north       = (["time","xu"],ATM_R['ubar_north'],ATM_R['vinfo']['ubar_north']),
+            vbar_north       = (["time","xv"],ATM_R['vbar_north'],ATM_R['vinfo']['vbar_north']),
+            zeta_north       = (["time","xr"],ATM_R['zeta_north'],ATM_R['vinfo']['zeta_north']),
+            temp_west        = (["time","s_rho","er"],ATM_R['temp_west'],ATM_R['vinfo']['temp_west']),
+            salt_west        = (["time","s_rho","er"],ATM_R['salt_west'],ATM_R['vinfo']['salt_west']),
+            u_west           = (["time","s_rho","eu"],ATM_R['u_west'],ATM_R['vinfo']['u_west']),
+            v_west           = (["time","s_rho","ev"],ATM_R['v_west'],ATM_R['vinfo']['v_west']),
+            ubar_west        = (["time","eu"],ATM_R['ubar_west'],ATM_R['vinfo']['ubar_west']),
+            vbar_west        = (["time","ev"],ATM_R['vbar_west'],ATM_R['vinfo']['vbar_west']),
+            zeta_west        = (["time","er"],ATM_R['zeta_west'],ATM_R['vinfo']['zeta_west']),
+            Vtransform = ([],ATM_R['Vtr'],ATM_R['vinfo']['Vtr']),
+            Vstretching = ([],ATM_R['Vst'],ATM_R['vinfo']['Vst']),
+            theta_s = ([],ATM_R['th_s'],ATM_R['vinfo']['th_s']),
+            theta_b = ([],ATM_R['th_b'],ATM_R['vinfo']['th_b']),
+            Tcline = ([],ATM_R['Tcl'],ATM_R['vinfo']['Tcl']),
+            hc = ([],ATM_R['hc'],ATM_R['vinfo']['hc']),
+        ),
+        coords=dict(
+            ocean_time = (["time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
+            Cs_r = (["s_rho"],ATM_R['Cs_r'],ATM_R['vinfo']['Cs_r']),
+         ),
+        attrs={'type':'ocean boundary condition file fields for starting roms',
+            'time info':'ocean time is from '+ ATM_R['ocean_time_ref'].strftime("%Y/%m/%d %H:%M:%S") },
+        )
+    print(ds)
+
+    ds.to_netcdf(fn_out)
