@@ -27,7 +27,7 @@ def get_PFM_info():
        pfm_root_dir = '/scratch/PFM_Simulations'
        lo_env = 'mss_swell'
    else:
-       pfm_root_dir = './PFM_Simulations/'
+       pfm_root_dir = '/Users/mspydell/research/FF2024/models/SDPM_mss/PFM_Simulations/'
        lo_env = 'mss'
 
    pfm_grid_dir =  pfm_root_dir +  'Grids'       
@@ -40,6 +40,7 @@ def get_PFM_info():
      
 # defaults that should work on all machines
    parent = Path(__file__).absolute().parent.parent
+#   make_PFM_directory( parent )
 #    LO = parent / 'PFM'
 # this is where this set up script lives
 #    LOu = parent / 'PFM_user'
@@ -49,13 +50,18 @@ def get_PFM_info():
 #    LOo = parent / 'PFM_output'
 # where are the grids??? We keep them in LO so that they come with
 # git clone.
-   lv1_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV1_rx020_hmask.nc'
+#   lv1_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV1.nc'
+   if str(HOSTNAME) == 'swell':
+       lv1_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV1_rx020_hmask.nc'
+   else:
+       lv1_grid_file = '/Users/mspydell/research/FF2024/models/SDPM_mss/PFM_user/grids/GRID_SDTJRE_LV1.nc'
+
 #   lv2_grid_file = str(lv2_grid_dir) + '/GRID_SDTJRE_LV1_rx020_hmask.nc'
 #   lv3_grid_file = str(lv3_grid_dir) + '/GRID_SDTJRE_LV1_rx020_hmask.nc'   
 
 # what is the ocean / atm model used to force?
    ocn_model = 'hycom'
-   atm_model = 'wrf'
+   atm_model = 'nam_nest'
 # what is the time resolution of the models (in days)
    daystep_ocn = 3/24
    daystep_atm = 3/24
@@ -136,7 +142,7 @@ def get_PFM_info():
 def make_PFM_directory( parent ):
 
 
-   pfm_root_dir = parent + '/PFM_Simulations/'
+   pfm_root_dir = str(parent) + '/PFM_Simulations/'
 
    pfm_grid_dir =  pfm_root_dir +  'Grids'       
    lv1_root_dir =  pfm_root_dir +  'LV1_Forecast/'

@@ -159,7 +159,6 @@ pfm_driver_src_dir = os.getcwd()
 os.chdir('../sdpm_py_util')
 make_LV1_dotin_and_SLURM( PFM )
 
-
 # run command will be
 run_slurm_LV1(PFM)
 
