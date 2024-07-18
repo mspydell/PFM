@@ -24,10 +24,10 @@ def get_PFM_info():
    print('get_PFM_info(): running on' + HOSTNAME)
    
    if str(HOSTNAME) == 'swell':
-       pfm_root_dir = '/scratch/PFM/'
+       pfm_root_dir = '/scratch/PFM_Simulations'
        lo_env = 'mss_swell'
    else:
-       pfm_root_dir = './PFM/'
+       pfm_root_dir = './PFM_Simulations/'
        lo_env = 'mss'
 
    pfm_grid_dir =  pfm_root_dir +  'Grids'       
