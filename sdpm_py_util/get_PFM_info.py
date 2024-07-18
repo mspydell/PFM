@@ -136,7 +136,7 @@ def get_PFM_info():
 def make_PFM_directory( parent ):
 
 
-   pfm_root_dir = parent + '/PFM/'
+   pfm_root_dir = parent + '/PFM_Simulations/'
 
    pfm_grid_dir =  pfm_root_dir +  'Grids'       
    lv1_root_dir =  pfm_root_dir +  'LV1_Forecast/'

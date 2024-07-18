@@ -105,8 +105,9 @@ atmfuns.atm_roms_dict_to_netcdf(ATM_R,fn_out)
 print('driver_run_forecast_LV1:  done with writing ATM file, Current time ', datetime.now())
 # put in a function to plot the atm.nc file if we want to
 pltfuns.load_and_plot_atm(RMG, PFM)
-printf('done with pltfuns.load_and_plot_atm(PFM)')
+print('done with pltfuns.load_and_plot_atm(PFM)')
 
+# clear ATM_R
 
 # %%
 # make the ocn IC and BC .nc files here
@@ -129,6 +130,7 @@ print('driver_run_forecast_LV1: done with get_ocn_data_as_dict: Current time ',d
 
 # %%
 # put the ocn data on the roms grid
+print('starting: ocnfuns.hycom_to_roms_latlon(OCN,RMG)')
 OCN_R  = ocnfuns.hycom_to_roms_latlon(OCN,RMG)
 print('driver_run_forecast_LV1: done with hycom_to_roms_latlon')
 # add OCN + OCN_R plotting function here !!!
