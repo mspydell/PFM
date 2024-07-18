@@ -148,6 +148,7 @@ bc_file_out = PFM['lv1_forc_dir'] + '/' + PFM['lv1_bc_file']
 OCN_BC = ocnfuns.ocn_r_2_BCdict(OCN_R,RMG)
 print('driver_run_forecast_LV1: done with ocn_r_2_BCdict')
 # %%
+ocnfuns.ocn_roms_BC_dict_to_netcdf(OCN_BC, bc_file_out)
 
 
 print('driver_run_forecast_LV1:  now make .in and .sb files')
