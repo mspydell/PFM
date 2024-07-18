@@ -54,7 +54,7 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method):
         # tr_sec is now an ndarray of days past the reference day
         return tr_days
 
-    if get_method == 'open_dap_pydap' or get_method == 'open_dap_nc' and run_type == 'forecast':
+    if get_method == 'open_dap_pydap' or get_method == 'open_dap_nc' or get_method == 'ncks' and run_type == 'forecast':
         # with this method the data is not downloaded directly, initially
         # and the data is rectilinear, lon and lat are both vectors
 
@@ -62,21 +62,27 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method):
         # is at 3 hr resolution, we will get all of the data
         # 0.08 deg horizontal resolution
         # Note, hycom forecasts are start from 1200Z !!!! 
-        hycom = 'https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_' + yyyymmdd[0:4] + '-' + yyyymmdd[4:6] + '-' + yyyymmdd[6:8] + 'T12:00:00Z'
+        
+        yyyy = yyyymmdd[0:4]
+        mm = yyyymmdd[4:6]
+        dd = yyyymmdd[6:8]
 
-        
-        if ocn_mod == 'hycom':
-            ocn_name = hycom
-            it1 = 0 # hard wiring here to get 2.5 days of data
-            it2 = 20 # this is 2.5 days at 3 hrs
-            # it2 = 60 # for the entire 7.5 day long forecast
-        
+        hycom = 'https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_' + yyyy + '-' + mm + '-' + dd + 'T12:00:00Z'
+
         # define the box to get data in
         ln_min = -124.5 + 360
         ln_max = -115 + 360
         lt_min = 28
         lt_max = 37
 
+
+        if ocn_mod == 'hycom':
+            ocn_name = hycom
+            it1 = 0 # hard wiring here to get 2.5 days of data
+            it2 = 20 # this is 2.5 days at 3 hrs
+            # it2 = 60 # for the entire 7.5 day long forecast
+        
+ 
         if get_method == 'open_dap_pydap':
             # open a connection to the opendap server. This could be made more robust? 
             # by trying repeatedly?
@@ -163,6 +169,51 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method):
 
             # I think everything is an np.ndarray ?
             dataset.close()
+
+        if get_method == 'ncks':
+
+            west =  -124.5 + 360
+            east = -115 + 360
+            south = 28
+            north = 37
+
+            # time limits
+            dstr0 = yyyy + '-' + mm + '-' + dd + 'T12:00'
+            dstr1 = yyyy + '-' + mm + '-' + str( int(dd) + 3 ) + 'T00:00'
+            #dstr0 = dlist['dt0'].strftime('%Y-%m-%dT00:00') 
+            #dstr1 = dlist['dt1'].strftime('%Y-%m-%dT00:00')
+            # use subprocess.call() to execute the ncks command
+            vstr = 'surf_el,water_temp,salinity,water_u,water_v,depth'
+
+            # parker url: https://tds.hycom.org/thredds/dodsC/GLBy0.08/latest
+
+            url='https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs' 
+            url2 = 'GLBy0.08_930_FMRC_RUN_' + yyyy + '-' + mm + '-' + dd + 'T12:00:00Z' 
+            url3 = url + url2
+            cmd_list = ['ncks',
+                '-d', 'time,'+dstr0+','+dstr1,
+                '-d', 'lon,'+str(west)+','+str(east),
+                '-d', 'lat,'+str(south)+','+str(north),
+                '-v', vstr,
+                url3 ,
+                '-4', '-O', full_fn_out]
+            # old working command list
+            #cmd_list = ['ncks',
+            #    '-d', 'time,'+dstr0+','+dstr1,
+            #    '-d', 'lon,'+str(west)+','+str(east),
+            #    '-d', 'lat,'+str(south)+','+str(north),
+            #    '-v', vstr,
+            #    'https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0',
+            #    '-4', '-O', full_fn_out]
+
+            print(cmd_list)
+
+            # run ncks
+            tt0 = time.time()
+            ret1 = subprocess.call(cmd_list)
+            #ret1 = 1
+            print('Time to get full file using ncks = %0.2f sec' % (time.time()-tt0))
+            print('Return code = ' + str(ret1) + ' (0=success, 1=skipped ncks)')
 
 
         # set up dict and fill in
