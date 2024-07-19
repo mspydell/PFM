@@ -7,11 +7,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
 import netCDF4 as nc
+#from pydap.client import open_url
 
 
 def get_atm_data_as_dict(yyyymmdd,hhmm,run_type,atm_mod,get_method):
     from datetime import datetime
-    from pydap.client import open_url
 #    import pygrib
 
     
