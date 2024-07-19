@@ -20,7 +20,7 @@ def plot_roms_box(axx, RMG):
     axx.plot(xr4, yr4, 'k-', linewidth=.5)
 
 def plot_roms_coastline(axx, RMG):
-    axx.contour(RMG['lon_rho'], RMG['lat_rho'], RMG['h'], levels=[5, 10], colors='k')
+    axx.contour(RMG['lon_rho'], RMG['lat_rho'], RMG['h'], levels=[5, 10], colors='w')
 
 #Function for timestamp
 def extract_timestamp(ATM):
