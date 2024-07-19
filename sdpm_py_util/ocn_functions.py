@@ -17,12 +17,12 @@ import seawater
 
 import util_functions as utlfuns 
 from util_functions import s_coordinate_4
+#from pydap.client import open_url
 
 
 
 def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method):
     from datetime import datetime
-    from pydap.client import open_url
 #    import pygrib
 
     
