@@ -115,6 +115,47 @@ print('done with pltfuns.load_and_plot_atm(PFM)')
 lv1_forc_dir = PFM['lv1_forc_dir']   #'/Users/mspydell/research/FF2024/models/SDPM_mss/atm_stuff/ocn_test_IC_file.nc'
 
 
+west =  -124.5 + 360
+east = -115 + 360
+south = 28
+north = 37
+
+yyyymmdd='20240716'
+yyyy = yyyymmdd[0:4]
+mm = yyyymmdd[4:6]
+dd = yyyymmdd[6:8]
+
+# time limits
+dstr0 = yyyy + '-' + mm + '-' + dd + 'T12:00'
+dstr1 = yyyy + '-' + mm + '-' + str( int(dd) + 3 ) + 'T00:00'
+
+url='https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/' 
+url2 = 'GLBy0.08_930_FMRC_RUN_' + yyyy + '-' + mm + '-' + dd + 'T12:00:00Z' 
+url3 = url + url2
+cmd_list = ['ncks',
+    '-d', 'time,'+dstr0+','+dstr1,
+    '-d', 'lon,'+str(west)+','+str(east),
+    '-d', 'lat,'+str(south)+','+str(north),
+    '-v', vstr,
+    url3 ,
+    '-4', '-O', full_fn_out]
+# old working command list
+#cmd_list = ['ncks',
+#    '-d', 'time,'+dstr0+','+dstr1,
+#    '-d', 'lon,'+str(west)+','+str(east),
+#    '-d', 'lat,'+str(south)+','+str(north),
+#    '-v', vstr,
+#    'https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0',
+#    '-4', '-O', full_fn_out]
+
+print(cmd_list)
+
+# run ncks
+tt0 = time.time()
+ret1 = subprocess.call(cmd_list)
+
+
+
 # note, this function is hard wired to return 2.5 days of data
 # also note that the first time of this data is yyyymmdd 12:00Z
 # so we grab nam atm forecast data starting at this hour too.
