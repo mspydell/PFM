@@ -3,6 +3,7 @@ import numpy as np
 import cartopy.crs as ccrs
 from datetime import datetime, timedelta
 import netCDF4 as nc
+from netCDF4 import Dataset, num2date
 
 def plot_roms_box(axx, RMG):
     xr1 = RMG['lon_rho'][0, :]
@@ -434,3 +435,90 @@ def load_and_plot_atm(RMG, PFM, fields_to_plot=None):
     # Plot the ATM fields
     plot_atm_r_fields(ATM, RMG, PFM, fields_to_plot, flag=False)
 
+# This is the time series plotting function for his.nc files. A preliminary code, so, many changes to be made!!!
+
+def rotate_to_earth(u_roms, v_roms, cos_ang, sin_ang):
+    """
+    Rotate the velocity components from ROMS grid to Earth coordinates using the given angles.
+    """
+    u_earth = cos_ang * u_roms - sin_ang * v_roms
+    v_earth = sin_ang * u_roms + cos_ang * v_roms
+    return u_earth, v_earth
+
+def plot_his_time_series(his_filepath, RMG, lat, lon, depth_level=-1):
+    his_ds = Dataset(his_filepath)
+    
+    # Extract variables
+    time_var = his_ds.variables['ocean_time']
+    time = num2date(time_var[:], units=time_var.units, calendar='standard')
+    time = np.array([datetime(year=date.year, month=date.month, day=date.day, 
+                              hour=date.hour, minute=date.minute, second=date.second) for date in time])
+    
+    temp = his_ds.variables['temp'][:, depth_level, :, :]  # Temperature at specified depth
+    salt = his_ds.variables['salt'][:, depth_level, :, :]  # Salinity at specified depth
+    zeta = his_ds.variables['zeta'][:, :, :]               # Sea surface height
+    ubar = his_ds.variables['ubar'][:, :, :]               # Barotropic u-component
+    vbar = his_ds.variables['vbar'][:, :, :]               # Barotropic v-component
+    
+    # Extract grid information
+    lon_rho = his_ds.variables['lon_rho'][:]
+    lat_rho = his_ds.variables['lat_rho'][:]
+    
+    # Need to pay attention over here, for now hardcoding the ilat and ilon
+    ilat = 150
+    ilon = 200
+    
+    # Compute trigonometric functions for rotation
+    ang_u = RMG['angle']
+    cos_ang = np.cos(ang_u)
+    sin_ang = np.sin(ang_u)
+    
+    # Extract time series data for the specified location
+    temp_ts = temp[:, ilat, ilon]  # Temperature time series
+    salt_ts = salt[:, ilat, ilon]  # Salinity time series
+    zeta_ts = zeta[:, ilat, ilon]  # Sea surface height time series
+    ubar_ts = ubar[:, ilat, ilon]  # Barotropic u-component time series
+    vbar_ts = vbar[:, ilat, ilon]  # Barotropic v-component time series
+    
+    # Rotate barotropic velocities to Earth coordinates
+    ubar_earth, vbar_earth = rotate_to_earth(ubar_ts, vbar_ts, cos_ang[ilat, ilon], sin_ang[ilat, ilon])
+    
+    # Initialize plot
+    fig, axs = plt.subplots(4, 1, figsize=(15, 20), sharex=True)
+    
+    # Plot time series
+    axs[0].plot(time, temp_ts, label=f'Temperature at ({lat_rho[ilat, ilon]}, {lon_rho[ilat, ilon]})')
+    axs[1].plot(time, salt_ts, label=f'Salinity at ({lat_rho[ilat, ilon]}, {lon_rho[ilat, ilon]})')
+    axs[2].plot(time, zeta_ts, label=f'Sea Surface Height at ({lat_rho[ilat, ilon]}, {lon_rho[ilat, ilon]})')
+    axs[3].plot(time, vbar_earth, label=f'Barotropic V at ({lat_rho[ilat, ilon]}, {lon_rho[ilat, ilon]})')
+    
+    # Set labels and titles
+    axs[0].set_ylabel('Temperature (°C)')
+    axs[1].set_ylabel('Salinity (psu)')
+    axs[2].set_ylabel('Sea Surface Height (m)')
+    axs[3].set_ylabel('Bar V (m/s)')
+    axs[3].set_xlabel('Date')
+    
+    # Title for the entire plot
+    fig.suptitle(f"Time Series Plot for his.nc file at (Lat: {lat}, Lon: {lon}, Depth: {depth_level})", fontsize=16)
+    
+    # Format x-axis to display dates
+    for ax in axs:
+        ax.legend()
+        ax.grid()
+        ax.xaxis_date()
+    
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.show()
+    
+    # Close the netCDF file
+    his_ds.close()
+
+    # How the input for this function will be:
+    # his_filepath = '/scratch/matt/sdtjre_L1/I06J18/ocean_his_LV1_20192020.nc' # this will be the path in PFM where his file is located
+    # fngr = '/home/mspydell/models/SDPM_root/SDPM/grids/GRID_SDTJRE_LV1.nc' #loading the grid... We don't need to do if running in driver_run_forecast_LV1.py file
+    # RMG = grdfuns.roms_grid_to_dict(fngr)
+    # lat = [32]  # latitude 
+    # lon = [-118]  # longitude
+
+    # and simply call the function!
