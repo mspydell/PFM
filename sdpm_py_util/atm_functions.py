@@ -123,7 +123,7 @@ def get_atm_data_as_dict(yyyymmdd,hhmm,run_type,atm_mod,get_method):
             pres2 = Pres[:,ilt[0][0]:ilt[0][-1],iln[0][0]:iln[0][-1]] # indexing looks bad but works
             t     = pres2.time[:].data
             # return the roms times past tref in days
-            t_ref = datetime(1970,1,1)
+            t_ref = datetime(1999,1,1)
             t_rom = get_roms_times(yyyymmdd,t,t_ref)
             lon   = pres2.lon[:].data
             lat   = pres2.lat[:].data
