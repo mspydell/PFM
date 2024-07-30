@@ -110,7 +110,7 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method):
             t0 = time.attributes['units'] # this the hycom reference time
             t0 = t0[12:31] # now we get just the date and 12:00
             t0 = datetime.fromisoformat(t0) # put it in datetime format
-            t_ref = datetime(1970,1,1)
+            t_ref = datetime(1999,1,1)
             t_rom = get_roms_times_from_hycom(t0,t,t_ref)
 
             lon   = ln[iln[0][0]:iln[0][-1]].data
