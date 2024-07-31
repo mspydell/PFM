@@ -94,11 +94,16 @@ def get_PFM_info():
 
 # vertical stretching info for each grid are embedded in a dict
    SS=dict()
-   SS['L1','Vtransform']=2                       # transformation equation
+   SS['L1','Nz']          = 40
+   SS['L1','Vtransform']  = 2                       # transformation equation
    SS['L1','Vstretching'] = 4                    # stretching function
-   SS['L1','THETA_S'] = 8.0                      # surface stretching parameter
-   SS['L1','THETA_B'] = 3.0                      # bottom  stretching parameter
-   SS['L1','TCLINE'] = 50.0                      # critical depth (m)
+   SS['L1','THETA_S']     = 8.0                      # surface stretching parameter
+   SS['L1','THETA_B']     = 3.0                      # bottom  stretching parameter
+   SS['L1','TCLINE']      = 50.0                      # critical depth (m)
+   SS['L1','hc']          = 50.0 
+
+ 
+
 
    PFM = dict()
    PFM['lo_env'] = lo_env

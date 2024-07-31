@@ -184,10 +184,16 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method,PFM):
             north = lt_max
 
             # time limits
+            Tfor = 2.5 # the forecast length in days
+            # hard wired here. read in from PFM !!!!
             dstr0 = yyyy + '-' + mm + '-' + dd + 'T12:00'
+            t00 = datetime.strptime(dstr0,"%Y-%m-%dT%H:%M")
+            t10 = t00 + Tfor * timedelta(days=1)
+            dstr1 = t10.strftime("%Y-%m-%dT%H:%M")
+
             # careful about going to the next month and year here!!!
             # need to recode to deal with months and years
-            dstr1 = yyyy + '-' + mm + '-' + str( int(dd) + 1 ) + 'T00:00'
+            # dstr1 = yyyy + '-' + mm + '-' + str( int(dd) + 1 ) + 'T00:00'
 
             #dstr0 = dlist['dt0'].strftime('%Y-%m-%dT00:00') 
             #dstr1 = dlist['dt1'].strftime('%Y-%m-%dT00:00')
@@ -1046,7 +1052,7 @@ def ocn_r_2_ICdict_old(OCN_R,RMG):
 
     return OCN_IC
 
-def ocn_r_2_ICdict(OCN_R,RMG):
+def ocn_r_2_ICdict(OCN_R,RMG,PFM):
     # this slices the OCN_R dictionary at the first time for all needed 
     # variables for the initial condition for roms
     # it then interpolates from the hycom z values that the vars are on
@@ -1079,12 +1085,20 @@ def ocn_r_2_ICdict(OCN_R,RMG):
     hb_v = 0.5 * (hb[0:-1,:]+hb[1:,:])
     nlt,nln = np.shape(hb)
 
-    Nz   = RMG['Nz']                              # number of vertical levels: 40
-    Vtr  = RMG['Vtransform']                       # transformation equation: 2
-    Vst  = RMG['Vstretching']                    # stretching function: 4 
-    th_s = RMG['THETA_S']                      # surface stretching parameter: 8
-    th_b = RMG['THETA_B']                      # bottom  stretching parameter: 3
-    Tcl  = RMG['TCLINE']                      # critical depth (m): 50
+#    Nz   = RMG['Nz']                              # number of vertical levels: 40
+#    Vtr  = RMG['Vtransform']                       # transformation equation: 2
+#    Vst  = RMG['Vstretching']                    # stretching function: 4 
+#    th_s = RMG['THETA_S']                      # surface stretching parameter: 8
+#    th_b = RMG['THETA_B']                      # bottom  stretching parameter: 3
+#    Tcl  = RMG['TCLINE']                      # critical depth (m): 50
+
+    Nz   = PFM['stretching']['L1','Nz']                              # number of vertical levels: 40
+    Vtr  = PFM['stretching']['L1','Vtransform']                       # transformation equation: 2
+    Vst  = PFM['stretching']['L1','Vstretching']                    # stretching function: 4 
+    th_s = PFM['stretching']['L1','THETA_S']                      # surface stretching parameter: 8
+    th_b = PFM['stretching']['L1','THETA_B']                      # bottom  stretching parameter: 3
+    Tcl  = PFM['stretching']['L1','TCLINE']                      # critical depth (m): 50
+    hc   = PFM['stretching']['L1','hc']
 
     OCN_IC['zeta'] = np.zeros((1,nlt,nln))
     OCN_IC['zeta'][0,:,:] = OCN_R['zeta'][i0,:,:]
@@ -1093,13 +1107,13 @@ def ocn_r_2_ICdict(OCN_R,RMG):
     eta_u = 0.5 * (eta[:,0:-1]+eta[:,1:])
     eta_v = 0.5 * (eta[0:-1,:]+eta[1:,:])
 
-    OCN_IC['Nz'] = np.squeeze(RMG['Nz'])
-    OCN_IC['Vtr'] = np.squeeze(RMG['Vtransform'])
-    OCN_IC['Vst'] = np.squeeze(RMG['Vstretching'])
-    OCN_IC['th_s'] = np.squeeze(RMG['THETA_S'])
-    OCN_IC['th_b'] = np.squeeze(RMG['THETA_B'])
-    OCN_IC['Tcl'] = np.squeeze(RMG['TCLINE'])
-    OCN_IC['hc'] = np.squeeze(RMG['hc'])
+    OCN_IC['Nz'] = np.squeeze(Nz)
+    OCN_IC['Vtr'] = np.squeeze(Vtr)
+    OCN_IC['Vst'] = np.squeeze(Vst)
+    OCN_IC['th_s'] = np.squeeze(th_s)
+    OCN_IC['th_b'] = np.squeeze(th_b)
+    OCN_IC['Tcl'] = np.squeeze(Tcl)
+    OCN_IC['hc'] = np.squeeze(hc)
 
     TMP = dict()
     TMP['temp'] = np.zeros((1,Nz,nlt,nln)) # a helper becasue we convert to potential temp below
@@ -1250,7 +1264,7 @@ def ocn_r_2_ICdict(OCN_R,RMG):
 
     return OCN_IC
 
-def ocn_r_2_BCdict(OCN_R,RMG):
+def ocn_r_2_BCdict(OCN_R,RMG,PFM):
     # this slices the OCN_R dictionary at the first time for all needed 
     # variables for the boundary condition for roms
     # it then interpolates from the hycom z values that the vars are on
@@ -1264,13 +1278,13 @@ def ocn_r_2_BCdict(OCN_R,RMG):
     Nt = len( OCN_BC['ocean_time'] )
     OCN_BC['ocean_time_ref'] = OCN_R['ocean_time_ref']
 
-    OCN_BC['Nz'] = np.squeeze(RMG['Nz'])
-    OCN_BC['Vtr'] = np.squeeze(RMG['Vtransform'])
-    OCN_BC['Vst'] = np.squeeze(RMG['Vstretching'])
-    OCN_BC['th_s'] = np.squeeze(RMG['THETA_S'])
-    OCN_BC['th_b'] = np.squeeze(RMG['THETA_B'])
-    OCN_BC['Tcl'] = np.squeeze(RMG['TCLINE'])
-    OCN_BC['hc'] = np.squeeze(RMG['hc'])
+#    OCN_BC['Nz'] = np.squeeze(RMG['Nz'])
+#    OCN_BC['Vtr'] = np.squeeze(RMG['Vtransform'])
+#    OCN_BC['Vst'] = np.squeeze(RMG['Vstretching'])
+#    OCN_BC['th_s'] = np.squeeze(RMG['THETA_S'])
+#    OCN_BC['th_b'] = np.squeeze(RMG['THETA_B'])
+#    OCN_BC['Tcl'] = np.squeeze(RMG['TCLINE'])
+#    OCN_BC['hc'] = np.squeeze(RMG['hc'])
 
 
     # these variables need to be time sliced and then vertically interpolated
@@ -1281,12 +1295,29 @@ def ocn_r_2_BCdict(OCN_R,RMG):
     hb_v = 0.5 * (hb[0:-1,:]+hb[1:,:])
     nlt,nln = np.shape(hb)
 
-    Nz   = RMG['Nz']                              # number of vertical levels: 40
-    Vtr  = RMG['Vtransform']                       # transformation equation: 2
-    Vst  = RMG['Vstretching']                    # stretching function: 4 
-    th_s = RMG['THETA_S']                      # surface stretching parameter: 8
-    th_b = RMG['THETA_B']                      # bottom  stretching parameter: 3
-    Tcl  = RMG['TCLINE']                      # critical depth (m): 50
+#    Nz   = RMG['Nz']                              # number of vertical levels: 40
+#    Vtr  = RMG['Vtransform']                       # transformation equation: 2
+#    Vst  = RMG['Vstretching']                    # stretching function: 4 
+#    th_s = RMG['THETA_S']                      # surface stretching parameter: 8
+#    th_b = RMG['THETA_B']                      # bottom  stretching parameter: 3
+#    Tcl  = RMG['TCLINE']                      # critical depth (m): 50
+
+    Nz   = PFM['stretching']['L1','Nz']                              # number of vertical levels: 40
+    Vtr  = PFM['stretching']['L1','Vtransform']                       # transformation equation: 2
+    Vst  = PFM['stretching']['L1','Vstretching']                    # stretching function: 4 
+    th_s = PFM['stretching']['L1','THETA_S']                      # surface stretching parameter: 8
+    th_b = PFM['stretching']['L1','THETA_B']                      # bottom  stretching parameter: 3
+    Tcl  = PFM['stretching']['L1','TCLINE']                      # critical depth (m): 50
+    hc   = PFM['stretching']['L1','hc']
+
+    OCN_BC['Nz'] = np.squeeze(Nz)
+    OCN_BC['Vtr'] = np.squeeze(Vtr)
+    OCN_BC['Vst'] = np.squeeze(Vst)
+    OCN_BC['th_s'] = np.squeeze(th_s)
+    OCN_BC['th_b'] = np.squeeze(th_b)
+    OCN_BC['Tcl'] = np.squeeze(Tcl)
+    OCN_BC['hc'] = np.squeeze(hc)
+
 
     eta = np.squeeze(OCN_R['zeta'].copy())
     eta_u = 0.5 * (eta[:,0:-1]+eta[:,1:])
