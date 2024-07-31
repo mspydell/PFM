@@ -1,6 +1,8 @@
 # the ocean functions will be here
 
 from datetime import datetime
+from datetime import timedelta
+import time
 
 import sys
 import cartopy.crs as ccrs
@@ -13,6 +15,7 @@ import netCDF4 as nc
 from scipy.interpolate import RegularGridInterpolator
 from scipy.interpolate import interp1d
 import seawater
+import subprocess
 
 
 import util_functions as utlfuns 
@@ -21,8 +24,7 @@ from util_functions import s_coordinate_4
 
 
 
-def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method):
-    from datetime import datetime
+def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method,PFM):
 #    import pygrib
 
     
@@ -39,7 +41,6 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method):
     def get_roms_times_from_hycom(fore_date,t,t_ref):
         # this funtion returns times past t_ref in days
         # consistent with how ROMS likes it
-        from datetime import timedelta
 
         d1=fore_date
         t2 = t # an ndarray of days, t is from atm import
@@ -69,11 +70,15 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method):
 
         hycom = 'https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_' + yyyy + '-' + mm + '-' + dd + 'T12:00:00Z'
 
-        # define the box to get data in
-        ln_min = -124.5 + 360
-        ln_max = -115 + 360
-        lt_min = 28
-        lt_max = 37
+        # define the box to get data in, hycom uses 0-360 longitude.
+        lt_min = PFM['latlonbox'][0]
+        lt_max = PFM['latlonbox'][1]
+        ln_min = PFM['latlonbox'][2]+360.0
+        ln_max = PFM['latlonbox'][3]+360.0
+        #ln_min = -124.5 + 360
+        #ln_max = -115 + 360
+        #lt_min = 28
+        #lt_max = 37
 
 
         if ocn_mod == 'hycom':
@@ -89,7 +94,7 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method):
             # open_url is sometimes slow, and this block of code can be fast (1s), med (6s), or slow (>15s)
             dataset = open_url(ocn_name)
 
-            time = dataset['time']         # ???
+            times = dataset['time']         # ???
             ln   = dataset['lon']          # deg
             lt   = dataset['lat']          # deg
             Eta  = dataset['surface_el']     # surface elevations, m
@@ -106,11 +111,12 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method):
             ilt    = np.where( (Lt0>=lt_min)*(Lt0<=lt_max) ) # the lat indices where we want data
 
             # return the roms times past tref in days
-            t=time.data[it1:it2] # this is hrs past t0
-            t0 = time.attributes['units'] # this the hycom reference time
+            t=times.data[it1:it2] # this is hrs past t0
+            t0 = times.attributes['units'] # this the hycom reference time
             t0 = t0[12:31] # now we get just the date and 12:00
             t0 = datetime.fromisoformat(t0) # put it in datetime format
-            t_ref = datetime(1999,1,1)
+            #t_ref = datetime(1999,1,1)
+            t_ref = PFM['modtime0']
             t_rom = get_roms_times_from_hycom(t0,t,t_ref)
 
             lon   = ln[iln[0][0]:iln[0][-1]].data
@@ -134,7 +140,7 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method):
             #ds2 = xr.open_dataset(ocn_name,use_cftime=False, decode_coords=False, decode_times=False)
 
 
-            time = dataset['time']         # ???
+            times = dataset['time']         # ???
             ln   = dataset['lon']          # deg
             lt   = dataset['lat']          # deg
             Eta  = dataset['surf_el']     # surface elevations, m
@@ -153,7 +159,7 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method):
             lat = lt[ ilt[0][0]:ilt[0][-1] ].data
             lon = ln[ iln[0][0]:iln[0][-1] ].data
             z   =  Z[:].data
-            t   = time[it1:it2].data
+            t   = times[it1:it2].data
             eta = Eta[it1:it2,ilt[0][0]:ilt[0][-1] , iln[0][0]:iln[0][-1] ].data
             # we will get the other data directly
             temp = Temp[it1:it2,:,ilt[0][0]:ilt[0][-1],iln[0][0]:iln[0][-1]].data
@@ -161,10 +167,10 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method):
             u = U[it1:it2,:,ilt[0][0]:ilt[0][-1],iln[0][0]:iln[0][-1]].data
             v = V[it1:it2,:,ilt[0][0]:ilt[0][-1],iln[0][0]:iln[0][-1]].data
                 # return the roms times past tref in days
-            t0 = time.units # this is the hycom reference time
+            t0 = times.units # this is the hycom reference time
             t0 = t0[12:31] # now we get just the date and 12:00
             t0 = datetime.fromisoformat(t0) # put it in datetime format
-            t_ref = datetime(1970,1,1)
+            t_ref = PFM['modtime0']
             t_rom = get_roms_times_from_hycom(t0,t,t_ref)
 
             # I think everything is an np.ndarray ?
@@ -172,14 +178,17 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method):
 
         if get_method == 'ncks':
 
-            west =  -124.5 + 360
-            east = -115 + 360
-            south = 28
-            north = 37
+            west =  ln_min
+            east =  ln_max
+            south = lt_min
+            north = lt_max
 
             # time limits
             dstr0 = yyyy + '-' + mm + '-' + dd + 'T12:00'
-            dstr1 = yyyy + '-' + mm + '-' + str( int(dd) + 3 ) + 'T00:00'
+            # careful about going to the next month and year here!!!
+            # need to recode to deal with months and years
+            dstr1 = yyyy + '-' + mm + '-' + str( int(dd) + 1 ) + 'T00:00'
+
             #dstr0 = dlist['dt0'].strftime('%Y-%m-%dT00:00') 
             #dstr1 = dlist['dt1'].strftime('%Y-%m-%dT00:00')
             # use subprocess.call() to execute the ncks command
@@ -187,9 +196,13 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method):
 
             # parker url: https://tds.hycom.org/thredds/dodsC/GLBy0.08/latest
 
-            url='https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs' 
-            url2 = 'GLBy0.08_930_FMRC_RUN_' + yyyy + '-' + mm + '-' + dd + 'T12:00:00Z' 
-            url3 = url + url2
+            #url='https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs' 
+            #url2 = 'GLBy0.08_930_FMRC_RUN_' + yyyy + '-' + mm + '-' + dd + 'T12:00:00Z' 
+            #url3 = url + url2
+            url3 = hycom
+
+            full_fn_out = PFM['lv1_forc_dir'] +'/' + PFM['lv1_nck_temp_file'] 
+
             cmd_list = ['ncks',
                 '-d', 'time,'+dstr0+','+dstr1,
                 '-d', 'lon,'+str(west)+','+str(east),
@@ -206,7 +219,7 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method):
             #    'https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0',
             #    '-4', '-O', full_fn_out]
 
-            print(cmd_list)
+            #print(cmd_list)
 
             # run ncks
             tt0 = time.time()
@@ -215,6 +228,20 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method):
             print('Time to get full file using ncks = %0.2f sec' % (time.time()-tt0))
             print('Return code = ' + str(ret1) + ' (0=success, 1=skipped ncks)')
 
+            # now get the variables...
+            ds = xr.open_dataset(full_fn_out)
+            lat = ds.lat.values
+            lon = ds.lon.values
+            z   = ds.depth.values
+            t   = ds.time.values # these are strings?
+            eta = ds.surf_el.values
+            temp= ds.water_temp.values
+            sal = ds.salinity.values
+            u   = ds.water_u.values
+            v   = ds.water_v.values
+            t_ref = PFM['modtime0']
+            dt = (ds.time - np.datetime64(t_ref))  / np.timedelta64(1,'D') # this gets time in days from t_ref
+            t_rom = dt.values
 
         # set up dict and fill in
         OCN = dict()

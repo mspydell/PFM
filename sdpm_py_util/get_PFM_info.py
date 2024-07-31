@@ -24,7 +24,7 @@ def get_PFM_info():
    print('get_PFM_info(): running on' + HOSTNAME)
    
    if str(HOSTNAME) == 'swell':
-       pfm_root_dir = '/scratch/PFM_Simulations'
+       pfm_root_dir = '/scratch/PFM_Simulations/'
        lo_env = 'mss_swell'
    else:
        pfm_root_dir = '/Users/mspydell/research/FF2024/models/SDPM_mss/PFM_Simulations/'
@@ -67,8 +67,8 @@ def get_PFM_info():
    daystep_atm = 3/24
 # this is the box that covers LV1 so we get only a rectangle of hycom data
 # needs to be floats
-   latlonbox = [27.75, 37.25, -124.5+360, -115.5+360]
-
+#   latlonbox = [27.75, 37.25, -124.5+360, -115.5+360]
+   latlonbox = [28.0, 37.0, -125.0, -115.0]
 # roms will be run with this time step (in days)
    daystep = 1
 
@@ -83,10 +83,10 @@ def get_PFM_info():
 
     
 # this it the one place where the model time reference is set
-   modtime0 = datetime(1970,1,1,0,0)
+   modtime0 = datetime(1999,1,1,0,0)
 # correct string for time units in ROMS forcing files
 # see notes in Evernote, Run Log 9, 2020.10.06
-   roms_time_units = 'seconds since 1970-01-01 00:00:00'
+   roms_time_units = 'seconds since 1990-01-01 00:00:00'
 # format used for naming day folders
    ds_fmt = '%Y.%m.%d'
 # number of forecast days
@@ -114,6 +114,7 @@ def get_PFM_info():
    PFM['lv1_plot_dir'] = lv1_plot_dir         
    PFM['lv1_grid_file'] = lv1_grid_file
 
+   PFM['lv1_nck_temp_file'] = 'hycom_temp_ncks_file.nc'
    PFM['lv1_atm_file'] = 'LV1_ATM_FORCING.nc'
    PFM['lv1_ini_file'] = 'LV1_OCEAN_IC.nc'
    PFM['lv1_bc_file'] =  'LV1_OCEAN_BC.nc'   

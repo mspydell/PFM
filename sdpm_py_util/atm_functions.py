@@ -10,7 +10,7 @@ import netCDF4 as nc
 #from pydap.client import open_url
 
 
-def get_atm_data_as_dict(yyyymmdd,hhmm,run_type,atm_mod,get_method):
+def get_atm_data_as_dict(yyyymmdd,hhmm,run_type,atm_mod,get_method,PFM):
     from datetime import datetime
 #    import pygrib
 
@@ -37,7 +37,7 @@ def get_atm_data_as_dict(yyyymmdd,hhmm,run_type,atm_mod,get_method):
         print('getting atm forecast for:')
         print(t3)
         # t3 looks good and is the correct time stamps of the forecast.
-        # But for ROMS we need ocean_time which is relative to 1970,1,1. 
+        # But for ROMS we need ocean_time which is relative to 1999,1,1. 
         # in seconds. So...
         tr = t3 - t_ref
         tr_days = tr.astype("timedelta64[ms]").astype(float) / 1000 / 3600 / 24
@@ -83,10 +83,15 @@ def get_atm_data_as_dict(yyyymmdd,hhmm,run_type,atm_mod,get_method):
             atm_name = gfs
 
         # define the box to get data in
-        ln_min = -124.5
-        ln_max = -115
-        lt_min = 28
-        lt_max = 37
+        #latlonbox = [27.75, 37.25, -124.5+360, -115.5+360]
+        lt_min = PFM['latlonbox'][0]
+        lt_max = PFM['latlonbox'][1]
+        ln_min = PFM['latlonbox'][2]
+        ln_max = PFM['latlonbox'][3]
+        #ln_min = -124.5
+        #ln_max = -115
+        #lt_min = 28
+        #lt_max = 37
 
         if get_method == 'open_dap_pydap':
             # open a connection to the opendap server. This could be made more robust? 
@@ -123,7 +128,8 @@ def get_atm_data_as_dict(yyyymmdd,hhmm,run_type,atm_mod,get_method):
             pres2 = Pres[:,ilt[0][0]:ilt[0][-1],iln[0][0]:iln[0][-1]] # indexing looks bad but works
             t     = pres2.time[:].data
             # return the roms times past tref in days
-            t_ref = datetime(1999,1,1)
+            #t_ref = datetime(1999,1,1)
+            t_ref = PFM['modtime0']
             t_rom = get_roms_times(yyyymmdd,t,t_ref)
             lon   = pres2.lon[:].data
             lat   = pres2.lat[:].data
@@ -186,7 +192,8 @@ def get_atm_data_as_dict(yyyymmdd,hhmm,run_type,atm_mod,get_method):
             lwd = Lwd[:,ilt[0][0]:ilt[0][-1],iln[0][0]:iln[0][-1]].data
             lwu = Lwu[:,ilt[0][0]:ilt[0][-1],iln[0][0]:iln[0][-1]].data
             # return the roms times past tref in days
-            t_ref = datetime(1970,1,1)
+            #t_ref = datetime(1970,1,1)
+            t_ref = PFM['modtime0']
             t_rom = get_roms_times(yyyymmdd,t,t_ref)
 
             # I think everything is an np.ndarray ?
