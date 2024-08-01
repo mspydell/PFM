@@ -659,6 +659,8 @@ def hycom_to_roms_latlon(HY,RMG):
             elif aa=='u':
                 for bb in range(NZ):
                     zhy2= zhy[cc,bb,:,:]
+                    #u_on_u = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_u'],RMG['lat_u'],RMG['mask_u'],Fz)
+                    #u_on_v = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_v'],RMG['lat_v'],RMG['mask_v'],Fz)
                     Tmp['u_on_u'][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_u'],RMG['lat_u'],RMG['mask_u'],Fz)
                     Tmp['u_on_v'][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_v'],RMG['lat_v'],RMG['mask_v'],Fz)
             elif aa=='v':
