@@ -24,7 +24,7 @@ def get_PFM_info():
    print('get_PFM_info(): running on' + HOSTNAME)
    
    if str(HOSTNAME) == 'swell':
-       pfm_root_dir = '/scratch/PFM_Simulations'
+       pfm_root_dir = '/scratch/PFM_Simulations/'
        lo_env = 'mss_swell'
    else:
        pfm_root_dir = '/Users/mspydell/research/FF2024/models/SDPM_mss/PFM_Simulations/'

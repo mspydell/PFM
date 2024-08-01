@@ -7,6 +7,8 @@ import pickle
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import subprocess
+import time
 from datetime import datetime, timezone
 #import cartopy.crs as ccrs
 #import cartopy.feature as cfeature
@@ -74,6 +76,58 @@ get_method = 'open_dap_nc'
 #fngr = '/Users/mspydell/research/FF2024/models/SDPM_mss/PFM_user/grids/GRID_SDTJRE_LV1.nc'
 RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
 
+
+
+lv1_forc_dir = PFM['lv1_forc_dir']   #'/Users/mspydell/research/FF2024/models/SDPM_mss/atm_stuff/ocn_test_IC_file.nc'
+
+
+west =  -124.5 + 360.0
+east = -115 + 360.0
+south = 28.0
+north = 37.0
+
+yyyymmdd='20240728'
+yyyy = yyyymmdd[0:4]
+mm = yyyymmdd[4:6]
+dd = yyyymmdd[6:8]
+
+# time limits
+dstr0 = yyyy + '-' + mm + '-' + dd + 'T12:00'
+dstr1 = yyyy + '-' + mm + '-' + str( int(dd) + 3 ) + 'T00:00'
+
+vstr = 'surf_el,water_temp,salinity,water_u,water_v,depth'
+full_fn_out = 'test.nc'
+
+url='https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/' 
+url2 = 'GLBy0.08_930_FMRC_RUN_' + yyyy + '-' + mm + '-' + dd + 'T12:00:00Z' 
+url3 = url + url2
+cmd_list = ['ncks',
+    '-d', 'time,'+dstr0+','+dstr1,
+    '-d', 'lon,'+str(west)+','+str(east),
+    '-d', 'lat,'+str(south)+','+str(north),
+    '-v', vstr,
+    url3 ,
+    '-4', '-O', full_fn_out]
+# old working command list
+#cmd_list = ['ncks',
+#    '-d', 'time,'+dstr0+','+dstr1,
+#    '-d', 'lon,'+str(west)+','+str(east),
+#    '-d', 'lat,'+str(south)+','+str(north),
+#    '-v', vstr,
+#    'https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0',
+#    '-4', '-O', full_fn_out]
+
+print(cmd_list)
+
+
+
+# run ncks
+tt0 = time.time()
+print('entering suprocess.call(): at time ',tt0)
+ret1 = subprocess.call(cmd_list)
+
+
+
 #import ipdb; ipdb.set_trace()
 
 # %%
@@ -107,52 +161,11 @@ print('driver_run_forecast_LV1:  done with writing ATM file, Current time ', dat
 pltfuns.load_and_plot_atm(RMG, PFM)
 print('done with pltfuns.load_and_plot_atm(PFM)')
 
-# clear ATM_R
+del ATM_R  # removing this from memory
 
 # %%
 # make the ocn IC and BC .nc files here
 # fn*_out are the names of the the IC.nc and BC.nc roms files
-lv1_forc_dir = PFM['lv1_forc_dir']   #'/Users/mspydell/research/FF2024/models/SDPM_mss/atm_stuff/ocn_test_IC_file.nc'
-
-
-west =  -124.5 + 360
-east = -115 + 360
-south = 28
-north = 37
-
-yyyymmdd='20240716'
-yyyy = yyyymmdd[0:4]
-mm = yyyymmdd[4:6]
-dd = yyyymmdd[6:8]
-
-# time limits
-dstr0 = yyyy + '-' + mm + '-' + dd + 'T12:00'
-dstr1 = yyyy + '-' + mm + '-' + str( int(dd) + 3 ) + 'T00:00'
-
-url='https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/' 
-url2 = 'GLBy0.08_930_FMRC_RUN_' + yyyy + '-' + mm + '-' + dd + 'T12:00:00Z' 
-url3 = url + url2
-cmd_list = ['ncks',
-    '-d', 'time,'+dstr0+','+dstr1,
-    '-d', 'lon,'+str(west)+','+str(east),
-    '-d', 'lat,'+str(south)+','+str(north),
-    '-v', vstr,
-    url3 ,
-    '-4', '-O', full_fn_out]
-# old working command list
-#cmd_list = ['ncks',
-#    '-d', 'time,'+dstr0+','+dstr1,
-#    '-d', 'lon,'+str(west)+','+str(east),
-#    '-d', 'lat,'+str(south)+','+str(north),
-#    '-v', vstr,
-#    'https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0',
-#    '-4', '-O', full_fn_out]
-
-print(cmd_list)
-
-# run ncks
-tt0 = time.time()
-ret1 = subprocess.call(cmd_list)
 
 
 
