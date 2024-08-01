@@ -16,11 +16,49 @@ from scipy.interpolate import RegularGridInterpolator
 from scipy.interpolate import interp1d
 import seawater
 import subprocess
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 import util_functions as utlfuns 
 from util_functions import s_coordinate_4
 #from pydap.client import open_url
+
+
+def para_loop(url,dtff,aa,PFM,dstr_ft):
+    # this is the function that is parallelized
+    # the input is url: the hycom url to get data from
+    # dtff: the time stamp of the forecast, ie, the file we want
+    # aa: a box that defines the region of interest
+    # PFM: used to set the path of where the .nc files go
+    # dstr_ft: the date string of the forecast model run. ie. the first
+    #          time stamp of the forecast
+    north = aa[0]
+    south = aa[1]
+    west = aa[2]
+    east = aa[3]
+
+    # time limits
+    dtff_adv = dtff+timedelta(hours=2) # hours=2 makes it only get 1 time.
+    dstr0 = dtff.strftime('%Y-%m-%dT%H:%M')
+    dstr1 = dtff_adv.strftime('%Y-%m-%dT%H:%M')
+    # use subprocess.call() to execute the ncks command
+    vstr = 'surf_el,water_temp,salinity,water_u,water_v'
+    #where to save the data
+    
+    ffname = 'hy_' + dstr_ft + '_' + dtff.strftime("%Y-%m-%dT%H:%M") + '.nc'
+    full_fn_out = PFM['lv1_forc_dir'] +'/' + ffname
+
+    cmd_list = ['ncks',
+        '-d', 'time,'+dstr0+','+dstr1,
+        '-d', 'lon,'+str(west)+','+str(east),
+        '-d', 'lat,'+str(south)+','+str(north),
+        '-v', vstr,
+        url ,
+        '-4', '-O', full_fn_out]
+
+    # run ncks
+    ret1 = subprocess.call(cmd_list)
+    return ret1
 
 
 
@@ -55,7 +93,7 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method,PFM):
         # tr_sec is now an ndarray of days past the reference day
         return tr_days
 
-    if get_method == 'open_dap_pydap' or get_method == 'open_dap_nc' or get_method == 'ncks' and run_type == 'forecast':
+    if get_method == 'open_dap_pydap' or get_method == 'open_dap_nc' or get_method == 'ncks' or get_method == 'ncks_para' and run_type == 'forecast':
         # with this method the data is not downloaded directly, initially
         # and the data is rectilinear, lon and lat are both vectors
 
@@ -184,27 +222,18 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method,PFM):
             north = lt_max
 
             # time limits
-            Tfor = 2.5 # the forecast length in days
+            Tfor = 1 # the forecast length in days
             # hard wired here. read in from PFM !!!!
             dstr0 = yyyy + '-' + mm + '-' + dd + 'T12:00'
             t00 = datetime.strptime(dstr0,"%Y-%m-%dT%H:%M")
             t10 = t00 + Tfor * timedelta(days=1)
             dstr1 = t10.strftime("%Y-%m-%dT%H:%M")
 
-            # careful about going to the next month and year here!!!
-            # need to recode to deal with months and years
-            # dstr1 = yyyy + '-' + mm + '-' + str( int(dd) + 1 ) + 'T00:00'
-
             #dstr0 = dlist['dt0'].strftime('%Y-%m-%dT00:00') 
             #dstr1 = dlist['dt1'].strftime('%Y-%m-%dT00:00')
             # use subprocess.call() to execute the ncks command
             vstr = 'surf_el,water_temp,salinity,water_u,water_v,depth'
 
-            # parker url: https://tds.hycom.org/thredds/dodsC/GLBy0.08/latest
-
-            #url='https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs' 
-            #url2 = 'GLBy0.08_930_FMRC_RUN_' + yyyy + '-' + mm + '-' + dd + 'T12:00:00Z' 
-            #url3 = url + url2
             url3 = hycom
 
             full_fn_out = PFM['lv1_forc_dir'] +'/' + PFM['lv1_nck_temp_file'] 
@@ -216,21 +245,10 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method,PFM):
                 '-v', vstr,
                 url3 ,
                 '-4', '-O', full_fn_out]
-            # old working command list
-            #cmd_list = ['ncks',
-            #    '-d', 'time,'+dstr0+','+dstr1,
-            #    '-d', 'lon,'+str(west)+','+str(east),
-            #    '-d', 'lat,'+str(south)+','+str(north),
-            #    '-v', vstr,
-            #    'https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0',
-            #    '-4', '-O', full_fn_out]
-
-            #print(cmd_list)
-
+    
             # run ncks
             tt0 = time.time()
             ret1 = subprocess.call(cmd_list)
-            #ret1 = 1
             print('Time to get full file using ncks = %0.2f sec' % (time.time()-tt0))
             print('Return code = ' + str(ret1) + ' (0=success, 1=skipped ncks)')
 
@@ -248,6 +266,90 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method,PFM):
             t_ref = PFM['modtime0']
             dt = (ds.time - np.datetime64(t_ref))  / np.timedelta64(1,'D') # this gets time in days from t_ref
             t_rom = dt.values
+
+        if get_method == 'ncks_para':
+
+            print('in the parallel ncks switch')
+
+            west =  ln_min
+            east =  ln_max
+            south = lt_min
+            north = lt_max
+            aa = [north,south,west,east]
+
+            # time limits
+            Tfor = 2.5 # the forecast length in days
+            # hard wired here. read in from PFM !!!!
+            # the first time to get
+            dstr0 = yyyy + '-' + mm + '-' + dd + 'T12:00'
+            t00 = datetime.strptime(dstr0,"%Y-%m-%dT%H:%M")
+            # the last time to get
+            t10 = t00 + Tfor * timedelta(days=1)
+            dstr1 = t10.strftime("%Y-%m-%dT%H:%M")
+
+            #dstr0 = dlist['dt0'].strftime('%Y-%m-%dT00:00') 
+            #dstr1 = dlist['dt1'].strftime('%Y-%m-%dT00:00')
+            # use subprocess.call() to execute the ncks command
+
+            # form list of days to get, datetimes
+            dt0 = t00
+            dt1 = t10 
+            dt_list_full = []
+            dtff = dt0
+            #timestamps
+            while dtff <= dt1:
+                dt_list_full.append(dtff)
+                dtff = dtff + timedelta(hours=3)
+                
+            #this is where we para
+            tt0 = time.time()
+
+            # create parallel executor
+            with ThreadPoolExecutor() as executor:
+                threads = []
+                for dtff in dt_list_full:
+                    fn = para_loop #define function
+                    args = [hycom,dtff,aa,PFM,dstr0] #define args to function
+                    kwargs = {} #
+                    # start thread by submitting it to the executor
+                    threads.append(executor.submit(fn, *args, **kwargs))
+                for future in as_completed(threads):
+                        # retrieve the result
+                        result = future.result()
+                        # report the result
+            
+            #result = tt0
+            print('Time to get full file using parallel ncks = %0.2f sec' % (time.time()-tt0))
+            print('Return code = ' + str(result) + ' (0=success, 1=skipped ncks)')
+
+
+            ffname = 'hy_' + dstr0 + '_*.nc'
+            full_fns_out = PFM['lv1_forc_dir'] +'/' + ffname
+            cat_fname = PFM['lv1_forc_dir'] + '/' + 'hy_cat_' + dstr0 + '.nc'
+
+            cmd_list = 'ncrcat ' + full_fns_out + ' ' + cat_fname
+
+            ret2 = subprocess.call(cmd_list)
+            print('files were catted:')
+            print('code = ' + str(ret2) + ' (0=success, other=failed)')
+
+
+            # now get the variables...
+            # use a dummy .nc file for testing...
+            ds = xr.open_dataset(cat_fname)
+            lat = ds.lat.value
+            lon = ds.lon.values
+            z   = ds.depth.values
+            t   = ds.time.values # these are strings?
+            eta = ds.surf_el.values
+            temp= ds.water_temp.values
+            sal = ds.salinity.values
+            u   = ds.water_u.values
+            v   = ds.water_v.values
+            t_ref = PFM['modtime0']
+            dt = (ds.time - np.datetime64(t_ref))  / np.timedelta64(1,'D') # this gets time in days from t_ref
+            t_rom = dt.values
+
 
         # set up dict and fill in
         OCN = dict()
