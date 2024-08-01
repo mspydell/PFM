@@ -5,6 +5,7 @@ from datetime import timedelta
 import time
 
 import sys
+import os
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import matplotlib.pyplot as plt
@@ -266,6 +267,7 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method,PFM):
             t_ref = PFM['modtime0']
             dt = (ds.time - np.datetime64(t_ref))  / np.timedelta64(1,'D') # this gets time in days from t_ref
             t_rom = dt.values
+            ds.close()
 
         if get_method == 'ncks_para':
 
@@ -296,9 +298,12 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method,PFM):
             dt1 = t10 
             dt_list_full = []
             dtff = dt0
+            ncfiles = [] # this is the list with paths of all of the .nc files made with ncks_para
             #timestamps
             while dtff <= dt1:
                 dt_list_full.append(dtff)
+                ffn = PFM['lv1_forc_dir'] + '/hy_' + dstr0 + '_' + dtff.strftime("%Y-%m-%dT%H:%M") +'.nc'
+                ncfiles.append(ffn)
                 dtff = dtff + timedelta(hours=3)
                 
             #this is where we para
@@ -322,34 +327,37 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method,PFM):
             print('Time to get full file using parallel ncks = %0.2f sec' % (time.time()-tt0))
             print('Return code = ' + str(result) + ' (0=success, 1=skipped ncks)')
 
-
-            ffname = 'hy_' + dstr0 + '_*.nc'
-            full_fns_out = PFM['lv1_forc_dir'] +'/' + ffname
             cat_fname = PFM['lv1_forc_dir'] + '/' + 'hy_cat_' + dstr0 + '.nc'
 
-            cmd_list = 'ncrcat ' + full_fns_out + ' ' + cat_fname
+            ds = xr.open_mfdataset(ncfiles,combine = 'by_coords',data_vars='minimal')
 
-            ret2 = subprocess.call(cmd_list)
-            print('files were catted:')
-            print('code = ' + str(ret2) + ' (0=success, other=failed)')
+            enc_dict = {'zlib':True, 'complevel':1, '_FillValue':1e20}
+            Enc_dict = {vn:enc_dict for vn in ds.data_vars}
+            ds.to_netcdf(cat_fname,encoding=Enc_dict)
+            ds.close()
+            # ncrcat didn't work
+            # cmd_list = 'ncrcat ' + full_fns_out + ' ' + cat_fname
+            # ret2 = subprocess.call(cmd_list)
+            # print('files were catted:')
+            # print('code = ' + str(ret2) + ' (0=success, other=failed)')
 
 
             # now get the variables...
             # use a dummy .nc file for testing...
-            ds = xr.open_dataset(cat_fname)
-            lat = ds.lat.value
-            lon = ds.lon.values
-            z   = ds.depth.values
-            t   = ds.time.values # these are strings?
-            eta = ds.surf_el.values
-            temp= ds.water_temp.values
-            sal = ds.salinity.values
-            u   = ds.water_u.values
-            v   = ds.water_v.values
+            dss = xr.open_dataset(cat_fname)
+            lat = dss.lat.values
+            lon = dss.lon.values
+            z   = dss.depth.values
+            t   = dss.time.values # these are strings?
+            eta = dss.surf_el.values
+            temp= dss.water_temp.values
+            sal = dss.salinity.values
+            u   = dss.water_u.values
+            v   = dss.water_v.values
             t_ref = PFM['modtime0']
-            dt = (ds.time - np.datetime64(t_ref))  / np.timedelta64(1,'D') # this gets time in days from t_ref
+            dt = (dss.time - np.datetime64(t_ref))  / np.timedelta64(1,'D') # this gets time in days from t_ref
             t_rom = dt.values
-
+            dss.close()
 
         # set up dict and fill in
         OCN = dict()
@@ -554,8 +562,9 @@ def hycom_to_roms_latlon(HY,RMG):
     # and (lat_v,lon_v).
     
     # set up the interpolator now and pass to function
+
     Fz = RegularGridInterpolator((HY['lat'],HY['lon']),HY['zeta'][0,:,:])
-    
+
     # the names of the variables that need to go on the ROMS grid
     vnames = ['zeta', 'temp', 'salt', 'u', 'v']
     lnhy = HY['lon']
@@ -564,6 +573,7 @@ def hycom_to_roms_latlon(HY,RMG):
     NZ = len(HY['depth'])
     NT = len(HY['ocean_time'])
 
+    print('before HYrm setup')
     HYrm = dict()
     Tmp = dict()
     HYrm['zeta'] = np.zeros((NT,NR, NC))
@@ -634,6 +644,7 @@ def hycom_to_roms_latlon(HY,RMG):
                         'time':'ocean_time',
                         'note':'uses hycom depths and this is now rotated in the roms eta direction'}
 
+    print('after HYrm setup. before Tmp')
 
     for aa in vnames:
         zhy  = HY[aa]
@@ -656,6 +667,8 @@ def hycom_to_roms_latlon(HY,RMG):
                     Tmp['v_on_u'][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_u'],RMG['lat_u'],RMG['mask_u'],Fz)
                     Tmp['v_on_v'][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_v'],RMG['lat_v'],RMG['mask_v'],Fz)
 
+    print('after Tmp. before rotation')
+
     # rotate the velocities so that the velocities are in roms eta,xi coordinates
     angr = RMG['angle_u']
     cosang = np.cos(angr)
@@ -663,10 +676,16 @@ def hycom_to_roms_latlon(HY,RMG):
     #Cosang = np.tile(cosang,(NT,NZ,1,1))
     #Sinang = np.tile(sinang,(NT,NZ,1,1))
     #urm = Cosang * HYrm['u_on_u'] + Sinang * HYrm['v_on_u']
+
+    print('before giant multiplication')
     urm = cosang[None,None,:,:] * Tmp['u_on_u'][:,:,:,:] + sinang[None,None,:,:] * Tmp['v_on_u'][:,:,:,:]
+    print('just after multiplication. before naning')
     urm[np.isnan(Tmp['u_on_u'])==1] = np.nan
+    print('after nanning. before filling HYrm')
     HYrm['urm'] = urm
     
+    print('after filling HYrm with u rotation. before v rotation')
+
     angr = RMG['angle_v']
     cosang = np.cos(angr)
     sinang = np.sin(angr)
@@ -687,6 +706,9 @@ def hycom_to_roms_latlon(HY,RMG):
 
     # do ubar, the depth average velocity in roms (eta,xi) coordinates
     # so ubar and vbar are calculated from hycom depths before interpolating to roms depths
+
+    print('after v rotation. before ubar')
+
 
     use_for = 0 
     if use_for == 1: # we will not use this to get ubar. could be removed 
@@ -1814,6 +1836,7 @@ def ocn_roms_IC_dict_to_netcdf(ATM_R,fn_out):
     print(ds)
 
     ds.to_netcdf(fn_out)
+    ds.close()
 
 def ocn_roms_BC_dict_to_netcdf(ATM_R,fn_out):
     ds = xr.Dataset(
@@ -1856,3 +1879,4 @@ def ocn_roms_BC_dict_to_netcdf(ATM_R,fn_out):
     print(ds)
 
     ds.to_netcdf(fn_out)
+    ds.close()
