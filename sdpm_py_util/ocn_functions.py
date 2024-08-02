@@ -4,13 +4,13 @@ from datetime import datetime
 from datetime import timedelta
 import time
 
-import sys
-import os
-import cartopy.crs as ccrs
-import cartopy.feature as cfeature
-import matplotlib.pyplot as plt
+#import sys
+#import os
+#import cartopy.crs as ccrs
+#import cartopy.feature as cfeature
+#import matplotlib.pyplot as plt
 import numpy as np
-import scipy.ndimage as ndimage
+#import scipy.ndimage as ndimage
 import xarray as xr
 import netCDF4 as nc
 from scipy.interpolate import RegularGridInterpolator
@@ -19,8 +19,7 @@ import seawater
 import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-
-import util_functions as utlfuns 
+#import util_functions as utlfuns 
 from util_functions import s_coordinate_4
 #from pydap.client import open_url
 
@@ -376,10 +375,15 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method,PFM):
         OCN['ocean_time_ref'] = t_ref
         
         OCN['u'] = u
+        del u
         OCN['v'] = v
+        del v
         OCN['temp'] = temp
+        del temp
         OCN['salt'] = sal
+        del sal
         OCN['zeta'] = eta
+        del eta
         OCN['depth'] = z
     
         # put the units in OCN...
@@ -573,16 +577,17 @@ def hycom_to_roms_latlon(HY,RMG):
     NZ = len(HY['depth'])
     NT = len(HY['ocean_time'])
 
-    print('before HYrm setup')
+    #print('before HYrm setup')
     HYrm = dict()
-    Tmp = dict()
+    Tmpu = dict()
+    Tmpv = dict()
     HYrm['zeta'] = np.zeros((NT,NR, NC))
     HYrm['salt'] = np.zeros((NT,NZ, NR, NC))
     HYrm['temp'] = np.zeros((NT,NZ, NR, NC))
-    Tmp['u_on_u'] = np.zeros((NT,NZ, NR, NC-1))
-    Tmp['v_on_u'] = np.zeros((NT,NZ, NR, NC-1))
-    Tmp['u_on_v'] = np.zeros((NT,NZ, NR-1, NC))
-    Tmp['v_on_v'] = np.zeros((NT,NZ, NR-1, NC))
+    Tmpu['u_on_u'] = np.zeros((NT,NZ, NR, NC-1))
+    Tmpu['v_on_u'] = np.zeros((NT,NZ, NR, NC-1))
+    Tmpv['u_on_v'] = np.zeros((NT,NZ, NR-1, NC))
+    Tmpv['v_on_v'] = np.zeros((NT,NZ, NR-1, NC))
     HYrm['ubar']   = np.zeros((NT,NR,NC-1))
     HYrm['vbar']   = np.zeros((NT,NR-1,NC))
     HYrm['lat_rho'] = RMG['lat_rho'][:]
@@ -644,7 +649,7 @@ def hycom_to_roms_latlon(HY,RMG):
                         'time':'ocean_time',
                         'note':'uses hycom depths and this is now rotated in the roms eta direction'}
 
-    print('after HYrm setup. before Tmp')
+    #print('after HYrm setup. before Tmp')
 
     for aa in vnames:
         zhy  = HY[aa]
@@ -661,15 +666,16 @@ def hycom_to_roms_latlon(HY,RMG):
                     zhy2= zhy[cc,bb,:,:]
                     #u_on_u = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_u'],RMG['lat_u'],RMG['mask_u'],Fz)
                     #u_on_v = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_v'],RMG['lat_v'],RMG['mask_v'],Fz)
-                    Tmp['u_on_u'][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_u'],RMG['lat_u'],RMG['mask_u'],Fz)
-                    Tmp['u_on_v'][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_v'],RMG['lat_v'],RMG['mask_v'],Fz)
+                    Tmpu['u_on_u'][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_u'],RMG['lat_u'],RMG['mask_u'],Fz)
+                    Tmpv['u_on_v'][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_v'],RMG['lat_v'],RMG['mask_v'],Fz)
             elif aa=='v':
                 for bb in range(NZ):
                     zhy2= zhy[cc,bb,:,:]
-                    Tmp['v_on_u'][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_u'],RMG['lat_u'],RMG['mask_u'],Fz)
-                    Tmp['v_on_v'][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_v'],RMG['lat_v'],RMG['mask_v'],Fz)
+                    Tmpu['v_on_u'][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_u'],RMG['lat_u'],RMG['mask_u'],Fz)
+                    Tmpv['v_on_v'][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_v'],RMG['lat_v'],RMG['mask_v'],Fz)
 
-    print('after Tmp. before rotation')
+    #print('after Tmp. before rotation')
+    del HY
 
     # rotate the velocities so that the velocities are in roms eta,xi coordinates
     angr = RMG['angle_u']
@@ -677,16 +683,17 @@ def hycom_to_roms_latlon(HY,RMG):
     sinang = np.sin(angr)
     #Cosang = np.tile(cosang,(NT,NZ,1,1))
     #Sinang = np.tile(sinang,(NT,NZ,1,1))
-    #urm = Cosang * HYrm['u_on_u'] + Sinang * HYrm['v_on_u']
+    #urm = Cosang * Tmp['u_on_u'] + Sinang * Tmp['v_on_u']
 
-    print('before giant multiplication')
-    urm = cosang[None,None,:,:] * Tmp['u_on_u'][:,:,:,:] + sinang[None,None,:,:] * Tmp['v_on_u'][:,:,:,:]
-    print('just after multiplication. before naning')
-    urm[np.isnan(Tmp['u_on_u'])==1] = np.nan
-    print('after nanning. before filling HYrm')
+    #print('before giant multiplication')
+    urm = cosang[None,None,:,:] * Tmpu['u_on_u'][:,:,:,:] + sinang[None,None,:,:] * Tmpu['v_on_u'][:,:,:,:]
+    #print('just after multiplication. before naning')
+    urm[np.isnan(Tmpu['u_on_u'])==1] = np.nan
+    #print('after nanning. before filling HYrm')
     HYrm['urm'] = urm
     
-    print('after filling HYrm with u rotation. before v rotation')
+    del Tmpu
+    #print('after filling HYrm with u rotation. before v rotation')
 
     angr = RMG['angle_v']
     cosang = np.cos(angr)
@@ -694,9 +701,10 @@ def hycom_to_roms_latlon(HY,RMG):
     #Cosang = np.tile(cosang,(NT,NZ,1,1))
     #Sinang = np.tile(sinang,(NT,NZ,1,1))
     #vrm = Cosang * HYrm['v_on_v'] - Sinang * HYrm['u_on_v']
-    vrm = cosang[None,None,:,:] * Tmp['v_on_v'][:,:,:,:] - sinang[None,None,:,:] * Tmp['u_on_v'][:,:,:,:]
-    vrm[np.isnan(Tmp['u_on_v'])==1] = np.nan
+    vrm = cosang[None,None,:,:] * Tmpv['v_on_v'][:,:,:,:] - sinang[None,None,:,:] * Tmpv['u_on_v'][:,:,:,:]
+    vrm[np.isnan(Tmpv['u_on_v'])==1] = np.nan
     HYrm['vrm'] = vrm
+    del Tmpv
     
     # we need the roms depths on roms u and v grids
     Hru = 0.5 * (RMG['h'][:,0:-1] + RMG['h'][:,1:])
@@ -743,7 +751,7 @@ def hycom_to_roms_latlon(HY,RMG):
         utst = Hru[None,:,:] - hyz[:,None,None]
         vtst = Hrv[None,:,:] - hyz[:,None,None]
     
-        dz = hyz[1:]-hyz[0:-1]
+        #dz = hyz[1:]-hyz[0:-1]
 
         umsk = 0*utst
         vmsk = 0*vtst
@@ -755,24 +763,24 @@ def hycom_to_roms_latlon(HY,RMG):
         HYrm['vrm'] = HYrm['vrm']*vmsk[None,:,:,:]
 
         # make copies to make ubar
-        uu = HYrm['urm'].copy()
-        vv = HYrm['vrm'].copy()
+#        uu = HYrm['urm'].copy()
+#        vv = HYrm['vrm'].copy()
 
-        uu[np.isnan(uu)==1]=0
-        vv[np.isnan(vv)==1]=0
+#        uu[np.isnan(uu)==1]=0
+#        vv[np.isnan(vv)==1]=0
 
-        ubar = np.squeeze( np.sum( 0.5 * (uu[:,0:-1,:,:]+uu[:,1:,:,:]) * dz[None,:,None,None], axis=1 ) ) / Hru[None,:,:]
-        vbar = np.squeeze( np.sum( 0.5 * (vv[:,0:-1,:,:]+vv[:,1:,:,:]) * dz[None,:,None,None], axis=1 ) ) / Hrv[None,:,:]
+#        ubar = np.squeeze( np.sum( 0.5 * (uu[:,0:-1,:,:]+uu[:,1:,:,:]) * dz[None,:,None,None], axis=1 ) ) / Hru[None,:,:]
+#        vbar = np.squeeze( np.sum( 0.5 * (vv[:,0:-1,:,:]+vv[:,1:,:,:]) * dz[None,:,None,None], axis=1 ) ) / Hrv[None,:,:]
 
         # reapply the land mask...
-        umsk2 = np.squeeze( np.isnan( urm[:,0,:,:]))
-        vmsk2 = np.squeeze( np.isnan( vrm[:,0,:,:]))
-        ubar[umsk2==1] = np.nan
-        vbar[vmsk2==1] = np.nan
+#        umsk2 = np.squeeze( np.isnan( urm[:,0,:,:]))
+#        vmsk2 = np.squeeze( np.isnan( vrm[:,0,:,:]))
+#        ubar[umsk2==1] = np.nan
+#        vbar[vmsk2==1] = np.nan
 
         # this ubar isn't used but is returned for reference
-        HYrm['ubar'] = ubar
-        HYrm['vbar'] = vbar
+#        HYrm['ubar'] = ubar
+#        HYrm['vbar'] = vbar
          
     return HYrm
 
