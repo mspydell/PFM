@@ -334,6 +334,7 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method,PFM):
             Enc_dict = {vn:enc_dict for vn in ds.data_vars}
             ds.to_netcdf(cat_fname,encoding=Enc_dict)
             ds.close()
+            del ds
             # ncrcat didn't work
             # cmd_list = 'ncrcat ' + full_fns_out + ' ' + cat_fname
             # ret2 = subprocess.call(cmd_list)
@@ -357,6 +358,7 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method,PFM):
             dt = (dss.time - np.datetime64(t_ref))  / np.timedelta64(1,'D') # this gets time in days from t_ref
             t_rom = dt.values
             dss.close()
+            del dss
 
         # set up dict and fill in
         OCN = dict()
