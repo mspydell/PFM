@@ -4,6 +4,8 @@ import cartopy.crs as ccrs
 from datetime import datetime, timedelta
 import netCDF4 as nc
 from netCDF4 import Dataset, num2date
+import cartopy.feature as cfeature
+import sys
 
 def plot_roms_box(axx, RMG):
     xr1 = RMG['lon_rho'][0, :]
@@ -522,3 +524,97 @@ def plot_his_time_series(his_filepath, RMG, lat, lon, depth_level=-1):
     # lon = [-118]  # longitude
 
     # and simply call the function!
+
+
+# Function to plot OCN fields! 
+# For now this function takes a netcdf file and then plots, i have not integrated it with the OCN dict(as I was facing some issues) and PFM.
+# Sample Input to this function is mentioned!
+
+def plot_ocn_fields_from_nc(file_path, RMG, fields_to_plot=None, show=False):
+    """
+    Plot specified fields from a NetCDF dataset and save them as PNG files.
+    
+    Parameters:
+    file_path (str): The path to the NetCDF file.
+    fields_to_plot (list or str): The fields to plot. If None, plot all fields.
+    """
+    # Load the NetCDF file
+    dataset = nc.Dataset(file_path)
+
+    # Extract the common variables
+    lon = dataset.variables['lon'][:]
+    lat = dataset.variables['lat'][:]
+    lon = np.where(lon > 180, lon - 360, lon) # Remove this line when using the dictionary as Matt does the longitude conversion there.
+    time = dataset.variables['time'][0]  # Only considering the first time step for simplicity
+    start_time = nc.num2date(time, units=dataset.variables['time'].units)
+
+    if fields_to_plot is None:
+        fields_to_plot = ['velocity', 'surf_el', 'water_temp', 'salinity']
+    else:
+        fields_to_plot = [fields_to_plot] if isinstance(fields_to_plot, str) else fields_to_plot
+
+    for field in fields_to_plot:
+        fig, ax = plt.subplots(figsize=(8, 12), subplot_kw={'projection': ccrs.PlateCarree()})
+        cmap = plt.get_cmap('turbo')
+        plt.set_cmap(cmap)
+
+        if field == 'velocity':
+            u = dataset.variables['water_u'][0, 0, :, :]  # surface layer
+            v = dataset.variables['water_v'][0, 0, :, :]  # surface layer
+            magnitude = np.sqrt(u**2 + v**2)
+            plevs = np.linspace(np.nanmin(magnitude), np.nanmax(magnitude), 50)
+            cset = ax.contourf(lon, lat, magnitude, plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            ax.quiver(lon[::5], lat[::5], u[::5, ::5], v[::5, ::5], transform=ccrs.PlateCarree())
+            cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad=0.05)
+            cbar.set_label('Velocity Magnitude [m/s]')
+            cbar.set_ticks(np.linspace(np.nanmin(magnitude), np.nanmax(magnitude), 5))
+            ax.set_title('Surface Velocity [m/s]')
+        
+        elif field == 'surf_el':
+            surf_el = dataset.variables['surf_el'][0, :, :]
+            plevs = np.linspace(np.nanmin(surf_el), np.nanmax(surf_el), 50)
+            cset = ax.contourf(lon, lat, surf_el, plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad=0.05)
+            cbar.set_label('Surface Elevation [m]')
+            cbar.set_ticks(np.linspace(np.nanmin(surf_el), np.nanmax(surf_el), 5))
+            ax.set_title('Surface Elevation [m]')
+        
+        elif field == 'water_temp':
+            water_temp = dataset.variables['water_temp'][0, 0, :, :]
+            plevs = np.linspace(np.nanmin(water_temp), np.nanmax(water_temp), 50)
+            cset = ax.contourf(lon, lat, water_temp, plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad=0.05)
+            cbar.set_label('Surface Temperature [°C]')
+            cbar.set_ticks(np.linspace(np.nanmin(water_temp), np.nanmax(water_temp), 5))
+            ax.set_title('Surface Temperature [°C]')
+        
+        elif field == 'salinity':
+            salinity = dataset.variables['salinity'][0, 0, :, :]
+            plevs = np.linspace(np.nanmin(salinity), np.nanmax(salinity), 50)
+            cset = ax.contourf(lon, lat, salinity, plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad=0.05)
+            cbar.set_ticks(np.linspace(np.nanmin(salinity), np.nanmax(salinity), 5))
+            cbar.set_label('Salinity [psu]')
+            ax.set_title('Surface Salinity [psu]')
+        
+        # Add coastlines and gridlines and ROMS box
+        ax.set_xlabel('Longitude')
+        ax.set_ylabel('Latitude')
+        ax.add_feature(cfeature.LAND, zorder=1, edgecolor='black')
+        ax.grid(True)
+        plot_roms_box(ax, RMG)
+        ax.set_aspect('auto')
+        ax.set_xticks(np.round(np.linspace(np.min(lon), np.max(lon), num=5), 2))
+        ax.set_yticks(np.round(np.linspace(np.min(lat), np.max(lat), num=5), 2))
+        ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f'{x:.2f}'))
+        ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: f'{y:.2f}'))
+        
+        # Set the title and labels
+        annotation = f'Timestamp: {start_time.strftime("%Y-%m-%d %H:%M:%S")} | Field: {field}'
+        ax.text(0.5, 1.05, annotation, transform=ax.transAxes, ha='center', fontsize=12)
+        
+        plt.show()
+        plt.close()
+    
+    # Close the dataset
+    dataset.close()
