@@ -40,6 +40,22 @@ def extract_timestamp(ATM):
     timestamp = base_time + timedelta(days=time_offset)
     return timestamp.strftime('%Y%m%d_%H%M%S')
 
+#Have to make changes to the final extract timestamp function depending on the end result of choosing between 1999 and 1970
+def extract_timestamp_1999(dict):
+    """
+    Extracts the timestamp from the ATM data dictionary.
+
+    Parameters:
+    ATM (dict): The atmospheric data dictionary.
+
+    Returns:
+    str: Formatted timestamp string.
+    """
+    base_time = datetime(1999, 1, 1)
+    time_offset = dict['ocean_time'][0]  # Assuming 'ocean_time' is in days since 1970-01-01
+    timestamp = base_time + timedelta(days=time_offset)
+    return timestamp.strftime('%Y%m%d_%H%M%S')
+
 # ATM Fields Plotting Function
 def plot_atm_fields(ATM, RMG, PFM, show=False,fields_to_plot=None):
     """
@@ -526,7 +542,7 @@ def plot_his_time_series(his_filepath, RMG, lat, lon, depth_level=-1):
     # and simply call the function!
 
 
-# Function to plot OCN fields! 
+# Function to plot OCN fields 
 # For now this function takes a netcdf file and then plots, i have not integrated it with the OCN dict(as I was facing some issues) and PFM.
 # Sample Input to this function is mentioned!
 
@@ -610,7 +626,7 @@ def plot_ocn_fields_from_nc(file_path, RMG, fields_to_plot=None, show=False):
         ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: f'{y:.2f}'))
         
         # Set the title and labels
-        annotation = f'Timestamp: {start_time.strftime("%Y-%m-%d %H:%M:%S")} | Field: {field}'
+        annotation = f'Timestamp: {start_time.strftime("%Y-%m-%d %H:%M:%S")} | Model: Hycom | Field: {field}'
         ax.text(0.5, 1.05, annotation, transform=ax.transAxes, ha='center', fontsize=12)
         
         plt.show()
@@ -618,3 +634,172 @@ def plot_ocn_fields_from_nc(file_path, RMG, fields_to_plot=None, show=False):
     
     # Close the dataset
     dataset.close()
+
+# OCN from dict
+# The function we will use
+# The function which helps to make OCN plots
+# integrated with the PFM.
+
+def plot_ocn_fields_from_dict(OCN, RMG, PFM, fields_to_plot=None, show=False):
+    """
+    Plot specified fields from a dictionary and save them as PNG files.
+    
+    Parameters:
+    OCN (dict): Dictionary containing the data fields.
+    fields_to_plot (list or str): The fields to plot. If None, plot all fields.
+    """
+    # Extract the common variables
+    timestamp = extract_timestamp_1999(OCN)
+    lon = OCN['lon'][:]
+    lat = OCN['lat'][:]
+    ocean_time = OCN['ocean_time']
+    start_time = datetime(1999, 1, 1) + timedelta(days=float(ocean_time[0]))
+
+    if fields_to_plot is None:
+        fields_to_plot = ['velocity', 'surf_el', 'water_temp', 'salinity']
+    else:
+        fields_to_plot = [fields_to_plot] if isinstance(fields_to_plot, str) else fields_to_plot
+
+    for field in fields_to_plot:
+        fig, ax = plt.subplots(figsize=(8, 12), subplot_kw={'projection': ccrs.PlateCarree()})
+        cmap = plt.get_cmap('turbo')
+        plt.set_cmap(cmap)
+
+        if field == 'velocity':
+            u = OCN['u'][0, 0, :, :]  # surface layer
+            v = OCN['v'][0, 0, :, :]  # surface layer
+            magnitude = np.sqrt(u**2 + v**2)
+            plevs = np.linspace(np.nanmin(magnitude), np.nanmax(magnitude), 50)
+            cset = ax.contourf(lon, lat, magnitude, plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            ax.quiver(lon[::5], lat[::5], u[::5, ::5], v[::5, ::5], transform=ccrs.PlateCarree())
+            cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad=0.05)
+            cbar.set_label('Velocity Magnitude [m/s]')
+            cbar.set_ticks(np.linspace(np.nanmin(magnitude), np.nanmax(magnitude), 5))
+            ax.set_title('Surface Velocity [m/s]')
+        
+        elif field == 'surf_el':
+            surf_el = OCN['zeta'][0, :, :]
+            plevs = np.linspace(np.nanmin(surf_el), np.nanmax(surf_el), 50)
+            cset = ax.contourf(lon, lat, surf_el, plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad=0.05)
+            cbar.set_label('Surface Elevation [m]')
+            cbar.set_ticks(np.linspace(np.nanmin(surf_el), np.nanmax(surf_el), 5))
+            ax.set_title('Surface Elevation [m]')
+        
+        elif field == 'water_temp':
+            water_temp = OCN['temp'][0, 0, :, :]
+            plevs = np.linspace(np.nanmin(water_temp), np.nanmax(water_temp), 50)
+            cset = ax.contourf(lon, lat, water_temp, plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad=0.05)
+            cbar.set_label('Surface Temperature [°C]')
+            cbar.set_ticks(np.linspace(np.nanmin(water_temp), np.nanmax(water_temp), 5))
+            ax.set_title('Surface Temperature [°C]')
+        
+        elif field == 'salinity':
+            salinity = OCN['salt'][0, 0, :, :]
+            plevs = np.linspace(np.nanmin(salinity), np.nanmax(salinity), 50)
+            cset = ax.contourf(lon, lat, salinity, plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad=0.05)
+            cbar.set_ticks(np.linspace(np.nanmin(salinity), np.nanmax(salinity), 5))
+            cbar.set_label('Salinity [psu]')
+            ax.set_title('Surface Salinity [psu]')
+        
+        # Add coastlines and gridlines and ROMS box
+        ax.set_xlabel('Longitude')
+        ax.set_ylabel('Latitude')
+        ax.add_feature(cfeature.LAND, zorder=1, edgecolor='black')
+        ax.grid(True)
+        plot_roms_box(ax, RMG)
+        ax.set_aspect('auto')
+        ax.set_xticks(np.round(np.linspace(np.min(lon), np.max(lon), num=5), 2))
+        ax.set_yticks(np.round(np.linspace(np.min(lat), np.max(lat), num=5), 2))
+        ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f'{x:.2f}'))
+        ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: f'{y:.2f}'))
+        
+        # Set the title and labels
+        annotation = f'Timestamp: {start_time.strftime("%Y-%m-%d %H:%M:%S")} | Model: Hycom | Field: {field}'
+        ax.text(0.5, 1.05, annotation, transform=ax.transAxes, ha='center', fontsize=12)
+        
+        
+        if show is True:
+            output_dir = PFM['lv1_plot_dir']
+            filename = f'{output_dir}/{timestamp}_hycom_OCN_{field}.png'
+            plt.savefig(filename, dpi=300)
+            plt.show()
+        else:
+            plt.show()
+            plt.close()
+
+def plot_ocn_fields(OCN_R, RMG, fields_to_plot=None, time_index=0, depth_index=0, show=False):
+    lon = OCN_R['lon_rho']
+    lat = OCN_R['lat_rho']
+    time = OCN_R['ocean_time'][time_index]
+    start_time = nc.num2date(time, units='days since 1970-01-01')  # Adjust units as needed
+
+    if fields_to_plot is None:
+        fields_to_plot = ['velocity', 'zeta', 'temp', 'salt']
+    else:
+        fields_to_plot = [fields_to_plot] if isinstance(fields_to_plot, str) else fields_to_plot
+
+    for field in fields_to_plot:
+        fig, ax = plt.subplots(figsize=(8, 12), subplot_kw={'projection': ccrs.PlateCarree()})
+        cmap = plt.get_cmap('turbo')
+        plt.set_cmap(cmap)
+
+        if field == 'velocity':
+            u = OCN_R['urm'][time_index, depth_index, :, :]  # surface layer
+            v = OCN_R['vrm'][time_index, depth_index, :, :]  # surface layer
+            magnitude = np.sqrt(u**2 + v**2)
+            plevs = np.linspace(np.nanmin(magnitude), np.nanmax(magnitude), 50)
+            cset = ax.contourf(lon, lat, magnitude, plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            ax.quiver(lon[::5], lat[::5], u[::5, ::5], v[::5, ::5], transform=ccrs.PlateCarree())
+            cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad=0.05)
+            cbar.set_label('Velocity Magnitude [m/s]')
+            cbar.set_ticks(np.linspace(np.nanmin(magnitude), np.nanmax(magnitude), 5))
+            ax.set_title('Surface Velocity [m/s]')
+        
+        elif field == 'zeta':
+            zeta = OCN_R['zeta'][time_index, :, :]
+            plevs = np.linspace(np.nanmin(zeta), np.nanmax(zeta), 50)
+            cset = ax.contourf(lon, lat, zeta, plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad=0.05)
+            cbar.set_label('Surface Elevation [m]')
+            cbar.set_ticks(np.linspace(np.nanmin(zeta), np.nanmax(zeta), 5))
+            ax.set_title('Surface Elevation [m]')
+        
+        elif field == 'temp':
+            temp = OCN_R['temp'][time_index, depth_index, :, :]
+            plevs = np.linspace(np.nanmin(temp), np.nanmax(temp), 50)
+            cset = ax.contourf(lon, lat, temp, plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad=0.05)
+            cbar.set_label('Surface Temperature [°C]')
+            cbar.set_ticks(np.linspace(np.nanmin(temp), np.nanmax(temp), 5))
+            ax.set_title('Surface Temperature [°C]')
+        
+        elif field == 'salt':
+            salt = OCN_R['salt'][time_index, depth_index, :, :]
+            plevs = np.linspace(np.nanmin(salt), np.nanmax(salt), 50)
+            cset = ax.contourf(lon, lat, salt, plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad=0.05)
+            cbar.set_ticks(np.linspace(np.nanmin(salt), np.nanmax(salt), 5))
+            cbar.set_label('Salinity [psu]')
+            ax.set_title('Surface Salinity [psu]')
+        
+        # Add coastlines and gridlines and ROMS box
+        ax.set_xlabel('Longitude')
+        ax.set_ylabel('Latitude')
+        ax.add_feature(cfeature.LAND, zorder=1, edgecolor='black')
+        ax.grid(True)
+        plot_roms_box(ax, RMG)
+        ax.set_aspect('auto')
+        ax.set_xticks(np.round(np.linspace(np.min(lon), np.max(lon), num=5), 2))
+        ax.set_yticks(np.round(np.linspace(np.min(lat), np.max(lat), num=5), 2))
+        ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f'{x:.2f}'))
+        ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: f'{y:.2f}'))
+        
+        # Set the title and labels
+        annotation = f'Timestamp: {start_time.strftime("%Y-%m-%d %H:%M:%S")} | Field: {field}'
+        ax.text(0.5, 1.05, annotation, transform=ax.transAxes, ha='center', fontsize=12)
+        
+        plt.show() if show else plt.savefig(f"{field}.png")
+        plt.close()
