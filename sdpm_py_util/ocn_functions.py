@@ -24,6 +24,17 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 #import util_functions as utlfuns 
 from util_functions import s_coordinate_4
 #from pydap.client import open_url
+import sys
+
+def sum_fn(a, b):
+    print(int(a) + int(b))
+
+if __name__ == "__main__":
+    args = sys.argv
+    # args[0] = current file
+    # args[1] = function name
+    # args[2:] = function args : (*unpacked)
+    globals()[args[1]](*args[2:])
 
 
 def para_loop(url,dtff,aa,PFM,dstr_ft):
@@ -564,7 +575,7 @@ def interp_hycom_to_roms(ln_h,lt_h,zz_h,Ln_r,Lt_r,msk_r,Fz):
 
     return zz_r
 
-def hycom_to_roms_latlon_old(HY,RMG):
+def hycom_to_roms_latlon(HY,RMG):
     # HYcom and RoMsGrid come in as dicts with ROMS variable names    
     # The output of this, HYrm, is a dict with 
     # hycom fields on roms horizontal grid points
