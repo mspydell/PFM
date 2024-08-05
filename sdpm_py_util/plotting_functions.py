@@ -22,7 +22,7 @@ def plot_roms_box(axx, RMG):
     axx.plot(xr4, yr4, 'k-', linewidth=.5)
 
 def plot_roms_coastline(axx, RMG):
-    axx.contour(RMG['lon_rho'], RMG['lat_rho'], RMG['h'], levels=[5, 10], colors='w')
+    axx.contour(RMG['lon_rho'], RMG['lat_rho'], RMG['h'], levels=[5, 10], colors='black')
 
 #Function for timestamp
 def extract_timestamp(ATM):
@@ -67,11 +67,11 @@ def plot_atm_fields(ATM, RMG, PFM, show=False,fields_to_plot=None):
     fields_to_plot (list or str): The fields to plot. If None, plot all fields.
     IMPORTANT: we might need to keep changing the plevs and the number of ticks as well as number of levels manually for now!
     """
-    timestamp = extract_timestamp(ATM)
+    timestamp = extract_timestamp_1999(ATM)
     lon = ATM['lon']
     lat = ATM['lat']
     ocean_time = ATM['ocean_time']
-    start_time = datetime(1970, 1, 1) + timedelta(days=float(ocean_time[0]))
+    start_time = datetime(1999, 1, 1) + timedelta(days=float(ocean_time[0]))
     forecast_hours = (ocean_time - ocean_time[0]) * 24  # Convert days to hours
     
     if fields_to_plot is None:
@@ -95,7 +95,7 @@ def plot_atm_fields(ATM, RMG, PFM, show=False,fields_to_plot=None):
             ax.set_title('10 m velocity [m/s, every 10 grid points]')
         
         elif field == 'pressure':
-            plevs = np.arange(1000, 1026, 5)
+            plevs = np.arange(1000, 1026, 1)
             cset = ax.contourf(lon, lat, ATM['Pair'][0, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
             cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad = 0.05)
             cbar.set_ticks(np.arange(1000, 1026, 5))
@@ -168,7 +168,7 @@ def plot_atm_r_fields(ATM_R, RMG, PFM, show=False, fields_to_plot=None, flag=Tru
     RMG (dict): The ROMS grid data dictionary.
     fields_to_plot (list or str): The fields to plot. If None, plot all fields.
     """
-    timestamp = extract_timestamp(ATM_R)
+    timestamp = extract_timestamp_1999(ATM_R)
     lon_r = ATM_R['lon']
     lat_r = ATM_R['lat']
     ocean_time = ATM_R['ocean_time']
@@ -281,7 +281,7 @@ def plot_all_fields_in_one(ATM, ATM_R, RMG, PFM, show=False, fields_to_plot=None
     RMG (dict): The ROMS grid data dictionary.
     fields_to_plot (list or str): The fields to plot. If None, plot all fields.
     """
-    timestamp = extract_timestamp(ATM)
+    timestamp = extract_timestamp_1999(ATM)
     lon = ATM['lon']
     lat = ATM['lat']
     lon_r = ATM_R['lon']
@@ -721,13 +721,13 @@ def plot_ocn_fields_from_dict(OCN, RMG, PFM, fields_to_plot=None, show=False):
         ax.text(0.5, 1.05, annotation, transform=ax.transAxes, ha='center', fontsize=12)
         
         
+        output_dir = PFM['lv1_plot_dir']
+        filename = f'{output_dir}/{timestamp}_hycom_OCN_{field}.png'
+        plt.savefig(filename, dpi=300)
         if show is True:
-            output_dir = PFM['lv1_plot_dir']
-            filename = f'{output_dir}/{timestamp}_hycom_OCN_{field}.png'
-            plt.savefig(filename, dpi=300)
+            plt.tight_layout
             plt.show()
         else:
-            plt.show()
             plt.close()
 
 def plot_ocn_fields(OCN_R, RMG, fields_to_plot=None, time_index=0, depth_index=0, show=False):
