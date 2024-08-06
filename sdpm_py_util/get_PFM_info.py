@@ -119,7 +119,9 @@ def get_PFM_info():
    PFM['lv1_plot_dir'] = lv1_plot_dir         
    PFM['lv1_grid_file'] = lv1_grid_file
 
-   PFM['lv1_nck_temp_file'] = 'hycom_temp_ncks_file.nc'
+   PFM['lv1_ocn_tmp_pckl_file'] = 'hycom_tmp_pckl_file.pkl' 
+   PFM['lv1_ocnR_tmp_pckl_file'] = 'ocnR_temp_pckl_file.pkl'
+   PFM['lv1_ocn_tmp_nck_file'] = 'hycom_tmp_ncks_file.nc'
    PFM['lv1_atm_file'] = 'LV1_ATM_FORCING.nc'
    PFM['lv1_ini_file'] = 'LV1_OCEAN_IC.nc'
    PFM['lv1_bc_file'] =  'LV1_OCEAN_BC.nc'   
