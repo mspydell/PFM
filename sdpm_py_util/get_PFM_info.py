@@ -121,6 +121,8 @@ def get_PFM_info():
 
    PFM['lv1_ocn_tmp_pckl_file'] = 'hycom_tmp_pckl_file.pkl' 
    PFM['lv1_ocnR_tmp_pckl_file'] = 'ocnR_temp_pckl_file.pkl'
+   PFM['lv1_ocnIC_tmp_pckl_file'] = 'ocnIC_tmp_pckl_file.pkl'
+   PFM['lv1_ocnBC_tmp_pckl_file'] = 'ocnBC_tmp_pckl_file.pkl'
    PFM['lv1_ocn_tmp_nck_file'] = 'hycom_tmp_ncks_file.nc'
    PFM['lv1_atm_file'] = 'LV1_ATM_FORCING.nc'
    PFM['lv1_ini_file'] = 'LV1_OCEAN_IC.nc'
