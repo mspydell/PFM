@@ -1,6 +1,8 @@
 # the ocean functions will be here
 
 from datetime import datetime
+from datetime import timedelta
+import time
 
 import sys
 import cartopy.crs as ccrs
@@ -13,6 +15,8 @@ import netCDF4 as nc
 from scipy.interpolate import RegularGridInterpolator
 from scipy.interpolate import interp1d
 import seawater
+import subprocess
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 import util_functions as utlfuns 
@@ -20,9 +24,45 @@ from util_functions import s_coordinate_4
 #from pydap.client import open_url
 
 
+def para_loop(url,dtff,aa,PFM,dstr_ft):
+    # this is the function that is parallelized
+    # the input is url: the hycom url to get data from
+    # dtff: the time stamp of the forecast, ie, the file we want
+    # aa: a box that defines the region of interest
+    # PFM: used to set the path of where the .nc files go
+    # dstr_ft: the date string of the forecast model run. ie. the first
+    #          time stamp of the forecast
+    north = aa[0]
+    south = aa[1]
+    west = aa[2]
+    east = aa[3]
 
-def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method):
-    from datetime import datetime
+    # time limits
+    dtff_adv = dtff+timedelta(hours=2) # hours=2 makes it only get 1 time.
+    dstr0 = dtff.strftime('%Y-%m-%dT%H:%M')
+    dstr1 = dtff_adv.strftime('%Y-%m-%dT%H:%M')
+    # use subprocess.call() to execute the ncks command
+    vstr = 'surf_el,water_temp,salinity,water_u,water_v'
+    #where to save the data
+    
+    ffname = 'hy_' + dstr_ft + '_' + dtff.strftime("%Y-%m-%dT%H:%M") + '.nc'
+    full_fn_out = PFM['lv1_forc_dir'] +'/' + ffname
+
+    cmd_list = ['ncks',
+        '-d', 'time,'+dstr0+','+dstr1,
+        '-d', 'lon,'+str(west)+','+str(east),
+        '-d', 'lat,'+str(south)+','+str(north),
+        '-v', vstr,
+        url ,
+        '-4', '-O', full_fn_out]
+
+    # run ncks
+    ret1 = subprocess.call(cmd_list)
+    return ret1
+
+
+
+def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method,PFM):
 #    import pygrib
 
     
@@ -39,7 +79,6 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method):
     def get_roms_times_from_hycom(fore_date,t,t_ref):
         # this funtion returns times past t_ref in days
         # consistent with how ROMS likes it
-        from datetime import timedelta
 
         d1=fore_date
         t2 = t # an ndarray of days, t is from atm import
@@ -54,7 +93,7 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method):
         # tr_sec is now an ndarray of days past the reference day
         return tr_days
 
-    if get_method == 'open_dap_pydap' or get_method == 'open_dap_nc' or get_method == 'ncks' and run_type == 'forecast':
+    if get_method == 'open_dap_pydap' or get_method == 'open_dap_nc' or get_method == 'ncks' or get_method == 'ncks_para' and run_type == 'forecast':
         # with this method the data is not downloaded directly, initially
         # and the data is rectilinear, lon and lat are both vectors
 
@@ -69,11 +108,15 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method):
 
         hycom = 'https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_' + yyyy + '-' + mm + '-' + dd + 'T12:00:00Z'
 
-        # define the box to get data in
-        ln_min = -124.5 + 360
-        ln_max = -115 + 360
-        lt_min = 28
-        lt_max = 37
+        # define the box to get data in, hycom uses 0-360 longitude.
+        lt_min = PFM['latlonbox'][0]
+        lt_max = PFM['latlonbox'][1]
+        ln_min = PFM['latlonbox'][2]+360.0
+        ln_max = PFM['latlonbox'][3]+360.0
+        #ln_min = -124.5 + 360
+        #ln_max = -115 + 360
+        #lt_min = 28
+        #lt_max = 37
 
 
         if ocn_mod == 'hycom':
@@ -89,7 +132,7 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method):
             # open_url is sometimes slow, and this block of code can be fast (1s), med (6s), or slow (>15s)
             dataset = open_url(ocn_name)
 
-            time = dataset['time']         # ???
+            times = dataset['time']         # ???
             ln   = dataset['lon']          # deg
             lt   = dataset['lat']          # deg
             Eta  = dataset['surface_el']     # surface elevations, m
@@ -106,11 +149,12 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method):
             ilt    = np.where( (Lt0>=lt_min)*(Lt0<=lt_max) ) # the lat indices where we want data
 
             # return the roms times past tref in days
-            t=time.data[it1:it2] # this is hrs past t0
-            t0 = time.attributes['units'] # this the hycom reference time
+            t=times.data[it1:it2] # this is hrs past t0
+            t0 = times.attributes['units'] # this the hycom reference time
             t0 = t0[12:31] # now we get just the date and 12:00
             t0 = datetime.fromisoformat(t0) # put it in datetime format
-            t_ref = datetime(1970,1,1)
+            #t_ref = datetime(1999,1,1)
+            t_ref = PFM['modtime0']
             t_rom = get_roms_times_from_hycom(t0,t,t_ref)
 
             lon   = ln[iln[0][0]:iln[0][-1]].data
@@ -134,7 +178,7 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method):
             #ds2 = xr.open_dataset(ocn_name,use_cftime=False, decode_coords=False, decode_times=False)
 
 
-            time = dataset['time']         # ???
+            times = dataset['time']         # ???
             ln   = dataset['lon']          # deg
             lt   = dataset['lat']          # deg
             Eta  = dataset['surf_el']     # surface elevations, m
@@ -153,7 +197,7 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method):
             lat = lt[ ilt[0][0]:ilt[0][-1] ].data
             lon = ln[ iln[0][0]:iln[0][-1] ].data
             z   =  Z[:].data
-            t   = time[it1:it2].data
+            t   = times[it1:it2].data
             eta = Eta[it1:it2,ilt[0][0]:ilt[0][-1] , iln[0][0]:iln[0][-1] ].data
             # we will get the other data directly
             temp = Temp[it1:it2,:,ilt[0][0]:ilt[0][-1],iln[0][0]:iln[0][-1]].data
@@ -161,10 +205,10 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method):
             u = U[it1:it2,:,ilt[0][0]:ilt[0][-1],iln[0][0]:iln[0][-1]].data
             v = V[it1:it2,:,ilt[0][0]:ilt[0][-1],iln[0][0]:iln[0][-1]].data
                 # return the roms times past tref in days
-            t0 = time.units # this is the hycom reference time
+            t0 = times.units # this is the hycom reference time
             t0 = t0[12:31] # now we get just the date and 12:00
             t0 = datetime.fromisoformat(t0) # put it in datetime format
-            t_ref = datetime(1970,1,1)
+            t_ref = PFM['modtime0']
             t_rom = get_roms_times_from_hycom(t0,t,t_ref)
 
             # I think everything is an np.ndarray ?
@@ -172,24 +216,28 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method):
 
         if get_method == 'ncks':
 
-            west =  -124.5 + 360
-            east = -115 + 360
-            south = 28
-            north = 37
+            west =  ln_min
+            east =  ln_max
+            south = lt_min
+            north = lt_max
 
             # time limits
+            Tfor = 1 # the forecast length in days
+            # hard wired here. read in from PFM !!!!
             dstr0 = yyyy + '-' + mm + '-' + dd + 'T12:00'
-            dstr1 = yyyy + '-' + mm + '-' + str( int(dd) + 3 ) + 'T00:00'
+            t00 = datetime.strptime(dstr0,"%Y-%m-%dT%H:%M")
+            t10 = t00 + Tfor * timedelta(days=1)
+            dstr1 = t10.strftime("%Y-%m-%dT%H:%M")
+
             #dstr0 = dlist['dt0'].strftime('%Y-%m-%dT00:00') 
             #dstr1 = dlist['dt1'].strftime('%Y-%m-%dT00:00')
             # use subprocess.call() to execute the ncks command
             vstr = 'surf_el,water_temp,salinity,water_u,water_v,depth'
 
-            # parker url: https://tds.hycom.org/thredds/dodsC/GLBy0.08/latest
+            url3 = hycom
 
-            url='https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs' 
-            url2 = 'GLBy0.08_930_FMRC_RUN_' + yyyy + '-' + mm + '-' + dd + 'T12:00:00Z' 
-            url3 = url + url2
+            full_fn_out = PFM['lv1_forc_dir'] +'/' + PFM['lv1_nck_temp_file'] 
+
             cmd_list = ['ncks',
                 '-d', 'time,'+dstr0+','+dstr1,
                 '-d', 'lon,'+str(west)+','+str(east),
@@ -197,23 +245,110 @@ def get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,get_method):
                 '-v', vstr,
                 url3 ,
                 '-4', '-O', full_fn_out]
-            # old working command list
-            #cmd_list = ['ncks',
-            #    '-d', 'time,'+dstr0+','+dstr1,
-            #    '-d', 'lon,'+str(west)+','+str(east),
-            #    '-d', 'lat,'+str(south)+','+str(north),
-            #    '-v', vstr,
-            #    'https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0',
-            #    '-4', '-O', full_fn_out]
-
-            print(cmd_list)
-
+    
             # run ncks
             tt0 = time.time()
             ret1 = subprocess.call(cmd_list)
-            #ret1 = 1
             print('Time to get full file using ncks = %0.2f sec' % (time.time()-tt0))
             print('Return code = ' + str(ret1) + ' (0=success, 1=skipped ncks)')
+
+            # now get the variables...
+            ds = xr.open_dataset(full_fn_out)
+            lat = ds.lat.values
+            lon = ds.lon.values
+            z   = ds.depth.values
+            t   = ds.time.values # these are strings?
+            eta = ds.surf_el.values
+            temp= ds.water_temp.values
+            sal = ds.salinity.values
+            u   = ds.water_u.values
+            v   = ds.water_v.values
+            t_ref = PFM['modtime0']
+            dt = (ds.time - np.datetime64(t_ref))  / np.timedelta64(1,'D') # this gets time in days from t_ref
+            t_rom = dt.values
+
+        if get_method == 'ncks_para':
+
+            print('in the parallel ncks switch')
+
+            west =  ln_min
+            east =  ln_max
+            south = lt_min
+            north = lt_max
+            aa = [north,south,west,east]
+
+            # time limits
+            Tfor = 2.5 # the forecast length in days
+            # hard wired here. read in from PFM !!!!
+            # the first time to get
+            dstr0 = yyyy + '-' + mm + '-' + dd + 'T12:00'
+            t00 = datetime.strptime(dstr0,"%Y-%m-%dT%H:%M")
+            # the last time to get
+            t10 = t00 + Tfor * timedelta(days=1)
+            dstr1 = t10.strftime("%Y-%m-%dT%H:%M")
+
+            #dstr0 = dlist['dt0'].strftime('%Y-%m-%dT00:00') 
+            #dstr1 = dlist['dt1'].strftime('%Y-%m-%dT00:00')
+            # use subprocess.call() to execute the ncks command
+
+            # form list of days to get, datetimes
+            dt0 = t00
+            dt1 = t10 
+            dt_list_full = []
+            dtff = dt0
+            #timestamps
+            while dtff <= dt1:
+                dt_list_full.append(dtff)
+                dtff = dtff + timedelta(hours=3)
+                
+            #this is where we para
+            tt0 = time.time()
+
+            # create parallel executor
+            with ThreadPoolExecutor() as executor:
+                threads = []
+                for dtff in dt_list_full:
+                    fn = para_loop #define function
+                    args = [hycom,dtff,aa,PFM,dstr0] #define args to function
+                    kwargs = {} #
+                    # start thread by submitting it to the executor
+                    threads.append(executor.submit(fn, *args, **kwargs))
+                for future in as_completed(threads):
+                        # retrieve the result
+                        result = future.result()
+                        # report the result
+            
+            #result = tt0
+            print('Time to get full file using parallel ncks = %0.2f sec' % (time.time()-tt0))
+            print('Return code = ' + str(result) + ' (0=success, 1=skipped ncks)')
+
+
+            ffname = 'hy_' + dstr0 + '_*.nc'
+            full_fns_out = PFM['lv1_forc_dir'] +'/' + ffname
+            cat_fname = PFM['lv1_forc_dir'] + '/' + 'hy_cat_' + dstr0 + '.nc'
+
+            cmd_list = 'ncrcat ' + full_fns_out + ' ' + cat_fname
+
+            ret2 = subprocess.call(cmd_list)
+            print('files were catted:')
+            print('code = ' + str(ret2) + ' (0=success, other=failed)')
+
+
+            # now get the variables...
+            # use a dummy .nc file for testing...
+            ds = xr.open_dataset(cat_fname)
+            lat = ds.lat.value
+            lon = ds.lon.values
+            z   = ds.depth.values
+            t   = ds.time.values # these are strings?
+            eta = ds.surf_el.values
+            temp= ds.water_temp.values
+            sal = ds.salinity.values
+            u   = ds.water_u.values
+            v   = ds.water_v.values
+            t_ref = PFM['modtime0']
+            dt = (ds.time - np.datetime64(t_ref))  / np.timedelta64(1,'D') # this gets time in days from t_ref
+            t_rom = dt.values
 
 
         # set up dict and fill in
@@ -1019,7 +1154,7 @@ def ocn_r_2_ICdict_old(OCN_R,RMG):
 
     return OCN_IC
 
-def ocn_r_2_ICdict(OCN_R,RMG):
+def ocn_r_2_ICdict(OCN_R,RMG,PFM):
     # this slices the OCN_R dictionary at the first time for all needed 
     # variables for the initial condition for roms
     # it then interpolates from the hycom z values that the vars are on
@@ -1052,12 +1187,20 @@ def ocn_r_2_ICdict(OCN_R,RMG):
     hb_v = 0.5 * (hb[0:-1,:]+hb[1:,:])
     nlt,nln = np.shape(hb)
 
-    Nz   = RMG['Nz']                              # number of vertical levels: 40
-    Vtr  = RMG['Vtransform']                       # transformation equation: 2
-    Vst  = RMG['Vstretching']                    # stretching function: 4 
-    th_s = RMG['THETA_S']                      # surface stretching parameter: 8
-    th_b = RMG['THETA_B']                      # bottom  stretching parameter: 3
-    Tcl  = RMG['TCLINE']                      # critical depth (m): 50
+#    Nz   = RMG['Nz']                              # number of vertical levels: 40
+#    Vtr  = RMG['Vtransform']                       # transformation equation: 2
+#    Vst  = RMG['Vstretching']                    # stretching function: 4 
+#    th_s = RMG['THETA_S']                      # surface stretching parameter: 8
+#    th_b = RMG['THETA_B']                      # bottom  stretching parameter: 3
+#    Tcl  = RMG['TCLINE']                      # critical depth (m): 50
+
+    Nz   = PFM['stretching']['L1','Nz']                              # number of vertical levels: 40
+    Vtr  = PFM['stretching']['L1','Vtransform']                       # transformation equation: 2
+    Vst  = PFM['stretching']['L1','Vstretching']                    # stretching function: 4 
+    th_s = PFM['stretching']['L1','THETA_S']                      # surface stretching parameter: 8
+    th_b = PFM['stretching']['L1','THETA_B']                      # bottom  stretching parameter: 3
+    Tcl  = PFM['stretching']['L1','TCLINE']                      # critical depth (m): 50
+    hc   = PFM['stretching']['L1','hc']
 
     OCN_IC['zeta'] = np.zeros((1,nlt,nln))
     OCN_IC['zeta'][0,:,:] = OCN_R['zeta'][i0,:,:]
@@ -1066,13 +1209,13 @@ def ocn_r_2_ICdict(OCN_R,RMG):
     eta_u = 0.5 * (eta[:,0:-1]+eta[:,1:])
     eta_v = 0.5 * (eta[0:-1,:]+eta[1:,:])
 
-    OCN_IC['Nz'] = np.squeeze(RMG['Nz'])
-    OCN_IC['Vtr'] = np.squeeze(RMG['Vtransform'])
-    OCN_IC['Vst'] = np.squeeze(RMG['Vstretching'])
-    OCN_IC['th_s'] = np.squeeze(RMG['THETA_S'])
-    OCN_IC['th_b'] = np.squeeze(RMG['THETA_B'])
-    OCN_IC['Tcl'] = np.squeeze(RMG['TCLINE'])
-    OCN_IC['hc'] = np.squeeze(RMG['hc'])
+    OCN_IC['Nz'] = np.squeeze(Nz)
+    OCN_IC['Vtr'] = np.squeeze(Vtr)
+    OCN_IC['Vst'] = np.squeeze(Vst)
+    OCN_IC['th_s'] = np.squeeze(th_s)
+    OCN_IC['th_b'] = np.squeeze(th_b)
+    OCN_IC['Tcl'] = np.squeeze(Tcl)
+    OCN_IC['hc'] = np.squeeze(hc)
 
     TMP = dict()
     TMP['temp'] = np.zeros((1,Nz,nlt,nln)) # a helper becasue we convert to potential temp below
@@ -1223,7 +1366,7 @@ def ocn_r_2_ICdict(OCN_R,RMG):
 
     return OCN_IC
 
-def ocn_r_2_BCdict(OCN_R,RMG):
+def ocn_r_2_BCdict(OCN_R,RMG,PFM):
     # this slices the OCN_R dictionary at the first time for all needed 
     # variables for the boundary condition for roms
     # it then interpolates from the hycom z values that the vars are on
@@ -1237,13 +1380,13 @@ def ocn_r_2_BCdict(OCN_R,RMG):
     Nt = len( OCN_BC['ocean_time'] )
     OCN_BC['ocean_time_ref'] = OCN_R['ocean_time_ref']
 
-    OCN_BC['Nz'] = np.squeeze(RMG['Nz'])
-    OCN_BC['Vtr'] = np.squeeze(RMG['Vtransform'])
-    OCN_BC['Vst'] = np.squeeze(RMG['Vstretching'])
-    OCN_BC['th_s'] = np.squeeze(RMG['THETA_S'])
-    OCN_BC['th_b'] = np.squeeze(RMG['THETA_B'])
-    OCN_BC['Tcl'] = np.squeeze(RMG['TCLINE'])
-    OCN_BC['hc'] = np.squeeze(RMG['hc'])
+#    OCN_BC['Nz'] = np.squeeze(RMG['Nz'])
+#    OCN_BC['Vtr'] = np.squeeze(RMG['Vtransform'])
+#    OCN_BC['Vst'] = np.squeeze(RMG['Vstretching'])
+#    OCN_BC['th_s'] = np.squeeze(RMG['THETA_S'])
+#    OCN_BC['th_b'] = np.squeeze(RMG['THETA_B'])
+#    OCN_BC['Tcl'] = np.squeeze(RMG['TCLINE'])
+#    OCN_BC['hc'] = np.squeeze(RMG['hc'])
 
 
     # these variables need to be time sliced and then vertically interpolated
@@ -1254,12 +1397,29 @@ def ocn_r_2_BCdict(OCN_R,RMG):
     hb_v = 0.5 * (hb[0:-1,:]+hb[1:,:])
     nlt,nln = np.shape(hb)
 
-    Nz   = RMG['Nz']                              # number of vertical levels: 40
-    Vtr  = RMG['Vtransform']                       # transformation equation: 2
-    Vst  = RMG['Vstretching']                    # stretching function: 4 
-    th_s = RMG['THETA_S']                      # surface stretching parameter: 8
-    th_b = RMG['THETA_B']                      # bottom  stretching parameter: 3
-    Tcl  = RMG['TCLINE']                      # critical depth (m): 50
+#    Nz   = RMG['Nz']                              # number of vertical levels: 40
+#    Vtr  = RMG['Vtransform']                       # transformation equation: 2
+#    Vst  = RMG['Vstretching']                    # stretching function: 4 
+#    th_s = RMG['THETA_S']                      # surface stretching parameter: 8
+#    th_b = RMG['THETA_B']                      # bottom  stretching parameter: 3
+#    Tcl  = RMG['TCLINE']                      # critical depth (m): 50
+
+    Nz   = PFM['stretching']['L1','Nz']                              # number of vertical levels: 40
+    Vtr  = PFM['stretching']['L1','Vtransform']                       # transformation equation: 2
+    Vst  = PFM['stretching']['L1','Vstretching']                    # stretching function: 4 
+    th_s = PFM['stretching']['L1','THETA_S']                      # surface stretching parameter: 8
+    th_b = PFM['stretching']['L1','THETA_B']                      # bottom  stretching parameter: 3
+    Tcl  = PFM['stretching']['L1','TCLINE']                      # critical depth (m): 50
+    hc   = PFM['stretching']['L1','hc']
+
+    OCN_BC['Nz'] = np.squeeze(Nz)
+    OCN_BC['Vtr'] = np.squeeze(Vtr)
+    OCN_BC['Vst'] = np.squeeze(Vst)
+    OCN_BC['th_s'] = np.squeeze(th_s)
+    OCN_BC['th_b'] = np.squeeze(th_b)
+    OCN_BC['Tcl'] = np.squeeze(Tcl)
+    OCN_BC['hc'] = np.squeeze(hc)
+
 
     eta = np.squeeze(OCN_R['zeta'].copy())
     eta_u = 0.5 * (eta[:,0:-1]+eta[:,1:])

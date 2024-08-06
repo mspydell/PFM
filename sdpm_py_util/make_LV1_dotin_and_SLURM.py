@@ -107,6 +107,7 @@ def  make_LV1_dotin_and_SLURM( PFM ):
     # a string version of dtsec, for the .in file
     if dtsec == int(dtsec):  ## should this be a floating point number?  it could be 2.5 etc.
         dt = str(dtsec) + '.0d0'
+        D['dt']=dt
     else:
         dt = str(dtsec) + 'd0'
         D['dt'] = dt
