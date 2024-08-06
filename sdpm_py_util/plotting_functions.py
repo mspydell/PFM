@@ -35,24 +35,8 @@ def extract_timestamp(ATM):
     Returns:
     str: Formatted timestamp string.
     """
-    base_time = datetime(1970, 1, 1)
-    time_offset = ATM['ocean_time'][0]  # Assuming 'ocean_time' is in days since 1970-01-01
-    timestamp = base_time + timedelta(days=time_offset)
-    return timestamp.strftime('%Y%m%d_%H%M%S')
-
-#Have to make changes to the final extract timestamp function depending on the end result of choosing between 1999 and 1970
-def extract_timestamp_1999(dict):
-    """
-    Extracts the timestamp from the ATM data dictionary.
-
-    Parameters:
-    ATM (dict): The atmospheric data dictionary.
-
-    Returns:
-    str: Formatted timestamp string.
-    """
     base_time = datetime(1999, 1, 1)
-    time_offset = dict['ocean_time'][0]  # Assuming 'ocean_time' is in days since 1970-01-01
+    time_offset = ATM['ocean_time'][0]
     timestamp = base_time + timedelta(days=time_offset)
     return timestamp.strftime('%Y%m%d_%H%M%S')
 
@@ -67,7 +51,7 @@ def plot_atm_fields(ATM, RMG, PFM, show=False,fields_to_plot=None):
     fields_to_plot (list or str): The fields to plot. If None, plot all fields.
     IMPORTANT: we might need to keep changing the plevs and the number of ticks as well as number of levels manually for now!
     """
-    timestamp = extract_timestamp_1999(ATM)
+    timestamp = extract_timestamp(ATM)
     lon = ATM['lon']
     lat = ATM['lat']
     ocean_time = ATM['ocean_time']
@@ -168,7 +152,7 @@ def plot_atm_r_fields(ATM_R, RMG, PFM, show=False, fields_to_plot=None, flag=Tru
     RMG (dict): The ROMS grid data dictionary.
     fields_to_plot (list or str): The fields to plot. If None, plot all fields.
     """
-    timestamp = extract_timestamp_1999(ATM_R)
+    timestamp = extract_timestamp(ATM_R)
     lon_r = ATM_R['lon']
     lat_r = ATM_R['lat']
     ocean_time = ATM_R['ocean_time']
@@ -281,7 +265,7 @@ def plot_all_fields_in_one(ATM, ATM_R, RMG, PFM, show=False, fields_to_plot=None
     RMG (dict): The ROMS grid data dictionary.
     fields_to_plot (list or str): The fields to plot. If None, plot all fields.
     """
-    timestamp = extract_timestamp_1999(ATM)
+    timestamp = extract_timestamp(ATM)
     lon = ATM['lon']
     lat = ATM['lat']
     lon_r = ATM_R['lon']
@@ -649,7 +633,7 @@ def plot_ocn_fields_from_dict(OCN, RMG, PFM, fields_to_plot=None, show=False):
     fields_to_plot (list or str): The fields to plot. If None, plot all fields.
     """
     # Extract the common variables
-    timestamp = extract_timestamp_1999(OCN)
+    timestamp = extract_timestamp(OCN)
     lon = OCN['lon'][:]
     lat = OCN['lat'][:]
     ocean_time = OCN['ocean_time']
