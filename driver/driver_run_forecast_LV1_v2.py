@@ -187,8 +187,8 @@ print('driver_run_forecast_LV1: done with ocn_r_2_ICdict')
 
 
 
+# make the OCN_IC dictionary and the IC .nc file
 
-# add OCN_IC.nc plotting function here !!!!
 print('using:')
 print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
 print('kilobytes')
@@ -219,13 +219,16 @@ print('using:')
 print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
 print('kilobytes')
 
-
+# ABHI:  HERE!!!   OCN_IC.nc plotting function here !!!!
+#    have a function that is called that 
+#    1) loads the OCN_IC.nc file and 2) makes plots
 
 print('using:')
 print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
 print('kilobytes')
 # %%
-# get the OCN_IC dictionary
+
+# make the OCN_BC dictionary and the BC .nc file
 
 fr_ocnR_pkl_file=1
 if fr_ocnR_pkl_file==0:
@@ -272,26 +275,24 @@ print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
 print('kilobytes')
 
 
+# ABHI:  HERE!!!   OCN_BC.nc plotting function here !!!!
+#    have a function that is called that 
+#    1) loads the OCN_BC.nc file and 2) makes plots
+
 frm_ICpkl_file = 1
 # get the OCN_BC dictionary
 
 print('driver_run_forecast_LV1: done with ocn_r_2_BCdict')
 
 
+## ATM gneration stuff;
 
-
-# ===============================
-# this block of data has not been run recently FYI. 8/6/24 MSS
-
-# make a switch to see if this file exists. If it exists, we don't need to run the code in this block
 # first the atm data
 # get the data as a dict
 # need to specify hhmm because nam forecast are produced at 6 hr increments
 ATM = atmfuns.get_atm_data_as_dict(yyyymmdd,hhmm,run_type,atm_mod,'open_dap_nc',PFM)
-# put in a function to check to make sure that all the data is good
-# put in a function to plot the raw atm data if we want to
 
-# plot some stuff
+# plot ATM as a function from the DICT
 pltfuns.plot_atm_fields(ATM, RMG, PFM)
 print('done with plotting ATM fields')
 
