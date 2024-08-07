@@ -41,7 +41,7 @@ def extract_timestamp(ATM):
     return timestamp.strftime('%Y%m%d_%H%M%S')
 
 # ATM Fields Plotting Function
-def plot_atm_fields(ATM, RMG, PFM, show=False,fields_to_plot=None):
+def plot_atm_fields(ATM, RMG, PFM, show=False,fields_to_plot=None, forecast_hour=None):
     """
     Plot specified fields from the ATM dataset with timestamps and product names, and save them as PNG files.
     
@@ -56,7 +56,18 @@ def plot_atm_fields(ATM, RMG, PFM, show=False,fields_to_plot=None):
     lat = ATM['lat']
     ocean_time = ATM['ocean_time']
     start_time = datetime(1999, 1, 1) + timedelta(days=float(ocean_time[0]))
-    forecast_hours = (ocean_time - ocean_time[0]) * 24  # Convert days to hours
+    # forecast_hours = (ocean_time - ocean_time[0]) * 24  # Convert days to hours
+
+    # this thing takes care of the forecast hour passed by the user, if no forecast hour is mentioned it plots for the first step (0th)
+    if forecast_hour is not None:
+        # Find the closest time step to the specified forecast hour
+        closest_idx = np.argmin(np.abs((ocean_time - ocean_time[0]) * 24 - forecast_hour))
+        forecast_hours = (ocean_time[closest_idx] - ocean_time[0]) * 24
+        if closest_idx >= len(ocean_time):
+            raise ValueError(f"forecast_hour {forecast_hour} is out of range for the available time steps.")
+    else:
+        closest_idx = 0  # Default to 0 forecast hours if not specified
+        forecast_hours = 0
     
     if fields_to_plot is None:
         fields_to_plot = ['velocity', 'pressure', 'temperature', 'lw_radiation', 'rain', 'humidity', 'swrad']
@@ -70,7 +81,7 @@ def plot_atm_fields(ATM, RMG, PFM, show=False,fields_to_plot=None):
 
         if field == 'velocity':
             plevs = np.arange(0, 16, 0.1)
-            U, V = ATM['Uwind'][0, :, :], ATM['Vwind'][0, :, :]
+            U, V = ATM['Uwind'][closest_idx, :, :], ATM['Vwind'][closest_idx, :, :]
             magnitude = np.sqrt(U**2 + V**2)
             cset = ax.contourf(lon, lat, magnitude, plevs, cmap=cmap, transform=ccrs.PlateCarree())
             ax.quiver(lon[::10], lat[::10], U[::10, ::10], V[::10, ::10], transform=ccrs.PlateCarree())
@@ -79,49 +90,50 @@ def plot_atm_fields(ATM, RMG, PFM, show=False,fields_to_plot=None):
             ax.set_title('10 m velocity [m/s, every 10 grid points]')
         
         elif field == 'pressure':
-            plevs = np.arange(1000, 1026, 1)
-            cset = ax.contourf(lon, lat, ATM['Pair'][0, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            plevs = np.arange(1000, 1026, 0.1)
+            cset = ax.contourf(lon, lat, ATM['Pair'][closest_idx, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
             cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad = 0.05)
             cbar.set_ticks(np.arange(1000, 1026, 5))
             ax.set_title('Surface Pressure [Pa]')
         
         elif field == 'temperature':
-            plevs = np.arange(12, 61, 2)
-            cset = ax.contourf(lon, lat, ATM['Tair'][0, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            plevs = np.arange(8, 65, 0.1)
+            cset = ax.contourf(lon, lat, ATM['Tair'][closest_idx, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
             cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad = 0.05)
-            cbar.set_ticks(np.arange(12, 61, 12))
+            cbar.set_ticks(np.arange(8, 65, 8))
             ax.set_title('Surface Temperature [K]')
         
         elif field == 'lw_radiation':
             plevs = np.arange(260, 520, 15)
-            cset = ax.contourf(lon, lat, ATM['lwrad_down'][0, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            cset = ax.contourf(lon, lat, ATM['lwrad_down'][closest_idx, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
             cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad = 0.05)
             cbar.set_ticks(np.arange(260, 520, 50))
             ax.set_title('Long Wave Radiation Down [W/m^2]')
         
         elif field == 'rain':
             plevs = np.arange(0, 0.0035, 0.0001)
-            cset = ax.contourf(lon, lat, ATM['rain'][0, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            cset = ax.contourf(lon, lat, ATM['rain'][closest_idx, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
             cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad = 0.05)
             cbar.set_ticks(np.arange(0, 0.0035, 0.0007))
             ax.set_title('Precipitation Rate [kg/m^2/s]')
         
         elif field == 'humidity':
-            plevs = np.arange(0, 101, 1)
-            cset = ax.contourf(lon, lat, ATM['Qair'][0, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            plevs = np.arange(0, 102, 1)
+            cset = ax.contourf(lon, lat, ATM['Qair'][closest_idx, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
             cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad = 0.05)
             cbar.set_ticks(np.arange(0, 101, 20))
             ax.set_title('Surface Humidity [%]')
         
         elif field == 'swrad':
             plevs = np.arange(0, 601, 10)
-            cset = ax.contourf(lon, lat, ATM['swrad'][0, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            cset = ax.contourf(lon, lat, ATM['swrad'][closest_idx, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
             cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad = 0.05)
             cbar.set_ticks(np.arange(100, 601, 100))
             ax.set_title('Short Wave Radiation Down [W/m^2]')
         
         plot_roms_box(ax, RMG)
-        plot_roms_coastline(ax, RMG)
+        # plot_roms_coastline(ax, RMG)
+        ax.add_feature(cfeature.COASTLINE)
         ax.set_xlabel('Longitude')
         ax.set_ylabel('Latitude')
         ax.grid(True)
@@ -131,11 +143,11 @@ def plot_atm_fields(ATM, RMG, PFM, show=False,fields_to_plot=None):
         ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f'{x:.2f}'))
         ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: f'{y:.2f}'))
 
-        annotation = f'Timestamp: {start_time.strftime("%Y-%m-%d %H:%M:%S")} | Model: nam_nest | Forecast Hour: {forecast_hours[0]:.1f}'
+        annotation = f'Timestamp: {start_time.strftime("%Y-%m-%d %H:%M:%S")} | Model: nam_nest | Forecast Hour: {forecast_hours:.1f}'
         ax.text(0.5, 1.05, annotation, transform=ax.transAxes, ha='center', fontsize=12)
     
         output_dir = PFM['lv1_plot_dir']
-        filename = f'{output_dir}/{timestamp}_nam_nest_ATM_{field}.png'
+        filename = f'{output_dir}/{timestamp}_nam_nest_ATM_{field}_hour_{int(forecast_hours)}.png'
         plt.savefig(filename, dpi=300)
         if show is True:
             plt.tight_layout()
@@ -143,7 +155,7 @@ def plot_atm_fields(ATM, RMG, PFM, show=False,fields_to_plot=None):
         else:
             plt.close()
 
-def plot_atm_r_fields(ATM_R, RMG, PFM, show=False, fields_to_plot=None, flag=True):
+def plot_atm_r_fields(ATM_R, RMG, PFM, show=False, fields_to_plot=None, forecast_hour = None, flag=True):
     """
     Plot specified fields from the ATM_R dataset with timestamps and product names, and save them as PNG files.
     
@@ -156,8 +168,18 @@ def plot_atm_r_fields(ATM_R, RMG, PFM, show=False, fields_to_plot=None, flag=Tru
     lon_r = ATM_R['lon']
     lat_r = ATM_R['lat']
     ocean_time = ATM_R['ocean_time']
-    start_time = datetime(1970, 1, 1) + timedelta(days=float(ocean_time[0]))
-    forecast_hours = (ocean_time - ocean_time[0]) * 24  # Convert days to hours
+    start_time = datetime(1999, 1, 1) + timedelta(days=float(ocean_time[0]))
+    # forecast_hours = (ocean_time - ocean_time[0]) * 24  # Convert days to hours
+
+     # this thing takes care of the forecast hour passed by the user, if no forecast hour is mentioned it plots for the first step (0th)
+    if forecast_hour is not None:
+        t = int(forecast_hour // 24)
+        if t >= len(ocean_time):
+            raise ValueError(f"forecast_hour {forecast_hour} is out of range for the available time steps.")
+    else:
+        t = 0  # Default to 0 forecast hours if not specified
+    
+    forecast_hours = (ocean_time[t] - ocean_time[0]) * 24  # Convert days to hours
     
     if fields_to_plot is None:
         fields_to_plot = ['velocity', 'pressure', 'temperature', 'lw_radiation', 'rain', 'humidity', 'swrad']
@@ -172,7 +194,7 @@ def plot_atm_r_fields(ATM_R, RMG, PFM, show=False, fields_to_plot=None, flag=Tru
 
         if field == 'velocity':
             plevs = np.arange(0, 16, 0.1)
-            U, V = ATM_R['Uwind'][0, :, :], ATM_R['Vwind'][0, :, :]
+            U, V = ATM_R['Uwind'][t, :, :], ATM_R['Vwind'][t, :, :]
             magnitude = np.sqrt(U**2 + V**2)
             cset = ax.contourf(lon_r, lat_r, magnitude, plevs, cmap=cmap, transform=ccrs.PlateCarree())
             ax.quiver(lon_r[::10, ::10], lat_r[::10, ::10], U[::10, ::10], V[::10, ::10], transform=ccrs.PlateCarree())
@@ -181,43 +203,43 @@ def plot_atm_r_fields(ATM_R, RMG, PFM, show=False, fields_to_plot=None, flag=Tru
             ax.set_title('10 m velocity [m/s, on ROMS grid]')
         
         elif field == 'pressure':
-            plevs = np.arange(1000, 1026, 5)
-            cset = ax.contourf(lon_r, lat_r, ATM_R['Pair'][0, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            plevs = np.arange(1000, 1026, 0.1)
+            cset = ax.contourf(lon_r, lat_r, ATM_R['Pair'][t, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
             cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad = 0.05)
             cbar.set_ticks(np.arange(1000, 1026, 5))
             ax.set_title('Surface Pressure [Pa]')
         
         elif field == 'temperature':
-            plevs = np.arange(12, 61, 2)
-            cset = ax.contourf(lon_r, lat_r, ATM_R['Tair'][0, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            plevs = np.arange(8, 41, 0.1)
+            cset = ax.contourf(lon_r, lat_r, ATM_R['Tair'][t, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
             cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad = 0.05)
-            cbar.set_ticks(np.arange(12, 61, 12))
+            cbar.set_ticks(np.arange(8, 41, 8))
             ax.set_title('Surface Temperature [K]')
         
         elif field == 'lw_radiation':
             plevs = np.arange(260, 520, 15)
-            cset = ax.contourf(lon_r, lat_r, ATM_R['lwrad_down'][0, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            cset = ax.contourf(lon_r, lat_r, ATM_R['lwrad_down'][t, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
             cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad = 0.05)
             cbar.set_ticks(np.arange(260, 520, 50))
             ax.set_title('Long Wave Radiation Down [W/m^2]')
         
         elif field == 'rain':
             plevs = np.arange(0, 0.0035, 0.0001)
-            cset = ax.contourf(lon_r, lat_r, ATM_R['rain'][0, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            cset = ax.contourf(lon_r, lat_r, ATM_R['rain'][t, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
             cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad = 0.05)
             cbar.set_ticks(np.arange(0, 0.0035, 0.0007))
             ax.set_title('Precipitation Rate [kg/m^2/s]')
         
         elif field == 'humidity':
-            plevs = np.arange(0, 101, 1)
-            cset = ax.contourf(lon_r, lat_r, ATM_R['Qair'][0, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            plevs = np.arange(0, 102, 1)
+            cset = ax.contourf(lon_r, lat_r, ATM_R['Qair'][t, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
             cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad = 0.05)
-            cbar.set_ticks(np.arange(0, 101, 20))
+            cbar.set_ticks(np.arange(0, 102, 20))
             ax.set_title('Surface Humidity [%]')
         
         elif field == 'swrad':
             plevs = np.arange(0, 601, 10)
-            cset = ax.contourf(lon_r, lat_r, ATM_R['swrad'][0, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            cset = ax.contourf(lon_r, lat_r, ATM_R['swrad'][t, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
             cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad = 0.05)
             cbar.set_ticks(np.arange(100, 601, 100))
             ax.set_title('Short Wave Radiation Down [W/m^2]')
@@ -233,12 +255,12 @@ def plot_atm_r_fields(ATM_R, RMG, PFM, show=False, fields_to_plot=None, flag=Tru
         ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f'{x:.2f}'))
         ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: f'{y:.2f}'))
 
-        annotation = f'Timestamp: {start_time.strftime("%Y-%m-%d %H:%M:%S")} | Model: nam_nest | Forecast Hour: {forecast_hours[0]:.1f}'
+        annotation = f'Timestamp: {start_time.strftime("%Y-%m-%d %H:%M:%S")} | Model: nam_nest | Forecast Hour: {forecast_hours:.1f}'
         ax.text(0.5, 1.05, annotation, transform=ax.transAxes, ha='center', fontsize=12)
         
         output_dir = PFM['lv1_plot_dir']
         if flag is True:
-            filename = f'{output_dir}/{timestamp}_nam_nest_ATM_R_{field}.png'
+            filename = f'{output_dir}/{timestamp}_nam_nest_ATM_R_{field}_hour_{int(forecast_hours)}.png'
             plt.savefig(filename, dpi=300)
             if show is True:
                 plt.tight_layout()
@@ -246,7 +268,7 @@ def plot_atm_r_fields(ATM_R, RMG, PFM, show=False, fields_to_plot=None, flag=Tru
             else:
                 plt.close()
         else:
-            filename = f'{output_dir}/{timestamp}_nam_nest_ATM_R_{field}_exported.png'
+            filename = f'{output_dir}/{timestamp}_nam_nest_ATM_R_{field}_exported_hour_{int(forecast_hours)}.png'
             plt.savefig(filename, dpi=300)
             if show is True:
                 plt.tight_layout()
@@ -271,7 +293,7 @@ def plot_all_fields_in_one(ATM, ATM_R, RMG, PFM, show=False, fields_to_plot=None
     lon_r = ATM_R['lon']
     lat_r = ATM_R['lat']
     ocean_time = ATM['ocean_time']
-    start_time = datetime(1970, 1, 1) + timedelta(days=float(ocean_time[0]))
+    start_time = datetime(1999, 1, 1) + timedelta(days=float(ocean_time[0]))
     forecast_hours = (ocean_time - ocean_time[0]) * 24  # Convert days to hours
     
     if fields_to_plot is None:
@@ -306,7 +328,7 @@ def plot_all_fields_in_one(ATM, ATM_R, RMG, PFM, show=False, fields_to_plot=None
             ax2.set_title('10 m velocity [m/s, ATM_R]')
         
         elif field == 'pressure':
-            plevs = np.arange(1000, 1026, 5)
+            plevs = np.arange(1000, 1026, 0.1)
             cset1 = ax1.contourf(lon, lat, ATM['Pair'][0, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
             cbar1 = fig.colorbar(cset1, ax=ax1, orientation='horizontal', pad=0.05)
             cbar1.set_ticks(np.arange(1000, 1026, 5))
@@ -318,15 +340,15 @@ def plot_all_fields_in_one(ATM, ATM_R, RMG, PFM, show=False, fields_to_plot=None
             ax2.set_title('Surface Pressure [Pa, ATM_R]')
         
         elif field == 'temperature':
-            plevs = np.arange(12, 61, 2)
+            plevs = np.arange(8, 41, 0.1)
             cset1 = ax1.contourf(lon, lat, ATM['Tair'][0, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
             cbar1 = fig.colorbar(cset1, ax=ax1, orientation='horizontal', pad=0.05)
-            cbar1.set_ticks(np.arange(12, 61, 12))
+            cbar1.set_ticks(np.arange(8, 41, 8))
             ax1.set_title('Surface Temperature [K, ATM]')
 
             cset2 = ax2.contourf(lon_r, lat_r, ATM_R['Tair'][0, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
             cbar2 = fig.colorbar(cset2, ax=ax2, orientation='horizontal', pad=0.05)
-            cbar2.set_ticks(np.arange(12, 61, 12))
+            cbar2.set_ticks(np.arange(8, 41, 8))
             ax2.set_title('Surface Temperature [K, ATM_R]')
         
         elif field == 'lw_radiation':
@@ -354,7 +376,7 @@ def plot_all_fields_in_one(ATM, ATM_R, RMG, PFM, show=False, fields_to_plot=None
             ax2.set_title('Precipitation Rate [kg/m^2/s, ATM_R]')
         
         elif field == 'humidity':
-            plevs = np.arange(0, 101, 1)
+            plevs = np.arange(0, 102, 1)
             cset1 = ax1.contourf(lon, lat, ATM['Qair'][0, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
             cbar1 = fig.colorbar(cset1, ax=ax1, orientation='horizontal', pad=0.05)
             cbar1.set_ticks(np.arange(0, 101, 20))
@@ -362,7 +384,7 @@ def plot_all_fields_in_one(ATM, ATM_R, RMG, PFM, show=False, fields_to_plot=None
 
             cset2 = ax2.contourf(lon_r, lat_r, ATM_R['Qair'][0, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
             cbar2 = fig.colorbar(cset2, ax=ax2, orientation='horizontal', pad=0.05)
-            cbar2.set_ticks(np.arange(0, 101, 20))
+            cbar2.set_ticks(np.arange(0, 102, 20))
             ax2.set_title('Surface Humidity [%, ATM_R]')
         
         elif field == 'swrad':
@@ -380,6 +402,7 @@ def plot_all_fields_in_one(ATM, ATM_R, RMG, PFM, show=False, fields_to_plot=None
         for ax in [ax1, ax2]:
             plot_roms_box(ax, RMG)
             plot_roms_coastline(ax, RMG)
+            # ax.add_feature(cfeature.COASTLINE)
             ax.set_xlabel('Longitude')
             ax.set_ylabel('Latitude')
             ax.grid(True)
