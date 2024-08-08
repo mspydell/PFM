@@ -63,6 +63,7 @@ hhmm='1200'
 forecastZdatestr = yyyymmdd+hhmm+'Z'   # this could be used for model output to indicate when model was initialized.
 
 yyyymmdd = '20240803'
+
 print("Preparing forecast starting on ",yyyymmdd)
 
 
@@ -76,7 +77,7 @@ print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
 print('kilobytes')
 
 use_ncks = 1 # flag to get data using ncks. if =0, then a pre saved pickle file is loaded.
-use_pckl_sav = 1
+use_pckl_sav = 1 # flag to use pickle files and subprocess
 if use_ncks == 1:
     if use_pckl_sav == 0: # the original way that breaks when going to OCN_R
         OCN = ocnfuns.get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,'ncks_para')
@@ -95,12 +96,12 @@ if use_ncks == 1:
         print(ret1)
         print('0=yes,1=no')
 
-        with open(fn_pckl,'rb') as fp:
-            OCN = pickle.load(fp)
-            print('OCN dict now loaded with pickle')
-            print('after getting OCN from file, using:')
-            print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
-            print('kilobytes')
+        #with open(fn_pckl,'rb') as fp:
+        #    OCN = pickle.load(fp)
+        #    print('OCN dict now loaded with pickle')
+        #    print('after getting OCN from file, using:')
+        #    print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+        #    print('kilobytes')
 
 else:
     save_ocn = 0 # if 0, this loads the pickle file. if 1, it saves the pickle file
@@ -126,7 +127,7 @@ else:
     #### now to go from hycom.nc to hycom.pkl
 
 # Funtion to plot QC plots for OCN raw data
-pltfuns.plot_ocn_fields_from_dict(OCN, RMG, PFM)
+#pltfuns.plot_ocn_fields_from_dict(OCN, RMG, PFM)
 
 print('before gc.collect and getting OCN_R, using:')
 print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
@@ -163,7 +164,7 @@ else:
 print('driver_run_forecast_LV1: done with hycom_to_roms_latlon')
 # add OCN + OCN_R plotting function here !!! (This for now only plots OCN_R fields)
 # By plotting salt or salinity, just demonstrating its working, once I complete the velocity part, will finalize!
-pltfuns.plot_ocn_R_fields(OCN_R, RMG, PFM, fields_to_plot='salt')
+#pltfuns.plot_ocn_R_fields(OCN_R, RMG, PFM, fields_to_plot='salt')
 print('using:')
 print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
 print('kilobytes')
@@ -205,9 +206,6 @@ print('using:')
 print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
 print('kilobytes')
 
-print('using:')
-print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
-print('kilobytes')
 
 ic_file_out = PFM['lv1_forc_dir'] + '/' + PFM['lv1_ini_file']
 
@@ -217,7 +215,7 @@ if frm_ICpkl_file == 0:
     ocnfuns.ocn_roms_IC_dict_to_netcdf(OCN_IC, ic_file_out)
     print('done makeing IC file.')
 else:
-    print('making IC file from pickled IC: '+ ic_file_out)
+    print('making IC nc file from pickled IC: '+ ic_file_out)
     cmd_list = ['python','ocn_functions.py','ocn_roms_IC_dict_to_netcdf_pckl',ocnIC_pckl,ic_file_out]
     os.chdir('../sdpm_py_util')
     ret4 = subprocess.run(cmd_list)     
@@ -234,10 +232,10 @@ print('kilobytes')
 # ABHI:  HERE!!!   OCN_IC.nc plotting function here !!!!
 #    have a function that is called that 
 #    1) loads the OCN_IC.nc file and 2) makes plots
-file_path = '/scratch/PFM_Simulations/LV1_Forecast/Forc/LV1_OCEAN_IC.nc' #This is the path for the IC file
+#file_path = '/scratch/PFM_Simulations/LV1_Forecast/Forc/LV1_OCEAN_IC.nc' #This is the path for the IC file
 #This function loads the OCN_IC.nc file and makes plots!! (IMP: Only working for salinity, temperature and surf_el(zeta))
 # hence the following is only demonstrating how it works, will finalise once I complete for velocity!
-pltfuns.plot_ocn_ic_fields(file_path, RMG, PFM, fields_to_plot='salt', show=True)
+#pltfuns.plot_ocn_ic_fields(file_path, RMG, PFM, fields_to_plot='salt', show=True)
 
 print('using:')
 print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
@@ -268,7 +266,7 @@ print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
 print('kilobytes')
 
 bc_file_out = PFM['lv1_forc_dir'] + '/' + PFM['lv1_bc_file']
-ocnBC_pckl = PFM['lv1_forc_dir'] + '/' + PFM['lv1_ocnBC_tmp_pckl_file']
+#ocnBC_pckl = PFM['lv1_forc_dir'] + '/' + PFM['lv1_ocnBC_tmp_pckl_file']
 
 frm_BCpkl_file = 1
 if frm_BCpkl_file == 0:
@@ -295,10 +293,10 @@ print('kilobytes')
 #    have a function that is called that 
 #    1) loads the OCN_BC.nc file and 2) makes plots
 
-frm_ICpkl_file = 1
 # get the OCN_BC dictionary
 
 print('driver_run_forecast_LV1: done with ocn_r_2_BCdict')
+print('now getting ATM data')
 
 
 ## ATM gneration stuff;
@@ -338,8 +336,8 @@ print('done with pltfuns.load_and_plot_atm(PFM)')
 
 ## ====================================
 
-
-
+print('going to exit before running roms')
+exit(1)
 
 
 print('driver_run_forecast_LV1:  now make .in and .sb files')
