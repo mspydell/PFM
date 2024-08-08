@@ -9,6 +9,7 @@ import sys
 from scipy.interpolate import griddata
 from get_PFM_info import get_PFM_info
 import grid_functions as grdfuns
+import pickle
 
 
 def plot_roms_box(axx, RMG):
@@ -759,7 +760,6 @@ def plot_ocn_fields_from_dict_pckl(fname_in, fields_to_plot=None, show=False):
     fields_to_plot (list or str): The fields to plot. If None, plot all fields.
     """
 
-    import pickle
     PFM=get_PFM_info()
     RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
 
@@ -855,6 +855,105 @@ def plot_ocn_fields_from_dict_pckl(fname_in, fields_to_plot=None, show=False):
 
 
 def plot_ocn_R_fields(OCN_R, RMG, PFM, fields_to_plot=None, time_index=0, depth_index=0, show=False):
+    timestamp = extract_timestamp(OCN_R)
+    lon = OCN_R['lon_rho']
+    lat = OCN_R['lat_rho']
+    time = OCN_R['ocean_time'][time_index]
+    start_time = nc.num2date(time, units='days since 1999-01-01')  # Adjust units as needed
+
+    if fields_to_plot is None:
+        fields_to_plot = ['velocity', 'zeta', 'temp', 'salt']
+    else:
+        fields_to_plot = [fields_to_plot] if isinstance(fields_to_plot, str) else fields_to_plot
+
+    for field in fields_to_plot:
+        fig, ax = plt.subplots(figsize=(8, 12), subplot_kw={'projection': ccrs.PlateCarree()})
+        cmap = plt.get_cmap('turbo')
+        plt.set_cmap(cmap)
+
+        if field == 'velocity':
+            u = OCN_R['urm'][time_index, depth_index, :, :]  # surface layer
+            v = OCN_R['vrm'][time_index, depth_index, :, :]  # surface layer
+            magnitude = np.sqrt(u**2 + v**2)
+            plevs = np.linspace(np.nanmin(magnitude), np.nanmax(magnitude), 50)
+            cset = ax.contourf(lon, lat, magnitude, plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            ax.quiver(lon[::5], lat[::5], u[::5, ::5], v[::5, ::5], transform=ccrs.PlateCarree())
+            cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad=0.05)
+            cbar.set_label('Velocity Magnitude [m/s]')
+            cbar.set_ticks(np.linspace(np.nanmin(magnitude), np.nanmax(magnitude), 5))
+            ax.set_title('Surface Velocity [m/s]')
+        
+        elif field == 'zeta':
+            zeta = OCN_R['zeta'][time_index, :, :]
+            plevs = np.linspace(np.nanmin(zeta), np.nanmax(zeta), 50)
+            cset = ax.contourf(lon, lat, zeta, plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad=0.05)
+            cbar.set_label('Surface Elevation [m]')
+            cbar.set_ticks(np.linspace(np.nanmin(zeta), np.nanmax(zeta), 5))
+            ax.set_title('Surface Elevation [m]')
+        
+        elif field == 'temp':
+            temp = OCN_R['temp'][time_index, depth_index, :, :]
+            plevs = np.linspace(np.nanmin(temp), np.nanmax(temp), 50)
+            cset = ax.contourf(lon, lat, temp, plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad=0.05)
+            cbar.set_label('Surface Temperature [°C]')
+            cbar.set_ticks(np.linspace(np.nanmin(temp), np.nanmax(temp), 5))
+            ax.set_title('Surface Temperature [°C]')
+        
+        elif field == 'salt':
+            salt = OCN_R['salt'][time_index, depth_index, :, :]
+            plevs = np.linspace(np.nanmin(salt), np.nanmax(salt), 50)
+            cset = ax.contourf(lon, lat, salt, plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad=0.05)
+            cbar.set_ticks(np.linspace(np.nanmin(salt), np.nanmax(salt), 5))
+            cbar.set_label('Salinity [psu]')
+            ax.set_title('Surface Salinity [psu]')
+        
+        # Add coastlines and gridlines and ROMS box
+        ax.set_xlabel('Longitude')
+        ax.set_ylabel('Latitude')
+        ax.add_feature(cfeature.LAND, zorder=1, edgecolor='black')
+        ax.grid(True)
+        plot_roms_box(ax, RMG)
+        ax.set_aspect('auto')
+        ax.set_xticks(np.round(np.linspace(np.min(lon), np.max(lon), num=5), 2))
+        ax.set_yticks(np.round(np.linspace(np.min(lat), np.max(lat), num=5), 2))
+        ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f'{x:.2f}'))
+        ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: f'{y:.2f}'))
+        
+        # Set the title and labels
+        annotation = f'Timestamp: {start_time.strftime("%Y-%m-%d %H:%M:%S")} | Model: Hycom |'
+        ax.text(0.5, 1.05, annotation, transform=ax.transAxes, ha='center', fontsize=12)
+        
+        output_dir = PFM['lv1_plot_dir']
+        filename = f'{output_dir}/{timestamp}_hycom_OCN_R_{field}.png'
+        plt.savefig(filename, dpi=300)
+        if show:
+            plt.show()
+        else:
+            plt.close()
+
+def load_ocnR_from_pckl_files():
+
+    PFM=get_PFM_info()
+    ork = ['depth','lat_rho','lon_rho','lat_u','lon_u','lat_v','lon_v','ocean_time','ocean_time_ref','salt','temp','ubar','urm','vbar','vrm','zeta','vinfo']
+
+    OCN_R = dict()
+    for nm in ork:
+        fn_temp = PFM['lv1_forc_dir'] + '/tmp_' + nm + '.pkl'
+        with open(fn_temp,'rb') as fp:
+            OCN_R[nm] = pickle.load(fp)
+
+    return OCN_R
+
+def plot_ocn_R_fields_pckl(fields_to_plot=None, time_index=0, depth_index=0, show=False):
+
+    PFM=get_PFM_info()
+    RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
+
+    OCN_R = load_ocnR_from_pckl_files()
+
     timestamp = extract_timestamp(OCN_R)
     lon = OCN_R['lon_rho']
     lat = OCN_R['lat_rho']
