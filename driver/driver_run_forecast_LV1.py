@@ -86,7 +86,7 @@ east = -115 + 360.0
 south = 28.0
 north = 37.0
 
-yyyymmdd='20240728'
+yyyymmdd='20240806'
 yyyy = yyyymmdd[0:4]
 mm = yyyymmdd[4:6]
 dd = yyyymmdd[6:8]
