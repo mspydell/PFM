@@ -7,6 +7,9 @@ from netCDF4 import Dataset, num2date
 import cartopy.feature as cfeature
 import sys
 from scipy.interpolate import griddata
+from get_PFM_info import get_PFM_info
+import grid_functions as grdfuns
+
 
 def plot_roms_box(axx, RMG):
     xr1 = RMG['lon_rho'][0, :]
@@ -85,7 +88,7 @@ def plot_atm_fields(ATM, RMG, PFM, show=False,fields_to_plot=None, forecast_hour
             U, V = ATM['Uwind'][closest_idx, :, :], ATM['Vwind'][closest_idx, :, :]
             magnitude = np.sqrt(U**2 + V**2)
             cset = ax.contourf(lon, lat, magnitude, plevs, cmap=cmap, transform=ccrs.PlateCarree())
-            ax.quiver(lon[::10], lat[::10], U[::10, ::10], V[::10, ::10], transform=ccrs.PlateCarree())
+            ax.quiver(lon[::10], lat[4::10], U[4::10, ::10], V[4::10, ::10], transform=ccrs.PlateCarree())
             cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad = 0.05)
             cbar.set_ticks(np.arange(0, 16, 5))
             ax.set_title('10 m velocity [m/s, every 10 grid points]')
@@ -745,6 +748,111 @@ def plot_ocn_fields_from_dict(OCN, RMG, PFM, fields_to_plot=None, show=False):
             plt.show()
         else:
             plt.close()
+
+
+def plot_ocn_fields_from_dict_pckl(fname_in, fields_to_plot=None, show=False):
+    """
+    Plot specified fields from a dictionary and save them as PNG files.
+    
+    Parameters:
+    OCN (dict): Dictionary containing the data fields.
+    fields_to_plot (list or str): The fields to plot. If None, plot all fields.
+    """
+
+    import pickle
+    PFM=get_PFM_info()
+    RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
+
+    print(fname_in)
+#    print(fname_out)
+
+    with open(fname_in,'rb') as fp:
+        OCN = pickle.load(fp)
+        print('OCN dict loaded with pickle')
+
+
+    # Extract the common variables
+    timestamp = extract_timestamp(OCN)
+    lon = OCN['lon'][:]
+    lat = OCN['lat'][:]
+    ocean_time = OCN['ocean_time']
+    start_time = datetime(1999, 1, 1) + timedelta(days=float(ocean_time[0]))
+
+    if fields_to_plot is None:
+        fields_to_plot = ['velocity', 'surf_el', 'water_temp', 'salinity']
+    else:
+        fields_to_plot = [fields_to_plot] if isinstance(fields_to_plot, str) else fields_to_plot
+
+    for field in fields_to_plot:
+        fig, ax = plt.subplots(figsize=(8, 12), subplot_kw={'projection': ccrs.PlateCarree()})
+        cmap = plt.get_cmap('turbo')
+        plt.set_cmap(cmap)
+
+        if field == 'velocity':
+            u = OCN['u'][0, 0, :, :]  # surface layer
+            v = OCN['v'][0, 0, :, :]  # surface layer
+            magnitude = np.sqrt(u**2 + v**2)
+            plevs = np.linspace(np.nanmin(magnitude), np.nanmax(magnitude), 50)
+            cset = ax.contourf(lon, lat, magnitude, plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            ax.quiver(lon[::5], lat[::5], u[::5, ::5], v[::5, ::5], transform=ccrs.PlateCarree())
+            cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad=0.05)
+            cbar.set_label('Velocity Magnitude [m/s]')
+            cbar.set_ticks(np.linspace(np.nanmin(magnitude), np.nanmax(magnitude), 5))
+            ax.set_title('Surface Velocity [m/s]')
+        
+        elif field == 'surf_el':
+            surf_el = OCN['zeta'][0, :, :]
+            plevs = np.linspace(np.nanmin(surf_el), np.nanmax(surf_el), 50)
+            cset = ax.contourf(lon, lat, surf_el, plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad=0.05)
+            cbar.set_label('Surface Elevation [m]')
+            cbar.set_ticks(np.linspace(np.nanmin(surf_el), np.nanmax(surf_el), 5))
+            ax.set_title('Surface Elevation [m]')
+        
+        elif field == 'water_temp':
+            water_temp = OCN['temp'][0, 0, :, :]
+            plevs = np.linspace(np.nanmin(water_temp), np.nanmax(water_temp), 50)
+            cset = ax.contourf(lon, lat, water_temp, plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad=0.05)
+            cbar.set_label('Surface Temperature [°C]')
+            cbar.set_ticks(np.linspace(np.nanmin(water_temp), np.nanmax(water_temp), 5))
+            ax.set_title('Surface Temperature [°C]')
+        
+        elif field == 'salinity':
+            salinity = OCN['salt'][0, 0, :, :]
+            plevs = np.linspace(np.nanmin(salinity), np.nanmax(salinity), 50)
+            cset = ax.contourf(lon, lat, salinity, plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad=0.05)
+            cbar.set_ticks(np.linspace(np.nanmin(salinity), np.nanmax(salinity), 5))
+            cbar.set_label('Salinity [psu]')
+            ax.set_title('Surface Salinity [psu]')
+        
+        # Add coastlines and gridlines and ROMS box
+        ax.set_xlabel('Longitude')
+        ax.set_ylabel('Latitude')
+        ax.add_feature(cfeature.LAND, zorder=1, edgecolor='black')
+        ax.grid(True)
+        plot_roms_box(ax, RMG)
+        ax.set_aspect('auto')
+        ax.set_xticks(np.round(np.linspace(np.min(lon), np.max(lon), num=5), 2))
+        ax.set_yticks(np.round(np.linspace(np.min(lat), np.max(lat), num=5), 2))
+        ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f'{x:.2f}'))
+        ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: f'{y:.2f}'))
+        
+        # Set the title and labels
+        annotation = f'Timestamp: {start_time.strftime("%Y-%m-%d %H:%M:%S")} | Model: Hycom | Field: {field}'
+        ax.text(0.5, 1.05, annotation, transform=ax.transAxes, ha='center', fontsize=12)
+        
+        
+        output_dir = PFM['lv1_plot_dir']
+        filename = f'{output_dir}/{timestamp}_hycom_OCN_{field}.png'
+        plt.savefig(filename, dpi=300)
+        if show is True:
+            plt.tight_layout
+            plt.show()
+        else:
+            plt.close()
+
 
 def plot_ocn_R_fields(OCN_R, RMG, PFM, fields_to_plot=None, time_index=0, depth_index=0, show=False):
     timestamp = extract_timestamp(OCN_R)
