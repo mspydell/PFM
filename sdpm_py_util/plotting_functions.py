@@ -1037,8 +1037,8 @@ def plot_ocn_ic_fields(filepath, RMG, PFM, fields_to_plot=None, time_index=0, de
     nc = Dataset(filepath, 'r')
 
     # Extract coordinate variables
-    lon_rho = nc.variables['lon_rho'][:]
-    lat_rho = nc.variables['lat_rho'][:]
+    lon_rho = nc.variables['lon_rho'][:,:]
+    lat_rho = nc.variables['lat_rho'][:,:]
     time = nc.variables['ocean_time'][time_index]
     start_time = num2date(time, units='days since 1999-01-01')  # Adjust units as needed
 
@@ -1053,23 +1053,23 @@ def plot_ocn_ic_fields(filepath, RMG, PFM, fields_to_plot=None, time_index=0, de
         plt.set_cmap(cmap)
 
         if field == 'velocity':
-            u = nc.variables['u'][time_index, depth_index, :, :]  # Adjust the depth index as needed
-            v = nc.variables['v'][time_index, depth_index, :, :]  # Adjust the depth index as needed
+            u = nc.variables['u'][time_index, depth_index, 0:-1, :]  # Adjust the depth index as needed
+            v = nc.variables['v'][time_index, depth_index, :, 0:-1]  # Adjust the depth index as needed
 
             # Coordinates for u and v
-            lon_u = nc.variables['lon_u'][:]
-            lat_u = nc.variables['lat_u'][:]
-            lon_v = nc.variables['lon_v'][:]
-            lat_v = nc.variables['lat_v'][:]
+            #lon_u = nc.variables['lon_u'][:]
+            #lat_u = nc.variables['lat_u'][:]
+            #lon_v = nc.variables['lon_v'][:]
+            #lat_v = nc.variables['lat_v'][:]
 
             # Interpolate u and v to rho points
-            u_interp = griddata((lon_u.flatten(), lat_u.flatten()), u.flatten(), (lon_rho, lat_rho), method='linear')
-            v_interp = griddata((lon_v.flatten(), lat_v.flatten()), v.flatten(), (lon_rho, lat_rho), method='linear')
+            #u_interp = griddata((lon_u.flatten(), lat_u.flatten()), u.flatten(), (lon_rho, lat_rho), method='linear')
+            #v_interp = griddata((lon_v.flatten(), lat_v.flatten()), v.flatten(), (lon_rho, lat_rho), method='linear')
 
-            magnitude = np.sqrt(u_interp**2 + v_interp**2)
+            magnitude = np.sqrt(u**2 + v**2)
             plevs = np.linspace(np.nanmin(magnitude), np.nanmax(magnitude), 50)
-            cset = ax.contourf(lon_rho, lat_rho, magnitude, plevs, cmap=cmap, transform=ccrs.PlateCarree())
-            # ax.quiver(lon_rho[::5], lat_rho[::5], u[::5, ::5], v[::5, ::5], transform=ccrs.PlateCarree())
+            cset = ax.contourf(lon_rho[0:-1,0:-1], lat_rho[0:-1,0:-1], magnitude, plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            ax.quiver(lon_rho[0:-1:5,0:-1:5], lat_rho[0:-1:5,0:-1:5], u[::5, ::5], v[::5, ::5], transform=ccrs.PlateCarree())
             cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad=0.05)
             cbar.set_label('Velocity Magnitude [m/s]')
             cbar.set_ticks(np.linspace(np.nanmin(magnitude), np.nanmax(magnitude), 5))
