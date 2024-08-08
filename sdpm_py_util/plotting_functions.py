@@ -971,12 +971,12 @@ def plot_ocn_R_fields_pckl(fields_to_plot=None, time_index=0, depth_index=0, sho
         plt.set_cmap(cmap)
 
         if field == 'velocity':
-            u = OCN_R['urm'][time_index, depth_index, :, :]  # surface layer
-            v = OCN_R['vrm'][time_index, depth_index, :, :]  # surface layer
+            u = OCN_R['urm'][time_index, depth_index, 0:-1, :]  # surface layer
+            v = OCN_R['vrm'][time_index, depth_index, :, 0:-1]  # surface layer
             magnitude = np.sqrt(u**2 + v**2)
             plevs = np.linspace(np.nanmin(magnitude), np.nanmax(magnitude), 50)
-            cset = ax.contourf(lon, lat, magnitude, plevs, cmap=cmap, transform=ccrs.PlateCarree())
-            ax.quiver(lon[::5], lat[::5], u[::5, ::5], v[::5, ::5], transform=ccrs.PlateCarree())
+            cset = ax.contourf(lon[0:-1,0:-1], lat[0:-1,0:-1], magnitude, plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            ax.quiver(lon[0:-1:5,0:-1:5], lat[0:-1:5,0:-1:5], u[::5, ::5], v[::5, ::5], transform=ccrs.PlateCarree())
             cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad=0.05)
             cbar.set_label('Velocity Magnitude [m/s]')
             cbar.set_ticks(np.linspace(np.nanmin(magnitude), np.nanmax(magnitude), 5))

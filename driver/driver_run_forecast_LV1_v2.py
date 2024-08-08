@@ -124,10 +124,14 @@ else:
 
         
 
-    #### now to go from hycom.nc to hycom.pkl
-
+#### now to go from hycom.nc to hycom.pkl
 # Funtion to plot QC plots for OCN raw data
-#pltfuns.plot_ocn_fields_from_dict(OCN, RMG, PFM)
+## plot OCN
+plot_ocn = 1
+if plot_ocn ==1:
+    print('making ocn plots')
+    pltfuns.plot_ocn_fields_from_dict_pckl(fn_pckl)
+
 
 print('before gc.collect and getting OCN_R, using:')
 print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
@@ -160,6 +164,12 @@ else:
     #     print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
     #    print('kilobytes')
     
+## plot OCN_R
+plot_ocnr = 1
+if plot_ocnr == 1:
+    print('making ocn_R plots')
+    pltfuns.plot_ocn_R_fields_pckl()
+
 
 print('driver_run_forecast_LV1: done with hycom_to_roms_latlon')
 # add OCN + OCN_R plotting function here !!! (This for now only plots OCN_R fields)
