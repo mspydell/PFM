@@ -124,6 +124,8 @@ else:
 
     #### now to go from hycom.nc to hycom.pkl
 
+# Funtion to plot QC plots for OCN raw data
+pltfuns.plot_ocn_fields_from_dict(OCN, RMG, PFM)
 
 print('before gc.collect and getting OCN_R, using:')
 print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
@@ -151,7 +153,9 @@ else:
 
 
 print('driver_run_forecast_LV1: done with hycom_to_roms_latlon')
-# add OCN + OCN_R plotting function here !!!
+# add OCN + OCN_R plotting function here !!! (This for now only plots OCN_R fields)
+# By plotting salt or salinity, just demonstrating its working, once I complete the velocity part, will finalize!
+pltfuns.plot_ocn_R_fields(OCN_R, RMG, PFM, fields_to_plot='salt')
 print('using:')
 print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
 print('kilobytes')
@@ -222,6 +226,10 @@ print('kilobytes')
 # ABHI:  HERE!!!   OCN_IC.nc plotting function here !!!!
 #    have a function that is called that 
 #    1) loads the OCN_IC.nc file and 2) makes plots
+file_path = '/scratch/PFM_Simulations/LV1_Forecast/Forc/LV1_OCEAN_IC.nc' #This is the path for the IC file
+#This function loads the OCN_IC.nc file and makes plots!! (IMP: Only working for salinity, temperature and surf_el(zeta))
+# hence the following is only demonstrating how it works, will finalise once I complete for velocity!
+pltfuns.plot_ocn_ic_fields(file_path, RMG, PFM, fields_to_plot='salt', show=True)
 
 print('using:')
 print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)

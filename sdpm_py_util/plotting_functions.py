@@ -6,6 +6,7 @@ import netCDF4 as nc
 from netCDF4 import Dataset, num2date
 import cartopy.feature as cfeature
 import sys
+from scipy.interpolate import griddata
 
 def plot_roms_box(axx, RMG):
     xr1 = RMG['lon_rho'][0, :]
@@ -118,10 +119,10 @@ def plot_atm_fields(ATM, RMG, PFM, show=False,fields_to_plot=None, forecast_hour
             ax.set_title('Precipitation Rate [kg/m^2/s]')
         
         elif field == 'humidity':
-            plevs = np.arange(0, 102, 1)
+            plevs = np.arange(5, 102, 1)
             cset = ax.contourf(lon, lat, ATM['Qair'][closest_idx, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
             cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad = 0.05)
-            cbar.set_ticks(np.arange(0, 101, 20))
+            cbar.set_ticks(np.arange(5, 101, 20))
             ax.set_title('Surface Humidity [%]')
         
         elif field == 'swrad':
@@ -231,10 +232,10 @@ def plot_atm_r_fields(ATM_R, RMG, PFM, show=False, fields_to_plot=None, forecast
             ax.set_title('Precipitation Rate [kg/m^2/s]')
         
         elif field == 'humidity':
-            plevs = np.arange(0, 102, 1)
+            plevs = np.arange(5, 102, 1)
             cset = ax.contourf(lon_r, lat_r, ATM_R['Qair'][closest_idx, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
             cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad = 0.05)
-            cbar.set_ticks(np.arange(0, 102, 20))
+            cbar.set_ticks(np.arange(5, 102, 20))
             ax.set_title('Surface Humidity [%]')
         
         elif field == 'swrad':
@@ -384,15 +385,15 @@ def plot_all_fields_in_one(ATM, ATM_R, RMG, PFM, show=False, fields_to_plot=None
             ax2.set_title('Precipitation Rate [kg/m^2/s, ATM_R]')
         
         elif field == 'humidity':
-            plevs = np.arange(0, 102, 1)
+            plevs = np.arange(5, 102, 1)
             cset1 = ax1.contourf(lon, lat, ATM['Qair'][closest_idx, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
             cbar1 = fig.colorbar(cset1, ax=ax1, orientation='horizontal', pad=0.05)
-            cbar1.set_ticks(np.arange(0, 101, 20))
+            cbar1.set_ticks(np.arange(5, 101, 20))
             ax1.set_title('Surface Humidity [%, ATM]')
 
             cset2 = ax2.contourf(lon_r, lat_r, ATM_R['Qair'][closest_idx, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
             cbar2 = fig.colorbar(cset2, ax=ax2, orientation='horizontal', pad=0.05)
-            cbar2.set_ticks(np.arange(0, 102, 20))
+            cbar2.set_ticks(np.arange(5, 102, 20))
             ax2.set_title('Surface Humidity [%, ATM_R]')
         
         elif field == 'swrad':
@@ -745,11 +746,12 @@ def plot_ocn_fields_from_dict(OCN, RMG, PFM, fields_to_plot=None, show=False):
         else:
             plt.close()
 
-def plot_ocn_fields(OCN_R, RMG, fields_to_plot=None, time_index=0, depth_index=0, show=False):
+def plot_ocn_R_fields(OCN_R, RMG, PFM, fields_to_plot=None, time_index=0, depth_index=0, show=False):
+    timestamp = extract_timestamp(OCN_R)
     lon = OCN_R['lon_rho']
     lat = OCN_R['lat_rho']
     time = OCN_R['ocean_time'][time_index]
-    start_time = nc.num2date(time, units='days since 1970-01-01')  # Adjust units as needed
+    start_time = nc.num2date(time, units='days since 1999-01-01')  # Adjust units as needed
 
     if fields_to_plot is None:
         fields_to_plot = ['velocity', 'zeta', 'temp', 'salt']
@@ -813,8 +815,107 @@ def plot_ocn_fields(OCN_R, RMG, fields_to_plot=None, time_index=0, depth_index=0
         ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: f'{y:.2f}'))
         
         # Set the title and labels
-        annotation = f'Timestamp: {start_time.strftime("%Y-%m-%d %H:%M:%S")} | Field: {field}'
+        annotation = f'Timestamp: {start_time.strftime("%Y-%m-%d %H:%M:%S")} | Model: Hycom |'
         ax.text(0.5, 1.05, annotation, transform=ax.transAxes, ha='center', fontsize=12)
         
-        plt.show() if show else plt.savefig(f"{field}.png")
-        plt.close()
+        output_dir = PFM['lv1_plot_dir']
+        filename = f'{output_dir}/{timestamp}_hycom_OCN_R_{field}.png'
+        plt.savefig(filename, dpi=300)
+        if show:
+            plt.show()
+        else:
+            plt.close()
+
+def plot_ocn_ic_fields(filepath, RMG, PFM, fields_to_plot=None, time_index=0, depth_index=0, show=False):
+    nc = Dataset(filepath, 'r')
+
+    # Extract coordinate variables
+    lon_rho = nc.variables['lon_rho'][:]
+    lat_rho = nc.variables['lat_rho'][:]
+    time = nc.variables['ocean_time'][time_index]
+    start_time = num2date(time, units='days since 1999-01-01')  # Adjust units as needed
+
+    if fields_to_plot is None:
+        fields_to_plot = ['velocity', 'zeta', 'temp', 'salt']
+    else:
+        fields_to_plot = [fields_to_plot] if isinstance(fields_to_plot, str) else fields_to_plot
+
+    for field in fields_to_plot:
+        fig, ax = plt.subplots(figsize=(8, 12), subplot_kw={'projection': ccrs.PlateCarree()})
+        cmap = plt.get_cmap('turbo')
+        plt.set_cmap(cmap)
+
+        if field == 'velocity':
+            u = nc.variables['u'][time_index, depth_index, :, :]  # Adjust the depth index as needed
+            v = nc.variables['v'][time_index, depth_index, :, :]  # Adjust the depth index as needed
+
+            # Coordinates for u and v
+            lon_u = nc.variables['lon_u'][:]
+            lat_u = nc.variables['lat_u'][:]
+            lon_v = nc.variables['lon_v'][:]
+            lat_v = nc.variables['lat_v'][:]
+
+            # Interpolate u and v to rho points
+            u_interp = griddata((lon_u.flatten(), lat_u.flatten()), u.flatten(), (lon_rho, lat_rho), method='linear')
+            v_interp = griddata((lon_v.flatten(), lat_v.flatten()), v.flatten(), (lon_rho, lat_rho), method='linear')
+
+            magnitude = np.sqrt(u_interp**2 + v_interp**2)
+            plevs = np.linspace(np.nanmin(magnitude), np.nanmax(magnitude), 50)
+            cset = ax.contourf(lon_rho, lat_rho, magnitude, plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            # ax.quiver(lon_rho[::5], lat_rho[::5], u[::5, ::5], v[::5, ::5], transform=ccrs.PlateCarree())
+            cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad=0.05)
+            cbar.set_label('Velocity Magnitude [m/s]')
+            cbar.set_ticks(np.linspace(np.nanmin(magnitude), np.nanmax(magnitude), 5))
+            ax.set_title('Surface Velocity [m/s]')
+        
+        elif field == 'zeta':
+            zeta = nc.variables['zeta'][time_index, :, :]
+            plevs = np.linspace(np.nanmin(zeta), np.nanmax(zeta), 50)
+            cset = ax.contourf(lon_rho, lat_rho, zeta, plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad=0.05)
+            cbar.set_label('Surface Elevation [m]')
+            cbar.set_ticks(np.linspace(np.nanmin(zeta), np.nanmax(zeta), 5))
+            ax.set_title('Surface Elevation [m]')
+        
+        elif field == 'temp':
+            temp = nc.variables['temp'][time_index, depth_index, :, :]
+            plevs = np.linspace(np.nanmin(temp), np.nanmax(temp), 50)
+            cset = ax.contourf(lon_rho, lat_rho, temp, plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad=0.05)
+            cbar.set_label('Surface Temperature [K]')
+            cbar.set_ticks(np.linspace(np.nanmin(temp), np.nanmax(temp), 5))
+            ax.set_title('Surface Temperature [K]')
+        
+        elif field == 'salt':
+            salt = nc.variables['salt'][time_index, depth_index, :, :]
+            plevs = np.linspace(np.nanmin(salt), np.nanmax(salt), 50)
+            cset = ax.contourf(lon_rho, lat_rho, salt, plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad=0.05)
+            cbar.set_ticks(np.linspace(np.nanmin(salt), np.nanmax(salt), 5))
+            cbar.set_label('Salinity [psu]')
+            ax.set_title('Surface Salinity [psu]')
+        
+        # Add coastlines and gridlines
+        ax.set_xlabel('Longitude')
+        ax.set_ylabel('Latitude')
+        ax.add_feature(cfeature.LAND, zorder=1, edgecolor='black')
+        ax.grid(True)
+        plot_roms_box(ax, RMG)
+        ax.set_aspect('auto')
+        ax.set_xticks(np.round(np.linspace(np.min(lon_rho), np.max(lon_rho), num=5), 2))
+        ax.set_yticks(np.round(np.linspace(np.min(lat_rho), np.max(lat_rho), num=5), 2))
+        ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f'{x:.2f}'))
+        ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: f'{y:.2f}'))
+        
+        # Set the title and labels
+        annotation = f'Timestamp: {start_time.strftime("%Y-%m-%d %H:%M:%S")} | Model: ROMS | Forecast Hour: {time_index}'
+        ax.text(0.5, 1.05, annotation, transform=ax.transAxes, ha='center', fontsize=12)
+        
+        output_dir = PFM['lv1_plot_dir']
+        filename = f'{output_dir}/20240803_120000_hycom_OCN_IC_{field}.png'
+        plt.savefig(filename, dpi=300)
+        if show:
+            plt.show()
+        else:
+            plt.close()
+    nc.close()
