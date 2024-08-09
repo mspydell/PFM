@@ -102,8 +102,25 @@ def get_PFM_info():
    SS['L1','TCLINE']      = 50.0                      # critical depth (m)
    SS['L1','hc']          = 50.0 
 
- 
+# gridding info
+   NN=dict() 
+   NN['L1','Lm']  = 251    # Lm in input file
+   NN['L1','Mm']  = 388   # Mm in input file
+   NN['L1','ntilei'] = 6  # number of tiles in I-direction
+   NN['L1','ntilej'] = 18 # number of tiles in J-direction
+   NN['L1','np'] = NN['L1','ntilei'] * NN['L1','ntilej'] # total number of processors
+   NN['L1','nnodes'] = 3  # number of nodes to be used.  not for .in file but for slurm!
 
+# timing info
+   tt=dict()
+   tt['L1','dtsec'] = 60
+   tt['L1','ndtfast'] = 15
+   tt['L1','forecast_days'] = 2.5
+
+# output info
+   OP = dict()
+   OP['L1','his_interval'] = 3600 # how often in sec outut is written to his.nc   
+   OP['L1','rst_interval'] = 0.5 # how often in days, a restart file is made.
 
    PFM = dict()
    PFM['lo_env'] = lo_env
@@ -145,6 +162,9 @@ def get_PFM_info():
    PFM['atm_model'] = atm_model
    PFM['latlonbox'] = latlonbox
    PFM['stretching'] = SS
+   PFM['gridinfo'] = NN
+   PFM['tinfo'] = tt
+   PFM['outputinfo'] = OP
 
    return PFM
 

@@ -20,7 +20,6 @@ from foo import bar
 """
 
 
-
 # NOTE: we limit the imports to modules that exist in python3 on mox
 from pathlib import Path
 import sys
@@ -62,28 +61,37 @@ def  make_LV1_dotin_and_SLURM( PFM ):
 
     ## number of grid points in each direction
 
-    ncols = 251    # Lm in input file
-    nrows = 388   # Mm in input file
-    nz =  40     # number of vertical levels
+    #ncols = 251    # Lm in input file
+    #nrows = 388   # Mm in input file
+    ncols = PFM['gridinfo']['L1','Lm']
+    nrows = PFM['gridinfo']['L1','Mm']
+    nz   = PFM['stretching']['L1','Nz']     # number of vertical levels: 40
+    #nz =  40     # number of vertical levels
     D['ncols'] = ncols
     D['nrows'] = nrows
     D['nz'] = nz
 
     # The LV1 TILING shoudl be hard coded
-    ntilei = 6  # number of tiles in I-direction
-    ntilej = 18 # number of tiles in J-direction
-    np = ntilei*ntilej  # total number of processors
-    nnodes = 3  # number of nodes to be used.  not for .in file but for slurm!
+#    ntilei = 6  # number of tiles in I-direction
+#    ntilej = 18 # number of tiles in J-direction
+#    np = ntilei*ntilej  # total number of processors
+#    nnodes = 3  # number of nodes to be used.  not for .in file but for slurm!
 
-    D['ntilei'] = ntilei
-    D['ntilej'] = ntilej
-    D['np'] = np
-    D['nnodes'] = nnodes
+ #   D['ntilei'] = ntilei
+ #   D['ntilej'] = ntilej
+ #   D['np'] = np
+ #   D['nnodes'] = nnodes
+
+    D['ntilei'] = PFM['gridinfo']['L1','ntilei']
+    D['ntilej'] = PFM['gridinfo']['L1','ntilej']
+    D['np'] = PFM['gridinfo']['L1','np']
+    D['nnodes'] = PFM['gridinfo']['L1','nnodes']
+
 
     ### time stuff
 
-    dtsec = 60
-
+#    dtsec = 60
+    dtsec = PFM['tinfo']['L1','dtsec']
     # time step in seconds (should fit evenly into 3600 sec)
     #if Ldir['blow_ups'] == 0:
     #    dtsec = 60
@@ -94,12 +102,16 @@ def  make_LV1_dotin_and_SLURM( PFM ):
     #else:
     #    print('Unsupported number of blow ups: %d' % (Ldir['blow_ups']))
 
-    D['ndtfast'] = 15
-    forecast_days=2;
+#    D['ndtfast'] = 15
+    D['ndtfast'] = PFM['tinfo']['L1','ndtfast']
+    forecast_days = PFM['tinfo']['L1','forecast_days']  #   forecast_days=2;
     days_to_run = forecast_days  #float(Ldir['forecast_days'])
 
-    his_interval = 3600 # seconds to define and write to history files
-    rst_interval = 1 # days between writing to the restart file (e.g. 5)
+    #his_interval = 3600 # seconds to define and write to history files
+    #rst_interval = 1 # days between writing to the restart file (e.g. 5)
+    his_interval = PFM['outputinfo']['L1','his_interval']
+    rst_interval = PFM['outputinfo']['L1','rst_interval']
+
 
     #### END USER DEFINED VALUES ####
 
@@ -114,7 +126,6 @@ def  make_LV1_dotin_and_SLURM( PFM ):
 
         # this is the number of time steps to run runs for.  dtsec is BC timestep
     D['ntimes'] = int(days_to_run*86400/dtsec)
-
     D['ninfo'] = int(his_interval/dtsec) # how often to write info to the log file (# of time steps)
     D['nhis'] = int(his_interval/dtsec) # how often to write to the history files
     D['ndefhis'] = D['nhis'] # how often to create new history files
@@ -146,13 +157,31 @@ def  make_LV1_dotin_and_SLURM( PFM ):
     D['lv1_ini_file'] = lv1_ini_dir + '/' + ininame
     D['lv1_bc_file'] = PFM['lv1_forc_dir'] + '/' + PFM['lv1_bc_file']    
 
-    vtransform = 2
-    vstretching = 4
-    D['vtransform']=vtransform
-    D['vstretching']=vstretching
-    D['theta_s']='8.0d0'
-    D['theta_b']='3.0d0'
-    D['tcline']='50.0d0'
+ #   vtransform = 2
+ #   vstretching = 4
+ #   D['vtransform']=vtransform
+ #   D['vstretching']=vstretching
+ #   D['theta_s']='8.0d0'
+ #   D['theta_b']='3.0d0'
+ #   D['tcline']='50.0d0'
+
+    D['vtransform'] = PFM['stretching']['L1','Vtransform']
+    D['vstretching']= PFM['stretching']['L1','Vstretching']
+    D['theta_s']= str( PFM['stretching']['L1','THETA_S'] ) + 'd0' #'8.0d0'
+    D['theta_b']= str( PFM['stretching']['L1','THETA_B'] ) + 'd0' #'3.0d0'
+    D['tcline']= str( PFM['stretching']['L1','TCLINE'] ) + 'd0' #'50.0d0'
+
+
+#   SS['L1','Nz']          = 40
+#   SS['L1','Vtransform']  = 2                       # transformation equation
+#   SS['L1','Vstretching'] = 4                    # stretching function
+#   SS['L1','THETA_S']     = 8.0                      # surface stretching parameter
+#   SS['L1','THETA_B']     = 3.0                      # bottom  stretching parameter
+#   SS['L1','TCLINE']      = 50.0                      # critical depth (m)
+#   SS['L1','hc']          = 50.0 
+
+
+
 
     # the output directory and the one from the day before
     #out_dir = Ldir['roms_out'] / Ldir['gtagex'] / ('f' + Ldir['date_string'])
