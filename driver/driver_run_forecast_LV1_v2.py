@@ -347,19 +347,20 @@ print('done with pltfuns.load_and_plot_atm(PFM)')
 ## ====================================
 
 print('going to exit before running roms')
-exit(1)
+#exit(1)
 
 
 print('driver_run_forecast_LV1:  now make .in and .sb files')
 
-pfm_driver_src_dir = os.getcwd()
+pfm_driver_src_dir = os.getcwd()  # get the driver directory
 os.chdir('../sdpm_py_util')
 make_LV1_dotin_and_SLURM( PFM )
-
+os.chdir(pfm_driver_src_dir)   # change dir back to driver
+exit
 # run command will be
 run_slurm_LV1(PFM)
 
-os.chdir(pfm_driver_src_dir)
+
 
 
 # postprocess figure generation

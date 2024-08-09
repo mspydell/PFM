@@ -136,13 +136,14 @@ def  make_LV1_dotin_and_SLURM( PFM ):
     if start_type == 'perfect':
         nrrec = '-1' # '-1' for a perfect restart
         ininame = 'ocean_rst.nc' # start from restart file
+        lv1_ini_dir = PFM['lv1_run_dir']
     else: 
         nrrec = '0' # '0' for a history or ini file
-        ininame = PFM['ininame']  # start from ini file
-
+        ininame = PFM['lv1_ini_file']  # start from ini file
+        lv1_ini_dir = PFM['lv1_forc_dir']
 
     D['nrrec'] = nrrec
-    D['lv1_ini_file'] = PFM['lv1_forc_dir'] + '/' + PFM['lv1_ini_file']
+    D['lv1_ini_file'] = lv1_ini_dir + '/' + ininame
     D['lv1_bc_file'] = PFM['lv1_forc_dir'] + '/' + PFM['lv1_bc_file']    
 
     vtransform = 2
