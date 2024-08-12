@@ -1408,15 +1408,10 @@ def hycom_to_roms_latlon_pckl(fname_in):
 
     #print('before HYrm setup')
     HYrm = dict()
-    Tmpu = dict()
-    Tmpv = dict()
+
     HYrm['zeta'] = np.zeros((NT,NR, NC))
     HYrm['salt'] = np.zeros((NT,NZ, NR, NC))
     HYrm['temp'] = np.zeros((NT,NZ, NR, NC))
-    Tmpu['u_on_u'] = np.zeros((NT,NZ, NR, NC-1))
-    Tmpu['v_on_u'] = np.zeros((NT,NZ, NR, NC-1))
-    Tmpv['u_on_v'] = np.zeros((NT,NZ, NR-1, NC))
-    Tmpv['v_on_v'] = np.zeros((NT,NZ, NR-1, NC))
     HYrm['ubar']   = np.zeros((NT,NR,NC-1))
     HYrm['vbar']   = np.zeros((NT,NR-1,NC))
     HYrm['lat_rho'] = RMG['lat_rho'][:]
@@ -1484,74 +1479,119 @@ def hycom_to_roms_latlon_pckl(fname_in):
     print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
     print('kilobytes')
 
+    reg_u_way = 1
 
-    for aa in vnames:
-        zhy  = HY[aa]
-        print('doing:')
-        print(aa)
-        for cc in range(NT):
-            if aa=='zeta':
-                zhy2 = zhy[cc,:,:]
-                HYrm[aa][cc,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],Fz)            
-            elif aa=='temp' or aa=='salt':
-                for bb in range(NZ):
-                    zhy2 = zhy[cc,bb,:,:]
-                    HYrm[aa][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],Fz)
-            elif aa=='u':
-                for bb in range(NZ):
-                    zhy2= zhy[cc,bb,:,:]
-                    #u_on_u = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_u'],RMG['lat_u'],RMG['mask_u'],Fz)
-                    #u_on_v = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_v'],RMG['lat_v'],RMG['mask_v'],Fz)
-                    Tmpu['u_on_u'][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_u'],RMG['lat_u'],RMG['mask_u'],Fz)
-                    Tmpv['u_on_v'][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_v'],RMG['lat_v'],RMG['mask_v'],Fz)
-            elif aa=='v':
-                for bb in range(NZ):
-                    zhy2= zhy[cc,bb,:,:]
-                    Tmpu['v_on_u'][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_u'],RMG['lat_u'],RMG['mask_u'],Fz)
-                    Tmpv['v_on_v'][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_v'],RMG['lat_v'],RMG['mask_v'],Fz)
+    if reg_u_way == 0:
+        Tmpu = dict()
+        Tmpv = dict()
+        Tmpu['u_on_u'] = np.zeros((NT,NZ, NR, NC-1))
+        Tmpu['v_on_u'] = np.zeros((NT,NZ, NR, NC-1))
+        Tmpv['u_on_v'] = np.zeros((NT,NZ, NR-1, NC))
+        Tmpv['v_on_v'] = np.zeros((NT,NZ, NR-1, NC))
+
+        for aa in vnames:
+            zhy  = HY[aa]
+            print('doing:')
+            print(aa)
+            for cc in range(NT):
+                if aa=='zeta':
+                    zhy2 = zhy[cc,:,:]
+                    HYrm[aa][cc,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],Fz)            
+                elif aa=='temp' or aa=='salt':
+                    for bb in range(NZ):
+                        zhy2 = zhy[cc,bb,:,:]
+                        HYrm[aa][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],Fz)
+                elif aa=='u':
+                    for bb in range(NZ):
+                        zhy2= zhy[cc,bb,:,:]
+                        #u_on_u = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_u'],RMG['lat_u'],RMG['mask_u'],Fz)
+                        #u_on_v = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_v'],RMG['lat_v'],RMG['mask_v'],Fz)
+                        Tmpu['u_on_u'][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_u'],RMG['lat_u'],RMG['mask_u'],Fz)
+                        Tmpv['u_on_v'][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_v'],RMG['lat_v'],RMG['mask_v'],Fz)
+                elif aa=='v':
+                    for bb in range(NZ):
+                        zhy2= zhy[cc,bb,:,:]
+                        Tmpu['v_on_u'][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_u'],RMG['lat_u'],RMG['mask_u'],Fz)
+                        Tmpv['v_on_v'][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_v'],RMG['lat_v'],RMG['mask_v'],Fz)
+        gc.collect()
+        # rotate the velocities so that the velocities are in roms eta,xi coordinates
+        angr = RMG['angle_u']
+        cosang = np.cos(angr)
+        sinang = np.sin(angr)
+
+        print('before rotating urm, using:')
+        print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+        print('kilobytes')
+
+        urm = cosang[None,None,:,:] * Tmpu['u_on_u'][:,:,:,:] + sinang[None,None,:,:] * Tmpu['v_on_u'][:,:,:,:]
+        urm[np.isnan(Tmpu['u_on_u'])==1] = np.nan
+        HYrm['urm'] = urm
+        del Tmpu
+
+        angr = RMG['angle_v']
+        cosang = np.cos(angr)
+        sinang = np.sin(angr)
+        print('before rotating vrm, using:')
+        print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+        print('kilobytes')
+
+        vrm = cosang[None,None,:,:] * Tmpv['v_on_v'][:,:,:,:] - sinang[None,None,:,:] * Tmpv['u_on_v'][:,:,:,:]
+        vrm[np.isnan(Tmpv['v_on_v'])==1] = np.nan
+        HYrm['vrm'] = vrm
+        del Tmpv
+
+    else:
+        Tmpu = dict()
+        Tmpu['u'] = np.zeros((NT,NZ, NR, NC))
+        Tmpu['v'] = np.zeros((NT,NZ, NR, NC))
+        for aa in vnames:
+            zhy  = HY[aa]
+            print('doing:')
+            print(aa)
+            for cc in range(NT):
+                if aa=='zeta':
+                    zhy2 = zhy[cc,:,:]
+                    HYrm[aa][cc,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],Fz)            
+                elif aa=='temp' or aa=='salt':
+                    for bb in range(NZ):
+                        zhy2 = zhy[cc,bb,:,:]
+                        HYrm[aa][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],Fz)
+                elif aa=='u' or aa=='v':
+                    for bb in range(NZ):
+                        zhy2= zhy[cc,bb,:,:]
+                        Tmpu[aa][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],Fz)
+
+        gc.collect()
+        # rotate the velocities so that the velocities are in roms eta,xi coordinates
+        angr = RMG['angle']
+        cosang = np.cos(angr)
+        sinang = np.sin(angr)
+
+        print('before rotating urm, using:')
+        print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+        print('kilobytes')
+
+        urm = cosang[None,None,:,:] * Tmpu['u'][:,:,:,:] + sinang[None,None,:,:] * Tmpu['v'][:,:,:,:]
+        urm[np.isnan(Tmpu['u'])==1] = np.nan
+        HYrm['urm'] = .5*( urm[:,:,:,0:-1] + urm[:,:,:,1:] )
+        del urm
+        gc.collect()
+
+        print('before rotating vrm, using:')
+        print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+        print('kilobytes')
+
+        vrm = cosang[None,None,:,:] * Tmpu['v'][:,:,:,:] - sinang[None,None,:,:] * Tmpu['u'][:,:,:,:]
+        vrm[np.isnan(Tmpu['v'])==1] = np.nan
+        HYrm['vrm'] = .5*( vrm[:,:,0:-1,:] + vrm[:,:,1:,:] )
+        del Tmpu
+        print('after rotating vrm, using:')
+        print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+        print('kilobytes')
+
 
     #print('after Tmp. before rotation')
     del HY
-
-    gc.collect()
-    # rotate the velocities so that the velocities are in roms eta,xi coordinates
-    angr = RMG['angle_u']
-    cosang = np.cos(angr)
-    sinang = np.sin(angr)
-    #Cosang = np.tile(cosang,(NT,NZ,1,1))
-    #Sinang = np.tile(sinang,(NT,NZ,1,1))
-    #urm = Cosang * Tmp['u_on_u'] + Sinang * Tmp['v_on_u']
-
-    print('before rotating urm, using:')
-    print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
-    print('kilobytes')
-
-    #print('before giant multiplication')
-    urm = cosang[None,None,:,:] * Tmpu['u_on_u'][:,:,:,:] + sinang[None,None,:,:] * Tmpu['v_on_u'][:,:,:,:]
-    #print('just after multiplication. before naning')
-    urm[np.isnan(Tmpu['u_on_u'])==1] = np.nan
-    #print('after nanning. before filling HYrm')
-    HYrm['urm'] = urm
-    
-    del Tmpu
-    #print('after filling HYrm with u rotation. before v rotation')
-
-    angr = RMG['angle_v']
-    cosang = np.cos(angr)
-    sinang = np.sin(angr)
-    #Cosang = np.tile(cosang,(NT,NZ,1,1))
-    #Sinang = np.tile(sinang,(NT,NZ,1,1))
-    #vrm = Cosang * HYrm['v_on_v'] - Sinang * HYrm['u_on_v']
-    print('before rotating vrm, using:')
-    print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
-    print('kilobytes')
-
-
-    vrm = cosang[None,None,:,:] * Tmpv['v_on_v'][:,:,:,:] - sinang[None,None,:,:] * Tmpv['u_on_v'][:,:,:,:]
-    vrm[np.isnan(Tmpv['u_on_v'])==1] = np.nan
-    HYrm['vrm'] = vrm
-    del Tmpv
-        
 
     # we need the roms depths on roms u and v grids
     Hru = 0.5 * (RMG['h'][:,0:-1] + RMG['h'][:,1:])
@@ -1564,50 +1604,19 @@ def hycom_to_roms_latlon_pckl(fname_in):
     # do ubar, the depth average velocity in roms (eta,xi) coordinates
     # so ubar and vbar are calculated from hycom depths before interpolating to roms depths
 
-    print('after v rotation. before ubar')
+    utst = Hru[None,:,:] - hyz[:,None,None]
+    vtst = Hrv[None,:,:] - hyz[:,None,None]
 
+    #dz = hyz[1:]-hyz[0:-1]
 
-    use_for = 0 
-    if use_for == 1: # we will not use this to get ubar. could be removed 
-        # for looping this is VERY slow. Need to make faster
-        for aa in range(NR): # lat loop
-            for bb in range(NC-1): # lon loop
-                # get indices of non nan u based depths
-                # this is where the hycom depths are less than the roms depth 
-                igu = np.argwhere(hyz <= Hru[aa,bb])
-                for cc in range(NT): # time loop
-                    uonhyz = HYrm['urm'][cc,:,aa,bb]
-                    ug = uonhyz[igu]
-                    hgu = hyz[igu]
-                    HYrm['ubar'][cc,aa,bb] = ( np.sum( 0.5 * (ug[0:-1]+ug[1:])*(hgu[1:]-hgu[0:-1])) + ug[-1]*(Hru[aa,bb]-hgu[-1]) ) / Hru[aa,bb]
-        # do vbar
-        for aa in range(NR-1): # lat loop
-            for bb in range(NC): # lon loop
-                # get indices of non nan v based depths 
-                igv = np.argwhere(hyz <= Hrv[aa,bb])
-                for cc in range(NT): # time loop
-                    vonhyz = HYrm['vrm'][cc,:,aa,bb]
-                    vg = vonhyz[igv]
-                    hgv = hyz[igv]
-                    HYrm['vbar'][cc,aa,bb] = ( np.sum( 0.5 * (vg[0:-1]+vg[1:])*(hgv[1:]-hgv[0:-1])) + vg[-1]*(Hrv[aa,bb]-hgv[-1]) ) / Hrv[aa,bb]
-    else:
-        # set up mask
+    umsk = 0*utst
+    vmsk = 0*vtst
+    umsk[utst>=0] = 1 # this should put zeros at all depths below the bottom
+    vmsk[vtst>=0] = 1 # and ones at all depths above the bottom
 
-        # use python "broadcasting" to mask velocity
-        # and put zeros in the right place
-        utst = Hru[None,:,:] - hyz[:,None,None]
-        vtst = Hrv[None,:,:] - hyz[:,None,None]
-    
-        #dz = hyz[1:]-hyz[0:-1]
-
-        umsk = 0*utst
-        vmsk = 0*vtst
-        umsk[utst>=0] = 1 # this should put zeros at all depths below the bottom
-        vmsk[vtst>=0] = 1 # and ones at all depths above the bottom
-
-        # put zeros at hycom depths below the bottom
-        HYrm['urm'] = HYrm['urm']*umsk[None,:,:,:]
-        HYrm['vrm'] = HYrm['vrm']*vmsk[None,:,:,:]
+    # put zeros at hycom depths below the bottom
+    HYrm['urm'] = HYrm['urm']*umsk[None,:,:,:]
+    HYrm['vrm'] = HYrm['vrm']*vmsk[None,:,:,:]
 
     print('about to save OCN_R to multiple pickle files...')
 
@@ -1625,6 +1634,105 @@ def hycom_to_roms_latlon_pckl(fname_in):
             print('saved pickle file: ' + fn_temp)
 
 #    return HYrm
+def make_tmp_hy_on_rom_pckl_files(fname_in,var_name):
+    # HYcom and RoMsGrid come in as dicts with ROMS variable names    
+    # The output of this, HYrm, is a dict with 
+    # hycom fields on roms horizontal grid points
+    # but hycom z levels.
+    # velocity will be on both (lat_u,lon_u)
+    # and (lat_v,lon_v).
+
+#    ork = ['depth','lat_rho','lon_rho','lat_u','lon_u','lat_v','lon_v','ocean_time','ocean_time_ref','salt','temp','ubar','urm','vbar','vrm','zeta','vinfo']
+
+    PFM=get_PFM_info()
+    RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
+    fn_temp = PFM['lv1_forc_dir'] + '/tmp_' + var_name + '.pkl'
+
+    HYrm=dict()
+    if var_name == 'vinfo':
+        HYrm['vinfo']=dict()
+        HYrm['vinfo']['depth'] = HY['vinfo']['depth']
+        HYrm['vinfo']['ocean_time'] = HY['vinfo']['ocean_time']
+        HYrm['vinfo']['ocean_time_ref'] = HY['vinfo']['ocean_time_ref']
+        HYrm['vinfo']['lon_rho'] = {'long_name':'rho point longitude',
+                            'units':'degrees_east'}
+        HYrm['vinfo']['lat_rho'] = {'long_name':'rho point latitude',
+                            'units':'degrees_north'}
+        HYrm['vinfo']['lon_u'] = {'long_name':'rho point longitude',
+                            'units':'degrees_east'}
+        HYrm['vinfo']['lat_u'] = {'long_name': 'u point latitude',
+                            'units':'degrees_north'}
+        HYrm['vinfo']['lon_v'] = {'long_name':'v point longitude',
+                            'units':'degrees_east'}
+        HYrm['vinfo']['lat_v'] = {'long_name':'v point latitude',
+                            'units':'degrees_north'}
+        HYrm['vinfo']['temp'] = {'long_name':'ocean temperature',
+                            'units':'degrees C',
+                            'coordinates':'z,lat_rho,lon_rho',
+                            'time':'ocean_time'}
+        HYrm['vinfo']['salt'] = {'long_name':'ocean salinity',
+                            'units':'psu',
+                            'coordinates':'z,lat_rho,lon_rho',
+                            'time':'ocean_time'}
+        HYrm['vinfo']['zeta'] = {'long_name':'ocean sea surface height',
+                            'units':'m',
+                            'coordinates':'lat_rho,lon_rho',
+                            'time':'ocean_time'}
+        HYrm['vinfo']['urm'] = {'long_name':'ocean xi velocity',
+                            'units':'m/s',
+                            'coordinates':'z,lat_u,lon_u',
+                            'time':'ocean_time',
+                            'note':'this is now rotated in the roms xi direction'}
+        HYrm['vinfo']['vrm'] = {'long_name':'ocean eta velocity',
+                            'units':'m/s',
+                            'coordinates':'z,lat_v,lon_v',
+                            'time':'ocean_time',
+                            'note':'this is now rotated in the roms eta direction'}
+        HYrm['vinfo']['ubar'] = {'long_name':'ocean xi depth avg velocity',
+                            'units':'m/s',
+                            'coordinates':'lat_u,lon_u',
+                            'time':'ocean_time',
+                            'note':'uses hycom depths and this is now rotated in the roms xi direction'}
+        HYrm['vinfo']['vbar'] = {'long_name':'ocean eta depth avg velocity',
+                            'units':'m/s',
+                            'coordinates':'lat_v,lon_v',
+                            'time':'ocean_time',
+                            'note':'uses hycom depths and this is now rotated in the roms eta direction'}
+        
+        with open(fn_temp,'wb') as fp:
+            pickle.dump(HYrm[var_name],fp)
+            print('saved pickle file: ' + fn_temp)
+    
+    elif var_name == 'depth' or var_name == 'ocean_time': 
+        HYrm[var_name] = HY[var_name][:] # depths are from hycom
+        with open(fn_temp,'wb') as fp:
+            pickle.dump(HYrm[var_name],fp)
+            print('saved pickle file: ' + fn_temp)
+    
+    elif var_name == 'ocean_time_ref': 
+        HYrm[var_name] = HY[var_name] 
+        with open(fn_temp,'wb') as fp:
+            pickle.dump(HYrm[var_name],fp)
+            print('saved pickle file: ' + fn_temp)
+
+    elif var_name == 'lat_rho' or var_name == 'lon_rho' or var_name == 'lat_u' or var_name == 'lon_u' or var_name == 'lat_v' or var_name == 'lon_v':
+        HYrm[var_name] = RMG[var_name][:]
+        with open(fn_temp,'wb') as fp:
+            pickle.dump(HYrm[var_name],fp)
+            print('saved pickle file: ' + fn_temp)
+   
+
+
+
+
+
+    # load the hycom data
+    with open(fname_in,'rb') as fp:
+        HY = pickle.load(fp)
+        print('OCN dict loaded with pickle')
+
+
+
 
 def load_ocnR_from_pckl_files():
 
