@@ -144,7 +144,8 @@ def get_PFM_info():
    PFM['lv1_atm_file'] = 'LV1_ATM_FORCING.nc'
    PFM['lv1_ini_file'] = 'LV1_OCEAN_IC.nc'
    PFM['lv1_bc_file'] =  'LV1_OCEAN_BC.nc'   
-   
+   PFM['lv1_tide_fname'] = 'roms_tide_adcirc_LV01.nc'
+
 #   PFM['lv2_run_dir'] = lv2_run_dir
 #   PFM['lv2_grid_dir'] = pfm_grid_dir
 #   PFM['lv2_his_dir'] = lv2_his_dir

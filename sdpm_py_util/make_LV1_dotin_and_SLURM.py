@@ -27,7 +27,7 @@ from datetime import datetime, timedelta
 from get_PFM_info import get_PFM_info
 
 
-def  make_LV1_dotin_and_SLURM( PFM ):
+def  make_LV1_dotin_and_SLURM( PFM , yyyymmddhhmm):
 
 
     pth = Path(__file__).absolute().parent.parent.parent / 'lo_tools' / 'lo_tools'
@@ -53,8 +53,11 @@ def  make_LV1_dotin_and_SLURM( PFM ):
     #D['EX_NAME'] = Ldir['ex_name'].upper()
 
     # this is where the varinfo.yaml file is located.
+    # the original location was 
+    # VARNAME = /home/matt/models/roms/ROMS/External/varinfo.yaml
+    # but now it is
+    D['roms_varinfo_dir'] = PFM['lv1_run_dir'] +  '/LV1_varinfo.yaml'  ## FIX!
 
-    #D['roms_varinfo_dir'] = Ldir['parent'] / 'LO_roms_source_alt' / 'varinfo'  ## FIX!
     #### USER DEFINED VALUES ####
 
     #Ldir['run_type'] == 'forecast'
@@ -132,8 +135,11 @@ def  make_LV1_dotin_and_SLURM( PFM ):
     D['nrst'] = int(rst_interval*86400/dtsec)
 
 
-        #date_string_yesterday = fdt_yesterday.strftime(Lfun.ds_fmt)
-        #D['dstart'] = int(Lfun.datetime_to_modtime(fdt) / 86400.)
+    #date_string_yesterday = fdt_yesterday.strftime(Lfun.ds_fmt)
+    t0 = PFM['modtime0']
+    t2 = datetime.strptime( yyyymmddhhmm, '%Y%m%d%H%M')
+    dt = (t2-t0)/timedelta(days=1) # days since 19990101
+    D['dstart'] = str(dt) + 'd0' # this is in the form xxxxx.5 due to 12:00 start time for hycom
 
         # Paths to forcing various file locations
     D['lv1_grid_dir'] = PFM['lv1_grid_dir']
@@ -194,9 +200,10 @@ def  make_LV1_dotin_and_SLURM( PFM ):
     lv1_sbfile_local = 'LV1_SLURM.sb'
     D['lv1_infile_local'] = lv1_infile_local
     D['lv1_logfile_local'] = lv1_logfile_local
+    D['lv1_tides_file'] = PFM['lv1_forc_dir'] + '/' + PFM['lv1_tide_fname']
 
-    lv1_executable = 'lv1_oceanM'
-    D['lv1_executable'] = lv1_executable
+    lv1_executable = 'LV1_oceanM'
+    D['lv1_executable'] = PFM['lv1_run_dir'] + '/' + lv1_executable
 
     # END DERIVED VALUES
     dot_in_dir = '.'

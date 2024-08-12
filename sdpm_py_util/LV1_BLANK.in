@@ -68,12 +68,12 @@
 
 ! C-preprocessing Flag.
 
-    MyAppCPP = LV1_FORECAST
+    MyAppCPP = LVONE_FORECAST
 
 ! Input variable information file name.  This file needs to be processed
 ! first so all information arrays can be initialized properly.
 
-      VARNAME = $roms_varinfo_dir$/varinfo.yaml
+      VARNAME = $roms_varinfo_dir$
       
 ! Number of nested grids.
 
@@ -108,6 +108,42 @@ GridsInLayer =  1
 
       NtileI == $ntilei$                               ! I-direction partition
       NtileJ == $ntilej$                               ! J-direction partition
+
+! Set horizontal and vertical advection schemes for active and inert
+! tracers. A different advection scheme is allowed for each tracer.
+! For example, a positive-definite (monotonic) algorithm can be activated
+! for salinity and inert tracers, while a different one is set for
+! temperature. [1:NAT+NPT,Ngrids] values are expected.
+!
+!   Keyword    Advection Algorithm
+!
+!   A4         4th-order Akima (horizontal/vertical)
+!   C2         2nd-order centered differences (horizontal/vertical)
+!   C4         4th-order centered differences (horizontal/vertical)
+!   HSIMT      3th-order HSIMT-TVD (horizontal/vertical)
+!   MPDATA     recursive flux corrected MPDATA (horizontal/vertical)
+!   SPLINES    parabolic splines (only vertical)
+!   SU3        split third-order upstream (horizontal/vertical)
+!   U3         3rd-order upstream-biased (only horizontal)
+!
+! The user has the option of specifying the full Keyword or the first
+! two letters, regardless if using uppercase or lowercase. If nested
+! grids, specify values for each grid (see glossary below).
+
+   Hadvection == MPDATA \ !U3       \                     ! temperature
+                 MPDATA   !HSIMT                          ! salinity
+
+   Vadvection == MPDATA       \                     ! temperature
+                 MPDATA    !HSIMT                          ! salinity
+
+! Adjoint-based algorithms can have different horizontal and schemes
+! for active and inert tracers.
+
+ad_Hadvection == U3       \                     ! temperature
+                 U3                             ! salinity
+
+ad_Vadvection == C4       \                     ! temperature
+                 C4                             ! salinity
 
 
 
@@ -404,7 +440,7 @@ LtracerSponge == F F                            ! temperature, salinity, inert
 ! origin for tidal forcing, and model reference time for output
 ! NetCDF units attribute.
 
-      DSTART =  $dstart$.0d0               ! days
+      DSTART =  $dstart$               ! days
   TIDE_START =  6025.0d0                      ! days
     TIME_REF =  19990101.0d0                      ! yyyymmdd.dd
 
@@ -951,7 +987,71 @@ Dout(iTvdif) == T F     ! temp_vdiff, ...    vertical diffusion
        NUSER =  0
         USER =  0.d0
 
-! NetCDF-4/HDF5 compression parameters for output files.
+! Input and Output files processing library to use:
+!
+!   [1] Standard NetCDF-3 or NetCDF-4 library
+!   [2] Serial or Parallel I/O with Parallel-IO (PIO) library (MPI only)
+
+     INP_LIB =  1
+     OUT_LIB =  1
+
+! PIO library methods for reading/writing NetCDF files:
+!
+!   [0] parallel read and write of PnetCDF (CDF-5, not recommended)
+!   [1] parallel read and write of NetCDF3 (64-bit offset)
+!   [2] serial   read and write of NetCDF3 (64-bit offset)
+!   [3] parallel read and serial write of NetCDF4/HDF5
+!   [4] parallel read and write of NETCDF4/HDF5
+
+  PIO_METHOD =  2
+
+! PIO library MPI processes set-up:
+
+ PIO_IOTASKS =  1                 ! number of I/O tasks to define
+  PIO_STRIDE =  1                 ! stride in the MPI-ran between I/O tasks
+    PIO_BASE =  0                 ! offset for the first I/O task
+  PIO_AGGREG =  1                 ! number of MPI-aggregators to use
+
+! PIO library rearranger methods for moving data between computational and I/O
+! processes:
+!
+!   [1] Box rearrangement
+!   [2] Subset rearrangement
+
+   PIO_REARR =  1
+
+! PIO library rearranger flag for MPI communications between computational
+! and I/O processes:
+!
+!   [0] Point-to-Point (low-level communications)
+!   [1] Collective (high-level grouped communications)
+
+PIO_REARRCOM =  0
+
+! PIO library rearranger flow control direction flag for MPI communications
+! between computational and I/O processes:
+!
+!   [0] Enable computational to I/O processes, and vice versa
+!   [2] Enable computational to I/O processes only
+!   [3] Enable I/O to computational processes only
+!   [4] Disable flow control
+
+PIO_REARRDIR = 0
+
+! PIO rearranger options for computational to I/O processes (C2I):
+
+  PIO_C2I_HS = T                  ! Enable C2I handshake (T/F)
+PIO_C2I_Send = T                  ! Enable C2I Isends (T/F)
+PIO_C2I_Preq = 64                 ! Maximum pending C2I requests
+
+! PIO rearranger options for I/O to computational processes (I2C):
+
+  PIO_I2C_HS = T                  ! Enable I2C handshake (T/F)
+PIO_I2C_Send = T                  ! Enable I2C Isends (T/F)
+PIO_I2C_Preq = 65                 ! Maximum pending I2C requests
+
+
+! If OUT_LIB=1, NetCDF-4/HDF5 compression parameters for output files.
 
   NC_SHUFFLE =  1                 ! if non-zero, turn on shuffle filter
   NC_DEFLATE =  1                 ! if non-zero, turn on deflate filter
@@ -997,7 +1097,7 @@ Dout(iTvdif) == T F     ! temp_vdiff, ...    vertical diffusion
 
 ! Input tidal forcing file name.
 
-    TIDENAME == $lv1_forc_dir$/tides.nc
+    TIDENAME == $lv1_tides_file$
 
 ! Input forcing NetCDF file name(s).
 !
