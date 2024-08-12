@@ -205,6 +205,8 @@ def  make_LV1_dotin_and_SLURM( PFM , yyyymmddhhmm):
     lv1_executable = 'LV1_oceanM'
     D['lv1_executable'] = PFM['lv1_run_dir'] + '/' + lv1_executable
 
+    #/scratch/PFM_Simulations/LV1_Forecast/Run/LV1_oceanM
+    #/scratch/PFM_Simulations/LV1_Forecast/Run/LV1_oceanM
     # END DERIVED VALUES
     dot_in_dir = '.'
     blank_infile = dot_in_dir +'/' +  'LV1_BLANK.in'

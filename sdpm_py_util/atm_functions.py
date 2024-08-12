@@ -239,21 +239,29 @@ def get_atm_data_as_dict(yyyymmdd,hhmm,run_type,atm_mod,get_method,PFM):
         ATM['vinfo']['lat'] = {'long_name':'latitude',
                         'units':'degrees_north'}
         ATM['vinfo']['ocean_time'] = {'long_name':'atmospheric forcing time',
-                            'units':'days since tref'}
+                            'units':'days',
+                            'field': 'time, scalar, series'}
         ATM['vinfo']['rain_time'] = {'long_name':'atmospheric rain forcing time',
-                            'units':'days since tref'}
+                            'units':'days',
+                            'field': 'time, scalar, series'}
         ATM['vinfo']['wind_time'] = {'long_name':'atmospheric wind forcing time',
-                            'units':'days since tref'}
+                            'units':'days',
+                            'field': 'time, scalar, series'}
         ATM['vinfo']['tair_time'] = {'long_name':'atmospheric temp forcing time',
-                            'units':'days since tref'}
+                            'units':'days',
+                            'field': 'time, scalar, series'}
         ATM['vinfo']['pair_time'] = {'long_name':'atmospheric pressure forcing time',
-                            'units':'days since tref'}
+                            'units':'days',
+                            'field': 'time, scalar, series'}
         ATM['vinfo']['qair_time'] = {'long_name':'atmospheric humidity forcing time',
-                            'units':'days since tref'}
+                            'units':'days',
+                            'field': 'time, scalar, series'}
         ATM['vinfo']['srf_time'] = {'long_name':'atmospheric short wave radiation forcing time',
-                            'units':'days since tref'}
+                            'units':'days',
+                            'field': 'time, scalar, series'}
         ATM['vinfo']['lrf_time'] = {'long_name':'atmospheric long wave radiation forcing time',
-                            'units':'days since tref'}
+                            'units':'days',
+                            'field': 'time, scalar, series'}
         ATM['vinfo']['Tair'] = {'long_name':'surface air temperature',
                         'units':'degrees C',
                         'coordinates':'lat,lon',

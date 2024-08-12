@@ -3,7 +3,8 @@ import pickle
 #import matplotlib.pyplot as plt
 #import numpy as np
 import os
-from datetime import datetime, timezone
+import subprocess
+#from datetime import datetime, timezone
 #import cartopy.crs as ccrs
 #import cartopy.feature as cfeature
 #import matplotlib.pyplot as plt
@@ -19,19 +20,19 @@ sys.path.append('../sdpm_py_util')
 #import grid_functions as grdfuns
 import util_functions as utlfuns 
 import plotting_functions as pltfuns
-from util_functions import s_coordinate_4
-from get_PFM_info import get_PFM_info
+#from util_functions import s_coordinate_4
+#from get_PFM_info import get_PFM_info
 
 
 def run_slurm_LV1( PFM ):
 
     os.chdir(PFM['lv1_run_dir'])
     print('run_slurm_LV1: current directory is now: ', os.getcwd() )
+    
+    cmd_list = ['sbatch','LV1_SLURM.sb']
+    proc = subprocess.run(cmd_list, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-    cmd_list = 'sbatch ' + 'LV1_SLURM.sb'
-    proc = subprocess.Popen(cmd_list, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-    print('run_slurm_LV1: ran command: ', cmd_list )
+    print('run_slurm_LV1: run command: ', cmd_list )
 
  
     return proc
