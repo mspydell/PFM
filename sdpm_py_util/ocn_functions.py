@@ -3315,7 +3315,6 @@ def ocn_r_2_BCdict_pckl(fname_out):
     eta_u = 0.5 * (eta[:,:,0:-1]+eta[:,:,1:])
     eta_v = 0.5 * (eta[:,0:-1,:]+eta[:,1:,:])
 
-    print('got here 1')
     # get the roms z's
     hraw = None
     if Vst == 4:
@@ -3329,16 +3328,6 @@ def ocn_r_2_BCdict_pckl(fname_out):
                         'valid min':'-1',
                         'valid max':'0',
                         'field':'Cs_r, scalar, series'}
-    
-    # do we need sc_r ???
-    #OCN_IC['sc_r'] = []
-    #OCN_IC['vinfo']['sc_r'] = {'long_name':'S-coordinate at RHO-points',
-    #                    'units':'nondimensional',
-    #                    'valid min':'-1',
-    #                    'valid max':'0',
-    #                    'field':'sc_r, scalar, series'}
-
-    print('got here 1a')
 
     zr_s=np.squeeze(zrom.z_r[:,:,0,:])    
     zr_n=np.squeeze(zrom.z_r[:,:,-1,:])    
@@ -3347,37 +3336,15 @@ def ocn_r_2_BCdict_pckl(fname_out):
     del zrom
     gc.collect()
 
-    print('got here 1b')
 
     zr_us = .5 * (zr_s[:,:,0:-1]+zr_s[:,:,1:])
     zr_un = .5 * (zr_n[:,:,0:-1]+zr_n[:,:,1:])
     zr_uw = zr_w
 
-    #zr_us=np.squeeze(zrom_u.z_r[:,:,0,:])    
-    #zr_un=np.squeeze(zrom_u.z_r[:,:,-1,:])    
-    #zr_uw=np.squeeze(zrom_u.z_r[:,:,:,0])    
-
-    #del zrom_u
-    #gc.collect()
-
-    print('got here 1c')
 
     zr_vs = zr_w
     zr_vn = zr_n
     zr_vw = .5 * (zr_w[:,:,0:-1]+zr_w[:,:,1:])
-
-    #zr_vs=np.squeeze(zrom_v.z_r[:,:,0,:])
-    #zr_vn=np.squeeze(zrom_v.z_r[:,:,-1,:])
-    #zr_vw=np.squeeze(zrom_v.z_r[:,:,:,0])
-
-    #del zrom_v
-    #gc.collect()
-
-
-
-    print('got here 2')
-
-
 
     for aa in range(Nt):
         for bb in range(nln):
@@ -3533,7 +3500,6 @@ def ocn_r_2_BCdict_pckl(fname_out):
 
     print('got here 3')
 
-
     # ROMS wants potential temperature, not temperature
     # this needs the seawater package, conda install seawater, did this for me
     pdb = -zr_s # pressure in dbar
@@ -3588,6 +3554,15 @@ def ocn_roms_IC_dict_to_netcdf_pckl(fname_in,fn_out):
     with open(fname_in,'rb') as fout:
         ATM_R=pickle.load(fout)
         print('OCN_IC dict loaded with pickle')
+
+    # need to de-NaN some fields, fill with the mean of all non NaNs
+    vns = ['temp','salt','u','v','ubar','vbar','zeta']
+    for vn in vns:
+        print('doing ' + vn)
+        ff = ATM_R[vn].copy()
+        ff = np.nan_to_num(ff,nan=np.nanmean(ff))
+        #ff = ff.filled(ff.mean())
+        ATM_R[vn] = ff
 
     ds = xr.Dataset(
         data_vars = dict(
@@ -3677,42 +3652,55 @@ def ocn_roms_BC_dict_to_netcdf_pckl(fname_in,fn_out):
 
     ds = xr.Dataset(
         data_vars = dict(
-            temp_south       = (["time","s_rho","xr"],ATM_R['temp_south'],ATM_R['vinfo']['temp_south']),
-            salt_south       = (["time","s_rho","xr"],ATM_R['salt_south'],ATM_R['vinfo']['salt_south']),
-            u_south          = (["time","s_rho","xu"],ATM_R['u_south'],ATM_R['vinfo']['u_south']),
-            v_south          = (["time","s_rho","xv"],ATM_R['v_south'],ATM_R['vinfo']['v_south']),
-            ubar_south       = (["time","xu"],ATM_R['ubar_south'],ATM_R['vinfo']['ubar_south']),
-            vbar_south       = (["time","xv"],ATM_R['vbar_south'],ATM_R['vinfo']['vbar_south']),
-            zeta_south       = (["time","xr"],ATM_R['zeta_south'],ATM_R['vinfo']['zeta_south']),
-            temp_north       = (["time","s_rho","xr"],ATM_R['temp_north'],ATM_R['vinfo']['temp_north']),
-            salt_north       = (["time","s_rho","xr"],ATM_R['salt_north'],ATM_R['vinfo']['salt_north']),
-            u_north          = (["time","s_rho","xu"],ATM_R['u_north'],ATM_R['vinfo']['u_north']),
-            v_north          = (["time","s_rho","xv"],ATM_R['v_north'],ATM_R['vinfo']['v_north']),
-            ubar_north       = (["time","xu"],ATM_R['ubar_north'],ATM_R['vinfo']['ubar_north']),
-            vbar_north       = (["time","xv"],ATM_R['vbar_north'],ATM_R['vinfo']['vbar_north']),
-            zeta_north       = (["time","xr"],ATM_R['zeta_north'],ATM_R['vinfo']['zeta_north']),
-            temp_west        = (["time","s_rho","er"],ATM_R['temp_west'],ATM_R['vinfo']['temp_west']),
-            salt_west        = (["time","s_rho","er"],ATM_R['salt_west'],ATM_R['vinfo']['salt_west']),
-            u_west           = (["time","s_rho","eu"],ATM_R['u_west'],ATM_R['vinfo']['u_west']),
-            v_west           = (["time","s_rho","ev"],ATM_R['v_west'],ATM_R['vinfo']['v_west']),
-            ubar_west        = (["time","eu"],ATM_R['ubar_west'],ATM_R['vinfo']['ubar_west']),
-            vbar_west        = (["time","ev"],ATM_R['vbar_west'],ATM_R['vinfo']['vbar_west']),
-            zeta_west        = (["time","er"],ATM_R['zeta_west'],ATM_R['vinfo']['zeta_west']),
-            Vtransform = ([],ATM_R['Vtr'],ATM_R['vinfo']['Vtr']),
-            Vstretching = ([],ATM_R['Vst'],ATM_R['vinfo']['Vst']),
-            theta_s = ([],ATM_R['th_s'],ATM_R['vinfo']['th_s']),
-            theta_b = ([],ATM_R['th_b'],ATM_R['vinfo']['th_b']),
-            Tcline = ([],ATM_R['Tcl'],ATM_R['vinfo']['Tcl']),
-            hc = ([],ATM_R['hc'],ATM_R['vinfo']['hc']),
+            temp_south       = (["temp_time","s_rho","xr"],ATM_R['temp_south'],ATM_R['vinfo']['temp_south']),
+            salt_south       = (["salt_time","s_rho","xr"],ATM_R['salt_south'],ATM_R['vinfo']['salt_south']),
+            u_south          = (["v3d_time","s_rho","xu"],ATM_R['u_south'],ATM_R['vinfo']['u_south']),
+            v_south          = (["v3d_time","s_rho","xv"],ATM_R['v_south'],ATM_R['vinfo']['v_south']),
+            ubar_south       = (["v2d_time","xu"],ATM_R['ubar_south'],ATM_R['vinfo']['ubar_south']),
+            vbar_south       = (["v2d_time","xv"],ATM_R['vbar_south'],ATM_R['vinfo']['vbar_south']),
+            zeta_south       = (["zeta_time","xr"],ATM_R['zeta_south'],ATM_R['vinfo']['zeta_south']),
+            temp_north       = (["temp_time","s_rho","xr"],ATM_R['temp_north'],ATM_R['vinfo']['temp_north']),
+            salt_north       = (["salt_time","s_rho","xr"],ATM_R['salt_north'],ATM_R['vinfo']['salt_north']),
+            u_north          = (["v3d_time","s_rho","xu"],ATM_R['u_north'],ATM_R['vinfo']['u_north']),
+            v_north          = (["v3d_time","s_rho","xv"],ATM_R['v_north'],ATM_R['vinfo']['v_north']),
+            ubar_north       = (["v2d_time","xu"],ATM_R['ubar_north'],ATM_R['vinfo']['ubar_north']),
+            vbar_north       = (["v2d_time","xv"],ATM_R['vbar_north'],ATM_R['vinfo']['vbar_north']),
+            zeta_north       = (["zeta_time","xr"],ATM_R['zeta_north'],ATM_R['vinfo']['zeta_north']),
+            temp_west        = (["temp_time","s_rho","er"],ATM_R['temp_west'],ATM_R['vinfo']['temp_west']),
+            salt_west        = (["salt_time","s_rho","er"],ATM_R['salt_west'],ATM_R['vinfo']['salt_west']),
+            u_west           = (["v3d_time","s_rho","eu"],ATM_R['u_west'],ATM_R['vinfo']['u_west']),
+            v_west           = (["v3d_time","s_rho","ev"],ATM_R['v_west'],ATM_R['vinfo']['v_west']),
+            ubar_west        = (["v2d_time","eu"],ATM_R['ubar_west'],ATM_R['vinfo']['ubar_west']),
+            vbar_west        = (["v2d_time","ev"],ATM_R['vbar_west'],ATM_R['vinfo']['vbar_west']),
+            zeta_west        = (["zeta_time","er"],ATM_R['zeta_west'],ATM_R['vinfo']['zeta_west']),
+            Vtransform       = ([],ATM_R['Vtr'],ATM_R['vinfo']['Vtr']),
+            Vstretching      = ([],ATM_R['Vst'],ATM_R['vinfo']['Vst']),
+            theta_s          = ([],ATM_R['th_s'],ATM_R['vinfo']['th_s']),
+            theta_b          = ([],ATM_R['th_b'],ATM_R['vinfo']['th_b']),
+            Tcline           = ([],ATM_R['Tcl'],ATM_R['vinfo']['Tcl']),
+            hc               = ([],ATM_R['hc'],ATM_R['vinfo']['hc']),
         ),
         coords=dict(
             ocean_time = (["time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
-            Cs_r = (["s_rho"],ATM_R['Cs_r'],ATM_R['vinfo']['Cs_r']),
+            zeta_time  = (["zeta_time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
+            v2d_time   = (["v2d_time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
+            v3d_time   = (["v3d_time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
+            salt_time  = (["salt_time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
+            temp_time  = (["temp_time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
+            Cs_r       = (["s_rho"],ATM_R['Cs_r'],ATM_R['vinfo']['Cs_r']),
          ),
         attrs={'type':'ocean boundary condition file fields for starting roms',
             'time info':'ocean time is from '+ ATM_R['ocean_time_ref'].strftime("%Y/%m/%d %H:%M:%S") },
         )
     print(ds)
+
+   # these are extra time variables
+   # tvars=['zeta_time', 'v2d_time', 'v3d_time', 'salt_time','temp_time']
+   # for vn in tvars:
+    #    OCN_BC[vn] = OCN_BC['ocean_time']
+     #   OCN_BC['vinfo'][vn] = OCN_BC['vinfo']['ocean_time']
+
+
 
     ds.to_netcdf(fn_out)
     ds.close()
