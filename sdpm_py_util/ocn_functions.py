@@ -3558,7 +3558,7 @@ def ocn_roms_IC_dict_to_netcdf_pckl(fname_in,fn_out):
     # need to de-NaN some fields, fill with the mean of all non NaNs
     vns = ['temp','salt','u','v','ubar','vbar','zeta']
     for vn in vns:
-        print('doing ' + vn)
+        #print('doing ' + vn)
         ff = ATM_R[vn].copy()
         ff = np.nan_to_num(ff,nan=np.nanmean(ff))
         #ff = ff.filled(ff.mean())
@@ -3649,6 +3649,18 @@ def ocn_roms_BC_dict_to_netcdf_pckl(fname_in,fn_out):
     with open(fname_in,'rb') as fout:
         ATM_R=pickle.load(fout)
         print('OCN_BC dict loaded with pickle')
+
+    # lets replace NaNs if there are any
+    vns = ['temp','salt','u','v','ubar','vbar','zeta']
+    sds = ['north','south','west']
+    for vn in vns:
+        for sd in sds
+            #print('doing ' + vn)
+            ff = ATM_R[vn+sd].copy()
+            ff = np.nan_to_num(ff,nan=np.nanmean(ff))
+            #ff = ff.filled(ff.mean())
+            ATM_R[vn+sd] = ff
+    
 
     ds = xr.Dataset(
         data_vars = dict(
