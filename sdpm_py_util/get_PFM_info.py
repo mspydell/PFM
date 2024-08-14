@@ -21,7 +21,7 @@ def get_PFM_info():
        HOSTNAME = 'BLANK'
 
 
-   print('get_PFM_info(): running on' + HOSTNAME)
+   #print('get_PFM_info(): running on' + HOSTNAME)
    
    if str(HOSTNAME) == 'swell':
        pfm_root_dir = '/scratch/PFM_Simulations/'

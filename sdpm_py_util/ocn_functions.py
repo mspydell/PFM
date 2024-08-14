@@ -7,6 +7,7 @@ import gc
 import resource
 import pickle
 import grid_functions as grdfuns
+import os
 
 #sys.path.append('../sdpm_py_util')
 from get_PFM_info import get_PFM_info
@@ -22,6 +23,7 @@ import xarray as xr
 import netCDF4 as nc
 from scipy.interpolate import RegularGridInterpolator
 from scipy.interpolate import interp1d
+
 import seawater
 import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -30,6 +32,10 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from util_functions import s_coordinate_4
 #from pydap.client import open_url
 import sys
+
+import warnings
+warnings.filterwarnings("ignore")
+
 
 def sum_fn(a, b):
     ia = int(a)
@@ -1634,6 +1640,34 @@ def hycom_to_roms_latlon_pckl(fname_in):
             print('saved pickle file: ' + fn_temp)
 
 #    return HYrm
+
+def make_all_tmp_pckl_ocnR_files(fname_in):
+    
+    print('and saving 17 pickle files...')
+    
+    ork = ['depth','lat_rho','lon_rho','lat_u','lon_u','lat_v','lon_v','ocean_time','ocean_time_ref','salt','temp','ubar','urm','vbar','vrm','zeta','vinfo']
+    
+    os.chdir('../sdpm_py_util')
+    rctot = 0
+    for aa in ork:
+        print('doing ' + aa + ' using subprocess')
+        cmd_list = ['python','ocn_functions.py','make_tmp_hy_on_rom_pckl_files',fname_in,aa]
+        ret1 = subprocess.run(cmd_list)     
+        rctot = rctot + ret1.returncode
+        if ret1.returncode != 0:
+            print('the ' + aa + ' pickle file was not made correctly')
+
+    if rctot == 0: 
+        print('...done. \nall 17 ocnR pickle files were made correctly')
+    else:
+        print('...done. \nat least one of the ocnR pickle files were not made correctly')
+    
+    os.chdir('../driver')
+
+
+
+
+
 def make_tmp_hy_on_rom_pckl_files(fname_in,var_name):
     # HYcom and RoMsGrid come in as dicts with ROMS variable names    
     # The output of this, HYrm, is a dict with 
@@ -1642,10 +1676,21 @@ def make_tmp_hy_on_rom_pckl_files(fname_in,var_name):
     # velocity will be on both (lat_u,lon_u)
     # and (lat_v,lon_v).
 
-#    ork = ['depth','lat_rho','lon_rho','lat_u','lon_u','lat_v','lon_v','ocean_time','ocean_time_ref','salt','temp','ubar','urm','vbar','vrm','zeta','vinfo']
+    # load the hycom data
+    with open(fname_in,'rb') as fp:
+        HY = pickle.load(fp)
+        #print('OCN dict loaded with pickle')
+
+    lnhy = HY['lon']
+    lthy = HY['lat']
 
     PFM=get_PFM_info()
     RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
+
+    NR,NC = np.shape(RMG['lon_rho'])
+    NZ = len(HY['depth'])
+    NT = len(HY['ocean_time'])
+
     fn_temp = PFM['lv1_forc_dir'] + '/tmp_' + var_name + '.pkl'
 
     HYrm=dict()
@@ -1698,40 +1743,80 @@ def make_tmp_hy_on_rom_pckl_files(fname_in,var_name):
                             'coordinates':'lat_v,lon_v',
                             'time':'ocean_time',
                             'note':'uses hycom depths and this is now rotated in the roms eta direction'}
-        
-        with open(fn_temp,'wb') as fp:
-            pickle.dump(HYrm[var_name],fp)
-            print('saved pickle file: ' + fn_temp)
-    
+            
     elif var_name == 'depth' or var_name == 'ocean_time': 
         HYrm[var_name] = HY[var_name][:] # depths are from hycom
-        with open(fn_temp,'wb') as fp:
-            pickle.dump(HYrm[var_name],fp)
-            print('saved pickle file: ' + fn_temp)
-    
+      
     elif var_name == 'ocean_time_ref': 
         HYrm[var_name] = HY[var_name] 
-        with open(fn_temp,'wb') as fp:
-            pickle.dump(HYrm[var_name],fp)
-            print('saved pickle file: ' + fn_temp)
-
+    
     elif var_name == 'lat_rho' or var_name == 'lon_rho' or var_name == 'lat_u' or var_name == 'lon_u' or var_name == 'lat_v' or var_name == 'lon_v':
         HYrm[var_name] = RMG[var_name][:]
-        with open(fn_temp,'wb') as fp:
-            pickle.dump(HYrm[var_name],fp)
-            print('saved pickle file: ' + fn_temp)
    
+    elif var_name == 'zeta':
+        Fz = RegularGridInterpolator((HY['lat'],HY['lon']),HY['zeta'][0,:,:])
+        HYrm[var_name] = np.zeros((NT,NR,NC))
+        for cc in range(NT):
+            zhy2 = HY[var_name][cc,:,:]
+            HYrm[var_name][cc,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],Fz)            
 
+    elif var_name == 'salt' or var_name == 'temp':
+        Fz = RegularGridInterpolator((HY['lat'],HY['lon']),HY['zeta'][0,:,:])
+        HYrm[var_name] = np.zeros((NT,NZ,NR,NC))
+        for cc in range(NT):
+            for bb in range(NZ):
+                zhy2 = HY[var_name][cc,bb,:,:]
+                HYrm[var_name][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],Fz)            
 
+    elif var_name == 'urm' or var_name == 'vrm':
+        Fz = RegularGridInterpolator((HY['lat'],HY['lon']),HY['zeta'][0,:,:])
 
+        hyz = HY['depth']
+        angr = RMG['angle']
+        cosang = np.cos(angr)
+        sinang = np.sin(angr)
 
+        if var_name == 'urm':
+            HYrm['urm'] = np.zeros((NT,NZ,NR,NC-1))
+        else:
+            HYrm['vrm'] = np.zeros((NT,NZ,NR-1,NC)) 
+        
+        for cc in range(NT):
+            for bb in range(NZ):
+                uhy = HY['u'][cc,bb,:,:]
+                vhy = HY['v'][cc,bb,:,:]
+                u1 = interp_hycom_to_roms(lnhy,lthy,uhy,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],Fz)
+                v1 = interp_hycom_to_roms(lnhy,lthy,vhy,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],Fz)            
+                if var_name == 'urm':
+                    u2 = cosang * u1 + sinang * v1
+                    u3 = .5*( u2[:,0:-1]+u2[:,1:] )
+                    HYrm['urm'][cc,bb,:,:] = u3
+                else:
+                    v2 = cosang * v1 - sinang * u1
+                    v3 = .5*( v2[0:-1,:]+v2[1:,:] )
+                    HYrm['vrm'][cc,bb,:,:] = v3
 
-    # load the hycom data
-    with open(fname_in,'rb') as fp:
-        HY = pickle.load(fp)
-        print('OCN dict loaded with pickle')
+        if var_name == 'urm':
+            Hru = 0.5 * (RMG['h'][:,0:-1] + RMG['h'][:,1:])
+            utst = Hru[None,:,:] - hyz[:,None,None]
+            umsk = 0*utst
+            umsk[utst>=0] = 1 # this should put zeros at all depths below the bottom
+            HYrm['urm'] = HYrm['urm']*umsk[None,:,:,:]
+        else:
+            Hrv = 0.5 * (RMG['h'][0:-1,:] + RMG['h'][1:,:])
+            vtst = Hrv[None,:,:] - hyz[:,None,None]
+            vmsk = 0*vtst
+            vmsk[vtst>=0] = 1 # and ones at all depths above the bottom
+            HYrm['vrm'] = HYrm['vrm']*vmsk[None,:,:,:]
 
+    elif var_name == 'vbar': # zeros is just a place holder as depth avg velocities are calculated later 
+        HYrm[var_name] = np.zeros((NT,NR-1,NC))
+    elif var_name == 'ubar':
+        HYrm[var_name] = np.zeros((NT,NR,NC-1))    
 
+    with open(fn_temp,'wb') as fp:
+        pickle.dump(HYrm[var_name],fp)
+        #print('saved pickle file: ' + fn_temp)
 
 
 def load_ocnR_from_pckl_files():

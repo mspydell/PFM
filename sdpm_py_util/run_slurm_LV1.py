@@ -30,8 +30,12 @@ def run_slurm_LV1( PFM ):
     print('run_slurm_LV1: current directory is now: ', os.getcwd() )
     
     cmd_list = ['sbatch','LV1_SLURM.sb']
-    proc = subprocess.run(cmd_list, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    #proc = subprocess.run(cmd_list, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    proc = subprocess.run(cmd_list)
 
+    print(proc)
+
+    print('subprocess slurm ran correctly? ' + str(proc.returncode) + ' (0=yes)')
     print('run_slurm_LV1: run command: ', cmd_list )
 
  
