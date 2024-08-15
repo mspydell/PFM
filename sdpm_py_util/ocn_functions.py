@@ -3652,9 +3652,9 @@ def ocn_roms_BC_dict_to_netcdf_pckl(fname_in,fn_out):
 
     # lets replace NaNs if there are any
     vns = ['temp','salt','u','v','ubar','vbar','zeta']
-    sds = ['north','south','west']
+    sds = ['_north','_south','_west']
     for vn in vns:
-        for sd in sds
+        for sd in sds:
             #print('doing ' + vn)
             ff = ATM_R[vn+sd].copy()
             ff = np.nan_to_num(ff,nan=np.nanmean(ff))
