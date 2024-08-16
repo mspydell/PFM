@@ -129,12 +129,12 @@ def  make_LV1_dotin_and_SLURM( PFM , yyyymmddhhmm):
 
         # this is the number of time steps to run runs for.  dtsec is BC timestep
     D['ntimes'] = int(days_to_run*86400/dtsec)
-    D['ninfo'] = int(his_interval/dtsec) # how often to write info to the log file (# of time steps)
+    D['ninfo'] = 1 # how often to write info to the log file (# of time steps)
     D['nhis'] = int(his_interval/dtsec) # how often to write to the history files
     D['ndefhis'] = D['nhis'] # how often to create new history files
     D['nrst'] = int(rst_interval*86400/dtsec)
-    D['ndia'] = 1 # write to log file every time step.
-    D['ndefdia'] = 1
+    D['ndia'] = 60 # write to log file every time step.
+    D['ndefdia'] = 60
 
 
     #date_string_yesterday = fdt_yesterday.strftime(Lfun.ds_fmt)

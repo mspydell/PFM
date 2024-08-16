@@ -3505,8 +3505,7 @@ def ocn_r_2_BCdict_pckl_new(fname_out):
             if len(ig) < 1: # you get in here if all f(z) is nan, ie. we are in land
                 # we also make sure that if there is only 1 good value, we also return nans
                 TMP['temp_south'][aa,:,bb] = np.squeeze(np.nan*zr_s[aa,:,bb])
-                OCN_BC['salt_south'][aa,:,bb] = np.squeeze(np.nan*zr_s[aa,:,bb])
-                
+                OCN_BC['salt_south'][aa,:,bb] = np.squeeze(np.nan*zr_s[aa,:,bb])    
             else:    
                 fofz2 = fofz[ig]
                 Fz = interp1d(np.squeeze(-zhy[ig]),np.squeeze(fofz2),bounds_error=False,kind='linear',fill_value=(fofz2[0],fofz2[-1]))
@@ -4135,7 +4134,7 @@ def ocn_r_2_BCdict_pckl(fname_out):
 
 
 
-def ocn_r_2_BCdict_pckl_very_new(fname_out):
+def ocn_r_2_BCdict_pckl_new_notgood(fname_out):
     # this slices the OCN_R dictionary at the first time for all needed 
     # variables for the boundary condition for roms
     # it then interpolates from the hycom z values that the vars are on
