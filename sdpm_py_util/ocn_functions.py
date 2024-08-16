@@ -2587,6 +2587,8 @@ def ocn_r_2_ICdict_pckl(fname_out):
                         'note':'uses roms depths'}
 
     get_depth_file = 1
+
+    print ('got here in IC, 1')
     if get_depth_file == 0:
     # get the roms z's
         hraw = None
@@ -2606,6 +2608,9 @@ def ocn_r_2_ICdict_pckl(fname_out):
         zr_u=Zrm['zu_ic']
         zr_v=Zrm['zv_ic']
         OCN_IC['Cs_r'] = Zrm['Cs_r']
+
+    print ('got here in IC, 2')
+
 
     OCN_IC['vinfo']['Cs_r'] = {'long_name':'S-coordinate stretching curves at RHO-points',
                         'units':'nondimensional',
@@ -3096,20 +3101,21 @@ def ocn_r_2_BCdict(OCN_R,RMG,PFM):
 
     return OCN_BC
 
+def make_rom_depths(fname_depths_pickle):
+
+    if os.path.isfile(fname_depths_pickle) == False: # might need to make the file if it doesn't exist...
+        print('making roms depth pickle file ' + fname_depths_pickle + '...')
+        make_temp_rom_depth_files(fname_depths_pickle)
+        print('...done makeing depth pickle file.')
+    else:
+        print('depth pickle file ' + fname_depths_pickle + 'already exists.')
+
+
 def load_rom_depths(fname_depths_pickle):
 
-    # this function loads the roms depths pickle file for the IC / BC routines
     # if the file doesn't exit, this function makes the file as a subprocess
     # this is a function that makes the roms depths pickle file for the IC / BC routines 
 
-    if os.path.isfile(fname_depths_pickle) == False: # might need to make the file if it doesn't exist...
-        print('making roms depth pickle file...')
-        cmd_list = ['python','ocn_functions.py','make_temp_rom_depth_files',fname_depths_pickle]
-        os.chdir('../sdpm_py_util')
-        ret5 = subprocess.run(cmd_list)     
-        os.chdir('../driver')
-        print('subprocess return code? ' + str(ret5.returncode) +  ' (0=good)')
-        print('...done makeing depth pickle file.')
 
     with open(fname_depths_pickle,'rb') as fp:
             ROMdepths = pickle.load(fp)
@@ -3132,44 +3138,60 @@ def make_temp_rom_depth_files(fname_out):
     hb = RMG['h']
     hb_u = 0.5 * (hb[:,0:-1]+hb[:,1:])
     hb_v = 0.5 * (hb[0:-1,:]+hb[1:,:])
+    del RMG
 
     fn_temp = PFM['lv1_forc_dir'] + '/tmp_' + 'zeta' + '.pkl'
     with open(fn_temp,'rb') as fp:
         zeta = pickle.load(fp)
 
-    zeta_u = 0.5 * (zeta[:,:,0:-1]+zeta[:,:,1:])
-    zeta_v = 0.5 * (zeta[:,0:-1,:]+zeta[:,1:,:])
-
-    # do rho points...    
+    Nt,Nlt,Nln = np.shape(zeta)
     hraw = None
-    if Vst == 4:
-        zrom = s_coordinate_4(hb, th_b , th_s , Tcl , Nz, hraw=hraw, zeta=np.squeeze(zeta))
-
     Zrm=dict()
-    Zrm['zr_ic'] = np.squeeze(zrom.z_r[0,:,:,:])
-    Zrm['zr_bc_n'] = np.squeeze(zrom.z_r[:,:,-1,:])
-    Zrm['zr_bc_s'] = np.squeeze(zrom.z_r[:,:,0,:])
-    Zrm['zr_bc_w'] = np.squeeze(zrom.z_r[:,:,:,0])
+    Zrm['zr_ic']   = np.zeros((Nz,Nlt,Nln))
+    Zrm['zu_ic']   = np.zeros((Nz,Nlt,Nln-1))
+    Zrm['zv_ic']   = np.zeros((Nz,Nlt-1,Nln))
+    Zrm['zr_bc_n'] = np.zeros((Nt,Nz,Nln))
+    Zrm['zr_bc_s'] = np.zeros((Nt,Nz,Nln))
+    Zrm['zr_bc_w'] = np.zeros((Nt,Nz,Nlt))
+    Zrm['zu_bc_n'] = np.zeros((Nt,Nz,Nln-1))
+    Zrm['zu_bc_s'] = np.zeros((Nt,Nz,Nln-1))
+    Zrm['zu_bc_w'] = np.zeros((Nt,Nz,Nlt))
+    Zrm['zv_bc_n'] = np.zeros((Nt,Nz,Nln))
+    Zrm['zv_bc_s'] = np.zeros((Nt,Nz,Nln))
+    Zrm['zv_bc_w'] = np.zeros((Nt,Nz,Nlt-1))
+
+    for aa in range(Nt):
+        zeta_r = np.squeeze(zeta[aa,:,:])
+        zeta_u = np.squeeze( 0.5 * (zeta[aa,:,0:-1]+zeta[aa,:,1:]) )
+        zeta_v = np.squeeze( 0.5 * (zeta[aa,0:-1,:]+zeta[aa,1:,:]) )
+
+        if Vst == 4:
+            zrom = s_coordinate_4(hb, th_b , th_s , Tcl , Nz, hraw=hraw, zeta=zeta_r)
+            zrom_u = s_coordinate_4(hb_u, th_b , th_s , Tcl , Nz, hraw=hraw, zeta=zeta_u)    
+            zrom_v = s_coordinate_4(hb_v, th_b , th_s , Tcl , Nz, hraw=hraw, zeta=zeta_v)
+
+        Zr = zrom.z_r
+        Zu = zrom_u.z_r
+        Zv = zrom_v.z_r
+
+        if aa==0:
+            Zrm['zr_ic'] = np.squeeze(Zr[0,:,:,:])
+            Zrm['zu_ic'] = np.squeeze(Zu[0,:,:,:])
+            Zrm['zv_ic'] = np.squeeze(Zv[0,:,:,:])
+
+        Zrm['zr_bc_n'][aa,:,:] = np.squeeze(Zr[0,:,-1,:])
+        Zrm['zr_bc_s'][aa,:,:] = np.squeeze(Zr[0,:,0,:])
+        Zrm['zr_bc_w'][aa,:,:] = np.squeeze(Zr[0,:,:,0])
+        Zrm['zu_bc_n'][aa,:,:] = np.squeeze(Zu[0,:,-1,:])
+        Zrm['zu_bc_s'][aa,:,:] = np.squeeze(Zu[0,:,0,:])
+        Zrm['zu_bc_w'][aa,:,:] = np.squeeze(Zu[0,:,:,0])
+        Zrm['zv_bc_n'][aa,:,:] = np.squeeze(Zv[0,:,-1,:])
+        Zrm['zv_bc_s'][aa,:,:] = np.squeeze(Zv[0,:,0,:])
+        Zrm['zv_bc_w'][aa,:,:] = np.squeeze(Zv[0,:,:,0])
+    
+    
     Zrm['Cs_r'] = np.squeeze(zrom.Cs_r)
 
-    del zrom
-
-    if Vst == 4:    
-        zrom = s_coordinate_4(hb_u, th_b , th_s , Tcl , Nz, hraw=hraw, zeta=np.squeeze(zeta_u))
-        
-    Zrm['zu_ic'] = np.squeeze(zrom.z_r[0,:,:,:])
-    Zrm['zu_bc_n'] = np.squeeze(zrom.z_r[:,:,-1,:])
-    Zrm['zu_bc_s'] = np.squeeze(zrom.z_r[:,:,0,:])
-    Zrm['zu_bc_w'] = np.squeeze(zrom.z_r[:,:,:,0])
-    del zrom
-
-    if Vst == 4:    
-        zrom = s_coordinate_4(hb_v, th_b , th_s , Tcl , Nz, hraw=hraw, zeta=np.squeeze(zeta_v))
-        
-    Zrm['zv_ic'] = np.squeeze(zrom.z_r[0,:,:,:])
-    Zrm['zv_bc_n'] = np.squeeze(zrom.z_r[:,:,-1,:])
-    Zrm['zv_bc_s'] = np.squeeze(zrom.z_r[:,:,0,:])
-    Zrm['zv_bc_w'] = np.squeeze(zrom.z_r[:,:,:,0])
 
     with open(fname_out,'wb') as fout:
         pickle.dump(Zrm,fout)
@@ -3179,7 +3201,7 @@ def get_depth_avg_v(v,z,eta,hb):
 
     z2 = .5 *( z[0:-1]+z[1:] )
     z2 = np.append(z2,eta)
-    z2 = np.insert(z2,-hb,0)
+    z2 = np.insert(z2,0,-hb)
     dz = np.diff(z2)
 
     vbar = np.sum(v*dz) / (eta+hb)
@@ -3205,7 +3227,12 @@ def ocn_r_2_BCdict_pckl_new(fname_out):
     OCN_R = load_ocnR_from_pckl_files()
     
     fname_depths = PFM['lv1_forc_dir'] + '/' + PFM['lv1_depth_file']
+
+    print('loading ' + fname_depths)
     Zrm = load_rom_depths(fname_depths)
+
+    print(Zrm.keys())
+
 
     OCN_BC = dict()
     # fill in the dict with slicing
@@ -3401,7 +3428,6 @@ def ocn_r_2_BCdict_pckl_new(fname_out):
     eta_u = 0.5 * (eta[:,:,0:-1]+eta[:,:,1:])
     eta_v = 0.5 * (eta[:,0:-1,:]+eta[:,1:,:])
 
-    print('got here 1')
     # get the roms z's
     #hraw = None
     #if Vst == 4:
@@ -3429,18 +3455,25 @@ def ocn_r_2_BCdict_pckl_new(fname_out):
     #    zr_n=np.squeeze(zrom.z_r[:,:,-1,:])    
     #    zr_w=np.squeeze(zrom.z_r[:,:,:,0])    
 
+    print('got here 2')
+
     zr_s = Zrm['zr_bc_s']
     zr_n = Zrm['zr_bc_n']
     zr_w = Zrm['zr_bc_w']
+
+    print('got here 3')
 
     zr_us = Zrm['zu_bc_s']
     zr_un = Zrm['zu_bc_n']
     zr_uw = Zrm['zu_bc_w']
 
+    print('got here 4')
+
     zr_vs = Zrm['zv_bc_s']
     zr_vn = Zrm['zv_bc_n']
     zr_vw = Zrm['zv_bc_w']
    
+    print('got here 5')
 
     #zr_us = .5 * (zr_s[:,:,0:-1]+zr_s[:,:,1:])
     #zr_un = .5 * (zr_n[:,:,0:-1]+zr_n[:,:,1:])
@@ -4102,7 +4135,7 @@ def ocn_r_2_BCdict_pckl(fname_out):
 
 
 
-def ocn_r_2_BCdict_pckl_new(fname_out):
+def ocn_r_2_BCdict_pckl_very_new(fname_out):
     # this slices the OCN_R dictionary at the first time for all needed 
     # variables for the boundary condition for roms
     # it then interpolates from the hycom z values that the vars are on

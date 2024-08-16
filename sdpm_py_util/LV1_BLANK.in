@@ -291,8 +291,8 @@ ad_VolCons(north) ==  F                            ! northern boundary
         NAVG == $nhis$
      NDEFAVG == $ndefhis$
       NTSDIA == 1
-        NDIA == $nhis$
-     NDEFDIA == $ndefhis$
+        NDIA == $ndia$
+     NDEFDIA == $ndefdia$
 
 ! Output tangent linear and adjoint models parameters.
 

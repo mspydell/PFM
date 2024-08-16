@@ -133,6 +133,8 @@ def  make_LV1_dotin_and_SLURM( PFM , yyyymmddhhmm):
     D['nhis'] = int(his_interval/dtsec) # how often to write to the history files
     D['ndefhis'] = D['nhis'] # how often to create new history files
     D['nrst'] = int(rst_interval*86400/dtsec)
+    D['ndia'] = 1 # write to log file every time step.
+    D['ndefdia'] = 1
 
 
     #date_string_yesterday = fdt_yesterday.strftime(Lfun.ds_fmt)
