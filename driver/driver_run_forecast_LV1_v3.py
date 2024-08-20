@@ -339,7 +339,8 @@ print('done with pltfuns.load_and_plot_atm(PFM)')
 print('driver_run_forecast_LV1:  now make .in and .sb files')
 
 pfm_driver_src_dir = os.getcwd()
-os.chdir('/home/mspydell/models/PFM_root/PFM/sdpm_py_util')
+
+os.chdir('../sdpm_py_util')
 make_LV1_dotin_and_SLURM( PFM , yyyymmdd + hhmm )
 print('...done')
 
@@ -347,7 +348,7 @@ print('...done')
 print('now running roms with slurm')
 run_slurm_LV1(PFM)
 
-os.chdir('/home/mspydell/models/PFM_root/PFM/driver')
+os.chdir('../driver')
 
 print('\nFinished the LV1 simulation, Current time ', datetime.now())
 print('\n')
