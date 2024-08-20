@@ -35,6 +35,7 @@ def get_PFM_info():
    lv1_run_dir = lv1_root_dir + 'Run'
    lv1_his_dir = lv1_root_dir + 'His'
    lv1_forc_dir = lv1_root_dir + 'Forc'
+   lv1_tide_dir = lv1_root_dir + 'Tides'
    lv1_plot_dir = lv1_root_dir + 'Plots'          
        
      
@@ -130,7 +131,8 @@ def get_PFM_info():
 #    PFM['LOu'] = LOu
 #    PFM['data'] = data
    PFM['lv1_run_dir'] = lv1_run_dir
-   PFM['lv1_forc_dir'] = lv1_forc_dir   
+   PFM['lv1_forc_dir'] = lv1_forc_dir
+   PFM['lv1_tide_dir'] = lv1_tide_dir   
    PFM['lv1_grid_dir'] = pfm_grid_dir
    PFM['lv1_his_dir'] = lv1_his_dir
    PFM['lv1_plot_dir'] = lv1_plot_dir         

@@ -202,7 +202,7 @@ def  make_LV1_dotin_and_SLURM( PFM , yyyymmddhhmm):
     lv1_sbfile_local = 'LV1_SLURM.sb'
     D['lv1_infile_local'] = lv1_infile_local
     D['lv1_logfile_local'] = lv1_logfile_local
-    D['lv1_tides_file'] = PFM['lv1_forc_dir'] + '/' + PFM['lv1_tide_fname']
+    D['lv1_tides_file'] = PFM['lv1_tide_dir'] + '/' + PFM['lv1_tide_fname']
 
     lv1_executable = 'LV1_oceanM'
     D['lv1_executable'] = PFM['lv1_run_dir'] + '/' + lv1_executable
