@@ -1126,3 +1126,9 @@ def plot_ocn_ic_fields(filepath, RMG, PFM, fields_to_plot=None, time_index=0, de
         else:
             plt.close()
     nc.close()
+
+
+def get_hisncs_tseries(fldnm):   
+    PFM=get_PFM_info()
+    #RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
+    nc_fnms = 

@@ -131,7 +131,7 @@ def  make_LV1_dotin_and_SLURM( PFM , yyyymmddhhmm):
     D['ntimes'] = int(days_to_run*86400/dtsec)
     D['ninfo'] = 1 # how often to write info to the log file (# of time steps)
     D['nhis'] = int(his_interval/dtsec) # how often to write to the history files
-    D['ndefhis'] = D['nhis'] # how often to create new history files
+    D['ndefhis'] = PFM['ndefhis'] # how often, in time steps, to create new history files, =0 only one his.nc file
     D['nrst'] = int(rst_interval*86400/dtsec)
     D['ndia'] = 60 # write to log file every time step.
     D['ndefdia'] = 60

@@ -156,6 +156,7 @@ def get_PFM_info():
    PFM['roms_time_units'] = roms_time_units
    PFM['ds_fmt'] = ds_fmt
    PFM['forecast_days'] = fdays
+   PFM['ndefhis'] = 0 # when zero, only 1 history file is made.
  
    PFM['daystep'] = daystep
    PFM['daystep_ocn'] = daystep_ocn
