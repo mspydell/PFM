@@ -2619,58 +2619,17 @@ def ocn_r_2_ICdict_pckl(fname_out):
                         'field':'Cs_r, scalar, series'}
 
     for aa in range(nlt):
-        for bb in range(nln):            
-            fofz = np.squeeze(OCN_R['temp'][i0,:,aa,bb])
-            ig = np.argwhere(np.isfinite(fofz))
-            if len(ig) < 1: # you get in here if all f(z) is nan, ie. we are in land
-                # we also make sure that if there is only 1 good value, we also return nans
-                TMP['temp'][0,:,aa,bb] = np.squeeze(np.nan*zr[:,aa,bb])
-                OCN_IC['salt'][0,:,aa,bb] = np.squeeze(np.nan*zr[:,aa,bb])
-            else:
-                fofz2 = fofz[ig]
-                Fz = interp1d(np.squeeze(-zhy[ig]),np.squeeze(fofz2),bounds_error=False,kind='linear',fill_value=(fofz2[0],fofz2[-1]))
-                TMP['temp'][0,:,aa,bb] = np.squeeze(Fz(zr[:,aa,bb]))
-                
-                fofz = np.squeeze(OCN_R['salt'][i0,:,aa,bb])
-                ig = np.argwhere(np.isfinite(fofz))
-                fofz2 = fofz[ig]
-                Fz = interp1d(np.squeeze(-zhy[ig]),np.squeeze(fofz2),bounds_error=False,kind='linear',fill_value=(fofz2[0],fofz2[-1]))  
-                OCN_IC['salt'][0,:,aa,bb] = np.squeeze(Fz(zr[:,aa,bb]))
-
-            if bb < nln-1:
-                fofz = np.squeeze(OCN_R['urm'][i0,:,aa,bb])
-                ig = np.argwhere(np.isfinite(fofz))
-                if len(ig) < 1:
-                    OCN_IC['u'][0,:,aa,bb] = np.squeeze(np.nan*zr_u[:,aa,bb])
-                    OCN_IC['ubar'][0,aa,bb] = np.nan
-                else:
-                    fofz2 = fofz[ig]
-                    Fz = interp1d(np.squeeze(-zhy[ig]),np.squeeze(fofz2),bounds_error=False,kind='linear',fill_value=(fofz2[0],fofz2[-1])) 
-                    uu =  np.squeeze(Fz(zr_u[:,aa,bb]))                
-                    OCN_IC['u'][0,:,aa,bb] = uu
-                    z2 = np.squeeze(zr_u[:,aa,bb])
-                    #z3 = np.append(z2,eta_u[aa,bb])
-                    #dz = np.diff(z3)
-                    #OCN_IC['ubar'][0,aa,bb] = np.sum(uu*dz) / hb_u[aa,bb]
-                    OCN_IC['ubar'][0,aa,bb] = get_depth_avg_v(uu,z2,eta_u[aa,bb],hb_u[aa,bb])
-
+        for bb in range(nln):    
+            TMP['temp'][0,:,aa,bb]    = interp_to_roms_z(-zhy,OCN_R['temp'][0,:,aa,bb],zr[:,aa,bb],-hb[aa,bb])
+            OCN_IC['salt'][0,:,aa,bb] = interp_to_roms_z(-zhy,OCN_R['salt'][0,:,aa,bb],zr[:,aa,bb],-hb[aa,bb])
             
-            if aa < nlt-1:
-                fofz = np.squeeze(OCN_R['vrm'][i0,:,aa,bb])
-                ig = np.argwhere(np.isfinite(fofz))
-                if len(ig) < 1:
-                    OCN_IC['v'][0,:,aa,bb] = np.squeeze(np.nan*zr_v[:,aa,bb])
-                    OCN_IC['vbar'][0,aa,bb] = np.nan
-                else:
-                    fofz2 = fofz[ig]
-                    Fz = interp1d(np.squeeze(-zhy[ig]),np.squeeze(fofz2),bounds_error=False,kind='linear',fill_value=(fofz2[0],fofz2[-1]))  
-                    vv = np.squeeze(Fz(zr_v[:,aa,bb]))
-                    OCN_IC['v'][0,:,aa,bb] = vv
-                    z2 = np.squeeze(zr_v[:,aa,bb])
-                    #z3 = np.append(z2,eta_v[aa,bb])
-                    #dz = np.diff(z3)
-                    #OCN_IC['vbar'][0,aa,bb] = np.sum(vv*dz) / hb_v[aa,bb]
-                    OCN_IC['vbar'][0,aa,bb] = get_depth_avg_v(vv,z2,eta_v[aa,bb],hb_v[aa,bb])
+            if aa < nlt-1:            
+                OCN_IC['v'][0,:,aa,bb]    = interp_to_roms_z(-zhy,OCN_R['vrm'][0,:,aa,bb],zr_v[:,aa,bb],-hb_v[aa,bb])
+                OCN_IC['vbar'][0,aa,bb]    = get_depth_avg_v(OCN_IC['v'][0,:,aa,bb],zr_v[:,aa,bb],eta_v[aa,bb],hb_v[aa,bb])
+ 
+            if bb < nln-1:
+                OCN_IC['u'][0,:,aa,bb]    = interp_to_roms_z(-zhy,OCN_R['urm'][0,:,aa,bb],zr_u[:,aa,bb],-hb_u[aa,bb])
+                OCN_IC['ubar'][0,aa,bb]    = get_depth_avg_v(OCN_IC['u'][0,:,aa,bb],zr_u[:,aa,bb],eta_u[aa,bb],hb_u[aa,bb])
 
     # ROMS wants potential temperature, not temperature
     # this needs the seawater package, conda install seawater, did this for me
@@ -3213,6 +3172,25 @@ def get_depth_avg_v(v,z,eta,hb):
                 #OCN_BC['vbar_south'][aa,bb] = np.sum(vv*dz) / hb_v[0,bb]
                 #OCN_BC['vbar_south'][aa,bb] = get_depth_avg_v(vv,eta_v[aa,0,bb],hb_v[0,bb])
 
+def interp_to_roms_z(zh,fofz,zr,hb):
+
+    ig = np.nonzero(zh>=hb)
+
+    if len(zh[ig]) < 1: # you get in here if all f(z) is nan, ie. we are in land
+        # we also make sure that if there is only 1 good value, we also return nans
+        fofzrm = np.squeeze(np.nan*zr)
+    elif len(zh[ig]) == 1:
+        fofzrm = np.squeeze(fofz[ig] * np.ones(np.shape(zr)))
+    else:    
+        fofz2 = fofz[ig]
+        Fz = interp1d(np.squeeze(zh[ig]),np.squeeze(fofz2),bounds_error=False,kind='linear',fill_value=(fofz2[-1],fofz2[0]))
+        #print(np.shape(zr_s))
+        #print(np.shape(TMP['temp_south']))
+        fofzrm = np.squeeze(Fz(zr))
+
+    return fofzrm
+
+
 
 def ocn_r_2_BCdict_pckl_new(fname_out):
     # this slices the OCN_R dictionary at the first time for all needed 
@@ -3231,8 +3209,7 @@ def ocn_r_2_BCdict_pckl_new(fname_out):
     print('loading ' + fname_depths)
     Zrm = load_rom_depths(fname_depths)
 
-    print(Zrm.keys())
-
+    #print(Zrm.keys())
 
     OCN_BC = dict()
     # fill in the dict with slicing
@@ -3244,6 +3221,7 @@ def ocn_r_2_BCdict_pckl_new(fname_out):
     # these variables need to be time sliced and then vertically interpolated
     #varin3d = ['temp','salt','urm','vrm']
     zhy = OCN_R['depth'] # these are the hycom depths
+    zhy = np.squeeze(zhy)
     hb = RMG['h']
     hb_u = 0.5 * (hb[:,0:-1]+hb[:,1:])
     hb_v = 0.5 * (hb[0:-1,:]+hb[1:,:])
@@ -3264,11 +3242,6 @@ def ocn_r_2_BCdict_pckl_new(fname_out):
     OCN_BC['th_b'] = np.squeeze(th_b)
     OCN_BC['Tcl'] = np.squeeze(Tcl)
     OCN_BC['hc'] = np.squeeze(hc)
-
-
-    eta = np.squeeze(OCN_R['zeta'].copy())
-    eta_u = 0.5 * (eta[:,0:-1]+eta[:,1:])
-    eta_v = 0.5 * (eta[0:-1,:]+eta[1:,:])
 
     OCN_BC['temp_south'] = np.zeros((Nt,Nz,nln))
     OCN_BC['salt_south'] = np.zeros((Nt,Nz,nln))
@@ -3427,13 +3400,6 @@ def ocn_r_2_BCdict_pckl_new(fname_out):
     eta = np.squeeze(OCN_R['zeta'])
     eta_u = 0.5 * (eta[:,:,0:-1]+eta[:,:,1:])
     eta_v = 0.5 * (eta[:,0:-1,:]+eta[:,1:,:])
-
-    # get the roms z's
-    #hraw = None
-    #if Vst == 4:
-    #    zrom = s_coordinate_4(hb, th_b , th_s , Tcl , Nz, hraw=hraw, zeta=np.squeeze(eta))
-        #zrom_u = s_coordinate_4(hb_u, th_b , th_s , Tcl , Nz, hraw=hraw, zeta=np.squeeze(eta_u))
-        #zrom_v = s_coordinate_4(hb_v, th_b , th_s , Tcl , Nz, hraw=hraw, zeta=np.squeeze(eta_v))
     
     OCN_BC['Cs_r'] = Zrm['Cs_r']
     OCN_BC['vinfo']['Cs_r'] = {'long_name':'S-coordinate stretching curves at RHO-points',
@@ -3442,222 +3408,47 @@ def ocn_r_2_BCdict_pckl_new(fname_out):
                         'valid max':'0',
                         'field':'Cs_r, scalar, series'}
     
-    # do we need sc_r ???
-    #OCN_IC['sc_r'] = []
-    #OCN_IC['vinfo']['sc_r'] = {'long_name':'S-coordinate at RHO-points',
-    #                    'units':'nondimensional',
-    #                    'valid min':'-1',
-    #                    'valid max':'0',
-    #                    'field':'sc_r, scalar, series'}
-
-
-    #    zr_s=np.squeeze(zrom.z_r[:,:,0,:])    
-    #    zr_n=np.squeeze(zrom.z_r[:,:,-1,:])    
-    #    zr_w=np.squeeze(zrom.z_r[:,:,:,0])    
-
-    print('got here 2')
-
     zr_s = Zrm['zr_bc_s']
     zr_n = Zrm['zr_bc_n']
     zr_w = Zrm['zr_bc_w']
-
-    print('got here 3')
 
     zr_us = Zrm['zu_bc_s']
     zr_un = Zrm['zu_bc_n']
     zr_uw = Zrm['zu_bc_w']
 
-    print('got here 4')
-
     zr_vs = Zrm['zv_bc_s']
     zr_vn = Zrm['zv_bc_n']
     zr_vw = Zrm['zv_bc_w']
-   
-    print('got here 5')
-
-    #zr_us = .5 * (zr_s[:,:,0:-1]+zr_s[:,:,1:])
-    #zr_un = .5 * (zr_n[:,:,0:-1]+zr_n[:,:,1:])
-    #zr_uw = zr_w
-
-    #zr_us=np.squeeze(zrom_u.z_r[:,:,0,:])    
-    #zr_un=np.squeeze(zrom_u.z_r[:,:,-1,:])    
-    #zr_uw=np.squeeze(zrom_u.z_r[:,:,:,0])    
-
-    #del zrom_u
-    #gc.collect()
-
-
-    #zr_vs = zr_w
-    #zr_vn = zr_n
-    #zr_vw = .5 * (zr_w[:,:,0:-1]+zr_w[:,:,1:])
-
-    #zr_vs=np.squeeze(zrom_v.z_r[:,:,0,:])
-    #zr_vn=np.squeeze(zrom_v.z_r[:,:,-1,:])
-    #zr_vw=np.squeeze(zrom_v.z_r[:,:,:,0])
-
-    #del zrom_v
-    #gc.collect()
-
+ 
     for aa in range(Nt):
         for bb in range(nln):
-            fofz = np.squeeze(OCN_R['temp'][aa,:,0,bb])
-            ig = np.argwhere(np.isfinite(fofz))
-            if len(ig) < 1: # you get in here if all f(z) is nan, ie. we are in land
-                # we also make sure that if there is only 1 good value, we also return nans
-                TMP['temp_south'][aa,:,bb] = np.squeeze(np.nan*zr_s[aa,:,bb])
-                OCN_BC['salt_south'][aa,:,bb] = np.squeeze(np.nan*zr_s[aa,:,bb])    
-            else:    
-                fofz2 = fofz[ig]
-                Fz = interp1d(np.squeeze(-zhy[ig]),np.squeeze(fofz2),bounds_error=False,kind='linear',fill_value=(fofz2[0],fofz2[-1]))
-                #print(np.shape(zr_s))
-                #print(np.shape(TMP['temp_south']))
-                TMP['temp_south'][aa,:,bb] = np.squeeze(Fz(zr_s[aa,:,bb]))
+            TMP['temp_south'][aa,:,bb]    = interp_to_roms_z(-zhy,OCN_R['temp'][aa,:,0,bb],zr_s[aa,:,bb],-hb[0,bb])
+            OCN_BC['salt_south'][aa,:,bb] = interp_to_roms_z(-zhy,OCN_R['salt'][aa,:,0,bb],zr_s[aa,:,bb],-hb[0,bb])
+            OCN_BC['v_south'][aa,:,bb]    = interp_to_roms_z(-zhy,OCN_R['vrm'][aa,:,0,bb],zr_vs[aa,:,bb],-hb_v[0,bb])
+            OCN_BC['vbar_south'][aa,bb]    = get_depth_avg_v(OCN_BC['v_south'][aa,:,bb],zr_vs[aa,:,bb],eta_v[aa,0,bb],hb_v[0,bb])
+            
+            TMP['temp_north'][aa,:,bb]    = interp_to_roms_z(-zhy,OCN_R['temp'][aa,:,-1,bb],zr_n[aa,:,bb],-hb[-1,bb])
+            OCN_BC['salt_north'][aa,:,bb] = interp_to_roms_z(-zhy,OCN_R['salt'][aa,:,-1,bb],zr_n[aa,:,bb],-hb[-1,bb])
+            OCN_BC['v_north'][aa,:,bb]    = interp_to_roms_z(-zhy,OCN_R['vrm'][aa,:,-1,bb],zr_vn[aa,:,bb],-hb_v[-1,bb])
+            OCN_BC['vbar_north'][aa,bb]    = get_depth_avg_v(OCN_BC['v_north'][aa,:,bb],zr_vn[aa,:,bb],eta_v[aa,-1,bb],hb_v[-1,bb])
                 
-                fofz = np.squeeze(OCN_R['salt'][aa,:,0,bb])
-                ig = np.argwhere(np.isfinite(fofz))
-                fofz2 = fofz[ig]
-                Fz = interp1d(np.squeeze(-zhy[ig]),np.squeeze(fofz2),bounds_error=False,kind='linear',fill_value=(fofz2[0],fofz2[-1]))  
-                OCN_BC['salt_south'][aa,:,bb] = np.squeeze(Fz(zr_s[aa,:,bb]))
-                
-            fofz = np.squeeze(OCN_R['vrm'][aa,:,0,bb])
-            ig = np.argwhere(np.isfinite(fofz))
-            if len(ig) < 1:
-                OCN_BC['v_south'][aa,:,bb] = np.squeeze(np.nan*zr_vs[aa,:,bb])
-                OCN_BC['vbar_south'][aa,bb] = np.nan
-            else:
-                fofz2 = fofz[ig]
-                Fz = interp1d(np.squeeze(-zhy[ig]),np.squeeze(fofz2),bounds_error=False,kind='linear',fill_value=(fofz2[0],fofz2[-1])) 
-                vv =  np.squeeze(Fz(zr_vs[aa,:,bb]))                
-                OCN_BC['v_south'][aa,:,bb] = vv
-                z2 = np.squeeze(zr_vs[aa,:,bb])
-                #z3 = np.append(z2,eta_v[aa,0,bb])
-                #dz = np.diff(z3)
-                #OCN_BC['vbar_south'][aa,bb] = np.sum(vv*dz) / hb_v[0,bb]
-                OCN_BC['vbar_south'][aa,bb] = get_depth_avg_v(vv,z2,eta_v[aa,0,bb],hb_v[0,bb])
-
             if bb < nln-1:
-                fofz = np.squeeze(OCN_R['urm'][aa,:,0,bb])
-                ig = np.argwhere(np.isfinite(fofz))
-                if len(ig) < 1:
-                    OCN_BC['u_south'][aa,:,bb] = np.squeeze(np.nan*zr_us[aa,:,bb])
-                    OCN_BC['ubar_south'][aa,bb] = np.nan
-                else:
-                    fofz2 = fofz[ig]
-                    Fz = interp1d(np.squeeze(-zhy[ig]),np.squeeze(fofz2),bounds_error=False,kind='linear',fill_value=(fofz2[0],fofz2[-1])) 
-                    uu =  np.squeeze(Fz(zr_us[aa,:,bb]))                
-                    OCN_BC['u_south'][aa,:,bb] = uu
-                    z2 = np.squeeze(zr_us[aa,:,bb])
-                    #z3 = np.append(z2,eta_u[aa,0,bb])
-                    #dz = np.diff(z3)
-                    #OCN_BC['ubar_south'][aa,bb] = np.sum(uu*dz) / hb_u[0,bb]
-                    OCN_BC['ubar_south'][aa,bb] = get_depth_avg_v(uu,z2,eta_u[aa,0,bb],hb_u[0,bb])
+                OCN_BC['u_south'][aa,:,bb]  = interp_to_roms_z(-zhy,OCN_R['urm'][aa,:,0,bb],zr_us[aa,:,bb],-hb_u[0,bb])
+                OCN_BC['ubar_south'][aa,bb]  = get_depth_avg_v(OCN_BC['u_south'][aa,:,bb],zr_us[aa,:,bb],eta_u[aa,0,bb],hb_u[0,bb])
+                OCN_BC['u_north'][aa,:,bb]  = interp_to_roms_z(-zhy,OCN_R['urm'][aa,:,-1,bb],zr_un[aa,:,bb],-hb_u[-1,bb])
+                OCN_BC['ubar_north'][aa,bb]  = get_depth_avg_v(OCN_BC['u_south'][aa,:,bb],zr_un[aa,:,bb],eta_u[aa,-1,bb],hb_u[-1,bb])
 
+        for bb in range(nlt):             
+            TMP['temp_west'][aa,:,bb]      = interp_to_roms_z(-zhy,OCN_R['temp'][aa,:,bb,0],zr_w[aa,:,bb],-hb[bb,0])
+            OCN_BC['salt_west'][aa,:,bb]   = interp_to_roms_z(-zhy,OCN_R['salt'][aa,:,bb,0],zr_w[aa,:,bb],-hb[bb,0])
+            OCN_BC['u_west'][aa,:,bb]      = interp_to_roms_z(-zhy,OCN_R['urm'][aa,:,bb,0],zr_uw[aa,:,bb],-hb_u[bb,0])
+            OCN_BC['ubar_west'][aa,bb]      = get_depth_avg_v(OCN_BC['u_west'][aa,:,bb],zr_uw[aa,:,bb],eta_u[aa,bb,0],hb_u[bb,0])
+            
+            if bb < nlt-1:    
+                OCN_BC['v_west'][aa,:,bb]  = interp_to_roms_z(-zhy,OCN_R['vrm'][aa,:,bb,0],zr_vw[aa,:,bb],-hb_v[bb,0])
+                OCN_BC['vbar_west'][aa,bb]  = get_depth_avg_v(OCN_BC['v_west'][aa,:,bb],zr_vw[aa,:,bb],eta_v[aa,bb,0],hb_v[bb,0])
 
-            fofz = np.squeeze(OCN_R['temp'][aa,:,-1,bb])
-            ig = np.argwhere(np.isfinite(fofz))
-            if len(ig) < 1: # you get in here if all f(z) is nan, ie. we are in land
-                # we also make sure that if there is only 1 good value, we also return nans
-                TMP['temp_north'][aa,:,bb] = np.squeeze(np.nan*zr_n[aa,:,bb])
-                OCN_BC['salt_north'][aa,:,bb] = np.squeeze(np.nan*zr_n[aa,:,bb])
-                
-            else:    
-                fofz2 = fofz[ig]
-                Fz = interp1d(np.squeeze(-zhy[ig]),np.squeeze(fofz2),bounds_error=False,kind='linear',fill_value=(fofz2[0],fofz2[-1]))
-                TMP['temp_north'][aa,:,bb] = np.squeeze(Fz(zr_n[aa,:,bb]))
-                
-                fofz = np.squeeze(OCN_R['salt'][aa,:,-1,bb])
-                ig = np.argwhere(np.isfinite(fofz))
-                fofz2 = fofz[ig]
-                Fz = interp1d(np.squeeze(-zhy[ig]),np.squeeze(fofz2),bounds_error=False,kind='linear',fill_value=(fofz2[0],fofz2[-1]))  
-                OCN_BC['salt_north'][aa,:,bb] = np.squeeze(Fz(zr_n[aa,:,bb]))
-                
-            fofz = np.squeeze(OCN_R['vrm'][aa,:,-1,bb])
-            ig = np.argwhere(np.isfinite(fofz))
-            if len(ig) < 1:
-                OCN_BC['v_north'][aa,:,bb] = np.squeeze(np.nan*zr_vn[aa,:,bb])
-                OCN_BC['vbar_north'][aa,bb] = np.nan
-            else:
-                fofz2 = fofz[ig]
-                Fz = interp1d(np.squeeze(-zhy[ig]),np.squeeze(fofz2),bounds_error=False,kind='linear',fill_value=(fofz2[0],fofz2[-1])) 
-                vv =  np.squeeze(Fz(zr_vn[aa,:,bb]))                
-                OCN_BC['v_north'][aa,:,bb] = vv
-                z2 = np.squeeze(zr_vn[aa,:,bb])
-                #z3 = np.append(z2,eta_v[aa,-1,bb])
-                #dz = np.diff(z3)
-                #OCN_BC['vbar_north'][aa,bb] = np.sum(vv*dz) / hb_v[-1,bb]
-                OCN_BC['vbar_north'][aa,bb] = get_depth_avg_v(vv,z2,eta_v[aa,-1,bb],hb_v[-1,bb])
-
-            if bb < nln-1:
-                fofz = np.squeeze(OCN_R['urm'][aa,:,-1,bb])
-                ig = np.argwhere(np.isfinite(fofz))
-                if len(ig) < 1:
-                    OCN_BC['u_north'][aa,:,bb] = np.squeeze(np.nan*zr_un[aa,:,bb])
-                    OCN_BC['ubar_north'][aa,bb] = np.nan
-                else:
-                    fofz2 = fofz[ig]
-                    Fz = interp1d(np.squeeze(-zhy[ig]),np.squeeze(fofz2),bounds_error=False,kind='linear',fill_value=(fofz2[0],fofz2[-1])) 
-                    uu =  np.squeeze(Fz(zr_un[aa,:,bb]))                
-                    OCN_BC['u_north'][aa,:,bb] = uu
-                    z2 = np.squeeze(zr_un[aa,:,bb])
-                    #z3 = np.append(z2,eta_u[aa,-1,bb])
-                    #dz = np.diff(z3)
-                    #OCN_BC['ubar_north'][aa,bb] = np.sum(uu*dz) / hb_u[-1,bb]
-                    OCN_BC['ubar_north'][aa,bb] = get_depth_avg_v(uu,z2,eta_u[aa,-1,bb],hb_u[-1,bb])
-
-        for cc in range(nlt):
-            fofz = np.squeeze(OCN_R['temp'][aa,:,cc,0])
-            ig = np.argwhere(np.isfinite(fofz))
-            if len(ig) < 1: # you get in here if all f(z) is nan, ie. we are in land
-                # we also make sure that if there is only 1 good value, we also return nans
-                TMP['temp_west'][aa,:,cc] = np.squeeze(np.nan*zr_w[aa,:,cc])
-                OCN_BC['salt_west'][aa,:,cc] = np.squeeze(np.nan*zr_w[aa,:,cc])
-                
-            else:    
-                fofz2 = fofz[ig]
-                Fz = interp1d(np.squeeze(-zhy[ig]),np.squeeze(fofz2),bounds_error=False,kind='linear',fill_value=(fofz2[0],fofz2[-1]))
-                TMP['temp_west'][aa,:,cc] = np.squeeze(Fz(zr_w[aa,:,cc]))
-                
-                fofz = np.squeeze(OCN_R['salt'][aa,:,cc,0])
-                ig = np.argwhere(np.isfinite(fofz))
-                fofz2 = fofz[ig]
-                Fz = interp1d(np.squeeze(-zhy[ig]),np.squeeze(fofz2),bounds_error=False,kind='linear',fill_value=(fofz2[0],fofz2[-1]))  
-                OCN_BC['salt_west'][aa,:,cc] = np.squeeze(Fz(zr_w[aa,:,cc]))
-
-            if cc < nlt-1:    
-                fofz = np.squeeze(OCN_R['vrm'][aa,:,cc,0])
-                ig = np.argwhere(np.isfinite(fofz))
-                if len(ig) < 1:
-                    OCN_BC['v_west'][aa,:,cc] = np.squeeze(np.nan*zr_vw[aa,:,cc])
-                    OCN_BC['vbar_west'][aa,cc] = np.nan
-                else:
-                    fofz2 = fofz[ig]
-                    Fz = interp1d(np.squeeze(-zhy[ig]),np.squeeze(fofz2),bounds_error=False,kind='linear',fill_value=(fofz2[0],fofz2[-1])) 
-                    vv =  np.squeeze(Fz(zr_vw[aa,:,cc]))                
-                    OCN_BC['v_west'][aa,:,cc] = vv
-                    z2 = np.squeeze(zr_vw[aa,:,cc])
-                    #z3 = np.append(z2,eta_v[aa,cc,0])
-                    #dz = np.diff(z3)
-                    #OCN_BC['vbar_west'][aa,cc] = np.sum(vv*dz) / hb_v[cc,0]
-                    OCN_BC['vbar_west'][aa,cc] = get_depth_avg_v(vv,z2,eta_v[aa,cc,0],hb_v[cc,0])
-
-            fofz = np.squeeze(OCN_R['urm'][aa,:,cc,0])
-            ig = np.argwhere(np.isfinite(fofz))
-            if len(ig) < 1:
-                OCN_BC['u_west'][aa,:,cc] = np.squeeze(np.nan*zr_uw[aa,:,cc])
-                OCN_BC['ubar_west'][aa,cc] = np.nan
-            else:
-                fofz2 = fofz[ig]
-                Fz = interp1d(np.squeeze(-zhy[ig]),np.squeeze(fofz2),bounds_error=False,kind='linear',fill_value=(fofz2[0],fofz2[-1])) 
-                uu =  np.squeeze(Fz(zr_uw[aa,:,cc]))                
-                OCN_BC['u_west'][aa,:,cc] = uu
-                z2 = np.squeeze(zr_uw[aa,:,cc])
-                #z3 = np.append(z2,eta_u[aa,cc,0])
-                #dz = np.diff(z3)
-                #OCN_BC['ubar_west'][aa,cc] = np.sum(uu*dz) / hb_u[cc,0]
-                OCN_BC['ubar_west'][aa,cc] = get_depth_avg_v(uu,z2,eta_u[aa,cc,0],hb_u[cc,0])
-
-
-    # ROMS wants potential temperature, not temperature
+    # ROMS wants potential temperature, not temperature, Parker does this in LO.
     # this needs the seawater package, conda install seawater, did this for me
     pdb = -zr_s # pressure in dbar
     OCN_BC['temp_south'] = seawater.ptmp(np.squeeze(OCN_BC['salt_south']), np.squeeze(TMP['temp_south']),np.squeeze(pdb))  
