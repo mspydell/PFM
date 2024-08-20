@@ -30,7 +30,8 @@ from run_slurm_LV1 import run_slurm_LV1
 #import warnings
 #warnings.filterwarnings("ignore")
 
-
+print('\nStarting the LV1 simulation, Current time ', datetime.now())
+print('\n')
 
 PFM=get_PFM_info()
 
@@ -348,6 +349,7 @@ run_slurm_LV1(PFM)
 
 os.chdir('/home/mspydell/models/PFM_root/PFM/driver')
 
-
+print('\nFinished the LV1 simulation, Current time ', datetime.now())
+print('\n')
 
 
