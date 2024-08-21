@@ -1,0 +1,287 @@
+/home/ffeddersen/PFM/driver/../sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+in the parallel ncks switch
+Time to get full file using parallel ncks = 62.51 sec
+Return code = 0 (0=success, 1=skipped ncks)
+Hycom OCN dict saved with pickle
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+making roms depth pickle file /scratch/PFM_Simulations/LV1_Forecast/Forc/roms_tmp_depth_file.pkl...
+ROMS depths for IC/BC saved with pickle to /scratch/PFM_Simulations/LV1_Forecast/Forc/roms_tmp_depth_file.pkl
+...done makeing depth pickle file.
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+got here in IC, 1
+got here in IC, 2
+OCN_IC dict saved with pickle
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+OCN_IC dict loaded with pickle
+<xarray.Dataset>
+Dimensions:      (time: 1, s_rho: 40, er: 390, xr: 253, eu: 390, xu: 252,
+                  ev: 389, xv: 253)
+Coordinates:
+    lat_rho      (er, xr) float64 28.52 28.53 28.54 28.55 ... 36.38 36.39 36.39
+    lon_rho      (er, xr) float64 -120.3 -120.2 -120.2 ... -118.8 -118.8 -118.8
+    lat_u        (eu, xu) float64 28.52 28.53 28.54 28.55 ... 36.38 36.38 36.39
+    lon_u        (eu, xu) float64 -120.3 -120.2 -120.2 ... -118.8 -118.8 -118.8
+    lat_v        (ev, xv) float64 28.53 28.54 28.54 28.55 ... 36.37 36.38 36.39
+    lon_v        (ev, xv) float64 -120.3 -120.2 -120.2 ... -118.8 -118.8 -118.8
+    ocean_time   (time) float64 9.362e+03
+    Cs_r         (s_rho) float64 -0.9827 -0.9383 ... -9.61e-05 -1.061e-05
+Dimensions without coordinates: time, s_rho, er, xr, eu, xu, ev, xv
+Data variables: (12/13)
+    temp         (time, s_rho, er, xr) float64 1.103 1.294 1.296 ... 10.6 10.6
+    salt         (time, s_rho, er, xr) float64 34.71 34.67 34.67 ... 33.91 33.91
+    u            (time, s_rho, eu, xu) float64 -0.01514 -0.01529 ... 0.001544
+    v            (time, s_rho, ev, xv) float64 0.009581 0.01026 ... -0.002944
+    ubar         (time, eu, xu) float64 -0.008772 -0.00891 ... 0.0007844
+    vbar         (time, ev, xv) float64 0.007547 0.007609 ... 0.006332 0.006332
+    ...           ...
+    Vtransform   int64 2
+    Vstretching  int64 4
+    theta_s      float64 8.0
+    theta_b      float64 3.0
+    Tcline       float64 50.0
+    hc           float64 50.0
+Attributes:
+    type:       ocean initial condition file fields for starting roms
+    time info:  ocean time is from 1999/01/01 00:00:00
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+loading /scratch/PFM_Simulations/LV1_Forecast/Forc/roms_tmp_depth_file.pkl
+OCN_BC dict saved with pickle
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+OCN_BC dict loaded with pickle
+<xarray.Dataset>
+Dimensions:      (temp_time: 21, s_rho: 40, xr: 253, salt_time: 21,
+                  v3d_time: 21, xu: 252, xv: 253, v2d_time: 21, zeta_time: 21,
+                  er: 390, eu: 390, ev: 389, time: 21)
+Coordinates:
+    ocean_time   (time) float64 9.362e+03 9.363e+03 ... 9.365e+03 9.365e+03
+  * zeta_time    (zeta_time) float64 9.362e+03 9.363e+03 ... 9.365e+03 9.365e+03
+  * v2d_time     (v2d_time) float64 9.362e+03 9.363e+03 ... 9.365e+03 9.365e+03
+  * v3d_time     (v3d_time) float64 9.362e+03 9.363e+03 ... 9.365e+03 9.365e+03
+  * salt_time    (salt_time) float64 9.362e+03 9.363e+03 ... 9.365e+03 9.365e+03
+  * temp_time    (temp_time) float64 9.362e+03 9.363e+03 ... 9.365e+03 9.365e+03
+    Cs_r         (s_rho) float64 -0.9827 -0.9383 ... -9.61e-05 -1.061e-05
+Dimensions without coordinates: s_rho, xr, xu, xv, er, eu, ev, time
+Data variables: (12/27)
+    temp_south   (temp_time, s_rho, xr) float64 1.103 1.294 ... 11.14 11.14
+    salt_south   (salt_time, s_rho, xr) float64 34.71 34.67 ... 33.97 33.97
+    u_south      (v3d_time, s_rho, xu) float64 -0.01514 -0.01529 ... 0.003152
+    v_south      (v3d_time, s_rho, xv) float64 0.009581 0.01026 ... -0.01841
+    ubar_south   (v2d_time, xu) float64 -0.008772 -0.00891 ... 0.002622 0.002622
+    vbar_south   (v2d_time, xv) float64 0.007547 0.007609 ... -0.0004004
+    ...           ...
+    Vtransform   int64 2
+    Vstretching  int64 4
+    theta_s      float64 8.0
+    theta_b      float64 3.0
+    Tcline       float64 50.0
+    hc           float64 50.0
+Attributes:
+    type:       ocean boundary condition file fields for starting roms
+    time info:  ocean time is from 1999/01/01 00:00:00
+Submitted batch job 324
+
+Starting the LV1 simulation, Current time  2024-08-20 19:28:03.640077
+
+
+Starting: driver_run_forecast_LV1: Current local Time = 2024-08-20 19:28:03.640133 UTC =  2024-08-21 02:28:03.640135+00:00  Fetch time =  2024-08-19 12:00:00
+Preparing forecast starting on 20240819 at  1200
+ocean boundary and initial conditions will be from:
+hycom
+atm forcing will be from:
+nam_nest
+before getting OCN, using:
+226676
+kilobytes
+going to use subprocess, and save a pickle file.
+hycom data saved with pickle, correctly?
+CompletedProcess(args=['python', 'ocn_functions.py', 'get_ocn_data_as_dict_pckl', '20240819', 'forecast', 'hycom', 'ncks_para'], returncode=0)
+0=yes,1=no
+/scratch/PFM_Simulations/LV1_Forecast/Forc/hycom_tmp_pckl_file.pkl
+OCN dict loaded with pickle
+before gc.collect and getting OCN_R, using:
+906584
+kilobytes
+after gc.collect and before OCN_R, using:
+906584
+kilobytes
+starting: ocnfuns.hycom_to_roms_latlon(OCN,RMG)
+
+putting the hycom data in /scratch/PFM_Simulations/LV1_Forecast/Forc/hycom_tmp_pckl_file.pkl on the roms grid
+and saving 17 pickle files...
+doing depth using subprocess
+doing lat_rho using subprocess
+doing lon_rho using subprocess
+doing lat_u using subprocess
+doing lon_u using subprocess
+doing lat_v using subprocess
+doing lon_v using subprocess
+doing ocean_time using subprocess
+doing ocean_time_ref using subprocess
+doing salt using subprocess
+doing temp using subprocess
+doing ubar using subprocess
+doing urm using subprocess
+doing vbar using subprocess
+doing vrm using subprocess
+doing zeta using subprocess
+doing vinfo using subprocess
+...done. 
+all 17 ocnR pickle files were made correctly
+
+driver_run_forecast_LV1: done with hycom_to_roms_latlon
+using:
+906584
+kilobytes
+using:
+3340176
+kilobytes
+making the depth pickle file...
+subprocess return code? 0 (0=good)
+...done.
+going to save OCN_IC to a pickle file to:
+/scratch/PFM_Simulations/LV1_Forecast/Forc/ocnIC_tmp_pckl_file.pkl
+OCN IC data saved with pickle, correctly?
+CompletedProcess(args=['python', 'ocn_functions.py', 'ocn_r_2_ICdict_pckl', '/scratch/PFM_Simulations/LV1_Forecast/Forc/ocnIC_tmp_pckl_file.pkl'], returncode=0)
+0=yes,1=no
+driver_run_forecast_LV1: done with ocn_r_2_ICdict
+using:
+3340176
+kilobytes
+using:
+3340176
+kilobytes
+making IC file from pickled IC: /scratch/PFM_Simulations/LV1_Forecast/Forc/LV1_OCEAN_IC.nc
+OCN IC nc data saved, correctly?
+CompletedProcess(args=['python', 'ocn_functions.py', 'ocn_roms_IC_dict_to_netcdf_pckl', '/scratch/PFM_Simulations/LV1_Forecast/Forc/ocnIC_tmp_pckl_file.pkl', '/scratch/PFM_Simulations/LV1_Forecast/Forc/LV1_OCEAN_IC.nc'], returncode=0)
+0=yes,1=no
+done makeing IC .nc file.
+using:
+3340176
+kilobytes
+using:
+3340176
+kilobytes
+going to save OCN_BC to a pickle file to:
+/scratch/PFM_Simulations/LV1_Forecast/Forc/ocnBC_tmp_pckl_file.pkl
+OCN BC data saved with pickle, correctly?
+0
+0=yes,1=no
+using:
+3340176
+kilobytes
+making BC nc file from pickled BC: /scratch/PFM_Simulations/LV1_Forecast/Forc/LV1_OCEAN_BC.nc
+OCN BC nc data saved, correctly?
+CompletedProcess(args=['python', 'ocn_functions.py', 'ocn_roms_BC_dict_to_netcdf_pckl', '/scratch/PFM_Simulations/LV1_Forecast/Forc/ocnBC_tmp_pckl_file.pkl', '/scratch/PFM_Simulations/LV1_Forecast/Forc/LV1_OCEAN_BC.nc'], returncode=0)
+0=yes,1=no
+done makeing IC .nc file.
+using:
+3340176
+kilobytes
+driver_run_forecast_LV1: done with ocn_r_2_BCdict
+getting atm forecast for:
+[datetime.datetime(2024, 8, 19, 12, 0)
+ datetime.datetime(2024, 8, 19, 15, 0)
+ datetime.datetime(2024, 8, 19, 18, 0)
+ datetime.datetime(2024, 8, 19, 21, 0)
+ datetime.datetime(2024, 8, 20, 0, 0) datetime.datetime(2024, 8, 20, 3, 0)
+ datetime.datetime(2024, 8, 20, 6, 0) datetime.datetime(2024, 8, 20, 9, 0)
+ datetime.datetime(2024, 8, 20, 12, 0)
+ datetime.datetime(2024, 8, 20, 15, 0)
+ datetime.datetime(2024, 8, 20, 18, 0)
+ datetime.datetime(2024, 8, 20, 21, 0)
+ datetime.datetime(2024, 8, 21, 0, 0) datetime.datetime(2024, 8, 21, 3, 0)
+ datetime.datetime(2024, 8, 21, 6, 0) datetime.datetime(2024, 8, 21, 9, 0)
+ datetime.datetime(2024, 8, 21, 12, 0)
+ datetime.datetime(2024, 8, 21, 15, 0)
+ datetime.datetime(2024, 8, 21, 18, 0)
+ datetime.datetime(2024, 8, 21, 21, 0)
+ datetime.datetime(2024, 8, 22, 0, 0)]
+done with plotting ATM fields
+done with: atmfuns.get_atm_data_on_roms_grid(ATM,RMG)
+done with: pltfuns.plot_all_fields_in_one(ATM, ATM_R, RMG, PFM)
+driver_run_forcast_LV1: saving ATM file to /scratch/PFM_Simulations/LV1_Forecast/Forc/LV1_ATM_FORCING.nc
+<xarray.Dataset>
+Dimensions:     (tair_time: 21, er: 390, xr: 253, pair_time: 21, qair_time: 21,
+                 wind_time: 21, rain_time: 21, srf_time: 21, lrf_time: 21,
+                 time: 21)
+Coordinates:
+    lat         (er, xr) float64 28.52 28.53 28.54 28.55 ... 36.38 36.39 36.39
+    lon         (er, xr) float64 -120.3 -120.2 -120.2 ... -118.8 -118.8 -118.8
+    ocean_time  (time) float64 9.362e+03 9.363e+03 ... 9.365e+03 9.365e+03
+  * tair_time   (tair_time) float64 9.362e+03 9.363e+03 ... 9.365e+03 9.365e+03
+  * pair_time   (pair_time) float64 9.362e+03 9.363e+03 ... 9.365e+03 9.365e+03
+  * qair_time   (qair_time) float64 9.362e+03 9.363e+03 ... 9.365e+03 9.365e+03
+  * wind_time   (wind_time) float64 9.362e+03 9.363e+03 ... 9.365e+03 9.365e+03
+  * rain_time   (rain_time) float64 9.362e+03 9.363e+03 ... 9.365e+03 9.365e+03
+  * srf_time    (srf_time) float64 9.362e+03 9.363e+03 ... 9.365e+03 9.365e+03
+  * lrf_time    (lrf_time) float64 9.362e+03 9.363e+03 ... 9.365e+03 9.365e+03
+Dimensions without coordinates: er, xr, time
+Data variables:
+    Tair        (tair_time, er, xr) float64 20.4 20.38 20.37 ... 32.51 32.46
+    Pair        (pair_time, er, xr) float64 1.016e+03 1.016e+03 ... 1.014e+03
+    Qair        (qair_time, er, xr) float64 91.1 91.14 91.23 ... 22.3 24.01 24.5
+    Uwind       (wind_time, er, xr) float64 -2.025 -2.001 -1.975 ... 2.404 2.392
+    Vwind       (wind_time, er, xr) float64 -7.413 -7.422 ... -1.133 -1.179
+    rain        (rain_time, er, xr) float64 0.0 0.0 0.0 0.0 ... 0.0 0.0 0.0 0.0
+    swrad       (srf_time, er, xr) float64 0.0 0.0 0.0 0.0 ... 428.0 429.4 429.3
+    lwrad       (lrf_time, er, xr) float64 -50.41 -37.24 ... -179.7 -179.9
+    lwrad_down  (lrf_time, er, xr) float64 358.0 371.1 376.8 ... 315.4 314.8
+Attributes:
+    type:       atmospheric forcing file fields for surface fluxes
+    time info:  ocean time is from 1999/01/01 00:00:00
+driver_run_forecast_LV1:  done with writing ATM file, Current time  2024-08-20 19:33:35.231026
+done with pltfuns.load_and_plot_atm(PFM)
+driver_run_forecast_LV1:  now make .in and .sb files
+ --- making dot_in for 
+...done
+now running roms with slurm
+run_slurm_LV1: current directory is now:  /scratch/PFM_Simulations/LV1_Forecast/Run
+CompletedProcess(args=['sbatch', 'LV1_SLURM.sb'], returncode=0)
+subprocess slurm ran correctly? 0 (0=yes)
+run_slurm_LV1: run command:  ['sbatch', 'LV1_SLURM.sb']
+
+Finished the LV1 simulation, Current time  2024-08-20 19:33:39.152383
+
+
