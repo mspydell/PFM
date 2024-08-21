@@ -26,6 +26,7 @@ import plotting_functions as pltfuns
 
 def run_slurm_LV1( PFM ):
 
+    cwd = os.getcwd()
     os.chdir(PFM['lv1_run_dir'])
     print('run_slurm_LV1: current directory is now: ', os.getcwd() )
     
@@ -38,6 +39,8 @@ def run_slurm_LV1( PFM ):
     print('subprocess slurm ran correctly? ' + str(proc.returncode) + ' (0=yes)')
     print('run_slurm_LV1: run command: ', cmd_list )
 
+    # change directory back to what it was before
+    os.chdir(cwd)
  
     return proc
 

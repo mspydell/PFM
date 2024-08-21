@@ -1119,7 +1119,9 @@ def plot_ocn_ic_fields(filepath, RMG, PFM, fields_to_plot=None, time_index=0, de
         ax.text(0.5, 1.05, annotation, transform=ax.transAxes, ha='center', fontsize=12)
         
         output_dir = PFM['lv1_plot_dir']
-        filename = f'{output_dir}/20240803_120000_hycom_OCN_IC_{field}.png'
+        yyyymmdd = PFM['yyyymmdd']
+        hhmm = PFM['hhmm']
+        filename = f'{output_dir}/{yyyymmdd}_{hhmm}_hycom_OCN_IC_{field}.png'
         plt.savefig(filename, dpi=300)
         if show:
             plt.show()
