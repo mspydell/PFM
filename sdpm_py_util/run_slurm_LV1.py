@@ -30,9 +30,9 @@ def run_slurm_LV1( PFM ):
     os.chdir(PFM['lv1_run_dir'])
     print('run_slurm_LV1: current directory is now: ', os.getcwd() )
     
-    cmd_list = ['sbatch','LV1_SLURM.sb']
-    #proc = subprocess.run(cmd_list, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    proc = subprocess.run(cmd_list)
+    cmd_list = ['sbatch', '--wait' ,'LV1_SLURM.sb']
+    proc = subprocess.run(cmd_list, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    #proc = subprocess.run("/cm/shared/apps/slurm/current/bin/sbatch  --wait LV1_SLURM.sb")
 
     print(proc)
 
