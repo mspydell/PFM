@@ -22,14 +22,17 @@ def get_PFM_info():
 
 
    #print('get_PFM_info(): running on' + HOSTNAME)
-   
-   if str(HOSTNAME) == 'swell':
-       pfm_root_dir = '/scratch/PFM_Simulations/'
-       lo_env = 'mss_swell'
-   else:
-       pfm_root_dir = '/Users/mspydell/research/FF2024/models/SDPM_mss/PFM_Simulations/'
-       lo_env = 'mss'
 
+   print(HOSTNAME)   # if running as cron HOSTNAME is not defined
+#   if str(HOSTNAME) == 'swell':
+#       pfm_root_dir = '/scratch/PFM_Simulations/'
+#       lo_env = 'mss_swell'
+#   else:
+#       pfm_root_dir = '/Users/mspydell/research/FF2024/models/SDPM_mss/PFM_Simulations/'
+#       lo_env = 'mss'
+
+   lo_env = 'mss_swell'
+   pfm_root_dir = '/scratch/PFM_Simulations/'       
    pfm_grid_dir =  pfm_root_dir +  'Grids'       
    lv1_root_dir =  pfm_root_dir +  'LV1_Forecast/'
    lv1_run_dir = lv1_root_dir + 'Run'
@@ -52,10 +55,12 @@ def get_PFM_info():
 # where are the grids??? We keep them in LO so that they come with
 # git clone.
 #   lv1_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV1.nc'
-   if str(HOSTNAME) == 'swell':
-       lv1_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV1_rx020_hmask.nc'
-   else:
-       lv1_grid_file = '/Users/mspydell/research/FF2024/models/SDPM_mss/PFM_user/grids/GRID_SDTJRE_LV1.nc'
+
+   lv1_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV1_rx020_hmask.nc'
+#   if str(HOSTNAME) == 'swell':
+#       lv1_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV1_rx020_hmask.nc'
+#   else:
+#       lv1_grid_file = '/Users/mspydell/research/FF2024/models/SDPM_mss/PFM_user/grids/GRID_SDTJRE_LV1.nc'
 
 #   lv2_grid_file = str(lv2_grid_dir) + '/GRID_SDTJRE_LV1_rx020_hmask.nc'
 #   lv3_grid_file = str(lv3_grid_dir) + '/GRID_SDTJRE_LV1_rx020_hmask.nc'   
