@@ -10,7 +10,7 @@ Users should copy this to PFM_user/get_sdpm_info.py and edit it appropriately.
 import os
 import sys
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 def get_PFM_info():
 
@@ -124,6 +124,7 @@ def get_PFM_info():
    OP['L1','rst_interval'] = 0.5 # how often in days, a restart file is made.
 
    PFM = dict()
+   # first the environment
    PFM['lo_env'] = lo_env
    PFM['parent'] = parent
 #    PFM['LO'] = LO
@@ -171,6 +172,28 @@ def get_PFM_info():
    PFM['tinfo'] = tt
    PFM['outputinfo'] = OP
 
+   # now do the timing information
+   start_time = datetime.now()
+   utc_time = datetime.now(timezone.utc)
+   year_utc = utc_time.year
+   month_utc = utc_time.month
+   day_utc = utc_time.day
+   hour_utc = utc_time.hour
+
+   fetch_time = datetime.now(timezone.utc) - timedelta(days=1)
+
+   if hour_utc < 12:
+      fetch_time = datetime(fetch_time.year,fetch_time.month, fetch_time.day, 12) - timedelta(days=1)
+   else:
+      fetch_time = datetime(fetch_time.year,fetch_time.month, fetch_time.day, 12)    
+    
+   yyyymmdd = "%d%02d%02d" % (fetch_time.year, fetch_time.month, fetch_time.day)
+   PFM['yyyymmdd']=yyyymmdd
+   PFM['hhmm']='1200'
+   PFM['fetch_time']=fetch_time
+   PFM['start_time']=start_time
+   PFM['utc_time']=utc_time;
+   
    return PFM
 
 

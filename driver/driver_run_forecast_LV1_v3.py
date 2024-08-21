@@ -6,7 +6,7 @@ import pickle
 #import matplotlib.pyplot as plt
 import numpy as np
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import gc
 import resource
 import subprocess
@@ -33,10 +33,48 @@ from run_slurm_LV1 import run_slurm_LV1
 print('\nStarting the LV1 simulation, Current time ', datetime.now())
 print('\n')
 
-PFM=get_PFM_info()
+
 
 run_type = 'forecast'
 # we will use hycom for IC and BC
+# we will use opendap, and netcdf to grab ocn, and atm data
+get_method = 'open_dap_nc'
+## figure out what the time is local and UTC
+#start_time = datetime.now()
+#utc_time = datetime.now(timezone.utc)
+#year_utc = utc_time.year
+#month_utc = utc_time.month
+#day_utc = utc_time.day
+#hour_utc = utc_time.hour
+
+#fetch_time = datetime.now(timezone.utc) - timedelta(days=1)
+
+#if hour_utc < 12:
+#    fetch_time = datetime(fetch_time.year,fetch_time.month, fetch_time.day, 12) - timedelta(days=1)
+#else:
+#    fetch_time = datetime(fetch_time.year,fetch_time.month, fetch_time.day, 12)    
+    
+
+
+
+
+#$yyyymmdd = "%d%02d%02d" % (fetch_time.year, fetch_time.month, fetch_time.day)
+    
+#yyyymmdd = '20240717'
+# the hour in Z of the forecast, hycom has forecasts once per day starting at 1200Z
+#hhmm='1200'
+#forecastZdatestr = yyyymmdd+hhmm+'Z'   # this could be used for model output to indicate when model was initialized.
+
+## this is the hard coded 
+#yyyymmdd = '20240817'
+
+
+PFM=get_PFM_info()
+print("Starting: driver_run_forecast_LV1: Current local Time =", PFM['start_time'], "UTC = ", PFM['utc_time'], ' Fetch time = ', PFM['fetch_time'])
+yyyymmdd = PFM['yyyymmdd']
+hhmm = PFM['hhmm']
+
+print("Preparing forecast starting on",yyyymmdd,"at ",hhmm)
 ocn_mod = PFM['ocn_model']
 print('ocean boundary and initial conditions will be from:')
 print(ocn_mod)
@@ -44,32 +82,6 @@ print(ocn_mod)
 atm_mod = PFM['atm_model']
 print('atm forcing will be from:')
 print(atm_mod)
-# we will use opendap, and netcdf to grab ocn, and atm data
-get_method = 'open_dap_nc'
-# figure out what the time is local and UTC
-start_time = datetime.now()
-utc_time = datetime.now(timezone.utc)
-year_utc = utc_time.year
-month_utc = utc_time.month
-day_utc = utc_time.day
-hour_utc = utc_time.hour
-
-print("Starting: driver_run_forecast_LV1: Current local Time =", start_time, "UTC = ",utc_time)
-
-if hour_utc < 12:
-    hour_utc=12
-    day_utc=day_utc-1  # this only works if day_utc \neq 1
-
-yyyymmdd = "%d%02d%02d" % (year_utc, month_utc, day_utc)
-    
-#yyyymmdd = '20240717'
-# the hour in Z of the forecast, hycom has forecasts once per day starting at 1200Z
-hhmm='1200'
-forecastZdatestr = yyyymmdd+hhmm+'Z'   # this could be used for model output to indicate when model was initialized.
-
-yyyymmdd = '20240817'
-print("Preparing forecast starting on",yyyymmdd)
-
 
 # get the ROMS grid as a dict
 RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
