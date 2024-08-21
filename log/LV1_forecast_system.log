@@ -1,0 +1,255 @@
+/home/ffeddersen/PFM/driver/../sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+ncks: INFO DAP-access to https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z failed with error code -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
+ncks: INFO Will now attempt wget on the full filepath. wget will fail if the file is "hidden" behind a DAP server. Unfortunately, failed wget attempts creates rather long pathnames in the current directory. fxm TODO nco970, nco971. On the other hand, wget should succeed if the file is stored in any publicly-accessible web location.
+ncks: INFO Unable to find file /tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z on local system. Found hsi command indicating presence of High Performance Storage System (HPSS). Will assume file is stored on HPSS. Received no local path information and so will try to derive suitable local filepath from given filename...
+ncks: INFO Retrieved files will be stored in derived directory ./tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs
+--2024-08-20 20:51:47--  https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z
+ncks: INFO DAP-access to https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z failed with error code -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
+ncks: WARNING not searching for https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z on remote filesystem, using local file ds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z instead
+nco_err_exit(): ERROR Short NCO-generated message (usually name of function that triggered error): nco__open()
+nco_err_exit(): ERROR Error code is -51. Translation into English with nc_strerror(-51) is "NetCDF: Unknown file format"
+ERROR: nco__open() unable to open file "tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z"
+ERROR NC_ENOTNC Not a netCDF file
+HINT: NC_ENOTNC errors can occur for many reasons. If your use-case matches one of the five listed below, take the corrective action indicated:
+1. The netCDF file is truly corrupt, e.g., truncated. To verify whether the file is corrupt, try, e.g., printing its metadata with 'ncks -m in.nc'. This test will likely fail on a corrupt file
+2. An NCO operator linked only to the classic netCDF3 library attempts to read netCDF4 (or HDF5) files. However, this executable seems to have been built with the capability to manipulate netCDF4 files, so it is unlikely that this command failed only because the input datasets are netCDF4 format. Something else is going wrong. 
+3. NCO attempts to read other filetypes (HDF4, HDF-EOS2, PnetCDF/CDF5) for which support must be (but was not) enabled at netCDF build-time. NCO can access HDF4 files if NCO is first re-linked to a version of netCDF configured with the --enable-hdf4 option. This is a non-standard netCDF build option described here: http://www.unidata.ucar.edu/software/netcdf/docs/build_hdf4.html. NCO can access PnetCDF/CDF5 files if NCO is first re-linked to netCDF version 4.4.0 or later.
+4. NCO attempts to utilize diskless (i.e., RAM) files.  In this case remove the diskless switches (e.g., --ram or --diskless) and then re-issue the command.
+5. Access to a DAP URL fails, and the backup method of downloading the URL using wget obtains a data aggregation file (e.g., a .ncml file) instead of an actual netCDF file. In this case the problem is with the DAP server or URL.
+nco_err_exit(): ERROR NCO will now exit with system call exit(EXIT_FAILURE)
+ncks: INFO DAP-access to https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z failed with error code -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
+ncks: WARNING not searching for https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z on remote filesystem, using local file ds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z instead
+nco_err_exit(): ERROR Short NCO-generated message (usually name of function that triggered error): nco__open()
+nco_err_exit(): ERROR Error code is -51. Translation into English with nc_strerror(-51) is "NetCDF: Unknown file format"
+ERROR: nco__open() unable to open file "tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z"
+ERROR NC_ENOTNC Not a netCDF file
+HINT: NC_ENOTNC errors can occur for many reasons. If your use-case matches one of the five listed below, take the corrective action indicated:
+1. The netCDF file is truly corrupt, e.g., truncated. To verify whether the file is corrupt, try, e.g., printing its metadata with 'ncks -m in.nc'. This test will likely fail on a corrupt file
+2. An NCO operator linked only to the classic netCDF3 library attempts to read netCDF4 (or HDF5) files. However, this executable seems to have been built with the capability to manipulate netCDF4 files, so it is unlikely that this command failed only because the input datasets are netCDF4 format. Something else is going wrong. 
+3. NCO attempts to read other filetypes (HDF4, HDF-EOS2, PnetCDF/CDF5) for which support must be (but was not) enabled at netCDF build-time. NCO can access HDF4 files if NCO is first re-linked to a version of netCDF configured with the --enable-hdf4 option. This is a non-standard netCDF build option described here: http://www.unidata.ucar.edu/software/netcdf/docs/build_hdf4.html. NCO can access PnetCDF/CDF5 files if NCO is first re-linked to netCDF version 4.4.0 or later.
+4. NCO attempts to utilize diskless (i.e., RAM) files.  In this case remove the diskless switches (e.g., --ram or --diskless) and then re-issue the command.
+5. Access to a DAP URL fails, and the backup method of downloading the URL using wget obtains a data aggregation file (e.g., a .ncml file) instead of an actual netCDF file. In this case the problem is with the DAP server or URL.
+nco_err_exit(): ERROR NCO will now exit with system call exit(EXIT_FAILURE)
+ncks: INFO DAP-access to https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z failed with error code -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
+ncks: WARNING not searching for https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z on remote filesystem, using local file ds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z instead
+ncks: INFO DAP-access to https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z failed with error code -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
+nco_err_exit(): ERROR Short NCO-generated message (usually name of function that triggered error): nco__open()
+nco_err_exit(): ERROR Error code is -51. Translation into English with nc_strerror(-51) is "NetCDF: Unknown file format"
+ncks: WARNING not searching for https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z on remote filesystem, using local file ds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z instead
+nco_err_exit(): ERROR Short NCO-generated message (usually name of function that triggered error): nco__open()
+nco_err_exit(): ERROR Error code is -51. Translation into English with nc_strerror(-51) is "NetCDF: Unknown file format"
+ERROR: nco__open() unable to open file "tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z"
+ERROR NC_ENOTNC Not a netCDF file
+HINT: NC_ENOTNC errors can occur for many reasons. If your use-case matches one of the five listed below, take the corrective action indicated:
+1. The netCDF file is truly corrupt, e.g., truncated. To verify whether the file is corrupt, try, e.g., printing its metadata with 'ncks -m in.nc'. This test will likely fail on a corrupt file
+2. An NCO operator linked only to the classic netCDF3 library attempts to read netCDF4 (or HDF5) files. However, this executable seems to have been built with the capability to manipulate netCDF4 files, so it is unlikely that this command failed only because the input datasets are netCDF4 format. Something else is going wrong. 
+3. NCO attempts to read other filetypes (HDF4, HDF-EOS2, PnetCDF/CDF5) for which support must be (but was not) enabled at netCDF build-time. NCO can access HDF4 files if NCO is first re-linked to a version of netCDF configured with the --enable-hdf4 option. This is a non-standard netCDF build option described here: http://www.unidata.ucar.edu/software/netcdf/docs/build_hdf4.html. NCO can access PnetCDF/CDF5 files if NCO is first re-linked to netCDF version 4.4.0 or later.
+4. NCO attempts to utilize diskless (i.e., RAM) files.  In this case remove the diskless switches (e.g., --ram or --diskless) and then re-issue the command.
+5. Access to a DAP URL fails, and the backup method of downloading the URL using wget obtains a data aggregation file (e.g., a .ncml file) instead of an actual netCDF file. In this case the problem is with the DAP server or URL.
+nco_err_exit(): ERROR NCO will now exit with system call exit(EXIT_FAILURE)
+ERROR: nco__open() unable to open file "tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z"
+ERROR NC_ENOTNC Not a netCDF file
+HINT: NC_ENOTNC errors can occur for many reasons. If your use-case matches one of the five listed below, take the corrective action indicated:
+1. The netCDF file is truly corrupt, e.g., truncated. To verify whether the file is corrupt, try, e.g., printing its metadata with 'ncks -m in.nc'. This test will likely fail on a corrupt file
+2. An NCO operator linked only to the classic netCDF3 library attempts to read netCDF4 (or HDF5) files. However, this executable seems to have been built with the capability to manipulate netCDF4 files, so it is unlikely that this command failed only because the input datasets are netCDF4 format. Something else is going wrong. 
+3. NCO attempts to read other filetypes (HDF4, HDF-EOS2, PnetCDF/CDF5) for which support must be (but was not) enabled at netCDF build-time. NCO can access HDF4 files if NCO is first re-linked to a version of netCDF configured with the --enable-hdf4 option. This is a non-standard netCDF build option described here: http://www.unidata.ucar.edu/software/netcdf/docs/build_hdf4.html. NCO can access PnetCDF/CDF5 files if NCO is first re-linked to netCDF version 4.4.0 or later.
+4. NCO attempts to utilize diskless (i.e., RAM) files.  In this case remove the diskless switches (e.g., --ram or --diskless) and then re-issue the command.
+5. Access to a DAP URL fails, and the backup method of downloading the URL using wget obtains a data aggregation file (e.g., a .ncml file) instead of an actual netCDF file. In this case the problem is with the DAP server or URL.
+nco_err_exit(): ERROR NCO will now exit with system call exit(EXIT_FAILURE)
+ncks: INFO DAP-access to https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z failed with error code -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
+ncks: WARNING not searching for https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z on remote filesystem, using local file ds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z instead
+nco_err_exit(): ERROR Short NCO-generated message (usually name of function that triggered error): nco__open()
+nco_err_exit(): ERROR Error code is -51. Translation into English with nc_strerror(-51) is "NetCDF: Unknown file format"
+ERROR: nco__open() unable to open file "tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z"
+ERROR NC_ENOTNC Not a netCDF file
+HINT: NC_ENOTNC errors can occur for many reasons. If your use-case matches one of the five listed below, take the corrective action indicated:
+1. The netCDF file is truly corrupt, e.g., truncated. To verify whether the file is corrupt, try, e.g., printing its metadata with 'ncks -m in.nc'. This test will likely fail on a corrupt file
+2. An NCO operator linked only to the classic netCDF3 library attempts to read netCDF4 (or HDF5) files. However, this executable seems to have been built with the capability to manipulate netCDF4 files, so it is unlikely that this command failed only because the input datasets are netCDF4 format. Something else is going wrong. 
+3. NCO attempts to read other filetypes (HDF4, HDF-EOS2, PnetCDF/CDF5) for which support must be (but was not) enabled at netCDF build-time. NCO can access HDF4 files if NCO is first re-linked to a version of netCDF configured with the --enable-hdf4 option. This is a non-standard netCDF build option described here: http://www.unidata.ucar.edu/software/netcdf/docs/build_hdf4.html. NCO can access PnetCDF/CDF5 files if NCO is first re-linked to netCDF version 4.4.0 or later.
+4. NCO attempts to utilize diskless (i.e., RAM) files.  In this case remove the diskless switches (e.g., --ram or --diskless) and then re-issue the command.
+5. Access to a DAP URL fails, and the backup method of downloading the URL using wget obtains a data aggregation file (e.g., a .ncml file) instead of an actual netCDF file. In this case the problem is with the DAP server or URL.
+nco_err_exit(): ERROR NCO will now exit with system call exit(EXIT_FAILURE)
+ncks: INFO DAP-access to https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z failed with error code -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
+ncks: WARNING not searching for https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z on remote filesystem, using local file ds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z instead
+nco_err_exit(): ERROR Short NCO-generated message (usually name of function that triggered error): nco__open()
+nco_err_exit(): ERROR Error code is -51. Translation into English with nc_strerror(-51) is "NetCDF: Unknown file format"
+ncks: INFO DAP-access to https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z failed with error code -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
+ERROR: nco__open() unable to open file "tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z"
+ERROR NC_ENOTNC Not a netCDF file
+HINT: NC_ENOTNC errors can occur for many reasons. If your use-case matches one of the five listed below, take the corrective action indicated:
+1. The netCDF file is truly corrupt, e.g., truncated. To verify whether the file is corrupt, try, e.g., printing its metadata with 'ncks -m in.nc'. This test will likely fail on a corrupt file
+2. An NCO operator linked only to the classic netCDF3 library attempts to read netCDF4 (or HDF5) files. However, this executable seems to have been built with the capability to manipulate netCDF4 files, so it is unlikely that this command failed only because the input datasets are netCDF4 format. Something else is going wrong. 
+3. NCO attempts to read other filetypes (HDF4, HDF-EOS2, PnetCDF/CDF5) for which support must be (but was not) enabled at netCDF build-time. NCO can access HDF4 files if NCO is first re-linked to a version of netCDF configured with the --enable-hdf4 option. This is a non-standard netCDF build option described here: http://www.unidata.ucar.edu/software/netcdf/docs/build_hdf4.html. NCO can access PnetCDF/CDF5 files if NCO is first re-linked to netCDF version 4.4.0 or later.
+4. NCO attempts to utilize diskless (i.e., RAM) files.  In this case remove the diskless switches (e.g., --ram or --diskless) and then re-issue the command.
+5. Access to a DAP URL fails, and the backup method of downloading the URL using wget obtains a data aggregation file (e.g., a .ncml file) instead of an actual netCDF file. In this case the problem is with the DAP server or URL.
+nco_err_exit(): ERROR NCO will now exit with system call exit(EXIT_FAILURE)
+ncks: WARNING not searching for https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z on remote filesystem, using local file ds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z instead
+nco_err_exit(): ERROR Short NCO-generated message (usually name of function that triggered error): nco__open()
+nco_err_exit(): ERROR Error code is -51. Translation into English with nc_strerror(-51) is "NetCDF: Unknown file format"
+ERROR: nco__open() unable to open file "tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z"
+ERROR NC_ENOTNC Not a netCDF file
+HINT: NC_ENOTNC errors can occur for many reasons. If your use-case matches one of the five listed below, take the corrective action indicated:
+1. The netCDF file is truly corrupt, e.g., truncated. To verify whether the file is corrupt, try, e.g., printing its metadata with 'ncks -m in.nc'. This test will likely fail on a corrupt file
+2. An NCO operator linked only to the classic netCDF3 library attempts to read netCDF4 (or HDF5) files. However, this executable seems to have been built with the capability to manipulate netCDF4 files, so it is unlikely that this command failed only because the input datasets are netCDF4 format. Something else is going wrong. 
+3. NCO attempts to read other filetypes (HDF4, HDF-EOS2, PnetCDF/CDF5) for which support must be (but was not) enabled at netCDF build-time. NCO can access HDF4 files if NCO is first re-linked to a version of netCDF configured with the --enable-hdf4 option. This is a non-standard netCDF build option described here: http://www.unidata.ucar.edu/software/netcdf/docs/build_hdf4.html. NCO can access PnetCDF/CDF5 files if NCO is first re-linked to netCDF version 4.4.0 or later.
+4. NCO attempts to utilize diskless (i.e., RAM) files.  In this case remove the diskless switches (e.g., --ram or --diskless) and then re-issue the command.
+5. Access to a DAP URL fails, and the backup method of downloading the URL using wget obtains a data aggregation file (e.g., a .ncml file) instead of an actual netCDF file. In this case the problem is with the DAP server or URL.
+nco_err_exit(): ERROR NCO will now exit with system call exit(EXIT_FAILURE)
+Resolving webproxy.ucsd.edu (webproxy.ucsd.edu)... 132.239.1.231, 132.239.1.230
+Connecting to webproxy.ucsd.edu (webproxy.ucsd.edu)|132.239.1.231|:3128... connected.
+ncks: INFO DAP-access to https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z failed with error code -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
+ncks: WARNING not searching for https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z on remote filesystem, using local file ds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z instead
+nco_err_exit(): ERROR Short NCO-generated message (usually name of function that triggered error): nco__open()
+nco_err_exit(): ERROR Error code is -51. Translation into English with nc_strerror(-51) is "NetCDF: Unknown file format"
+ERROR: nco__open() unable to open file "tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z"
+ERROR NC_ENOTNC Not a netCDF file
+HINT: NC_ENOTNC errors can occur for many reasons. If your use-case matches one of the five listed below, take the corrective action indicated:
+1. The netCDF file is truly corrupt, e.g., truncated. To verify whether the file is corrupt, try, e.g., printing its metadata with 'ncks -m in.nc'. This test will likely fail on a corrupt file
+2. An NCO operator linked only to the classic netCDF3 library attempts to read netCDF4 (or HDF5) files. However, this executable seems to have been built with the capability to manipulate netCDF4 files, so it is unlikely that this command failed only because the input datasets are netCDF4 format. Something else is going wrong. 
+3. NCO attempts to read other filetypes (HDF4, HDF-EOS2, PnetCDF/CDF5) for which support must be (but was not) enabled at netCDF build-time. NCO can access HDF4 files if NCO is first re-linked to a version of netCDF configured with the --enable-hdf4 option. This is a non-standard netCDF build option described here: http://www.unidata.ucar.edu/software/netcdf/docs/build_hdf4.html. NCO can access PnetCDF/CDF5 files if NCO is first re-linked to netCDF version 4.4.0 or later.
+4. NCO attempts to utilize diskless (i.e., RAM) files.  In this case remove the diskless switches (e.g., --ram or --diskless) and then re-issue the command.
+5. Access to a DAP URL fails, and the backup method of downloading the URL using wget obtains a data aggregation file (e.g., a .ncml file) instead of an actual netCDF file. In this case the problem is with the DAP server or URL.
+nco_err_exit(): ERROR NCO will now exit with system call exit(EXIT_FAILURE)
+Proxy request sent, awaiting response... 400 400
+2024-08-20 20:51:48 ERROR 400: 400.
+
+ncks: ERROR Synchronous fetch command failed
+nco_err_exit(): ERROR Short NCO-generated message (usually name of function that triggered error): nco__open()
+nco_err_exit(): ERROR Error code is -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
+ERROR: nco__open() unable to open file "https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z"
+ERROR NC_EDAP Generic DAP error
+HINT: NC_EDAP errors can occur when NCO is invoked with a request that a remote DAP server cannot meet, for example, due to the size of the required data transfer. One workaround might be to re-formulate the NCO command into more commands that each request smaller subsets/hyperslabs from the remote DAP server. However, there are a number of DAP-related errors, only one of which can be reported at a time. The others include: NC_EDAPSVC (-70, DAP server error), NC_EDDS and NC_EDMR (-72, Malformed or inaccessible DDS and Dap4 alias, respectively), NC_EDATADDS and NC_EDATADAP (-73, Malformed or inaccessible DATADDS and Dap4 alias, respectively), NC_EDAPURL and NC_EURL (-74, Malformed DAP URL and Malformed URL, respectively), NC_EDAPCONSTRAINT and NC_ECONSTRAINT (-75, Malformed DAP Constraint and Malformed Constraint, respectively). Few, if any, of these errors are expected to be caused by NCO, since NCO just relays user commands to the DAP server. It is more likely that the DAP syntax employed is incorrect, or there is an error with the DAP server, or the request exceeds the server constraints.
+nco_err_exit(): ERROR NCO will now exit with system call exit(EXIT_FAILURE)
+nco_err_exit(): ERROR Short NCO-generated message (usually name of function that triggered error): nco__open()
+nco_err_exit(): ERROR Error code is -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
+ERROR: nco__open() unable to open file "https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z"
+ERROR NC_EDAP Generic DAP error
+HINT: NC_EDAP errors can occur when NCO is invoked with a request that a remote DAP server cannot meet, for example, due to the size of the required data transfer. One workaround might be to re-formulate the NCO command into more commands that each request smaller subsets/hyperslabs from the remote DAP server. However, there are a number of DAP-related errors, only one of which can be reported at a time. The others include: NC_EDAPSVC (-70, DAP server error), NC_EDDS and NC_EDMR (-72, Malformed or inaccessible DDS and Dap4 alias, respectively), NC_EDATADDS and NC_EDATADAP (-73, Malformed or inaccessible DATADDS and Dap4 alias, respectively), NC_EDAPURL and NC_EURL (-74, Malformed DAP URL and Malformed URL, respectively), NC_EDAPCONSTRAINT and NC_ECONSTRAINT (-75, Malformed DAP Constraint and Malformed Constraint, respectively). Few, if any, of these errors are expected to be caused by NCO, since NCO just relays user commands to the DAP server. It is more likely that the DAP syntax employed is incorrect, or there is an error with the DAP server, or the request exceeds the server constraints.
+nco_err_exit(): ERROR NCO will now exit with system call exit(EXIT_FAILURE)
+nco_err_exit(): ERROR Short NCO-generated message (usually name of function that triggered error): nco__open()
+nco_err_exit(): ERROR Error code is -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
+ERROR: nco__open() unable to open file "https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z"
+ERROR NC_EDAP Generic DAP error
+HINT: NC_EDAP errors can occur when NCO is invoked with a request that a remote DAP server cannot meet, for example, due to the size of the required data transfer. One workaround might be to re-formulate the NCO command into more commands that each request smaller subsets/hyperslabs from the remote DAP server. However, there are a number of DAP-related errors, only one of which can be reported at a time. The others include: NC_EDAPSVC (-70, DAP server error), NC_EDDS and NC_EDMR (-72, Malformed or inaccessible DDS and Dap4 alias, respectively), NC_EDATADDS and NC_EDATADAP (-73, Malformed or inaccessible DATADDS and Dap4 alias, respectively), NC_EDAPURL and NC_EURL (-74, Malformed DAP URL and Malformed URL, respectively), NC_EDAPCONSTRAINT and NC_ECONSTRAINT (-75, Malformed DAP Constraint and Malformed Constraint, respectively). Few, if any, of these errors are expected to be caused by NCO, since NCO just relays user commands to the DAP server. It is more likely that the DAP syntax employed is incorrect, or there is an error with the DAP server, or the request exceeds the server constraints.
+nco_err_exit(): ERROR NCO will now exit with system call exit(EXIT_FAILURE)
+nco_err_exit(): ERROR Short NCO-generated message (usually name of function that triggered error): nco__open()
+nco_err_exit(): ERROR Error code is -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
+ERROR: nco__open() unable to open file "https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z"
+ERROR NC_EDAP Generic DAP error
+HINT: NC_EDAP errors can occur when NCO is invoked with a request that a remote DAP server cannot meet, for example, due to the size of the required data transfer. One workaround might be to re-formulate the NCO command into more commands that each request smaller subsets/hyperslabs from the remote DAP server. However, there are a number of DAP-related errors, only one of which can be reported at a time. The others include: NC_EDAPSVC (-70, DAP server error), NC_EDDS and NC_EDMR (-72, Malformed or inaccessible DDS and Dap4 alias, respectively), NC_EDATADDS and NC_EDATADAP (-73, Malformed or inaccessible DATADDS and Dap4 alias, respectively), NC_EDAPURL and NC_EURL (-74, Malformed DAP URL and Malformed URL, respectively), NC_EDAPCONSTRAINT and NC_ECONSTRAINT (-75, Malformed DAP Constraint and Malformed Constraint, respectively). Few, if any, of these errors are expected to be caused by NCO, since NCO just relays user commands to the DAP server. It is more likely that the DAP syntax employed is incorrect, or there is an error with the DAP server, or the request exceeds the server constraints.
+nco_err_exit(): ERROR NCO will now exit with system call exit(EXIT_FAILURE)
+nco_err_exit(): ERROR Short NCO-generated message (usually name of function that triggered error): nco__open()
+nco_err_exit(): ERROR Error code is -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
+ERROR: nco__open() unable to open file "https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z"
+ERROR NC_EDAP Generic DAP error
+HINT: NC_EDAP errors can occur when NCO is invoked with a request that a remote DAP server cannot meet, for example, due to the size of the required data transfer. One workaround might be to re-formulate the NCO command into more commands that each request smaller subsets/hyperslabs from the remote DAP server. However, there are a number of DAP-related errors, only one of which can be reported at a time. The others include: NC_EDAPSVC (-70, DAP server error), NC_EDDS and NC_EDMR (-72, Malformed or inaccessible DDS and Dap4 alias, respectively), NC_EDATADDS and NC_EDATADAP (-73, Malformed or inaccessible DATADDS and Dap4 alias, respectively), NC_EDAPURL and NC_EURL (-74, Malformed DAP URL and Malformed URL, respectively), NC_EDAPCONSTRAINT and NC_ECONSTRAINT (-75, Malformed DAP Constraint and Malformed Constraint, respectively). Few, if any, of these errors are expected to be caused by NCO, since NCO just relays user commands to the DAP server. It is more likely that the DAP syntax employed is incorrect, or there is an error with the DAP server, or the request exceeds the server constraints.
+nco_err_exit(): ERROR NCO will now exit with system call exit(EXIT_FAILURE)
+nco_err_exit(): ERROR Short NCO-generated message (usually name of function that triggered error): nco__open()
+nco_err_exit(): ERROR Error code is -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
+ERROR: nco__open() unable to open file "https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z"
+ERROR NC_EDAP Generic DAP error
+HINT: NC_EDAP errors can occur when NCO is invoked with a request that a remote DAP server cannot meet, for example, due to the size of the required data transfer. One workaround might be to re-formulate the NCO command into more commands that each request smaller subsets/hyperslabs from the remote DAP server. However, there are a number of DAP-related errors, only one of which can be reported at a time. The others include: NC_EDAPSVC (-70, DAP server error), NC_EDDS and NC_EDMR (-72, Malformed or inaccessible DDS and Dap4 alias, respectively), NC_EDATADDS and NC_EDATADAP (-73, Malformed or inaccessible DATADDS and Dap4 alias, respectively), NC_EDAPURL and NC_EURL (-74, Malformed DAP URL and Malformed URL, respectively), NC_EDAPCONSTRAINT and NC_ECONSTRAINT (-75, Malformed DAP Constraint and Malformed Constraint, respectively). Few, if any, of these errors are expected to be caused by NCO, since NCO just relays user commands to the DAP server. It is more likely that the DAP syntax employed is incorrect, or there is an error with the DAP server, or the request exceeds the server constraints.
+nco_err_exit(): ERROR NCO will now exit with system call exit(EXIT_FAILURE)
+nco_err_exit(): ERROR Short NCO-generated message (usually name of function that triggered error): nco__open()
+nco_err_exit(): ERROR Error code is -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
+ERROR: nco__open() unable to open file "https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z"
+ERROR NC_EDAP Generic DAP error
+HINT: NC_EDAP errors can occur when NCO is invoked with a request that a remote DAP server cannot meet, for example, due to the size of the required data transfer. One workaround might be to re-formulate the NCO command into more commands that each request smaller subsets/hyperslabs from the remote DAP server. However, there are a number of DAP-related errors, only one of which can be reported at a time. The others include: NC_EDAPSVC (-70, DAP server error), NC_EDDS and NC_EDMR (-72, Malformed or inaccessible DDS and Dap4 alias, respectively), NC_EDATADDS and NC_EDATADAP (-73, Malformed or inaccessible DATADDS and Dap4 alias, respectively), NC_EDAPURL and NC_EURL (-74, Malformed DAP URL and Malformed URL, respectively), NC_EDAPCONSTRAINT and NC_ECONSTRAINT (-75, Malformed DAP Constraint and Malformed Constraint, respectively). Few, if any, of these errors are expected to be caused by NCO, since NCO just relays user commands to the DAP server. It is more likely that the DAP syntax employed is incorrect, or there is an error with the DAP server, or the request exceeds the server constraints.
+nco_err_exit(): ERROR NCO will now exit with system call exit(EXIT_FAILURE)
+nco_err_exit(): ERROR Short NCO-generated message (usually name of function that triggered error): nco__open()
+nco_err_exit(): ERROR Error code is -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
+ERROR: nco__open() unable to open file "https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z"
+ERROR NC_EDAP Generic DAP error
+HINT: NC_EDAP errors can occur when NCO is invoked with a request that a remote DAP server cannot meet, for example, due to the size of the required data transfer. One workaround might be to re-formulate the NCO command into more commands that each request smaller subsets/hyperslabs from the remote DAP server. However, there are a number of DAP-related errors, only one of which can be reported at a time. The others include: NC_EDAPSVC (-70, DAP server error), NC_EDDS and NC_EDMR (-72, Malformed or inaccessible DDS and Dap4 alias, respectively), NC_EDATADDS and NC_EDATADAP (-73, Malformed or inaccessible DATADDS and Dap4 alias, respectively), NC_EDAPURL and NC_EURL (-74, Malformed DAP URL and Malformed URL, respectively), NC_EDAPCONSTRAINT and NC_ECONSTRAINT (-75, Malformed DAP Constraint and Malformed Constraint, respectively). Few, if any, of these errors are expected to be caused by NCO, since NCO just relays user commands to the DAP server. It is more likely that the DAP syntax employed is incorrect, or there is an error with the DAP server, or the request exceeds the server constraints.
+nco_err_exit(): ERROR NCO will now exit with system call exit(EXIT_FAILURE)
+ncks: INFO DAP-access to https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z failed with error code -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
+ncks: WARNING not searching for https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z on remote filesystem, using local file ds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z instead
+nco_err_exit(): ERROR Short NCO-generated message (usually name of function that triggered error): nco__open()
+nco_err_exit(): ERROR Error code is -51. Translation into English with nc_strerror(-51) is "NetCDF: Unknown file format"
+ERROR: nco__open() unable to open file "tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z"
+ERROR NC_ENOTNC Not a netCDF file
+HINT: NC_ENOTNC errors can occur for many reasons. If your use-case matches one of the five listed below, take the corrective action indicated:
+1. The netCDF file is truly corrupt, e.g., truncated. To verify whether the file is corrupt, try, e.g., printing its metadata with 'ncks -m in.nc'. This test will likely fail on a corrupt file
+2. An NCO operator linked only to the classic netCDF3 library attempts to read netCDF4 (or HDF5) files. However, this executable seems to have been built with the capability to manipulate netCDF4 files, so it is unlikely that this command failed only because the input datasets are netCDF4 format. Something else is going wrong. 
+3. NCO attempts to read other filetypes (HDF4, HDF-EOS2, PnetCDF/CDF5) for which support must be (but was not) enabled at netCDF build-time. NCO can access HDF4 files if NCO is first re-linked to a version of netCDF configured with the --enable-hdf4 option. This is a non-standard netCDF build option described here: http://www.unidata.ucar.edu/software/netcdf/docs/build_hdf4.html. NCO can access PnetCDF/CDF5 files if NCO is first re-linked to netCDF version 4.4.0 or later.
+4. NCO attempts to utilize diskless (i.e., RAM) files.  In this case remove the diskless switches (e.g., --ram or --diskless) and then re-issue the command.
+5. Access to a DAP URL fails, and the backup method of downloading the URL using wget obtains a data aggregation file (e.g., a .ncml file) instead of an actual netCDF file. In this case the problem is with the DAP server or URL.
+nco_err_exit(): ERROR NCO will now exit with system call exit(EXIT_FAILURE)
+ncks: INFO DAP-access to https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z failed with error code -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
+ncks: WARNING not searching for https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z on remote filesystem, using local file ds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z instead
+nco_err_exit(): ERROR Short NCO-generated message (usually name of function that triggered error): nco__open()
+nco_err_exit(): ERROR Error code is -51. Translation into English with nc_strerror(-51) is "NetCDF: Unknown file format"
+ERROR: nco__open() unable to open file "tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z"
+ERROR NC_ENOTNC Not a netCDF file
+HINT: NC_ENOTNC errors can occur for many reasons. If your use-case matches one of the five listed below, take the corrective action indicated:
+1. The netCDF file is truly corrupt, e.g., truncated. To verify whether the file is corrupt, try, e.g., printing its metadata with 'ncks -m in.nc'. This test will likely fail on a corrupt file
+2. An NCO operator linked only to the classic netCDF3 library attempts to read netCDF4 (or HDF5) files. However, this executable seems to have been built with the capability to manipulate netCDF4 files, so it is unlikely that this command failed only because the input datasets are netCDF4 format. Something else is going wrong. 
+3. NCO attempts to read other filetypes (HDF4, HDF-EOS2, PnetCDF/CDF5) for which support must be (but was not) enabled at netCDF build-time. NCO can access HDF4 files if NCO is first re-linked to a version of netCDF configured with the --enable-hdf4 option. This is a non-standard netCDF build option described here: http://www.unidata.ucar.edu/software/netcdf/docs/build_hdf4.html. NCO can access PnetCDF/CDF5 files if NCO is first re-linked to netCDF version 4.4.0 or later.
+4. NCO attempts to utilize diskless (i.e., RAM) files.  In this case remove the diskless switches (e.g., --ram or --diskless) and then re-issue the command.
+5. Access to a DAP URL fails, and the backup method of downloading the URL using wget obtains a data aggregation file (e.g., a .ncml file) instead of an actual netCDF file. In this case the problem is with the DAP server or URL.
+nco_err_exit(): ERROR NCO will now exit with system call exit(EXIT_FAILURE)
+ncks: INFO DAP-access to https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z failed with error code -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
+ncks: WARNING not searching for https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z on remote filesystem, using local file ds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z instead
+nco_err_exit(): ERROR Short NCO-generated message (usually name of function that triggered error): nco__open()
+nco_err_exit(): ERROR Error code is -51. Translation into English with nc_strerror(-51) is "NetCDF: Unknown file format"
+ERROR: nco__open() unable to open file "tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z"
+ERROR NC_ENOTNC Not a netCDF file
+HINT: NC_ENOTNC errors can occur for many reasons. If your use-case matches one of the five listed below, take the corrective action indicated:
+1. The netCDF file is truly corrupt, e.g., truncated. To verify whether the file is corrupt, try, e.g., printing its metadata with 'ncks -m in.nc'. This test will likely fail on a corrupt file
+2. An NCO operator linked only to the classic netCDF3 library attempts to read netCDF4 (or HDF5) files. However, this executable seems to have been built with the capability to manipulate netCDF4 files, so it is unlikely that this command failed only because the input datasets are netCDF4 format. Something else is going wrong. 
+3. NCO attempts to read other filetypes (HDF4, HDF-EOS2, PnetCDF/CDF5) for which support must be (but was not) enabled at netCDF build-time. NCO can access HDF4 files if NCO is first re-linked to a version of netCDF configured with the --enable-hdf4 option. This is a non-standard netCDF build option described here: http://www.unidata.ucar.edu/software/netcdf/docs/build_hdf4.html. NCO can access PnetCDF/CDF5 files if NCO is first re-linked to netCDF version 4.4.0 or later.
+4. NCO attempts to utilize diskless (i.e., RAM) files.  In this case remove the diskless switches (e.g., --ram or --diskless) and then re-issue the command.
+5. Access to a DAP URL fails, and the backup method of downloading the URL using wget obtains a data aggregation file (e.g., a .ncml file) instead of an actual netCDF file. In this case the problem is with the DAP server or URL.
+nco_err_exit(): ERROR NCO will now exit with system call exit(EXIT_FAILURE)
+swell
+in the parallel ncks switch
+Traceback (most recent call last):
+  File "/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py", line 4567, in <module>
+    globals()[args[1]](*args[2:])
+  File "/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py", line 712, in get_ocn_data_as_dict_pckl
+    for future in as_completed(threads):
+  File "/home/ffeddersen/anaconda3/lib/python3.12/concurrent/futures/_base.py", line 243, in as_completed
+    waiter.event.wait(wait_timeout)
+  File "/home/ffeddersen/anaconda3/lib/python3.12/threading.py", line 655, in wait
+    signaled = self._cond.wait(timeout)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ffeddersen/anaconda3/lib/python3.12/threading.py", line 355, in wait
+    waiter.acquire()
+KeyboardInterrupt
+
+Starting the LV1 simulation, Current time  2024-08-20 20:51:47.084905
+
+
+swell
+Starting: driver_run_forecast_LV1: Current local Time = 2024-08-20 20:51:47.084959 UTC =  2024-08-21 03:51:47.084960+00:00  Fetch time =  2024-08-19 12:00:00
+Preparing forecast starting on 20240819 at  1200
+ocean boundary and initial conditions will be from:
+hycom
+atm forcing will be from:
+nam_nest
+before getting OCN, using:
+226636
+kilobytes
+going to use subprocess, and save a pickle file.
+Traceback (most recent call last):
+  File "/home/ffeddersen/PFM/driver/driver_run_forecast_LV1_v3.py", line 109, in <module>
+    ret1 = subprocess.run(cmd_list)     
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ffeddersen/anaconda3/lib/python3.12/subprocess.py", line 550, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ffeddersen/anaconda3/lib/python3.12/subprocess.py", line 1201, in communicate
+    self.wait()
+  File "/home/ffeddersen/anaconda3/lib/python3.12/subprocess.py", line 1264, in wait
+    return self._wait(timeout=timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ffeddersen/anaconda3/lib/python3.12/subprocess.py", line 2053, in _wait
+    (pid, sts) = self._try_wait(0)
+                 ^^^^^^^^^^^^^^^^^
+  File "/home/ffeddersen/anaconda3/lib/python3.12/subprocess.py", line 2011, in _try_wait
+    (pid, sts) = os.waitpid(self.pid, wait_flags)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt
