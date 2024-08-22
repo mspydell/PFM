@@ -3176,17 +3176,25 @@ def interp_to_roms_z(zh,fofz,zr,hb):
 
     ig = np.nonzero(zh>=hb)
 
+    # I don't think we ever get into these 1st two conditions, 
     if len(zh[ig]) < 1: # you get in here if all f(z) is nan, ie. we are in land
         # we also make sure that if there is only 1 good value, we also return nans
         fofzrm = np.squeeze(np.nan*zr)
     elif len(zh[ig]) == 1:
         fofzrm = np.squeeze(fofz[ig] * np.ones(np.shape(zr)))
-    else:    
-        fofz2 = fofz[ig]
-        Fz = interp1d(np.squeeze(zh[ig]),np.squeeze(fofz2),bounds_error=False,kind='linear',fill_value=(fofz2[-1],fofz2[0]))
-        #print(np.shape(zr_s))
-        #print(np.shape(TMP['temp_south']))
-        fofzrm = np.squeeze(Fz(zr))
+    else:
+        if hb > np.min(zh):   # this fills a pesky NaN in OCN_R at the bottom.
+            fofz2 = fofz[ig]
+            Fz = interp1d(np.squeeze(zh[ig]),np.squeeze(fofz2),bounds_error=False,kind='linear',fill_value=(fofz2[-1],fofz2[0]))
+            #print(np.shape(zr_s))
+            #print(np.shape(TMP['temp_south']))
+            fofzrm = np.squeeze(Fz(zr))
+        else:
+            fofz2 = fofz
+            fofz2[39] = fofz2[38] # this removes the bottom NaN
+            Fz = interp1d(np.squeeze(zh[ig]),np.squeeze(fofz2),bounds_error=False,kind='linear',fill_value=(fofz2[-1],fofz2[0]))
+            fofzrm = np.squeeze(Fz(zr))
+
 
     return fofzrm
 
