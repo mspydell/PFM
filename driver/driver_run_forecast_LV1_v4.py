@@ -23,7 +23,6 @@ from make_LV1_dotin_and_SLURM import make_LV1_dotin_and_SLURM
 from run_slurm_LV1 import run_slurm_LV1
 
 print('\nStarting the LV1 simulation, Current time ', datetime.now())
-print('\n')
 
 # we are going to make a forecast
 run_type = 'forecast'
@@ -32,11 +31,12 @@ run_type = 'forecast'
 PFM=get_PFM_info()
 RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
 
-print("Starting: driver_run_forecast_LV1: Current local Time =", PFM['start_time'], "UTC = ", PFM['utc_time'], ' Fetch time = ', PFM['fetch_time'])
+print("Starting: driver_run_forecast_LV1")
+print("Current local Time =", PFM['start_time'], "UTC = ", PFM['utc_time'], ' Fetch time = ', PFM['fetch_time'])
 yyyymmdd = PFM['yyyymmdd']
 hhmm = PFM['hhmm']
 
-print("Preparing forecast starting on",yyyymmdd,"at ",hhmm)
+print("\nPreparing forecast starting on",yyyymmdd,"at ",hhmm)
 ocn_mod = PFM['ocn_model']
 print('ocean boundary and initial conditions will be from:')
 print(ocn_mod)
@@ -80,9 +80,11 @@ if use_ncks == 1:
         OCN = ocnfuns.get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,'ncks_para')
         print('driver_run_forecast_LV1: done with get_ocn_data_as_dict: Current time ',datetime.now() )
     else:
-        print('going to use subprocess, and save a pickle file of ocn data.')
+        print('\nGetting OCN forecast data. Going to use subprocess, and save a pickle file of ocn data.')
         os.chdir('../sdpm_py_util')
-        cmd_list = ['python','ocn_functions.py','get_ocn_data_as_dict_pckl',yyyymmdd,run_type,ocn_mod,'ncks_para']
+        #cmd_list = ['python','ocn_functions.py','get_ocn_data_as_dict_pckl',yyyymmdd,run_type,ocn_mod,'ncks_para']
+     #-W "ignore"
+        cmd_list = ['python','-W','ignore','ocn_functions.py','get_ocn_data_as_dict_pckl',yyyymmdd,run_type,ocn_mod,'ncks_para']
         ret1 = subprocess.run(cmd_list)     
         os.chdir('../driver')
         print('did subprocess run correctly? ' + str(ret1.returncode) + ' (0=yes,1=no)')
@@ -95,10 +97,9 @@ else: # this was used for testing and loading a previous pickle file
             pickle.dump(OCN,fp)
             print('OCN dict saved with pickle')
     else:
-        fn_pckl = PFM['lv1_forc_dir'] + '/' + PFM['lv1_ocn_tmp_pckl_file']
         with open(fn_pckl,'rb') as fp:
-            #OCN = pickle.load(fp)
-            print('OCN dict loaded with pickle')
+            OCN = pickle.load(fp)
+            #print('OCN dict loaded with pickle')
 
 ## plot OCN
 
@@ -120,11 +121,11 @@ if sv_ocnR_pkl_file==0:
     OCN_R  = ocnfuns.hycom_to_roms_latlon(OCN,RMG)
 else:
     os.chdir('../sdpm_py_util')
-    print('\nputting the hycom data in ' + fn_pckl + ' on the roms grid...')
+    print('putting the hycom data in ' + fn_pckl + ' on the roms grid...')
     ocnfuns.make_all_tmp_pckl_ocnR_files(fn_pckl)
     os.chdir('../driver')
 
-print('driver_run_forecast_LV1: done with hycom_to_roms_latlon\n')
+print('driver_run_forecast_LV1: done with hycom_to_roms_latlon')
 # add OCN + OCN_R plotting function here !!!
 
 ## plot OCN_R
@@ -140,11 +141,11 @@ print('\n')
 # make the depth pickle file
 print('making the depth pickle file...')
 fname_depths = PFM['lv1_forc_dir'] + '/' + PFM['lv1_depth_file']
-cmd_list = ['python','ocn_functions.py','make_rom_depths',fname_depths]
+cmd_list = ['python','-W','ignore','ocn_functions.py','make_rom_depths',fname_depths]
 os.chdir('../sdpm_py_util')
 ret6 = subprocess.run(cmd_list)     
 os.chdir('../driver')
-print('subprocess return code? ' + str(ret6.returncode) +  ' (0=good)\n')
+print('subprocess return code? ' + str(ret6.returncode) +  ' (0=good)')
 t3 = datetime.now()
 print('this took:')
 print(t3-t2)
@@ -157,7 +158,7 @@ if fr_ocnR_pkl_file==0:
 else:
     print('going to save OCN_IC to a pickle file: ' + ocnIC_pckl)
     os.chdir('../sdpm_py_util')
-    cmd_list = ['python','ocn_functions.py','ocn_r_2_ICdict_pckl',ocnIC_pckl]
+    cmd_list = ['python','-W','ignore','ocn_functions.py','ocn_r_2_ICdict_pckl',ocnIC_pckl]
     ret3 = subprocess.run(cmd_list)     
     os.chdir('../driver')
     print('OCN IC data saved with pickle, correctly? ' + str(ret3.returncode) + ' (0=yes,1=no)')
@@ -175,7 +176,7 @@ if frm_ICpkl_file == 0:
     ocnfuns.ocn_roms_IC_dict_to_netcdf(OCN_IC, ic_file_out)
 else:
     print('making IC file from pickled IC: '+ ic_file_out)
-    cmd_list = ['python','ocn_functions.py','ocn_roms_IC_dict_to_netcdf_pckl',ocnIC_pckl,ic_file_out]
+    cmd_list = ['python','-W','ignore','ocn_functions.py','ocn_roms_IC_dict_to_netcdf_pckl',ocnIC_pckl,ic_file_out]
     os.chdir('../sdpm_py_util')
     ret4 = subprocess.run(cmd_list)     
     os.chdir('../driver')
@@ -199,7 +200,7 @@ else:
     ocnBC_pckl = PFM['lv1_forc_dir'] + '/' + PFM['lv1_ocnBC_tmp_pckl_file']
     print(ocnBC_pckl) 
     os.chdir('../sdpm_py_util')
-    cmd_list = ['python','ocn_functions.py','ocn_r_2_BCdict_pckl_new',ocnBC_pckl]
+    cmd_list = ['python','-W','ignore','ocn_functions.py','ocn_r_2_BCdict_pckl_new',ocnBC_pckl]
     ret4 = subprocess.run(cmd_list)     
     os.chdir('../driver')
     print('OCN BC data saved with pickle, correctly? ' + str(ret4.returncode) + ' (0=yes)')
@@ -215,7 +216,7 @@ if frm_BCpkl_file == 0:
     ocnfuns.ocn_roms_BC_dict_to_netcdf(OCN_BC, bc_file_out)
 else:
     print('making BC nc file from pickled BC: '+ bc_file_out)
-    cmd_list = ['python','ocn_functions.py','ocn_roms_BC_dict_to_netcdf_pckl',ocnBC_pckl,bc_file_out]
+    cmd_list = ['python','-W','ignore','ocn_functions.py','ocn_roms_BC_dict_to_netcdf_pckl',ocnBC_pckl,bc_file_out]
     os.chdir('../sdpm_py_util')
     ret5 = subprocess.run(cmd_list)     
     os.chdir('../driver')

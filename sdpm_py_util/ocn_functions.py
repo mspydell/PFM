@@ -1057,8 +1057,8 @@ def hycom_to_roms_latlon_notbetter(HY,RMG):
 
     for aa in vnames:
         zhy  = HY[aa]
-        print('doing:')
-        print(aa)
+        #print('doing:')
+        #print(aa)
         for cc in range(NT):
             if aa=='zeta':
                 zhy2 = zhy[cc,:,:]
@@ -1237,8 +1237,8 @@ def hycom_to_roms_latlon(HY,RMG):
 
     for aa in vnames:
         zhy  = HY[aa]
-        print('doing:')
-        print(aa)
+        #print('doing:')
+        #print(aa)
         for cc in range(NT):
             if aa=='zeta':
                 zhy2 = zhy[cc,:,:]
@@ -1393,12 +1393,12 @@ def hycom_to_roms_latlon_pckl(fname_in):
     PFM=get_PFM_info()
     RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
 
-    print(fname_in)
+    #print(fname_in)
 #    print(fname_out)
 
     with open(fname_in,'rb') as fp:
         HY = pickle.load(fp)
-        print('OCN dict loaded with pickle')
+        #print('OCN dict loaded with pickle')
 
     
     # set up the interpolator now and pass to function
@@ -1498,8 +1498,8 @@ def hycom_to_roms_latlon_pckl(fname_in):
 
         for aa in vnames:
             zhy  = HY[aa]
-            print('doing:')
-            print(aa)
+            #print('doing:')
+            #print(aa)
             for cc in range(NT):
                 if aa=='zeta':
                     zhy2 = zhy[cc,:,:]
@@ -1553,8 +1553,8 @@ def hycom_to_roms_latlon_pckl(fname_in):
         Tmpu['v'] = np.zeros((NT,NZ, NR, NC))
         for aa in vnames:
             zhy  = HY[aa]
-            print('doing:')
-            print(aa)
+            #print('doing:')
+            #print(aa)
             for cc in range(NT):
                 if aa=='zeta':
                     zhy2 = zhy[cc,:,:]
@@ -1651,8 +1651,8 @@ def make_all_tmp_pckl_ocnR_files(fname_in):
     os.chdir('../sdpm_py_util')
     rctot = 0
     for aa in ork:
-        print('doing ' + aa + ' using subprocess')
-        cmd_list = ['python','ocn_functions.py','make_tmp_hy_on_rom_pckl_files',fname_in,aa]
+        #print('doing ' + aa + ' using subprocess')
+        cmd_list = ['python','-W','ignore','ocn_functions.py','make_tmp_hy_on_rom_pckl_files',fname_in,aa]
         ret1 = subprocess.run(cmd_list)     
         rctot = rctot + ret1.returncode
         if ret1.returncode != 0:
@@ -2588,7 +2588,6 @@ def ocn_r_2_ICdict_pckl(fname_out):
 
     get_depth_file = 1
 
-    print ('got here in IC, 1')
     if get_depth_file == 0:
     # get the roms z's
         hraw = None
@@ -2608,9 +2607,6 @@ def ocn_r_2_ICdict_pckl(fname_out):
         zr_u=Zrm['zu_ic']
         zr_v=Zrm['zv_ic']
         OCN_IC['Cs_r'] = Zrm['Cs_r']
-
-    print ('got here in IC, 2')
-
 
     OCN_IC['vinfo']['Cs_r'] = {'long_name':'S-coordinate stretching curves at RHO-points',
                         'units':'nondimensional',
@@ -4394,7 +4390,7 @@ def ocn_roms_IC_dict_to_netcdf(ATM_R,fn_out):
         attrs={'type':'ocean initial condition file fields for starting roms',
             'time info':'ocean time is from '+ ATM_R['ocean_time_ref'].strftime("%Y/%m/%d %H:%M:%S") },
         )
-    print(ds)
+    # print(ds)
 
     ds.to_netcdf(fn_out)
     ds.close()
@@ -4443,7 +4439,7 @@ def ocn_roms_IC_dict_to_netcdf_pckl(fname_in,fn_out):
         attrs={'type':'ocean initial condition file fields for starting roms',
             'time info':'ocean time is from '+ ATM_R['ocean_time_ref'].strftime("%Y/%m/%d %H:%M:%S") },
         )
-    print(ds)
+    # print(ds)
 
     ds.to_netcdf(fn_out)
     ds.close()
@@ -4488,7 +4484,7 @@ def ocn_roms_BC_dict_to_netcdf(ATM_R,fn_out):
         attrs={'type':'ocean boundary condition file fields for starting roms',
             'time info':'ocean time is from '+ ATM_R['ocean_time_ref'].strftime("%Y/%m/%d %H:%M:%S") },
         )
-    print(ds)
+    # print(ds)
 
     ds.to_netcdf(fn_out)
     ds.close()
@@ -4554,7 +4550,7 @@ def ocn_roms_BC_dict_to_netcdf_pckl(fname_in,fn_out):
         attrs={'type':'ocean boundary condition file fields for starting roms',
             'time info':'ocean time is from '+ ATM_R['ocean_time_ref'].strftime("%Y/%m/%d %H:%M:%S") },
         )
-    print(ds)
+    # print(ds)
 
    # these are extra time variables
    # tvars=['zeta_time', 'v2d_time', 'v3d_time', 'salt_time','temp_time']

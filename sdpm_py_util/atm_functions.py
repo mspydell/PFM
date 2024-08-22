@@ -34,8 +34,6 @@ def get_atm_data_as_dict(yyyymmdd,hhmm,run_type,atm_mod,get_method,PFM):
         d1 = d1 + int(hhmm[0:2])*timedelta(days=1/24) # d1 is the start time of the forecast
         t2 = t-t[0] # an ndarray of days, t is from atm import
         t3 = d1 + t2 * timedelta(days=1)
-        print('getting atm forecast for:')
-        print(t3)
         # t3 looks good and is the correct time stamps of the forecast.
         # But for ROMS we need ocean_time which is relative to 1999,1,1. 
         # in seconds. So...
@@ -413,6 +411,6 @@ def atm_roms_dict_to_netcdf(ATM_R,fn_out):
         attrs={'type':'atmospheric forcing file fields for surface fluxes',
             'time info':'ocean time is from '+ ATM_R['ocean_time_ref'].strftime("%Y/%m/%d %H:%M:%S") },
         )
-    print(ds)
+    # print(ds)
 
     ds.to_netcdf(fn_out)

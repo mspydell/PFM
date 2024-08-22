@@ -23,7 +23,7 @@ def get_PFM_info():
 
    #print('get_PFM_info(): running on' + HOSTNAME)
 
-   print(HOSTNAME)   # if running as cron HOSTNAME is not defined
+#   print(HOSTNAME)   # if running as cron HOSTNAME is not defined
 #   if str(HOSTNAME) == 'swell':
 #       pfm_root_dir = '/scratch/PFM_Simulations/'
 #       lo_env = 'mss_swell'
