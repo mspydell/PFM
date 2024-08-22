@@ -1,255 +1,318 @@
-/home/ffeddersen/PFM/driver/../sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
-  import seawater
-/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
-  import seawater
-ncks: INFO DAP-access to https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z failed with error code -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
-ncks: INFO Will now attempt wget on the full filepath. wget will fail if the file is "hidden" behind a DAP server. Unfortunately, failed wget attempts creates rather long pathnames in the current directory. fxm TODO nco970, nco971. On the other hand, wget should succeed if the file is stored in any publicly-accessible web location.
-ncks: INFO Unable to find file /tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z on local system. Found hsi command indicating presence of High Performance Storage System (HPSS). Will assume file is stored on HPSS. Received no local path information and so will try to derive suitable local filepath from given filename...
-ncks: INFO Retrieved files will be stored in derived directory ./tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs
---2024-08-20 20:51:47--  https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z
-ncks: INFO DAP-access to https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z failed with error code -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
-ncks: WARNING not searching for https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z on remote filesystem, using local file ds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z instead
-nco_err_exit(): ERROR Short NCO-generated message (usually name of function that triggered error): nco__open()
-nco_err_exit(): ERROR Error code is -51. Translation into English with nc_strerror(-51) is "NetCDF: Unknown file format"
-ERROR: nco__open() unable to open file "tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z"
-ERROR NC_ENOTNC Not a netCDF file
-HINT: NC_ENOTNC errors can occur for many reasons. If your use-case matches one of the five listed below, take the corrective action indicated:
-1. The netCDF file is truly corrupt, e.g., truncated. To verify whether the file is corrupt, try, e.g., printing its metadata with 'ncks -m in.nc'. This test will likely fail on a corrupt file
-2. An NCO operator linked only to the classic netCDF3 library attempts to read netCDF4 (or HDF5) files. However, this executable seems to have been built with the capability to manipulate netCDF4 files, so it is unlikely that this command failed only because the input datasets are netCDF4 format. Something else is going wrong. 
-3. NCO attempts to read other filetypes (HDF4, HDF-EOS2, PnetCDF/CDF5) for which support must be (but was not) enabled at netCDF build-time. NCO can access HDF4 files if NCO is first re-linked to a version of netCDF configured with the --enable-hdf4 option. This is a non-standard netCDF build option described here: http://www.unidata.ucar.edu/software/netcdf/docs/build_hdf4.html. NCO can access PnetCDF/CDF5 files if NCO is first re-linked to netCDF version 4.4.0 or later.
-4. NCO attempts to utilize diskless (i.e., RAM) files.  In this case remove the diskless switches (e.g., --ram or --diskless) and then re-issue the command.
-5. Access to a DAP URL fails, and the backup method of downloading the URL using wget obtains a data aggregation file (e.g., a .ncml file) instead of an actual netCDF file. In this case the problem is with the DAP server or URL.
-nco_err_exit(): ERROR NCO will now exit with system call exit(EXIT_FAILURE)
-ncks: INFO DAP-access to https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z failed with error code -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
-ncks: WARNING not searching for https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z on remote filesystem, using local file ds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z instead
-nco_err_exit(): ERROR Short NCO-generated message (usually name of function that triggered error): nco__open()
-nco_err_exit(): ERROR Error code is -51. Translation into English with nc_strerror(-51) is "NetCDF: Unknown file format"
-ERROR: nco__open() unable to open file "tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z"
-ERROR NC_ENOTNC Not a netCDF file
-HINT: NC_ENOTNC errors can occur for many reasons. If your use-case matches one of the five listed below, take the corrective action indicated:
-1. The netCDF file is truly corrupt, e.g., truncated. To verify whether the file is corrupt, try, e.g., printing its metadata with 'ncks -m in.nc'. This test will likely fail on a corrupt file
-2. An NCO operator linked only to the classic netCDF3 library attempts to read netCDF4 (or HDF5) files. However, this executable seems to have been built with the capability to manipulate netCDF4 files, so it is unlikely that this command failed only because the input datasets are netCDF4 format. Something else is going wrong. 
-3. NCO attempts to read other filetypes (HDF4, HDF-EOS2, PnetCDF/CDF5) for which support must be (but was not) enabled at netCDF build-time. NCO can access HDF4 files if NCO is first re-linked to a version of netCDF configured with the --enable-hdf4 option. This is a non-standard netCDF build option described here: http://www.unidata.ucar.edu/software/netcdf/docs/build_hdf4.html. NCO can access PnetCDF/CDF5 files if NCO is first re-linked to netCDF version 4.4.0 or later.
-4. NCO attempts to utilize diskless (i.e., RAM) files.  In this case remove the diskless switches (e.g., --ram or --diskless) and then re-issue the command.
-5. Access to a DAP URL fails, and the backup method of downloading the URL using wget obtains a data aggregation file (e.g., a .ncml file) instead of an actual netCDF file. In this case the problem is with the DAP server or URL.
-nco_err_exit(): ERROR NCO will now exit with system call exit(EXIT_FAILURE)
-ncks: INFO DAP-access to https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z failed with error code -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
-ncks: WARNING not searching for https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z on remote filesystem, using local file ds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z instead
-ncks: INFO DAP-access to https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z failed with error code -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
-nco_err_exit(): ERROR Short NCO-generated message (usually name of function that triggered error): nco__open()
-nco_err_exit(): ERROR Error code is -51. Translation into English with nc_strerror(-51) is "NetCDF: Unknown file format"
-ncks: WARNING not searching for https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z on remote filesystem, using local file ds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z instead
-nco_err_exit(): ERROR Short NCO-generated message (usually name of function that triggered error): nco__open()
-nco_err_exit(): ERROR Error code is -51. Translation into English with nc_strerror(-51) is "NetCDF: Unknown file format"
-ERROR: nco__open() unable to open file "tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z"
-ERROR NC_ENOTNC Not a netCDF file
-HINT: NC_ENOTNC errors can occur for many reasons. If your use-case matches one of the five listed below, take the corrective action indicated:
-1. The netCDF file is truly corrupt, e.g., truncated. To verify whether the file is corrupt, try, e.g., printing its metadata with 'ncks -m in.nc'. This test will likely fail on a corrupt file
-2. An NCO operator linked only to the classic netCDF3 library attempts to read netCDF4 (or HDF5) files. However, this executable seems to have been built with the capability to manipulate netCDF4 files, so it is unlikely that this command failed only because the input datasets are netCDF4 format. Something else is going wrong. 
-3. NCO attempts to read other filetypes (HDF4, HDF-EOS2, PnetCDF/CDF5) for which support must be (but was not) enabled at netCDF build-time. NCO can access HDF4 files if NCO is first re-linked to a version of netCDF configured with the --enable-hdf4 option. This is a non-standard netCDF build option described here: http://www.unidata.ucar.edu/software/netcdf/docs/build_hdf4.html. NCO can access PnetCDF/CDF5 files if NCO is first re-linked to netCDF version 4.4.0 or later.
-4. NCO attempts to utilize diskless (i.e., RAM) files.  In this case remove the diskless switches (e.g., --ram or --diskless) and then re-issue the command.
-5. Access to a DAP URL fails, and the backup method of downloading the URL using wget obtains a data aggregation file (e.g., a .ncml file) instead of an actual netCDF file. In this case the problem is with the DAP server or URL.
-nco_err_exit(): ERROR NCO will now exit with system call exit(EXIT_FAILURE)
-ERROR: nco__open() unable to open file "tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z"
-ERROR NC_ENOTNC Not a netCDF file
-HINT: NC_ENOTNC errors can occur for many reasons. If your use-case matches one of the five listed below, take the corrective action indicated:
-1. The netCDF file is truly corrupt, e.g., truncated. To verify whether the file is corrupt, try, e.g., printing its metadata with 'ncks -m in.nc'. This test will likely fail on a corrupt file
-2. An NCO operator linked only to the classic netCDF3 library attempts to read netCDF4 (or HDF5) files. However, this executable seems to have been built with the capability to manipulate netCDF4 files, so it is unlikely that this command failed only because the input datasets are netCDF4 format. Something else is going wrong. 
-3. NCO attempts to read other filetypes (HDF4, HDF-EOS2, PnetCDF/CDF5) for which support must be (but was not) enabled at netCDF build-time. NCO can access HDF4 files if NCO is first re-linked to a version of netCDF configured with the --enable-hdf4 option. This is a non-standard netCDF build option described here: http://www.unidata.ucar.edu/software/netcdf/docs/build_hdf4.html. NCO can access PnetCDF/CDF5 files if NCO is first re-linked to netCDF version 4.4.0 or later.
-4. NCO attempts to utilize diskless (i.e., RAM) files.  In this case remove the diskless switches (e.g., --ram or --diskless) and then re-issue the command.
-5. Access to a DAP URL fails, and the backup method of downloading the URL using wget obtains a data aggregation file (e.g., a .ncml file) instead of an actual netCDF file. In this case the problem is with the DAP server or URL.
-nco_err_exit(): ERROR NCO will now exit with system call exit(EXIT_FAILURE)
-ncks: INFO DAP-access to https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z failed with error code -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
-ncks: WARNING not searching for https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z on remote filesystem, using local file ds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z instead
-nco_err_exit(): ERROR Short NCO-generated message (usually name of function that triggered error): nco__open()
-nco_err_exit(): ERROR Error code is -51. Translation into English with nc_strerror(-51) is "NetCDF: Unknown file format"
-ERROR: nco__open() unable to open file "tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z"
-ERROR NC_ENOTNC Not a netCDF file
-HINT: NC_ENOTNC errors can occur for many reasons. If your use-case matches one of the five listed below, take the corrective action indicated:
-1. The netCDF file is truly corrupt, e.g., truncated. To verify whether the file is corrupt, try, e.g., printing its metadata with 'ncks -m in.nc'. This test will likely fail on a corrupt file
-2. An NCO operator linked only to the classic netCDF3 library attempts to read netCDF4 (or HDF5) files. However, this executable seems to have been built with the capability to manipulate netCDF4 files, so it is unlikely that this command failed only because the input datasets are netCDF4 format. Something else is going wrong. 
-3. NCO attempts to read other filetypes (HDF4, HDF-EOS2, PnetCDF/CDF5) for which support must be (but was not) enabled at netCDF build-time. NCO can access HDF4 files if NCO is first re-linked to a version of netCDF configured with the --enable-hdf4 option. This is a non-standard netCDF build option described here: http://www.unidata.ucar.edu/software/netcdf/docs/build_hdf4.html. NCO can access PnetCDF/CDF5 files if NCO is first re-linked to netCDF version 4.4.0 or later.
-4. NCO attempts to utilize diskless (i.e., RAM) files.  In this case remove the diskless switches (e.g., --ram or --diskless) and then re-issue the command.
-5. Access to a DAP URL fails, and the backup method of downloading the URL using wget obtains a data aggregation file (e.g., a .ncml file) instead of an actual netCDF file. In this case the problem is with the DAP server or URL.
-nco_err_exit(): ERROR NCO will now exit with system call exit(EXIT_FAILURE)
-ncks: INFO DAP-access to https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z failed with error code -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
-ncks: WARNING not searching for https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z on remote filesystem, using local file ds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z instead
-nco_err_exit(): ERROR Short NCO-generated message (usually name of function that triggered error): nco__open()
-nco_err_exit(): ERROR Error code is -51. Translation into English with nc_strerror(-51) is "NetCDF: Unknown file format"
-ncks: INFO DAP-access to https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z failed with error code -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
-ERROR: nco__open() unable to open file "tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z"
-ERROR NC_ENOTNC Not a netCDF file
-HINT: NC_ENOTNC errors can occur for many reasons. If your use-case matches one of the five listed below, take the corrective action indicated:
-1. The netCDF file is truly corrupt, e.g., truncated. To verify whether the file is corrupt, try, e.g., printing its metadata with 'ncks -m in.nc'. This test will likely fail on a corrupt file
-2. An NCO operator linked only to the classic netCDF3 library attempts to read netCDF4 (or HDF5) files. However, this executable seems to have been built with the capability to manipulate netCDF4 files, so it is unlikely that this command failed only because the input datasets are netCDF4 format. Something else is going wrong. 
-3. NCO attempts to read other filetypes (HDF4, HDF-EOS2, PnetCDF/CDF5) for which support must be (but was not) enabled at netCDF build-time. NCO can access HDF4 files if NCO is first re-linked to a version of netCDF configured with the --enable-hdf4 option. This is a non-standard netCDF build option described here: http://www.unidata.ucar.edu/software/netcdf/docs/build_hdf4.html. NCO can access PnetCDF/CDF5 files if NCO is first re-linked to netCDF version 4.4.0 or later.
-4. NCO attempts to utilize diskless (i.e., RAM) files.  In this case remove the diskless switches (e.g., --ram or --diskless) and then re-issue the command.
-5. Access to a DAP URL fails, and the backup method of downloading the URL using wget obtains a data aggregation file (e.g., a .ncml file) instead of an actual netCDF file. In this case the problem is with the DAP server or URL.
-nco_err_exit(): ERROR NCO will now exit with system call exit(EXIT_FAILURE)
-ncks: WARNING not searching for https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z on remote filesystem, using local file ds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z instead
-nco_err_exit(): ERROR Short NCO-generated message (usually name of function that triggered error): nco__open()
-nco_err_exit(): ERROR Error code is -51. Translation into English with nc_strerror(-51) is "NetCDF: Unknown file format"
-ERROR: nco__open() unable to open file "tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z"
-ERROR NC_ENOTNC Not a netCDF file
-HINT: NC_ENOTNC errors can occur for many reasons. If your use-case matches one of the five listed below, take the corrective action indicated:
-1. The netCDF file is truly corrupt, e.g., truncated. To verify whether the file is corrupt, try, e.g., printing its metadata with 'ncks -m in.nc'. This test will likely fail on a corrupt file
-2. An NCO operator linked only to the classic netCDF3 library attempts to read netCDF4 (or HDF5) files. However, this executable seems to have been built with the capability to manipulate netCDF4 files, so it is unlikely that this command failed only because the input datasets are netCDF4 format. Something else is going wrong. 
-3. NCO attempts to read other filetypes (HDF4, HDF-EOS2, PnetCDF/CDF5) for which support must be (but was not) enabled at netCDF build-time. NCO can access HDF4 files if NCO is first re-linked to a version of netCDF configured with the --enable-hdf4 option. This is a non-standard netCDF build option described here: http://www.unidata.ucar.edu/software/netcdf/docs/build_hdf4.html. NCO can access PnetCDF/CDF5 files if NCO is first re-linked to netCDF version 4.4.0 or later.
-4. NCO attempts to utilize diskless (i.e., RAM) files.  In this case remove the diskless switches (e.g., --ram or --diskless) and then re-issue the command.
-5. Access to a DAP URL fails, and the backup method of downloading the URL using wget obtains a data aggregation file (e.g., a .ncml file) instead of an actual netCDF file. In this case the problem is with the DAP server or URL.
-nco_err_exit(): ERROR NCO will now exit with system call exit(EXIT_FAILURE)
-Resolving webproxy.ucsd.edu (webproxy.ucsd.edu)... 132.239.1.231, 132.239.1.230
-Connecting to webproxy.ucsd.edu (webproxy.ucsd.edu)|132.239.1.231|:3128... connected.
-ncks: INFO DAP-access to https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z failed with error code -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
-ncks: WARNING not searching for https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z on remote filesystem, using local file ds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z instead
-nco_err_exit(): ERROR Short NCO-generated message (usually name of function that triggered error): nco__open()
-nco_err_exit(): ERROR Error code is -51. Translation into English with nc_strerror(-51) is "NetCDF: Unknown file format"
-ERROR: nco__open() unable to open file "tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z"
-ERROR NC_ENOTNC Not a netCDF file
-HINT: NC_ENOTNC errors can occur for many reasons. If your use-case matches one of the five listed below, take the corrective action indicated:
-1. The netCDF file is truly corrupt, e.g., truncated. To verify whether the file is corrupt, try, e.g., printing its metadata with 'ncks -m in.nc'. This test will likely fail on a corrupt file
-2. An NCO operator linked only to the classic netCDF3 library attempts to read netCDF4 (or HDF5) files. However, this executable seems to have been built with the capability to manipulate netCDF4 files, so it is unlikely that this command failed only because the input datasets are netCDF4 format. Something else is going wrong. 
-3. NCO attempts to read other filetypes (HDF4, HDF-EOS2, PnetCDF/CDF5) for which support must be (but was not) enabled at netCDF build-time. NCO can access HDF4 files if NCO is first re-linked to a version of netCDF configured with the --enable-hdf4 option. This is a non-standard netCDF build option described here: http://www.unidata.ucar.edu/software/netcdf/docs/build_hdf4.html. NCO can access PnetCDF/CDF5 files if NCO is first re-linked to netCDF version 4.4.0 or later.
-4. NCO attempts to utilize diskless (i.e., RAM) files.  In this case remove the diskless switches (e.g., --ram or --diskless) and then re-issue the command.
-5. Access to a DAP URL fails, and the backup method of downloading the URL using wget obtains a data aggregation file (e.g., a .ncml file) instead of an actual netCDF file. In this case the problem is with the DAP server or URL.
-nco_err_exit(): ERROR NCO will now exit with system call exit(EXIT_FAILURE)
-Proxy request sent, awaiting response... 400 400
-2024-08-20 20:51:48 ERROR 400: 400.
 
-ncks: ERROR Synchronous fetch command failed
-nco_err_exit(): ERROR Short NCO-generated message (usually name of function that triggered error): nco__open()
-nco_err_exit(): ERROR Error code is -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
-ERROR: nco__open() unable to open file "https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z"
-ERROR NC_EDAP Generic DAP error
-HINT: NC_EDAP errors can occur when NCO is invoked with a request that a remote DAP server cannot meet, for example, due to the size of the required data transfer. One workaround might be to re-formulate the NCO command into more commands that each request smaller subsets/hyperslabs from the remote DAP server. However, there are a number of DAP-related errors, only one of which can be reported at a time. The others include: NC_EDAPSVC (-70, DAP server error), NC_EDDS and NC_EDMR (-72, Malformed or inaccessible DDS and Dap4 alias, respectively), NC_EDATADDS and NC_EDATADAP (-73, Malformed or inaccessible DATADDS and Dap4 alias, respectively), NC_EDAPURL and NC_EURL (-74, Malformed DAP URL and Malformed URL, respectively), NC_EDAPCONSTRAINT and NC_ECONSTRAINT (-75, Malformed DAP Constraint and Malformed Constraint, respectively). Few, if any, of these errors are expected to be caused by NCO, since NCO just relays user commands to the DAP server. It is more likely that the DAP syntax employed is incorrect, or there is an error with the DAP server, or the request exceeds the server constraints.
-nco_err_exit(): ERROR NCO will now exit with system call exit(EXIT_FAILURE)
-nco_err_exit(): ERROR Short NCO-generated message (usually name of function that triggered error): nco__open()
-nco_err_exit(): ERROR Error code is -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
-ERROR: nco__open() unable to open file "https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z"
-ERROR NC_EDAP Generic DAP error
-HINT: NC_EDAP errors can occur when NCO is invoked with a request that a remote DAP server cannot meet, for example, due to the size of the required data transfer. One workaround might be to re-formulate the NCO command into more commands that each request smaller subsets/hyperslabs from the remote DAP server. However, there are a number of DAP-related errors, only one of which can be reported at a time. The others include: NC_EDAPSVC (-70, DAP server error), NC_EDDS and NC_EDMR (-72, Malformed or inaccessible DDS and Dap4 alias, respectively), NC_EDATADDS and NC_EDATADAP (-73, Malformed or inaccessible DATADDS and Dap4 alias, respectively), NC_EDAPURL and NC_EURL (-74, Malformed DAP URL and Malformed URL, respectively), NC_EDAPCONSTRAINT and NC_ECONSTRAINT (-75, Malformed DAP Constraint and Malformed Constraint, respectively). Few, if any, of these errors are expected to be caused by NCO, since NCO just relays user commands to the DAP server. It is more likely that the DAP syntax employed is incorrect, or there is an error with the DAP server, or the request exceeds the server constraints.
-nco_err_exit(): ERROR NCO will now exit with system call exit(EXIT_FAILURE)
-nco_err_exit(): ERROR Short NCO-generated message (usually name of function that triggered error): nco__open()
-nco_err_exit(): ERROR Error code is -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
-ERROR: nco__open() unable to open file "https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z"
-ERROR NC_EDAP Generic DAP error
-HINT: NC_EDAP errors can occur when NCO is invoked with a request that a remote DAP server cannot meet, for example, due to the size of the required data transfer. One workaround might be to re-formulate the NCO command into more commands that each request smaller subsets/hyperslabs from the remote DAP server. However, there are a number of DAP-related errors, only one of which can be reported at a time. The others include: NC_EDAPSVC (-70, DAP server error), NC_EDDS and NC_EDMR (-72, Malformed or inaccessible DDS and Dap4 alias, respectively), NC_EDATADDS and NC_EDATADAP (-73, Malformed or inaccessible DATADDS and Dap4 alias, respectively), NC_EDAPURL and NC_EURL (-74, Malformed DAP URL and Malformed URL, respectively), NC_EDAPCONSTRAINT and NC_ECONSTRAINT (-75, Malformed DAP Constraint and Malformed Constraint, respectively). Few, if any, of these errors are expected to be caused by NCO, since NCO just relays user commands to the DAP server. It is more likely that the DAP syntax employed is incorrect, or there is an error with the DAP server, or the request exceeds the server constraints.
-nco_err_exit(): ERROR NCO will now exit with system call exit(EXIT_FAILURE)
-nco_err_exit(): ERROR Short NCO-generated message (usually name of function that triggered error): nco__open()
-nco_err_exit(): ERROR Error code is -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
-ERROR: nco__open() unable to open file "https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z"
-ERROR NC_EDAP Generic DAP error
-HINT: NC_EDAP errors can occur when NCO is invoked with a request that a remote DAP server cannot meet, for example, due to the size of the required data transfer. One workaround might be to re-formulate the NCO command into more commands that each request smaller subsets/hyperslabs from the remote DAP server. However, there are a number of DAP-related errors, only one of which can be reported at a time. The others include: NC_EDAPSVC (-70, DAP server error), NC_EDDS and NC_EDMR (-72, Malformed or inaccessible DDS and Dap4 alias, respectively), NC_EDATADDS and NC_EDATADAP (-73, Malformed or inaccessible DATADDS and Dap4 alias, respectively), NC_EDAPURL and NC_EURL (-74, Malformed DAP URL and Malformed URL, respectively), NC_EDAPCONSTRAINT and NC_ECONSTRAINT (-75, Malformed DAP Constraint and Malformed Constraint, respectively). Few, if any, of these errors are expected to be caused by NCO, since NCO just relays user commands to the DAP server. It is more likely that the DAP syntax employed is incorrect, or there is an error with the DAP server, or the request exceeds the server constraints.
-nco_err_exit(): ERROR NCO will now exit with system call exit(EXIT_FAILURE)
-nco_err_exit(): ERROR Short NCO-generated message (usually name of function that triggered error): nco__open()
-nco_err_exit(): ERROR Error code is -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
-ERROR: nco__open() unable to open file "https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z"
-ERROR NC_EDAP Generic DAP error
-HINT: NC_EDAP errors can occur when NCO is invoked with a request that a remote DAP server cannot meet, for example, due to the size of the required data transfer. One workaround might be to re-formulate the NCO command into more commands that each request smaller subsets/hyperslabs from the remote DAP server. However, there are a number of DAP-related errors, only one of which can be reported at a time. The others include: NC_EDAPSVC (-70, DAP server error), NC_EDDS and NC_EDMR (-72, Malformed or inaccessible DDS and Dap4 alias, respectively), NC_EDATADDS and NC_EDATADAP (-73, Malformed or inaccessible DATADDS and Dap4 alias, respectively), NC_EDAPURL and NC_EURL (-74, Malformed DAP URL and Malformed URL, respectively), NC_EDAPCONSTRAINT and NC_ECONSTRAINT (-75, Malformed DAP Constraint and Malformed Constraint, respectively). Few, if any, of these errors are expected to be caused by NCO, since NCO just relays user commands to the DAP server. It is more likely that the DAP syntax employed is incorrect, or there is an error with the DAP server, or the request exceeds the server constraints.
-nco_err_exit(): ERROR NCO will now exit with system call exit(EXIT_FAILURE)
-nco_err_exit(): ERROR Short NCO-generated message (usually name of function that triggered error): nco__open()
-nco_err_exit(): ERROR Error code is -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
-ERROR: nco__open() unable to open file "https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z"
-ERROR NC_EDAP Generic DAP error
-HINT: NC_EDAP errors can occur when NCO is invoked with a request that a remote DAP server cannot meet, for example, due to the size of the required data transfer. One workaround might be to re-formulate the NCO command into more commands that each request smaller subsets/hyperslabs from the remote DAP server. However, there are a number of DAP-related errors, only one of which can be reported at a time. The others include: NC_EDAPSVC (-70, DAP server error), NC_EDDS and NC_EDMR (-72, Malformed or inaccessible DDS and Dap4 alias, respectively), NC_EDATADDS and NC_EDATADAP (-73, Malformed or inaccessible DATADDS and Dap4 alias, respectively), NC_EDAPURL and NC_EURL (-74, Malformed DAP URL and Malformed URL, respectively), NC_EDAPCONSTRAINT and NC_ECONSTRAINT (-75, Malformed DAP Constraint and Malformed Constraint, respectively). Few, if any, of these errors are expected to be caused by NCO, since NCO just relays user commands to the DAP server. It is more likely that the DAP syntax employed is incorrect, or there is an error with the DAP server, or the request exceeds the server constraints.
-nco_err_exit(): ERROR NCO will now exit with system call exit(EXIT_FAILURE)
-nco_err_exit(): ERROR Short NCO-generated message (usually name of function that triggered error): nco__open()
-nco_err_exit(): ERROR Error code is -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
-ERROR: nco__open() unable to open file "https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z"
-ERROR NC_EDAP Generic DAP error
-HINT: NC_EDAP errors can occur when NCO is invoked with a request that a remote DAP server cannot meet, for example, due to the size of the required data transfer. One workaround might be to re-formulate the NCO command into more commands that each request smaller subsets/hyperslabs from the remote DAP server. However, there are a number of DAP-related errors, only one of which can be reported at a time. The others include: NC_EDAPSVC (-70, DAP server error), NC_EDDS and NC_EDMR (-72, Malformed or inaccessible DDS and Dap4 alias, respectively), NC_EDATADDS and NC_EDATADAP (-73, Malformed or inaccessible DATADDS and Dap4 alias, respectively), NC_EDAPURL and NC_EURL (-74, Malformed DAP URL and Malformed URL, respectively), NC_EDAPCONSTRAINT and NC_ECONSTRAINT (-75, Malformed DAP Constraint and Malformed Constraint, respectively). Few, if any, of these errors are expected to be caused by NCO, since NCO just relays user commands to the DAP server. It is more likely that the DAP syntax employed is incorrect, or there is an error with the DAP server, or the request exceeds the server constraints.
-nco_err_exit(): ERROR NCO will now exit with system call exit(EXIT_FAILURE)
-nco_err_exit(): ERROR Short NCO-generated message (usually name of function that triggered error): nco__open()
-nco_err_exit(): ERROR Error code is -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
-ERROR: nco__open() unable to open file "https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z"
-ERROR NC_EDAP Generic DAP error
-HINT: NC_EDAP errors can occur when NCO is invoked with a request that a remote DAP server cannot meet, for example, due to the size of the required data transfer. One workaround might be to re-formulate the NCO command into more commands that each request smaller subsets/hyperslabs from the remote DAP server. However, there are a number of DAP-related errors, only one of which can be reported at a time. The others include: NC_EDAPSVC (-70, DAP server error), NC_EDDS and NC_EDMR (-72, Malformed or inaccessible DDS and Dap4 alias, respectively), NC_EDATADDS and NC_EDATADAP (-73, Malformed or inaccessible DATADDS and Dap4 alias, respectively), NC_EDAPURL and NC_EURL (-74, Malformed DAP URL and Malformed URL, respectively), NC_EDAPCONSTRAINT and NC_ECONSTRAINT (-75, Malformed DAP Constraint and Malformed Constraint, respectively). Few, if any, of these errors are expected to be caused by NCO, since NCO just relays user commands to the DAP server. It is more likely that the DAP syntax employed is incorrect, or there is an error with the DAP server, or the request exceeds the server constraints.
-nco_err_exit(): ERROR NCO will now exit with system call exit(EXIT_FAILURE)
-ncks: INFO DAP-access to https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z failed with error code -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
-ncks: WARNING not searching for https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z on remote filesystem, using local file ds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z instead
-nco_err_exit(): ERROR Short NCO-generated message (usually name of function that triggered error): nco__open()
-nco_err_exit(): ERROR Error code is -51. Translation into English with nc_strerror(-51) is "NetCDF: Unknown file format"
-ERROR: nco__open() unable to open file "tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z"
-ERROR NC_ENOTNC Not a netCDF file
-HINT: NC_ENOTNC errors can occur for many reasons. If your use-case matches one of the five listed below, take the corrective action indicated:
-1. The netCDF file is truly corrupt, e.g., truncated. To verify whether the file is corrupt, try, e.g., printing its metadata with 'ncks -m in.nc'. This test will likely fail on a corrupt file
-2. An NCO operator linked only to the classic netCDF3 library attempts to read netCDF4 (or HDF5) files. However, this executable seems to have been built with the capability to manipulate netCDF4 files, so it is unlikely that this command failed only because the input datasets are netCDF4 format. Something else is going wrong. 
-3. NCO attempts to read other filetypes (HDF4, HDF-EOS2, PnetCDF/CDF5) for which support must be (but was not) enabled at netCDF build-time. NCO can access HDF4 files if NCO is first re-linked to a version of netCDF configured with the --enable-hdf4 option. This is a non-standard netCDF build option described here: http://www.unidata.ucar.edu/software/netcdf/docs/build_hdf4.html. NCO can access PnetCDF/CDF5 files if NCO is first re-linked to netCDF version 4.4.0 or later.
-4. NCO attempts to utilize diskless (i.e., RAM) files.  In this case remove the diskless switches (e.g., --ram or --diskless) and then re-issue the command.
-5. Access to a DAP URL fails, and the backup method of downloading the URL using wget obtains a data aggregation file (e.g., a .ncml file) instead of an actual netCDF file. In this case the problem is with the DAP server or URL.
-nco_err_exit(): ERROR NCO will now exit with system call exit(EXIT_FAILURE)
-ncks: INFO DAP-access to https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z failed with error code -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
-ncks: WARNING not searching for https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z on remote filesystem, using local file ds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z instead
-nco_err_exit(): ERROR Short NCO-generated message (usually name of function that triggered error): nco__open()
-nco_err_exit(): ERROR Error code is -51. Translation into English with nc_strerror(-51) is "NetCDF: Unknown file format"
-ERROR: nco__open() unable to open file "tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z"
-ERROR NC_ENOTNC Not a netCDF file
-HINT: NC_ENOTNC errors can occur for many reasons. If your use-case matches one of the five listed below, take the corrective action indicated:
-1. The netCDF file is truly corrupt, e.g., truncated. To verify whether the file is corrupt, try, e.g., printing its metadata with 'ncks -m in.nc'. This test will likely fail on a corrupt file
-2. An NCO operator linked only to the classic netCDF3 library attempts to read netCDF4 (or HDF5) files. However, this executable seems to have been built with the capability to manipulate netCDF4 files, so it is unlikely that this command failed only because the input datasets are netCDF4 format. Something else is going wrong. 
-3. NCO attempts to read other filetypes (HDF4, HDF-EOS2, PnetCDF/CDF5) for which support must be (but was not) enabled at netCDF build-time. NCO can access HDF4 files if NCO is first re-linked to a version of netCDF configured with the --enable-hdf4 option. This is a non-standard netCDF build option described here: http://www.unidata.ucar.edu/software/netcdf/docs/build_hdf4.html. NCO can access PnetCDF/CDF5 files if NCO is first re-linked to netCDF version 4.4.0 or later.
-4. NCO attempts to utilize diskless (i.e., RAM) files.  In this case remove the diskless switches (e.g., --ram or --diskless) and then re-issue the command.
-5. Access to a DAP URL fails, and the backup method of downloading the URL using wget obtains a data aggregation file (e.g., a .ncml file) instead of an actual netCDF file. In this case the problem is with the DAP server or URL.
-nco_err_exit(): ERROR NCO will now exit with system call exit(EXIT_FAILURE)
-ncks: INFO DAP-access to https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z failed with error code -73. Translation into English with nc_strerror(-73) is "NetCDF: Malformed or inaccessible DAP2 DATADDS or DAP4 DAP response"
-ncks: WARNING not searching for https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z on remote filesystem, using local file ds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z instead
-nco_err_exit(): ERROR Short NCO-generated message (usually name of function that triggered error): nco__open()
-nco_err_exit(): ERROR Error code is -51. Translation into English with nc_strerror(-51) is "NetCDF: Unknown file format"
-ERROR: nco__open() unable to open file "tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_2024-08-19T12:00:00Z"
-ERROR NC_ENOTNC Not a netCDF file
-HINT: NC_ENOTNC errors can occur for many reasons. If your use-case matches one of the five listed below, take the corrective action indicated:
-1. The netCDF file is truly corrupt, e.g., truncated. To verify whether the file is corrupt, try, e.g., printing its metadata with 'ncks -m in.nc'. This test will likely fail on a corrupt file
-2. An NCO operator linked only to the classic netCDF3 library attempts to read netCDF4 (or HDF5) files. However, this executable seems to have been built with the capability to manipulate netCDF4 files, so it is unlikely that this command failed only because the input datasets are netCDF4 format. Something else is going wrong. 
-3. NCO attempts to read other filetypes (HDF4, HDF-EOS2, PnetCDF/CDF5) for which support must be (but was not) enabled at netCDF build-time. NCO can access HDF4 files if NCO is first re-linked to a version of netCDF configured with the --enable-hdf4 option. This is a non-standard netCDF build option described here: http://www.unidata.ucar.edu/software/netcdf/docs/build_hdf4.html. NCO can access PnetCDF/CDF5 files if NCO is first re-linked to netCDF version 4.4.0 or later.
-4. NCO attempts to utilize diskless (i.e., RAM) files.  In this case remove the diskless switches (e.g., --ram or --diskless) and then re-issue the command.
-5. Access to a DAP URL fails, and the backup method of downloading the URL using wget obtains a data aggregation file (e.g., a .ncml file) instead of an actual netCDF file. In this case the problem is with the DAP server or URL.
-nco_err_exit(): ERROR NCO will now exit with system call exit(EXIT_FAILURE)
-swell
-in the parallel ncks switch
-Traceback (most recent call last):
-  File "/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py", line 4567, in <module>
-    globals()[args[1]](*args[2:])
-  File "/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py", line 712, in get_ocn_data_as_dict_pckl
-    for future in as_completed(threads):
-  File "/home/ffeddersen/anaconda3/lib/python3.12/concurrent/futures/_base.py", line 243, in as_completed
-    waiter.event.wait(wait_timeout)
-  File "/home/ffeddersen/anaconda3/lib/python3.12/threading.py", line 655, in wait
-    signaled = self._cond.wait(timeout)
-               ^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/ffeddersen/anaconda3/lib/python3.12/threading.py", line 355, in wait
-    waiter.acquire()
-KeyboardInterrupt
-
-Starting the LV1 simulation, Current time  2024-08-20 20:51:47.084905
+Starting the LV1 simulation, Current time  2024-08-21 14:44:48.363635
 
 
 swell
-Starting: driver_run_forecast_LV1: Current local Time = 2024-08-20 20:51:47.084959 UTC =  2024-08-21 03:51:47.084960+00:00  Fetch time =  2024-08-19 12:00:00
-Preparing forecast starting on 20240819 at  1200
+Starting: driver_run_forecast_LV1: Current local Time = 2024-08-21 14:44:48.363706 UTC =  2024-08-21 21:44:48.363707+00:00  Fetch time =  2024-08-20 12:00:00
+Preparing forecast starting on 20240820 at  1200
 ocean boundary and initial conditions will be from:
 hycom
 atm forcing will be from:
 nam_nest
 before getting OCN, using:
-226636
+228276
 kilobytes
 going to use subprocess, and save a pickle file.
-Traceback (most recent call last):
-  File "/home/ffeddersen/PFM/driver/driver_run_forecast_LV1_v3.py", line 109, in <module>
-    ret1 = subprocess.run(cmd_list)     
-           ^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/ffeddersen/anaconda3/lib/python3.12/subprocess.py", line 550, in run
-    stdout, stderr = process.communicate(input, timeout=timeout)
-                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/ffeddersen/anaconda3/lib/python3.12/subprocess.py", line 1201, in communicate
-    self.wait()
-  File "/home/ffeddersen/anaconda3/lib/python3.12/subprocess.py", line 1264, in wait
-    return self._wait(timeout=timeout)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/ffeddersen/anaconda3/lib/python3.12/subprocess.py", line 2053, in _wait
-    (pid, sts) = self._try_wait(0)
-                 ^^^^^^^^^^^^^^^^^
-  File "/home/ffeddersen/anaconda3/lib/python3.12/subprocess.py", line 2011, in _try_wait
-    (pid, sts) = os.waitpid(self.pid, wait_flags)
-                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-KeyboardInterrupt
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+swell
+in the parallel ncks switch
+Time to get full file using parallel ncks = 45.23 sec
+Return code = 0 (0=success, 1=skipped ncks)
+Hycom OCN dict saved with pickle
+hycom data saved with pickle, correctly?
+CompletedProcess(args=['python', 'ocn_functions.py', 'get_ocn_data_as_dict_pckl', '20240820', 'forecast', 'hycom', 'ncks_para'], returncode=0)
+0=yes,1=no
+swell
+/scratch/PFM_Simulations/LV1_Forecast/Forc/hycom_tmp_pckl_file.pkl
+OCN dict loaded with pickle
+before gc.collect and getting OCN_R, using:
+908728
+kilobytes
+after gc.collect and before OCN_R, using:
+908728
+kilobytes
+starting: ocnfuns.hycom_to_roms_latlon(OCN,RMG)
+
+putting the hycom data in /scratch/PFM_Simulations/LV1_Forecast/Forc/hycom_tmp_pckl_file.pkl on the roms grid
+and saving 17 pickle files...
+doing depth using subprocess
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+swell
+doing lat_rho using subprocess
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+swell
+doing lon_rho using subprocess
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+swell
+doing lat_u using subprocess
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+swell
+doing lon_u using subprocess
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+swell
+doing lat_v using subprocess
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+swell
+doing lon_v using subprocess
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+swell
+doing ocean_time using subprocess
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+swell
+doing ocean_time_ref using subprocess
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+swell
+doing salt using subprocess
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+swell
+doing temp using subprocess
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+swell
+doing ubar using subprocess
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+swell
+doing urm using subprocess
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+swell
+doing vbar using subprocess
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+swell
+doing vrm using subprocess
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+swell
+doing zeta using subprocess
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+swell
+doing vinfo using subprocess
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+swell
+...done. 
+all 17 ocnR pickle files were made correctly
+
+driver_run_forecast_LV1: done with hycom_to_roms_latlon
+using:
+908728
+kilobytes
+swell
+swell
+using:
+3342968
+kilobytes
+making the depth pickle file...
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+making roms depth pickle file /scratch/PFM_Simulations/LV1_Forecast/Forc/roms_tmp_depth_file.pkl...
+swell
+ROMS depths for IC/BC saved with pickle to /scratch/PFM_Simulations/LV1_Forecast/Forc/roms_tmp_depth_file.pkl
+...done makeing depth pickle file.
+subprocess return code? 0 (0=good)
+...done.
+going to save OCN_IC to a pickle file to:
+/scratch/PFM_Simulations/LV1_Forecast/Forc/ocnIC_tmp_pckl_file.pkl
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+swell
+swell
+got here in IC, 1
+got here in IC, 2
+OCN_IC dict saved with pickle
+OCN IC data saved with pickle, correctly?
+CompletedProcess(args=['python', 'ocn_functions.py', 'ocn_r_2_ICdict_pckl', '/scratch/PFM_Simulations/LV1_Forecast/Forc/ocnIC_tmp_pckl_file.pkl'], returncode=0)
+0=yes,1=no
+driver_run_forecast_LV1: done with ocn_r_2_ICdict
+using:
+3342968
+kilobytes
+using:
+3342968
+kilobytes
+making IC file from pickled IC: /scratch/PFM_Simulations/LV1_Forecast/Forc/LV1_OCEAN_IC.nc
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+OCN_IC dict loaded with pickle
+<xarray.Dataset>
+Dimensions:      (time: 1, s_rho: 40, er: 390, xr: 253, eu: 390, xu: 252,
+                  ev: 389, xv: 253)
+Coordinates:
+    lat_rho      (er, xr) float64 28.52 28.53 28.54 28.55 ... 36.38 36.39 36.39
+    lon_rho      (er, xr) float64 -120.3 -120.2 -120.2 ... -118.8 -118.8 -118.8
+    lat_u        (eu, xu) float64 28.52 28.53 28.54 28.55 ... 36.38 36.38 36.39
+    lon_u        (eu, xu) float64 -120.3 -120.2 -120.2 ... -118.8 -118.8 -118.8
+    lat_v        (ev, xv) float64 28.53 28.54 28.54 28.55 ... 36.37 36.38 36.39
+    lon_v        (ev, xv) float64 -120.3 -120.2 -120.2 ... -118.8 -118.8 -118.8
+    ocean_time   (time) float64 9.364e+03
+    Cs_r         (s_rho) float64 -0.9827 -0.9383 ... -9.61e-05 -1.061e-05
+Dimensions without coordinates: time, s_rho, er, xr, eu, xu, ev, xv
+Data variables: (12/13)
+    temp         (time, s_rho, er, xr) float64 1.104 1.295 1.297 ... 10.68 10.68
+    salt         (time, s_rho, er, xr) float64 34.71 34.67 34.67 ... 33.91 33.91
+    u            (time, s_rho, eu, xu) float64 -0.01381 -0.01417 ... 0.002281
+    v            (time, s_rho, ev, xv) float64 0.01445 0.01491 ... -0.004733
+    ubar         (time, eu, xu) float64 -0.009224 -0.009372 ... 0.0004658
+    vbar         (time, ev, xv) float64 0.008888 0.008949 ... 0.006804 0.006804
+    ...           ...
+    Vtransform   int64 2
+    Vstretching  int64 4
+    theta_s      float64 8.0
+    theta_b      float64 3.0
+    Tcline       float64 50.0
+    hc           float64 50.0
+Attributes:
+    type:       ocean initial condition file fields for starting roms
+    time info:  ocean time is from 1999/01/01 00:00:00
+OCN IC nc data saved, correctly?
+CompletedProcess(args=['python', 'ocn_functions.py', 'ocn_roms_IC_dict_to_netcdf_pckl', '/scratch/PFM_Simulations/LV1_Forecast/Forc/ocnIC_tmp_pckl_file.pkl', '/scratch/PFM_Simulations/LV1_Forecast/Forc/LV1_OCEAN_IC.nc'], returncode=0)
+0=yes,1=no
+done makeing IC .nc file.
+using:
+3342968
+kilobytes
+using:
+3342968
+kilobytes
+going to save OCN_BC to a pickle file to:
+/scratch/PFM_Simulations/LV1_Forecast/Forc/ocnBC_tmp_pckl_file.pkl
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+swell
+swell
+loading /scratch/PFM_Simulations/LV1_Forecast/Forc/roms_tmp_depth_file.pkl
+OCN_BC dict saved with pickle
+OCN BC data saved with pickle, correctly?
+0
+0=yes,1=no
+using:
+3342968
+kilobytes
+making BC nc file from pickled BC: /scratch/PFM_Simulations/LV1_Forecast/Forc/LV1_OCEAN_BC.nc
+/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
+  import seawater
+OCN_BC dict loaded with pickle
+<xarray.Dataset>
+Dimensions:      (temp_time: 21, s_rho: 40, xr: 253, salt_time: 21,
+                  v3d_time: 21, xu: 252, xv: 253, v2d_time: 21, zeta_time: 21,
+                  er: 390, eu: 390, ev: 389, time: 21)
+Coordinates:
+    ocean_time   (time) float64 9.364e+03 9.364e+03 ... 9.366e+03 9.366e+03
+  * zeta_time    (zeta_time) float64 9.364e+03 9.364e+03 ... 9.366e+03 9.366e+03
+  * v2d_time     (v2d_time) float64 9.364e+03 9.364e+03 ... 9.366e+03 9.366e+03
+  * v3d_time     (v3d_time) float64 9.364e+03 9.364e+03 ... 9.366e+03 9.366e+03
+  * salt_time    (salt_time) float64 9.364e+03 9.364e+03 ... 9.366e+03 9.366e+03
+  * temp_time    (temp_time) float64 9.364e+03 9.364e+03 ... 9.366e+03 9.366e+03
+    Cs_r         (s_rho) float64 -0.9827 -0.9383 ... -9.61e-05 -1.061e-05
+Dimensions without coordinates: s_rho, xr, xu, xv, er, eu, ev, time
+Data variables: (12/27)
+    temp_south   (temp_time, s_rho, xr) float64 1.104 1.295 ... 11.23 11.23
+    salt_south   (salt_time, s_rho, xr) float64 34.71 34.67 ... 33.98 33.98
+    u_south      (v3d_time, s_rho, xu) float64 -0.01381 -0.01417 ... -0.004257
+    v_south      (v3d_time, s_rho, xv) float64 0.01445 0.01491 ... -0.01788
+    ubar_south   (v2d_time, xu) float64 -0.009224 -0.009372 ... 0.0002958
+    vbar_south   (v2d_time, xv) float64 0.008888 0.008949 ... 0.0009698
+    ...           ...
+    Vtransform   int64 2
+    Vstretching  int64 4
+    theta_s      float64 8.0
+    theta_b      float64 3.0
+    Tcline       float64 50.0
+    hc           float64 50.0
+Attributes:
+    type:       ocean boundary condition file fields for starting roms
+    time info:  ocean time is from 1999/01/01 00:00:00
+OCN BC nc data saved, correctly?
+CompletedProcess(args=['python', 'ocn_functions.py', 'ocn_roms_BC_dict_to_netcdf_pckl', '/scratch/PFM_Simulations/LV1_Forecast/Forc/ocnBC_tmp_pckl_file.pkl', '/scratch/PFM_Simulations/LV1_Forecast/Forc/LV1_OCEAN_BC.nc'], returncode=0)
+0=yes,1=no
+done makeing IC .nc file.
+using:
+3342968
+kilobytes
+driver_run_forecast_LV1: done with ocn_r_2_BCdict
+getting atm forecast for:
+[datetime.datetime(2024, 8, 20, 12, 0)
+ datetime.datetime(2024, 8, 20, 15, 0)
+ datetime.datetime(2024, 8, 20, 18, 0)
+ datetime.datetime(2024, 8, 20, 21, 0)
+ datetime.datetime(2024, 8, 21, 0, 0) datetime.datetime(2024, 8, 21, 3, 0)
+ datetime.datetime(2024, 8, 21, 6, 0) datetime.datetime(2024, 8, 21, 9, 0)
+ datetime.datetime(2024, 8, 21, 12, 0)
+ datetime.datetime(2024, 8, 21, 15, 0)
+ datetime.datetime(2024, 8, 21, 18, 0)
+ datetime.datetime(2024, 8, 21, 21, 0)
+ datetime.datetime(2024, 8, 22, 0, 0) datetime.datetime(2024, 8, 22, 3, 0)
+ datetime.datetime(2024, 8, 22, 6, 0) datetime.datetime(2024, 8, 22, 9, 0)
+ datetime.datetime(2024, 8, 22, 12, 0)
+ datetime.datetime(2024, 8, 22, 15, 0)
+ datetime.datetime(2024, 8, 22, 18, 0)
+ datetime.datetime(2024, 8, 22, 21, 0)
+ datetime.datetime(2024, 8, 23, 0, 0)]
+done with plotting ATM fields
+done with: atmfuns.get_atm_data_on_roms_grid(ATM,RMG)
+done with: pltfuns.plot_all_fields_in_one(ATM, ATM_R, RMG, PFM)
+driver_run_forcast_LV1: saving ATM file to /scratch/PFM_Simulations/LV1_Forecast/Forc/LV1_ATM_FORCING.nc
+<xarray.Dataset>
+Dimensions:     (tair_time: 21, er: 390, xr: 253, pair_time: 21, qair_time: 21,
+                 wind_time: 21, rain_time: 21, srf_time: 21, lrf_time: 21,
+                 time: 21)
+Coordinates:
+    lat         (er, xr) float64 28.52 28.53 28.54 28.55 ... 36.38 36.39 36.39
+    lon         (er, xr) float64 -120.3 -120.2 -120.2 ... -118.8 -118.8 -118.8
+    ocean_time  (time) float64 9.364e+03 9.364e+03 ... 9.366e+03 9.366e+03
+  * tair_time   (tair_time) float64 9.364e+03 9.364e+03 ... 9.366e+03 9.366e+03
+  * pair_time   (pair_time) float64 9.364e+03 9.364e+03 ... 9.366e+03 9.366e+03
+  * qair_time   (qair_time) float64 9.364e+03 9.364e+03 ... 9.366e+03 9.366e+03
+  * wind_time   (wind_time) float64 9.364e+03 9.364e+03 ... 9.366e+03 9.366e+03
+  * rain_time   (rain_time) float64 9.364e+03 9.364e+03 ... 9.366e+03 9.366e+03
+  * srf_time    (srf_time) float64 9.364e+03 9.364e+03 ... 9.366e+03 9.366e+03
+  * lrf_time    (lrf_time) float64 9.364e+03 9.364e+03 ... 9.366e+03 9.366e+03
+Dimensions without coordinates: er, xr, time
+Data variables:
+    Tair        (tair_time, er, xr) float64 20.53 20.51 20.5 ... 30.35 30.31
+    Pair        (pair_time, er, xr) float64 1.016e+03 1.016e+03 ... 1.011e+03
+    Qair        (qair_time, er, xr) float64 85.59 85.65 85.72 ... 30.44 31.01
+    Uwind       (wind_time, er, xr) float64 -1.553 -1.514 -1.477 ... 3.177 3.17
+    Vwind       (wind_time, er, xr) float64 -7.437 -7.437 ... -0.6961 -0.7531
+    rain        (rain_time, er, xr) float64 0.0 0.0 0.0 0.0 ... 0.0 0.0 0.0 0.0
+    swrad       (srf_time, er, xr) float64 0.0 0.0 0.0 0.0 ... 420.9 422.3 422.1
+    lwrad       (lrf_time, er, xr) float64 -71.13 -71.0 -70.9 ... -168.4 -168.6
+    lwrad_down  (lrf_time, er, xr) float64 338.1 338.2 338.2 ... 312.8 312.3
+Attributes:
+    type:       atmospheric forcing file fields for surface fluxes
+    time info:  ocean time is from 1999/01/01 00:00:00
+driver_run_forecast_LV1:  done with writing ATM file, Current time  2024-08-21 14:50:07.338799
+done with pltfuns.load_and_plot_atm(PFM)
+driver_run_forecast_LV1:  now make .in and .sb files
+ --- making dot_in for 
+...done
+now running roms with slurm
+run_slurm_LV1: current directory is now:  /scratch/PFM_Simulations/LV1_Forecast/Run
+CompletedProcess(args=['sbatch', '--wait', 'LV1_SLURM.sb'], returncode=0, stdout=b'Submitted batch job 330\n', stderr=b'')
+subprocess slurm ran correctly? 0 (0=yes)
+run_slurm_LV1: run command:  ['sbatch', '--wait', 'LV1_SLURM.sb']
+
+Finished the LV1 simulation, Current time  2024-08-21 14:56:13.338161
+now making LV1 history file plots
+swell
+swell
+swell
+swell
+swell
+swell
+
+

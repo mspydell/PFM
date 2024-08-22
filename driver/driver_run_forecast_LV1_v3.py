@@ -13,6 +13,11 @@ import subprocess
 #import xarray as xr
 #import netCDF4 as nc
 
+import glob
+import netCDF4
+from netCDF4 import num2date, date2num, date2index
+import matplotlib.dates as mdates
+
 ##############
 
 sys.path.append('../sdpm_py_util')
@@ -363,6 +368,23 @@ run_slurm_LV1(PFM)
 os.chdir('../driver')
 
 print('\nFinished the LV1 simulation, Current time ', datetime.now())
-print('\n')
 
+# now making history file plots
+print('now making LV1 history file plots')
+
+fn = PFM['lv1_his_dir'] + '/LV1_ocean_his.nc'
+Ix = np.array([175,240])
+Iy = np.array([175,170])
+It = 0
+sv_fig = 1
+
+pltfuns.plot_roms_LV1_bathy_and_locs(fn,Ix,Iy,sv_fig)
+pltfuns.plot_ssh_his_tseries(fn,Ix,Iy,sv_fig)
+pltfuns.plot_his_temps_wuv(fn,It,-1,sv_fig)
+pltfuns.plot_his_temps_wuv(fn,It+24,-1,sv_fig)  # 24h forecast
+pltfuns.plot_his_temps_wuv(fn,It+48,-1,sv_fig)
+pltfuns.plot_his_temps_wuv(fn,It+60,-1,sv_fig)  # 60 h forecast
+
+print('\n')
+#######################
 
