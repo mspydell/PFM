@@ -1035,7 +1035,11 @@ def plot_ocn_R_fields_pckl(fields_to_plot=None, time_index=0, depth_index=0, sho
         else:
             plt.close()
 
-def plot_ocn_ic_fields(filepath, RMG, PFM, fields_to_plot=None, time_index=0, depth_index=0, show=False):
+def plot_ocn_ic_fields(filepath, fields_to_plot=None, time_index=0, depth_index=0, show=False):
+
+    PFM=get_PFM_info()
+    RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
+
     nc = Dataset(filepath, 'r')
 
     # Extract coordinate variables
@@ -1253,4 +1257,20 @@ def plot_his_temps_wuv(fn,It,Iz,sv_fig):
     else:
         plt.show()
 
+def make_all_his_figures(lvl):
+    PFM=get_PFM_info()
+    sv_fig = 1
+    iz = -1
+    if lvl == 'LV1':
+        fn = PFM['lv1_his_dir'] + '/' + PFM['lv1_his_name']
+        Ix = np.array([175,240])
+        Iy = np.array([175,170])
+        It = 0
+
+    plot_roms_LV1_bathy_and_locs(fn,Ix,Iy,sv_fig)
+    plot_ssh_his_tseries(fn,Ix,Iy,sv_fig)
+    plot_his_temps_wuv(fn,It,iz,sv_fig)
+    plot_his_temps_wuv(fn,It+24,iz,sv_fig)  # 24h forecast
+    plot_his_temps_wuv(fn,It+48,iz,sv_fig)  # 48h forecast
+    plot_his_temps_wuv(fn,It+60,iz,sv_fig)  # 60 h forecast
 

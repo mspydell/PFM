@@ -154,6 +154,7 @@ def get_PFM_info():
    PFM['lv1_ini_file'] = 'LV1_OCEAN_IC.nc'
    PFM['lv1_bc_file'] =  'LV1_OCEAN_BC.nc'   
    PFM['lv1_tide_fname'] = 'roms_tide_adcirc_LV01.nc'
+   
 
 #   PFM['lv2_run_dir'] = lv2_run_dir
 #   PFM['lv2_grid_dir'] = pfm_grid_dir
@@ -197,8 +198,10 @@ def get_PFM_info():
    PFM['hhmm']='1200'
    PFM['fetch_time']=fetch_time
    PFM['start_time']=start_time
-   PFM['utc_time']=utc_time;
+   PFM['utc_time']=utc_time
    
+   PFM['lv1_his_name'] = 'LV1_ocean_his_' + yyyymmdd + '1200'  + '.nc'
+
    return PFM
 
 
