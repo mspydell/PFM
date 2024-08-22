@@ -149,7 +149,9 @@ def  make_LV1_dotin_and_SLURM( PFM , yyyymmddhhmm):
     D['lv1_forc_dir'] = PFM['lv1_forc_dir']   
     D['lv1_his_dir'] = PFM['lv1_his_dir']
 
-
+    D['lv1_his_name_full'] = PFM['lv1_his_name_full']
+    D['lv1_rst_name_full'] = PFM['lv1_rst_name_full'] 
+    
     start_type = 'new'
 
     if start_type == 'perfect':
@@ -179,23 +181,6 @@ def  make_LV1_dotin_and_SLURM( PFM , yyyymmddhhmm):
     D['theta_b']= str( PFM['stretching']['L1','THETA_B'] ) + 'd0' #'3.0d0'
     D['tcline']= str( PFM['stretching']['L1','TCLINE'] ) + 'd0' #'50.0d0'
 
-
-#   SS['L1','Nz']          = 40
-#   SS['L1','Vtransform']  = 2                       # transformation equation
-#   SS['L1','Vstretching'] = 4                    # stretching function
-#   SS['L1','THETA_S']     = 8.0                      # surface stretching parameter
-#   SS['L1','THETA_B']     = 3.0                      # bottom  stretching parameter
-#   SS['L1','TCLINE']      = 50.0                      # critical depth (m)
-#   SS['L1','hc']          = 50.0 
-
-
-
-
-    # the output directory and the one from the day before
-    #out_dir = Ldir['roms_out'] / Ldir['gtagex'] / ('f' + Ldir['date_string'])
-    #D['out_dir'] = out_dir
-    #out_dir_yesterday = Ldir['roms_out'] / Ldir['gtagex'] / ('f' + date_string_yesterday)
-    #Lfun.make_dir(out_dir, clean=True) # make sure it exists and is empty
 
     lv1_infile_local = 'LV1_forecast_run.in'
     lv1_logfile_local = 'LV1_forecast.log'

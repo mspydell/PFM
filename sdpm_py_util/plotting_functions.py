@@ -1262,7 +1262,7 @@ def make_all_his_figures(lvl):
     sv_fig = 1
     iz = -1
     if lvl == 'LV1':
-        fn = PFM['lv1_his_dir'] + '/' + PFM['lv1_his_name']
+        fn = PFM['lv1_his_name_full']
         Ix = np.array([175,240])
         Iy = np.array([175,170])
         It = 0

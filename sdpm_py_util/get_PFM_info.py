@@ -200,7 +200,11 @@ def get_PFM_info():
    PFM['start_time']=start_time
    PFM['utc_time']=utc_time
    
-   PFM['lv1_his_name'] = 'LV1_ocean_his_' + yyyymmdd + '1200'  + '.nc'
+   PFM['lv1_his_name'] = 'LV1_ocean_his_' + yyyymmdd + '1200' + '.nc'
+   PFM['lv1_rst_name'] = 'LV1_ocean_rst_' + yyyymmdd + '1200' + '.nc' 
+   
+   PFM['lv1_his_name_full'] = PFM['lv1_his_dir'] + '/' + PFM['lv1_his_name']
+   PFM['lv1_rst_name_full'] = PFM['lv1_forc_dir'] + '/' + PFM['lv1_rst_name']
 
    return PFM
 

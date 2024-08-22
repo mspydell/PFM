@@ -1126,8 +1126,8 @@ PIO_I2C_Preq = 65                 ! Maximum pending I2C requests
 
      DAINAME == ocean_dai.nc
      GSTNAME == ocean_gst.nc
-     RSTNAME == $lv1_forc_dir$/LV1_ocean_rst.nc
-     HISNAME == $lv1_his_dir$/LV1_ocean_his.nc
+     RSTNAME == $lv1_rst_name_full$ 
+     HISNAME == $lv1_his_name_full$
      QCKNAME == ocean_qck.nc
      TLMNAME == ocean_tlm.nc
      TLFNAME == ocean_tlf.nc
