@@ -780,7 +780,37 @@ def get_ocn_data_as_dict_pckl(yyyymmdd,run_type,ocn_mod,get_method):
         OCN['zeta'] = eta
         del eta
         OCN['depth'] = z
-    
+
+        vlist = ['u','v','temp','salt','zeta']
+        ulist = ['m/s','m/s','C','psu','m']
+        print('max  min raw hycom data (iz is top to bottom):')
+
+        cnt=0
+        for vnm in vlist:
+            ind_mx = np.unravel_index(np.nanargmax(OCN[vnm], axis=None), OCN[vnm].shape)
+            print('max ' + vnm + ' = ' + str(OCN[vnm][ind_mx]) + ' ' + ulist[cnt])
+            if vnm == 'zeta':
+                print('at: it=' + str(ind_mx[0]) + ', ilat=' + str(ind_mx[1]) + ', ilon=' + str(ind_mx[2]) )            
+            else:
+                print('at: it=' + str(ind_mx[0]) + ', iz=' + str(ind_mx[1]) + ', ilat=' + str(ind_mx[2]) + ', ilon=' + str(ind_mx[3]) )
+            ind_mx = np.unravel_index(np.nanargmin(OCN[vnm], axis=None), OCN[vnm].shape)
+            print('min ' + vnm + ' = ' + str(OCN[vnm][ind_mx])  + ' ' + ulist[cnt])
+            if vnm == 'zeta':
+                print('at: it=' + str(ind_mx[0]) + ', ilat=' + str(ind_mx[1]) + ', ilon=' + str(ind_mx[2]) )            
+            else:
+                print('at: it=' + str(ind_mx[0]) + ', iz=' + str(ind_mx[1]) + ', ilat=' + str(ind_mx[2]) + ', ilon=' + str(ind_mx[3]) )
+            if vnm == 'temp':
+                dz = OCN['depth'][1:] - OCN['depth'][0:-1]
+                dT = OCN['temp'][:,0:-1,:,:] - OCN['temp'][:,1:,:,:]
+                dTdz = dT / dz[None,:,None,None]
+                ind_mx = np.unravel_index(np.nanargmax(dTdz, axis=None), dTdz.shape)
+                print('max dT/dz = ' + str(dTdz[ind_mx]) + ' C/m')
+                print('at: it=' + str(ind_mx[0]) + ', iz=' + str(ind_mx[1]) + ', ilat=' + str(ind_mx[2]) + ', ilon=' + str(ind_mx[3]) )
+                ind_mx = np.unravel_index(np.nanargmin(dTdz, axis=None), dTdz.shape)
+                print('min dT/dz = ' + str(dTdz[ind_mx]) + ' C/m')
+                print('at: it=' + str(ind_mx[0]) + ', iz=' + str(ind_mx[1]) + ', ilat=' + str(ind_mx[2]) + ', ilon=' + str(ind_mx[3]) )
+            cnt += 1
+
         # put the units in OCN...
         OCN['vinfo']['lon'] = {'long_name':'longitude',
                         'units':'degrees_east'}
