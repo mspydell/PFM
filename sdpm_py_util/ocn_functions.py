@@ -485,6 +485,38 @@ def get_ocn_data_as_dict_pckl(yyyymmdd,run_type,ocn_mod,get_method):
         # tr_sec is now an ndarray of days past the reference day
         return tr_days
 
+    def print_var_max_mins(OCN,vlist,ulist2):
+
+        for vnm in vlist:
+            ind_mx = np.unravel_index(np.nanargmax(OCN[vnm], axis=None), OCN[vnm].shape)
+            ind_mn = np.unravel_index(np.nanargmin(OCN[vnm], axis=None), OCN[vnm].shape)
+            mxx = OCN[vnm][ind_mx]
+            mnn = OCN[vnm][ind_mn]
+
+            if vnm == 'zeta':
+                print(f'max {vnm:6} = {mxx:6.3f} {ulist2[vnm]:5}      at  ( it, ilat, ilon)     =  ({ind_mx[0]:3},{ind_mx[1]:4},{ind_mx[2]:4})')
+                print(f'min {vnm:6} = {mnn:6.3f} {ulist2[vnm]:5}      at  ( it, ilat, ilon)     =  ({ind_mn[0]:3},{ind_mn[1]:4},{ind_mn[2]:4})')
+            else:
+                print(f'max {vnm:6} = {mxx:6.3f} {ulist2[vnm]:5}      at  ( it, iz, ilat, ilon) =  ({ind_mx[0]:3},{ind_mx[1]:3},{ind_mx[2]:4},{ind_mx[3]:4})')
+                print(f'min {vnm:6} = {mnn:6.3f} {ulist2[vnm]:5}      at  ( it, iz, ilat, ilon) =  ({ind_mn[0]:3},{ind_mn[1]:3},{ind_mn[2]:4},{ind_mn[3]:4})')
+            if vnm == 'temp' or vnm == 'salt':
+                if vnm == 'salt':
+                    vvv = 'dS/dz'
+                    uvv = 'psu/m'
+                else:
+                    vvv = 'dT/dz'
+                    uvv = 'C/m'
+                dz = OCN['depth'][1:] - OCN['depth'][0:-1]
+                dT = OCN[vnm][:,0:-1,:,:] - OCN[vnm][:,1:,:,:]
+                dTdz = dT / dz[None,:,None,None]
+                ind_mx = np.unravel_index(np.nanargmax(dTdz, axis=None), dTdz.shape)
+                ind_mn = np.unravel_index(np.nanargmin(dTdz, axis=None), dTdz.shape)
+                mxx = dTdz[ind_mx]
+                mnn = dTdz[ind_mn]
+                print(f'max {vvv:6} = {mxx:6.3f} {uvv:5}      at  ( it, iz, ilat, ilon) =  ({ind_mx[0]:3},{ind_mx[1]:3},{ind_mx[2]:4},{ind_mx[3]:4})')
+                print(f'min {vvv:6} = {mnn:6.3f} {uvv:5}      at  ( it, iz, ilat, ilon) =  ({ind_mn[0]:3},{ind_mn[1]:3},{ind_mn[2]:4},{ind_mn[3]:4})')
+
+
     if get_method == 'open_dap_pydap' or get_method == 'open_dap_nc' or get_method == 'ncks' or get_method == 'ncks_para' and run_type == 'forecast':
         # with this method the data is not downloaded directly, initially
         # and the data is rectilinear, lon and lat are both vectors
@@ -781,42 +813,11 @@ def get_ocn_data_as_dict_pckl(yyyymmdd,run_type,ocn_mod,get_method):
         del eta
         OCN['depth'] = z
 
+        print('\nmax and min raw hycom data (iz is top [0] to bottom [39]):')
         vlist = ['zeta','u','v','temp','salt']
         ulist = ['m','m/s','m/s','C','psu']
-        print('\nmax and min raw hycom data (iz is top [0] to bottom [39]):')
-
-        cnt=0
-        for vnm in vlist:
-            ind_mx = np.unravel_index(np.nanargmax(OCN[vnm], axis=None), OCN[vnm].shape)
-            ind_mn = np.unravel_index(np.nanargmin(OCN[vnm], axis=None), OCN[vnm].shape)
-            mxx = OCN[vnm][ind_mx]
-            mnn = OCN[vnm][ind_mn]
-            uvnm = ulist[cnt]
-
-            if vnm == 'zeta':
-                print(f'max {vnm:6} = {mxx:6.3f} {uvnm:5}      at  ( it, ilat, ilon)     =  ({ind_mx[0]:3},{ind_mx[1]:4},{ind_mx[2]:4})')
-                print(f'min {vnm:6} = {mnn:6.3f} {uvnm:5}      at  ( it, ilat, ilon)     =  ({ind_mn[0]:3},{ind_mn[1]:4},{ind_mn[2]:4})')
-            else:
-                print(f'max {vnm:6} = {mxx:6.3f} {uvnm:5}      at  ( it, iz, ilat, ilon) =  ({ind_mx[0]:3},{ind_mx[1]:3},{ind_mx[2]:4},{ind_mx[3]:4})')
-                print(f'min {vnm:6} = {mnn:6.3f} {uvnm:5}      at  ( it, iz, ilat, ilon) =  ({ind_mn[0]:3},{ind_mn[1]:3},{ind_mn[2]:4},{ind_mn[3]:4})')
-            if vnm == 'temp' or vnm == 'salt':
-                if vnm == 'salt':
-                    vvv = 'dS/dz'
-                    uvv = 'psu/m'
-                else:
-                    vvv = 'dT/dz'
-                    uvv = 'C/m'
-                dz = OCN['depth'][1:] - OCN['depth'][0:-1]
-                dT = OCN[vnm][:,0:-1,:,:] - OCN[vnm][:,1:,:,:]
-                dTdz = dT / dz[None,:,None,None]
-                ind_mx = np.unravel_index(np.nanargmax(dTdz, axis=None), dTdz.shape)
-                ind_mn = np.unravel_index(np.nanargmin(dTdz, axis=None), dTdz.shape)
-                mxx = dTdz[ind_mx]
-                mnn = dTdz[ind_mn]
-                print(f'max {vvv:6} = {mxx:6.3f} {uvv:5}      at  ( it, iz, ilat, ilon) =  ({ind_mx[0]:3},{ind_mx[1]:3},{ind_mx[2]:4},{ind_mx[3]:4})')
-                print(f'min {vvv:6} = {mnn:6.3f} {uvv:5}      at  ( it, iz, ilat, ilon) =  ({ind_mn[0]:3},{ind_mn[1]:3},{ind_mn[2]:4},{ind_mn[3]:4})')
-
-            cnt += 1
+        ulist2 = dict(zip(vlist,ulist))
+        print_var_max_mins(OCN,vlist,ulist2)
 
         # put the units in OCN...
         OCN['vinfo']['lon'] = {'long_name':'longitude',
