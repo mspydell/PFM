@@ -125,6 +125,7 @@ else:
     ocnfuns.make_all_tmp_pckl_ocnR_files(fn_pckl)
     os.chdir('../driver')
 
+ocnfuns.print_maxmin_HYrm_pickles()
 print('driver_run_forecast_LV1: done with hycom_to_roms_latlon')
 # add OCN + OCN_R plotting function here !!!
 
