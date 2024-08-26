@@ -781,34 +781,41 @@ def get_ocn_data_as_dict_pckl(yyyymmdd,run_type,ocn_mod,get_method):
         del eta
         OCN['depth'] = z
 
-        vlist = ['u','v','temp','salt','zeta']
-        ulist = ['m/s','m/s','C','psu','m']
-        print('max  min raw hycom data (iz is top to bottom):')
+        vlist = ['zeta','u','v','temp','salt']
+        ulist = ['m','m/s','m/s','C','psu']
+        print('\nmax and min raw hycom data (iz is top [0] to bottom [39]):')
 
         cnt=0
         for vnm in vlist:
             ind_mx = np.unravel_index(np.nanargmax(OCN[vnm], axis=None), OCN[vnm].shape)
-            print('max ' + vnm + ' = ' + str(OCN[vnm][ind_mx]) + ' ' + ulist[cnt])
+            ind_mn = np.unravel_index(np.nanargmin(OCN[vnm], axis=None), OCN[vnm].shape)
+            mxx = OCN[vnm][ind_mx]
+            mnn = OCN[vnm][ind_mn]
+            uvnm = ulist[cnt]
+
             if vnm == 'zeta':
-                print('at: it=' + str(ind_mx[0]) + ', ilat=' + str(ind_mx[1]) + ', ilon=' + str(ind_mx[2]) )            
+                print(f'max {vnm:6} = {mxx:6.3f} {uvnm:5}      at  ( it, ilat, ilon)     =  ({ind_mx[0]:3},{ind_mx[1]:4},{ind_mx[2]:4})')
+                print(f'min {vnm:6} = {mnn:6.3f} {uvnm:5}      at  ( it, ilat, ilon)     =  ({ind_mn[0]:3},{ind_mn[1]:4},{ind_mn[2]:4})')
             else:
-                print('at: it=' + str(ind_mx[0]) + ', iz=' + str(ind_mx[1]) + ', ilat=' + str(ind_mx[2]) + ', ilon=' + str(ind_mx[3]) )
-            ind_mx = np.unravel_index(np.nanargmin(OCN[vnm], axis=None), OCN[vnm].shape)
-            print('min ' + vnm + ' = ' + str(OCN[vnm][ind_mx])  + ' ' + ulist[cnt])
-            if vnm == 'zeta':
-                print('at: it=' + str(ind_mx[0]) + ', ilat=' + str(ind_mx[1]) + ', ilon=' + str(ind_mx[2]) )            
-            else:
-                print('at: it=' + str(ind_mx[0]) + ', iz=' + str(ind_mx[1]) + ', ilat=' + str(ind_mx[2]) + ', ilon=' + str(ind_mx[3]) )
-            if vnm == 'temp':
+                print(f'max {vnm:6} = {mxx:6.3f} {uvnm:5}      at  ( it, iz, ilat, ilon) =  ({ind_mx[0]:3},{ind_mx[1]:3},{ind_mx[2]:4},{ind_mx[3]:4})')
+                print(f'min {vnm:6} = {mnn:6.3f} {uvnm:5}      at  ( it, iz, ilat, ilon) =  ({ind_mn[0]:3},{ind_mn[1]:3},{ind_mn[2]:4},{ind_mn[3]:4})')
+            if vnm == 'temp' or vnm == 'salt':
+                if vnm == 'salt':
+                    vvv = 'dS/dz'
+                    uvv = 'psu/m'
+                else:
+                    vvv = 'dT/dz'
+                    uvv = 'C/m'
                 dz = OCN['depth'][1:] - OCN['depth'][0:-1]
-                dT = OCN['temp'][:,0:-1,:,:] - OCN['temp'][:,1:,:,:]
+                dT = OCN[vnm][:,0:-1,:,:] - OCN[vnm][:,1:,:,:]
                 dTdz = dT / dz[None,:,None,None]
                 ind_mx = np.unravel_index(np.nanargmax(dTdz, axis=None), dTdz.shape)
-                print('max dT/dz = ' + str(dTdz[ind_mx]) + ' C/m')
-                print('at: it=' + str(ind_mx[0]) + ', iz=' + str(ind_mx[1]) + ', ilat=' + str(ind_mx[2]) + ', ilon=' + str(ind_mx[3]) )
-                ind_mx = np.unravel_index(np.nanargmin(dTdz, axis=None), dTdz.shape)
-                print('min dT/dz = ' + str(dTdz[ind_mx]) + ' C/m')
-                print('at: it=' + str(ind_mx[0]) + ', iz=' + str(ind_mx[1]) + ', ilat=' + str(ind_mx[2]) + ', ilon=' + str(ind_mx[3]) )
+                ind_mn = np.unravel_index(np.nanargmin(dTdz, axis=None), dTdz.shape)
+                mxx = dTdz[ind_mx]
+                mnn = dTdz[ind_mn]
+                print(f'max {vvv:6} = {mxx:6.3f} {uvv:5}      at  ( it, iz, ilat, ilon) =  ({ind_mx[0]:3},{ind_mx[1]:3},{ind_mx[2]:4},{ind_mx[3]:4})')
+                print(f'min {vvv:6} = {mnn:6.3f} {uvv:5}      at  ( it, iz, ilat, ilon) =  ({ind_mn[0]:3},{ind_mn[1]:3},{ind_mn[2]:4},{ind_mn[3]:4})')
+
             cnt += 1
 
         # put the units in OCN...
@@ -848,7 +855,7 @@ def get_ocn_data_as_dict_pckl(yyyymmdd,run_type,ocn_mod,get_method):
     fn_out = PFM['lv1_forc_dir'] + '/' + PFM['lv1_ocn_tmp_pckl_file']
     with open(fn_out,'wb') as fp:
         pickle.dump(OCN,fp)
-        print('Hycom OCN dict saved with pickle')
+        print('\nHycom OCN dict saved with pickle')
 
 
 def earth_rad(lat_deg):
@@ -1680,6 +1687,7 @@ def make_all_tmp_pckl_ocnR_files(fname_in):
     
     os.chdir('../sdpm_py_util')
     rctot = 0
+
     for aa in ork:
         #print('doing ' + aa + ' using subprocess')
         cmd_list = ['python','-W','ignore','ocn_functions.py','make_tmp_hy_on_rom_pckl_files',fname_in,aa]
@@ -1847,7 +1855,47 @@ def make_tmp_hy_on_rom_pckl_files(fname_in,var_name):
 
     with open(fn_temp,'wb') as fp:
         pickle.dump(HYrm[var_name],fp)
-        #print('saved pickle file: ' + fn_temp)
+
+def print_maxmin_HYrm_pickles():
+
+    HYrm = load_ocnR_from_pckl_files()
+    vlist = ['zeta','urm','vrm','temp','salt']
+    ulist = ['m','m/s','m/s','C','psu']
+    ulist2 = dict(zip(vlist,ulist))
+    
+    print('\nmax and min of hycom data on ROMS grid (iz is top [0] to bottom [39]):')
+
+    for var_name in vlist:
+        ind_mx = np.unravel_index(np.nanargmax(HYrm[var_name], axis=None), HYrm[var_name].shape)
+        ind_mn = np.unravel_index(np.nanargmin(HYrm[var_name], axis=None), HYrm[var_name].shape)
+        mxx = HYrm[var_name][ind_mx]
+        mnn = HYrm[var_name][ind_mn]
+        uvnm = ulist2[var_name]
+        if var_name == 'zeta':
+            print(f'max {var_name:6} = {mxx:6.3f} {uvnm:5}      at  ( it, ilat, ilon)     =  ({ind_mx[0]:3},{ind_mx[1]:4},{ind_mx[2]:4})')
+            print(f'min {var_name:6} = {mnn:6.3f} {uvnm:5}      at  ( it, ilat, ilon)     =  ({ind_mn[0]:3},{ind_mn[1]:4},{ind_mn[2]:4})')
+        else:
+            print(f'max {var_name:6} = {mxx:6.3f} {uvnm:5}      at  ( it, iz, ilat, ilon) =  ({ind_mx[0]:3},{ind_mx[1]:3},{ind_mx[2]:4},{ind_mx[3]:4})')
+            print(f'min {var_name:6} = {mnn:6.3f} {uvnm:5}      at  ( it, iz, ilat, ilon) =  ({ind_mn[0]:3},{ind_mn[1]:3},{ind_mn[2]:4},{ind_mn[3]:4})')
+        if var_name == 'temp' or var_name == 'salt':
+            if var_name == 'salt':
+                vvv = 'dS/dz'
+                uvv = 'psu/m'
+            else:
+                vvv = 'dT/dz'
+                uvv = 'C/m'
+            dz = HYrm['depth'][1:] - HYrm['depth'][0:-1]
+            dT = HYrm[var_name][:,0:-1,:,:] - HYrm[var_name][:,1:,:,:]
+            dTdz = dT / dz[None,:,None,None]
+            ind_mx = np.unravel_index(np.nanargmax(dTdz, axis=None), dTdz.shape)
+            ind_mn = np.unravel_index(np.nanargmin(dTdz, axis=None), dTdz.shape)
+            mxx = dTdz[ind_mx]
+            mnn = dTdz[ind_mn]
+            print(f'max {vvv:6} = {mxx:6.3f} {uvv:5}      at  ( it, iz, ilat, ilon) =  ({ind_mx[0]:3},{ind_mx[1]:3},{ind_mx[2]:4},{ind_mx[3]:4})')
+            print(f'min {vvv:6} = {mnn:6.3f} {uvv:5}      at  ( it, iz, ilat, ilon) =  ({ind_mn[0]:3},{ind_mn[1]:3},{ind_mn[2]:4},{ind_mn[3]:4})')
+
+
+
 
 
 def load_ocnR_from_pckl_files():
@@ -4440,6 +4488,27 @@ def ocn_roms_IC_dict_to_netcdf_pckl(fname_in,fn_out):
         #ff = ff.filled(ff.mean())
         ATM_R[vn] = ff
 
+
+    vlist = ['zeta','ubar','vbar','u','v','temp','salt']
+    ulist = ['m','m/s','m/s','m/s','m/s','C','psu']
+    ulist2 = dict(zip(vlist,ulist))
+    
+    print('\nmax and min of data in ROMS IC file (iz is bottom [0] to top [39], note: it is always 0 b/c IC):')
+
+    for var_name in vlist:
+        ind_mx = np.unravel_index(np.nanargmax(ATM_R[var_name], axis=None), ATM_R[var_name].shape)
+        ind_mn = np.unravel_index(np.nanargmin(ATM_R[var_name], axis=None), ATM_R[var_name].shape)
+        mxx = ATM_R[var_name][ind_mx]
+        mnn = ATM_R[var_name][ind_mn]
+        uvnm = ulist2[var_name]
+        if var_name == 'zeta' or var_name == 'ubar' or var_name == 'vbar':
+            print(f'max {var_name:6} = {mxx:6.3f} {uvnm:5}      at  ( it, ilat, ilon)     =  ({ind_mx[0]:3},{ind_mx[1]:4},{ind_mx[2]:4})')
+            print(f'min {var_name:6} = {mnn:6.3f} {uvnm:5}      at  ( it, ilat, ilon)     =  ({ind_mn[0]:3},{ind_mn[1]:4},{ind_mn[2]:4})')
+        else:
+            print(f'max {var_name:6} = {mxx:6.3f} {uvnm:5}      at  ( it, iz, ilat, ilon) =  ({ind_mx[0]:3},{ind_mx[1]:3},{ind_mx[2]:4},{ind_mx[3]:4})')
+            print(f'min {var_name:6} = {mnn:6.3f} {uvnm:5}      at  ( it, iz, ilat, ilon) =  ({ind_mn[0]:3},{ind_mn[1]:3},{ind_mn[2]:4},{ind_mn[3]:4})')
+
+
     ds = xr.Dataset(
         data_vars = dict(
             temp       = (["time","s_rho","er","xr"],ATM_R['temp'],ATM_R['vinfo']['temp']),
@@ -4537,6 +4606,34 @@ def ocn_roms_BC_dict_to_netcdf_pckl(fname_in,fn_out):
             #ff = ff.filled(ff.mean())
             ATM_R[vn+sd] = ff
     
+    vlist = ['zeta','ubar','vbar','u','v','temp','salt']
+    ulist = ['m','m/s','m/s','m/s','m/s','C','psu']
+    ulist2 = dict(zip(vlist,ulist))
+    
+    print('\nmax and min of data in ROMS BC file (iz is bottom [0] to top [39]):')
+
+    for var_name in vlist:
+        for sd in sds:
+            ind_mx = np.unravel_index(np.nanargmax(ATM_R[var_name+sd], axis=None), ATM_R[var_name+sd].shape)
+            ind_mn = np.unravel_index(np.nanargmin(ATM_R[var_name+sd], axis=None), ATM_R[var_name+sd].shape)
+            mxx = ATM_R[var_name+sd][ind_mx]
+            mnn = ATM_R[var_name+sd][ind_mn]
+            uvnm = ulist2[var_name]
+            if var_name == 'zeta' or var_name == 'ubar' or var_name == 'vbar':
+                if sd == '_north' or sd == '_south':
+                    print(f'max {var_name+sd:10} = {mxx:6.3f} {uvnm:5}      at  ( it, ilon)     =  ({ind_mx[0]:3},{ind_mx[1]:4})')
+                    print(f'min {var_name+sd:10} = {mnn:6.3f} {uvnm:5}      at  ( it, ilon)     =  ({ind_mn[0]:3},{ind_mn[1]:4})')
+                else:
+                    print(f'max {var_name+sd:10} = {mxx:6.3f} {uvnm:5}      at  ( it, ilat)     =  ({ind_mx[0]:3},{ind_mx[1]:4})')
+                    print(f'min {var_name+sd:10} = {mnn:6.3f} {uvnm:5}      at  ( it, ilat)     =  ({ind_mn[0]:3},{ind_mn[1]:4})')
+            else:
+                if sd == '_north' or sd == '_south':
+                    print(f'max {var_name+sd:10} = {mxx:6.3f} {uvnm:5}      at  ( it, iz, ilon) =  ({ind_mx[0]:3},{ind_mx[1]:4},{ind_mx[2]:4})')
+                    print(f'min {var_name+sd:10} = {mnn:6.3f} {uvnm:5}      at  ( it, iz, ilon) =  ({ind_mn[0]:3},{ind_mn[1]:4},{ind_mn[2]:4})')
+                else:
+                    print(f'max {var_name+sd:10} = {mxx:6.3f} {uvnm:5}      at  ( it, iz, ilat) =  ({ind_mx[0]:3},{ind_mx[1]:4},{ind_mx[2]:4})')
+                    print(f'min {var_name+sd:10} = {mnn:6.3f} {uvnm:5}      at  ( it, iz, ilat) =  ({ind_mn[0]:3},{ind_mn[1]:4},{ind_mn[2]:4})')
+
 
     ds = xr.Dataset(
         data_vars = dict(
