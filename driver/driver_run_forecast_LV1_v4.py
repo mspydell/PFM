@@ -21,6 +21,7 @@ import plotting_functions as pltfuns
 from get_PFM_info import get_PFM_info
 from make_LV1_dotin_and_SLURM import make_LV1_dotin_and_SLURM
 from run_slurm_LV1 import run_slurm_LV1
+from init_funs import initialize_simulation
 
 print('\nStarting the LV1 simulation, Current time ', datetime.now())
 
@@ -28,6 +29,8 @@ print('\nStarting the LV1 simulation, Current time ', datetime.now())
 run_type = 'forecast'
 
 # PFM has all of the information needed to run the model
+clean_start = True
+initialize_simulation(clean_start) # this removes the PFM_info.pkl file if clean_start = True
 PFM=get_PFM_info()
 RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
 
