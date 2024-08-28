@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import cartopy
 import cartopy.crs as ccrs
 from datetime import datetime, timedelta
 import netCDF4 as nc
@@ -360,99 +361,122 @@ def plot_all_fields_in_one(lv, show=False, fields_to_plot=None, forecast_hour=No
         ax2 = axs[1]
 
         if field == 'velocity':
-            plevs = np.arange(0, 16, 0.1)
             U, V = ATM['Uwind'][closest_idx, :, :], ATM['Vwind'][closest_idx, :, :]
             magnitude = np.sqrt(U**2 + V**2)
-            cset1 = ax1.contourf(lon, lat, magnitude, plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            #plevs = np.arange(np.floor(np.min(magnitude)), np.ceil(np.max(magnitude)), 0.1)
+#            cset1 = ax1.contourf(lon, lat, magnitude, plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            cset1 = ax1.contourf(lon, lat, magnitude, 50, cmap=cmap, transform=ccrs.PlateCarree())
             ax1.quiver(lon[::10], lat[::10], U[::10, ::10], V[::10, ::10], transform=ccrs.PlateCarree())
             cbar1 = fig.colorbar(cset1, ax=ax1, orientation='horizontal', pad=0.05)
-            cbar1.set_ticks(np.arange(closest_idx, 16, 5))
+            #cbar1.set_ticks(np.arange(closest_idx, 16, 5))
             ax1.set_title('10 m velocity [m/s, ATM]')
 
             U_R, V_R = ATM_R['Uwind'][closest_idx, :, :], ATM_R['Vwind'][closest_idx, :, :]
             magnitude_R = np.sqrt(U_R**2 + V_R**2)
-            cset2 = ax2.contourf(lon_r, lat_r, magnitude_R, plevs, cmap=cmap, transform=ccrs.PlateCarree())
+#            cset2 = ax2.contourf(lon_r, lat_r, magnitude_R, plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            cset2 = ax2.contourf(lon_r, lat_r, magnitude_R, 50, cmap=cmap, transform=ccrs.PlateCarree())
             ax2.quiver(lon_r[::10, ::10], lat_r[::10, ::10], U_R[::10, ::10], V_R[::10, ::10], transform=ccrs.PlateCarree())
             cbar2 = fig.colorbar(cset2, ax=ax2, orientation='horizontal', pad=0.05)
-            cbar2.set_ticks(np.arange(0, 16, 5))
+            #cbar2.set_ticks(np.arange(0, 16, 5))
             ax2.set_title('10 m velocity [m/s, ATM_R]')
         
         elif field == 'pressure':
-            plevs = np.arange(1000, 1026, 0.1)
-            cset1 = ax1.contourf(lon, lat, ATM['Pair'][closest_idx, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            zzz = ATM['Pair'][closest_idx, :, :]
+            #plevs = np.arange(np.floor(np.min(zzz)), np.ceil(np.max(zzz)), 0.1)
+#            cset1 = ax1.contourf(lon, lat, zzz , plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            cset1 = ax1.contourf(lon, lat, zzz , 50, cmap=cmap, transform=ccrs.PlateCarree())
             cbar1 = fig.colorbar(cset1, ax=ax1, orientation='horizontal', pad=0.05)
-            cbar1.set_ticks(np.arange(1000, 1026, 5))
+            #cbar1.set_ticks(np.arange(1000, 1026, 5))
             ax1.set_title('Surface Pressure [Pa, ATM]')
 
-            cset2 = ax2.contourf(lon_r, lat_r, ATM_R['Pair'][closest_idx, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
+#            cset2 = ax2.contourf(lon_r, lat_r, ATM_R['Pair'][closest_idx, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            cset2 = ax2.contourf(lon_r, lat_r, ATM_R['Pair'][closest_idx, :, :], 50, cmap=cmap, transform=ccrs.PlateCarree())
             cbar2 = fig.colorbar(cset2, ax=ax2, orientation='horizontal', pad=0.05)
-            cbar2.set_ticks(np.arange(1000, 1026, 5))
+            #cbar2.set_ticks(np.arange(1000, 1026, 5))
             ax2.set_title('Surface Pressure [Pa, ATM_R]')
         
         elif field == 'temperature':
-            plevs = np.arange(8, 41, 0.1)
-            cset1 = ax1.contourf(lon, lat, ATM['Tair'][closest_idx, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
-            cbar1 = fig.colorbar(cset1, ax=ax1, orientation='horizontal', pad=0.05)
-            cbar1.set_ticks(np.arange(8, 41, 8))
-            ax1.set_title('Surface Temperature [K, ATM]')
+            zzz = ATM['Tair'][closest_idx, :, :]
+            #plevs = np.arange(np.floor(np.min(zzz)), np.ceil(np.max(zzz)), 0.1)
+            #cset1 = ax1.contourf(lon, lat, zzz , plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            cset1 = ax1.contourf(lon, lat, zzz , 50, cmap=cmap, transform=ccrs.PlateCarree())
 
-            cset2 = ax2.contourf(lon_r, lat_r, ATM_R['Tair'][closest_idx, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            cbar1 = fig.colorbar(cset1, ax=ax1, orientation='horizontal', pad=0.05)
+            #cbar1.set_ticks(np.arange(8, 41, 8))
+            ax1.set_title('Surface Temperature [C, ATM]')
+            #cset2 = ax2.contourf(lon_r, lat_r, ATM_R['Tair'][closest_idx, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            cset2 = ax2.contourf(lon_r, lat_r, ATM_R['Tair'][closest_idx, :, :], 50, cmap=cmap, transform=ccrs.PlateCarree())
             cbar2 = fig.colorbar(cset2, ax=ax2, orientation='horizontal', pad=0.05)
-            cbar2.set_ticks(np.arange(8, 41, 8))
-            ax2.set_title('Surface Temperature [K, ATM_R]')
+            #cbar2.set_ticks(np.arange(8, 41, 8))
+            ax2.set_title('Surface Temperature [C, ATM_LV' + lv + ']')
         
         elif field == 'lw_radiation':
-            plevs = np.arange(260, 520, 15)
-            cset1 = ax1.contourf(lon, lat, ATM['lwrad_down'][closest_idx, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            zzz = ATM['lwrad_down'][closest_idx, :, :]
+            #plevs = np.arange(np.floor(np.min(zzz)), np.ceil(np.max(zzz)), 1)
+#            cset1 = ax1.contourf(lon, lat, zzz, plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            cset1 = ax1.contourf(lon, lat, zzz, 50, cmap=cmap, transform=ccrs.PlateCarree())
             cbar1 = fig.colorbar(cset1, ax=ax1, orientation='horizontal', pad=0.05)
-            cbar1.set_ticks(np.arange(260, 520, 50))
+            #cbar1.set_ticks(np.arange(260, 520, 50))
             ax1.set_title('Long Wave Radiation Down [W/m^2, ATM]')
 
-            cset2 = ax2.contourf(lon_r, lat_r, ATM_R['lwrad_down'][closest_idx, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
+#            cset2 = ax2.contourf(lon_r, lat_r, ATM_R['lwrad_down'][closest_idx, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            cset2 = ax2.contourf(lon_r, lat_r, ATM_R['lwrad_down'][closest_idx, :, :], 50, cmap=cmap, transform=ccrs.PlateCarree())
             cbar2 = fig.colorbar(cset2, ax=ax2, orientation='horizontal', pad=0.05)
-            cbar2.set_ticks(np.arange(260, 520, 50))
+            #cbar2.set_ticks(np.arange(260, 520, 50))
             ax2.set_title('Long Wave Radiation Down [W/m^2, ATM_R]')
         
         elif field == 'rain':
-            plevs = np.arange(0, 0.0035, 0.0001)
-            cset1 = ax1.contourf(lon, lat, ATM['rain'][closest_idx, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            zzz = ATM['rain'][closest_idx, :, :]
+            #plevs = np.arange(np.floor(np.min(zzz)), np.ceil(np.max(zzz)), 0.0001)
+            #cset1 = ax1.contourf(lon, lat, zzz , plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            cset1 = ax1.contourf(lon, lat, zzz , 50, cmap=cmap, transform=ccrs.PlateCarree())
             cbar1 = fig.colorbar(cset1, ax=ax1, orientation='horizontal', pad=0.05)
-            cbar1.set_ticks(np.arange(0, 0.0035, 0.0007))
+            #cbar1.set_ticks(np.arange(0, 0.0035, 0.0007))
             ax1.set_title('Precipitation Rate [kg/m^2/s, ATM]')
 
-            cset2 = ax2.contourf(lon_r, lat_r, ATM_R['rain'][closest_idx, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
+#            cset2 = ax2.contourf(lon_r, lat_r, ATM_R['rain'][closest_idx, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            cset2 = ax2.contourf(lon_r, lat_r, ATM_R['rain'][closest_idx, :, :], 50, cmap=cmap, transform=ccrs.PlateCarree())
             cbar2 = fig.colorbar(cset2, ax=ax2, orientation='horizontal', pad=0.05)
-            cbar2.set_ticks(np.arange(0, 0.0035, 0.0007))
+            #cbar2.set_ticks(np.arange(0, 0.0035, 0.0007))
             ax2.set_title('Precipitation Rate [kg/m^2/s, ATM_R]')
         
         elif field == 'humidity':
-            plevs = np.arange(5, 102, 1)
-            cset1 = ax1.contourf(lon, lat, ATM['Qair'][closest_idx, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            zzz = ATM['Qair'][closest_idx, :, :]
+            #plevs = np.arange(np.floor(np.min(zzz)), np.ceil(np.max(zzz)), .1)
+            cset1 = ax1.contourf(lon, lat, zzz, 50, cmap=cmap, transform=ccrs.PlateCarree())
+#            cset1 = ax1.contourf(lon, lat, zzz, plevs, cmap=cmap, transform=ccrs.PlateCarree())
             cbar1 = fig.colorbar(cset1, ax=ax1, orientation='horizontal', pad=0.05)
-            cbar1.set_ticks(np.arange(5, 101, 20))
+            #cbar1.set_ticks(np.arange(5, 101, 20))
             ax1.set_title('Surface Humidity [%, ATM]')
 
-            cset2 = ax2.contourf(lon_r, lat_r, ATM_R['Qair'][closest_idx, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
+#            cset2 = ax2.contourf(lon_r, lat_r, ATM_R['Qair'][closest_idx, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            cset2 = ax2.contourf(lon_r, lat_r, ATM_R['Qair'][closest_idx, :, :], 50, cmap=cmap, transform=ccrs.PlateCarree())
             cbar2 = fig.colorbar(cset2, ax=ax2, orientation='horizontal', pad=0.05)
-            cbar2.set_ticks(np.arange(5, 102, 20))
+            #cbar2.set_ticks(np.arange(5, 102, 20))
             ax2.set_title('Surface Humidity [%, ATM_R]')
         
         elif field == 'swrad':
-            plevs = np.arange(0, 601, 10)
-            cset1 = ax1.contourf(lon, lat, ATM['swrad'][closest_idx, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            zzz = ATM['swrad'][closest_idx, :, :]
+            #plevs = np.arange(np.floor(np.min(zzz)), np.ceil(np.max(zzz)), .1)
+            cset1 = ax1.contourf(lon, lat, zzz, 50, cmap=cmap, transform=ccrs.PlateCarree())
             cbar1 = fig.colorbar(cset1, ax=ax1, orientation='horizontal', pad=0.05)
-            cbar1.set_ticks(np.arange(100, 601, 100))
+            #cbar1.set_ticks(np.arange(100, 601, 100))
             ax1.set_title('Short Wave Radiation Down [W/m^2, ATM]')
 
-            cset2 = ax2.contourf(lon_r, lat_r, ATM_R['swrad'][closest_idx, :, :], plevs, cmap=cmap, transform=ccrs.PlateCarree())
+            cset2 = ax2.contourf(lon_r, lat_r, ATM_R['swrad'][closest_idx, :, :], 50, cmap=cmap, transform=ccrs.PlateCarree())
             cbar2 = fig.colorbar(cset2, ax=ax2, orientation='horizontal', pad=0.05)
-            cbar2.set_ticks(np.arange(100, 601, 100))
+            #cbar2.set_ticks(np.arange(100, 601, 100))
             ax2.set_title('Short Wave Radiation Down [W/m^2, ATM_R]')
         
         for ax in [ax1, ax2]:
             plot_roms_box(ax, RMG)
-            plot_roms_coastline(ax, RMG)
-            # ax.add_feature(cfeature.COASTLINE)
+            #plot_roms_coastline(ax, RMG)
+            #rivers = cartopy.feature.NaturalEarthFeature('physical', 'rivers_lake_centerlines', \
+            #                                    scale='50m', edgecolor='b', facecolor='none')
+            ax.add_feature(cfeature.LAND)
+            ax.add_feature(cfeature.BORDERS)
+            #ax.add_feature(rivers, linewidth=0.5)
+            ax.add_feature(cfeature.COASTLINE, linewidth = 2.0)
             ax.set_xlabel('Longitude')
             ax.set_ylabel('Latitude')
             ax.grid(True)
