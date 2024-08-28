@@ -149,10 +149,10 @@ def get_ocn_data_as_dict_pckl(yyyymmdd,run_type,ocn_mod,get_method):
         hycom = 'https://tds.hycom.org/thredds/dodsC/GLBy0.08/expt_93.0/FMRC/runs/GLBy0.08_930_FMRC_RUN_' + yyyy + '-' + mm + '-' + dd + 'T12:00:00Z'
 
         # define the box to get data in, hycom uses 0-360 longitude.
-        lt_min = PFM['latlonbox'][0]
-        lt_max = PFM['latlonbox'][1]
-        ln_min = PFM['latlonbox'][2]+360.0
-        ln_max = PFM['latlonbox'][3]+360.0
+        lt_min = PFM['latlonbox']['L1'][0]
+        lt_max = PFM['latlonbox']['L1'][1]
+        ln_min = PFM['latlonbox']['L1'][2]+360.0
+        ln_max = PFM['latlonbox']['L1'][3]+360.0
         #ln_min = -124.5 + 360
         #ln_max = -115 + 360
         #lt_min = 28

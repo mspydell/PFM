@@ -236,7 +236,12 @@ print('\n')
 # get atm data as a dict
 # need to specify hhmm because nam forecast are produced at 6 hr increments
 print('getting the atm data now...')
-ATM = atmfuns.get_atm_data_as_dict(yyyymmdd,hhmm,run_type,atm_mod,'open_dap_nc',PFM)
+#ATM = atmfuns.get_atm_data_as_dict(yyyymmdd,hhmm,run_type,atm_mod,'open_dap_nc',PFM)
+cmd_list = ['python','-W','ignore','atm_functions.py','get_atm_data_as_dict']
+os.chdir('../sdpm_py_util')
+ret5 = subprocess.run(cmd_list)   
+print('return code: ' + str(ret5.returncode) + ' (0=good)')  
+os.chdir('../sdpm_py_util')
 print('...done.')
 t8 = datetime.now()
 print('this took:')
@@ -246,7 +251,7 @@ print('\n')
 
 # plot some stuff
 if plot_atm == 1:
-    pltfuns.plot_atm_fields(ATM, RMG, PFM)
+    pltfuns.plot_atm_fields()
     print('done with plotting ATM fields')
 
 t9 = datetime.now()
@@ -254,15 +259,22 @@ print('this took:')
 print(t9-t8)
 print('\n')
 
+level = 1
 # put the atm data on the roms grid, and rotate the velocities
 # everything in this dict turn into the atm.nc file
 print('in atmfuns.get_atm_data_on_roms_grid(ATM,RMG)')
-ATM_R  = atmfuns.get_atm_data_on_roms_grid(ATM,RMG)
+#ATM_R  = atmfuns.get_atm_data_on_roms_grid(ATM,RMG)
+cmd_list = ['python','-W','ignore','atm_functions.py','get_atm_data_on_roms_grid',str(level)]
+os.chdir('../sdpm_py_util')
+ret5 = subprocess.run(cmd_list)   
+print('return code: ' + str(ret5.returncode) + ' (0=good)')  
+os.chdir('../sdpm_py_util')
 print('done with: atmfuns.get_atm_data_on_roms_grid(ATM,RMG)')
 # all the fields plotted with the data on roms grid
 
 if plot_all_atm == 1:
-    pltfuns.plot_all_fields_in_one(ATM, ATM_R, RMG, PFM)
+#    pltfuns.plot_all_fields_in_one(ATM, ATM_R, RMG, PFM)
+    pltfuns.plot_all_fields_in_one(str(level))
     print('done with: pltfuns.plot_all_fields_in_one(ATM, ATM_R, RMG, PFM)')
 
 t10 = datetime.now()
@@ -272,12 +284,17 @@ print('\n')
 
 # fn_out is the name of the atm.nc file used by roms
 print('driver_run_forcast_LV1: saving ATM file to ' + fn_atm_out)
-atmfuns.atm_roms_dict_to_netcdf(ATM_R,fn_atm_out)
+#atmfuns.atm_roms_dict_to_netcdf(ATM_R,fn_atm_out)
+cmd_list = ['python','-W','ignore','atm_functions.py','atm_roms_dict_to_netcdf',str(level)]
+os.chdir('../sdpm_py_util')
+ret5 = subprocess.run(cmd_list)   
+print('return code: ' + str(ret5.returncode) + ' (0=good)')  
+os.chdir('../sdpm_py_util')
 print('driver_run_forecast_LV1:  done with writing ATM.nc file.') 
 # put in a function to plot the atm.nc file if we want to
 
 if load_plot_atm == 1:
-    pltfuns.load_and_plot_atm(RMG, PFM)
+    pltfuns.load_and_plot_atm(str(level))
     print('done with pltfuns.load_and_plot_atm(PFM)')
 
 t11 = datetime.now()

@@ -48,7 +48,7 @@ def extract_timestamp(ATM):
     return timestamp.strftime('%Y%m%d_%H%M%S')
 
 # ATM Fields Plotting Function
-def plot_atm_fields(ATM, RMG, PFM, show=False,fields_to_plot=None, forecast_hour=None):
+def plot_atm_fields(show=False,fields_to_plot=None, forecast_hour=None):
     """
     Plot specified fields from the ATM dataset with timestamps and product names, and save them as PNG files.
     
@@ -58,6 +58,14 @@ def plot_atm_fields(ATM, RMG, PFM, show=False,fields_to_plot=None, forecast_hour
     fields_to_plot (list or str): The fields to plot. If None, plot all fields.
     IMPORTANT: we might need to keep changing the plevs and the number of ticks as well as number of levels manually for now!
     """
+
+    PFM=get_PFM_info()
+    RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
+
+    fname_atm  = PFM['lv1_forc_dir'] + '/' + PFM['atm_tmp_pckl_file']
+    with open(fname_atm,'rb') as fp:
+        ATM = pickle.load(fp)
+
     timestamp = extract_timestamp(ATM)
     lon = ATM['lon']
     lat = ATM['lat']
@@ -284,7 +292,7 @@ def plot_atm_r_fields(ATM_R, RMG, PFM, show=False, fields_to_plot=None, forecast
                 plt.close()
 
 # For both ATM and ATM_R fields
-def plot_all_fields_in_one(ATM, ATM_R, RMG, PFM, show=False, fields_to_plot=None, forecast_hour=None):
+def plot_all_fields_in_one(lv, show=False, fields_to_plot=None, forecast_hour=None):
     """
     Plot specified fields from both the ATM and ATM_R datasets with timestamps and product names, and save them in separate PNG files.
     
@@ -294,6 +302,33 @@ def plot_all_fields_in_one(ATM, ATM_R, RMG, PFM, show=False, fields_to_plot=None
     RMG (dict): The ROMS grid data dictionary.
     fields_to_plot (list or str): The fields to plot. If None, plot all fields.
     """
+
+    PFM=get_PFM_info()
+    fname_atm  = PFM['lv1_forc_dir'] + '/' + PFM['atm_tmp_pckl_file']
+    with open(fname_atm,'rb') as fp:
+        ATM = pickle.load(fp)
+
+    if lv == '1':
+        output_dir = PFM['lv1_plot_dir']
+        RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
+        fname_r = PFM['lv1_forc_dir'] + '/' + PFM['atm_tmp_LV1_pckl_file']
+    elif lv == '2':
+        output_dir = PFM['lv2_plot_dir']
+        RMG = grdfuns.roms_grid_to_dict(PFM['lv2_grid_file'])
+        fname_r = PFM['lv2_forc_dir'] + '/' + PFM['atm_tmp_LV2_pckl_file']
+    elif lv == '3':
+        output_dir = PFM['lv3_plot_dir']
+        RMG = grdfuns.roms_grid_to_dict(PFM['lv3_grid_file'])
+        fname_r = PFM['lv3_forc_dir'] + '/' + PFM['atm_tmp_LV3_pckl_file']
+    else:
+        output_dir = PFM['lv4_plot_dir']
+        RMG = grdfuns.roms_grid_to_dict(PFM['lv4_grid_file'])
+        fname_r = PFM['lv4_forc_dir'] + '/' + PFM['atm_tmp_LV4_pckl_file']
+
+    with open(fname_r,'rb') as fp:
+        ATM_R = pickle.load(fp)
+
+
     timestamp = extract_timestamp(ATM)
     lon = ATM['lon']
     lat = ATM['lat']
@@ -422,15 +457,22 @@ def plot_all_fields_in_one(ATM, ATM_R, RMG, PFM, show=False, fields_to_plot=None
             ax.set_ylabel('Latitude')
             ax.grid(True)
             ax.set_aspect(aspect='auto')
-            ax.set_xticks(np.round(np.linspace(np.min(lon), np.max(lon), num=5), 2))
-            ax.set_yticks(np.round(np.linspace(np.min(lat), np.max(lat), num=5), 2))
-            ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f'{x:.2f}'))
-            ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: f'{y:.2f}'))
-            annotation = f'Timestamp: {start_time.strftime("%Y-%m-%d %H:%M:%S")} | Model: nam_nest | Forecast Hour: {forecast_hours:.1f}'
+            if ax == ax1:
+                ax.set_xticks(np.round(np.linspace(np.min(lon), np.max(lon), num=5), 2))
+                ax.set_yticks(np.round(np.linspace(np.min(lat), np.max(lat), num=5), 2))
+                ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f'{x:.2f}'))
+                ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: f'{y:.2f}'))
+                annotation = f'raw atm. {start_time.strftime("%Y-%m-%d %H:%M:%S")} | Model: nam_nest | Forecast Hour: {forecast_hours:.1f}'
+            else:
+                ax.set_xticks(np.round(np.linspace(np.min(lon_r), np.max(lon_r), num=5), 2))
+                ax.set_yticks(np.round(np.linspace(np.min(lat_r), np.max(lat_r), num=5), 2))
+                ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f'{x:.2f}'))
+                ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: f'{y:.2f}'))
+                annotation = f'LV{lv} atm. {start_time.strftime("%Y-%m-%d %H:%M:%S")} | Model: nam_nest | Forecast Hour: {forecast_hours:.1f}'
+
             ax.text(0.5, 1.05, annotation, transform=ax.transAxes, ha='center', fontsize=12)
         
         # Save the plot for each field
-        output_dir = PFM['lv1_plot_dir']
         filename = f'{output_dir}/{timestamp}_nam_nest_ATMandATMR_{field}_hour_{forecast_hours}.png'
         plt.savefig(filename, dpi=300, bbox_inches='tight')
         if show is True:
@@ -439,7 +481,7 @@ def plot_all_fields_in_one(ATM, ATM_R, RMG, PFM, show=False, fields_to_plot=None
         else:
             plt.close()
 
-def load_and_plot_atm(RMG, PFM, fields_to_plot=None):
+def load_and_plot_atm(lv, fields_to_plot=None):
     """
     Load the atm.nc file and plot specified fields.
 
@@ -449,8 +491,24 @@ def load_and_plot_atm(RMG, PFM, fields_to_plot=None):
     product_name (str): The name of the forecast model.
     fields_to_plot (list or str): The fields to plot. If None, plot all fields.
     """
+ 
+    PFM=get_PFM_info()
+
+    if lv == '1':
+        file_path = PFM['lv1_forc_dir'] + '/' + PFM['lv1_atm_file'] # LV1 atm forcing filename
+        RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
+    elif lv == '2':
+        file_path = PFM['lv2_forc_dir'] + '/' + PFM['lv2_atm_file'] 
+        RMG = grdfuns.roms_grid_to_dict(PFM['lv2_grid_file'])
+    elif lv == '3':
+        file_path = PFM['lv3_forc_dir'] + '/' + PFM['lv3_atm_file'] 
+        RMG = grdfuns.roms_grid_to_dict(PFM['lv2_grid_file'])
+    else:
+        file_path = PFM['lv4_forc_dir'] + '/' + PFM['lv4_atm_file'] 
+        RMG = grdfuns.roms_grid_to_dict(PFM['lv2_grid_file'])
+    
+ 
     # Load the atm.nc file
-    file_path = PFM['lv1_forc_dir'] + '/' + PFM['lv1_atm_file'] # LV1 atm forcing filename
     ds = nc.Dataset(file_path)
     RMG = RMG
     

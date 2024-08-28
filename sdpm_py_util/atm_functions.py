@@ -3,18 +3,29 @@ from datetime import datetime
 from scipy.interpolate import RegularGridInterpolator
 
 import sys
+import pickle
 import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
 import netCDF4 as nc
+from get_PFM_info import get_PFM_info
+import grid_functions as grdfuns
+
 #from pydap.client import open_url
 
 
-def get_atm_data_as_dict(yyyymmdd,hhmm,run_type,atm_mod,get_method,PFM):
-    from datetime import datetime
-#    import pygrib
-
+def get_atm_data_as_dict():
     
+    PFM        = get_PFM_info()   
+    yyyymmdd   = PFM['yyyymmdd']
+    hhmm       = PFM['hhmm']
+    run_type   = PFM['run_type']
+    atm_mod    = PFM['atm_model']
+    get_method = PFM['atm_get_method']
+
+    fname_out  = PFM['lv1_forc_dir'] + '/' + PFM['atm_tmp_pckl_file']
+    # import pygrib
+
     # this function will returm ATM, a dict of all atmospheric fields ROMS requires
     # keys will be the ROMS .nc variable names.
     # they will be on the atm grid (not roms grid)
@@ -25,6 +36,7 @@ def get_atm_data_as_dict(yyyymmdd,hhmm,run_type,atm_mod,get_method,PFM):
 
     # the code in here goes from the start date to all forecast dates
     #d1=datetime(2024,6,17) # a datetime object, the date is the date of forecast
+
     def get_roms_times(fore_date,t,t_ref):
         # this funtion returns times past t_ref in days
         # consistent with how ROMS likes it
@@ -81,15 +93,10 @@ def get_atm_data_as_dict(yyyymmdd,hhmm,run_type,atm_mod,get_method,PFM):
             atm_name = gfs
 
         # define the box to get data in
-        #latlonbox = [27.75, 37.25, -124.5+360, -115.5+360]
-        lt_min = PFM['latlonbox'][0]
-        lt_max = PFM['latlonbox'][1]
-        ln_min = PFM['latlonbox'][2]
-        ln_max = PFM['latlonbox'][3]
-        #ln_min = -124.5
-        #ln_max = -115
-        #lt_min = 28
-        #lt_max = 37
+        lt_min = PFM['latlonbox']['L1'][0]
+        lt_max = PFM['latlonbox']['L1'][1]
+        ln_min = PFM['latlonbox']['L1'][2]
+        ln_max = PFM['latlonbox']['L1'][3]
 
         if get_method == 'open_dap_pydap':
             # open a connection to the opendap server. This could be made more robust? 
@@ -304,15 +311,36 @@ def get_atm_data_as_dict(yyyymmdd,hhmm,run_type,atm_mod,get_method,PFM):
                         'time':'wind_time',
                         'note':'these velocity velocities are in earth coordinate'}
 
-    return ATM
+    with open(fname_out,'wb') as fp:
+        pickle.dump(ATM,fp)
+        print('\nATM dict saved with pickle.')
 
 
-
-def get_atm_data_on_roms_grid(ATM,RMG):
+def get_atm_data_on_roms_grid(lv):
     # this function takes the ATM data, in a dict, and the roms grid, as a dict
     # and returns the ATM data but on the roms grid. It returns atm2
     # the wind directions in atm2 are rotated to be in ROMS xi,eta directions.
     
+    PFM=get_PFM_info()
+    fname_atm  = PFM['lv1_forc_dir'] + '/' + PFM['atm_tmp_pckl_file']
+    with open(fname_atm,'rb') as fp:
+        ATM = pickle.load(fp)
+
+    if lv == '1':
+        RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
+        fname_out = PFM['lv1_forc_dir'] + '/' + PFM['atm_tmp_LV1_pckl_file']
+    elif lv == '2':
+        RMG = grdfuns.roms_grid_to_dict(PFM['lv2_grid_file'])
+        fname_out = PFM['lv2_forc_dir'] + '/' + PFM['atm_tmp_LV2_pckl_file']
+    elif lv == '3':
+        RMG = grdfuns.roms_grid_to_dict(PFM['lv3_grid_file'])
+        fname_out = PFM['lv3_forc_dir'] + '/' + PFM['atm_tmp_LV3_pckl_file']
+    else:
+        RMG = grdfuns.roms_grid_to_dict(PFM['lv4_grid_file'])
+        fname_out = PFM['lv4_forc_dir'] + '/' + PFM['atm_tmp_LV4_pckl_file']
+
+
+     
     field_names = ['lwrad', 'lwrad_down', 'swrad', 'rain', 'Tair', 'Pair', 'Qair', 'Uwind', 'Vwind']
     # these are the 2d fields that need to be interpreted onto the roms grid
     # dimensions of all fields are [ntime,nlat,nlon]
@@ -381,9 +409,33 @@ def get_atm_data_on_roms_grid(ATM,RMG):
     atm2['Uwind'] = ur
     atm2['Vwind'] = vr
         
-    return atm2
+    with open(fname_out,'wb') as fp:
+        pickle.dump(atm2,fp)
+        print('\nATM on roms grid dict saved with pickle.')
 
-def atm_roms_dict_to_netcdf(ATM_R,fn_out):
+    #return atm2
+
+def atm_roms_dict_to_netcdf(lv):
+
+    PFM=get_PFM_info()
+
+    if lv == '1':
+        fname_in  = PFM['lv1_forc_dir'] + '/' + PFM['atm_tmp_LV1_pckl_file']
+        fname_out = PFM['lv1_forc_dir'] + '/' + PFM['lv1_atm_file'] # LV1 atm forcing filename
+    elif lv == '2':
+        fname_in  = PFM['lv2_forc_dir'] + '/' + PFM['atm_tmp_LV2_pckl_file']
+        fname_out = PFM['lv2_forc_dir'] + '/' + PFM['lv2_atm_file'] 
+    elif lv == '3':
+        fname_in  = PFM['lv3_forc_dir'] + '/' + PFM['atm_tmp_LV3_pckl_file']
+        fname_out = PFM['lv3_forc_dir'] + '/' + PFM['lv3_atm_file'] 
+    else:
+        fname_in  = PFM['lv4_forc_dir'] + '/' + PFM['atm_tmp_LV4_pckl_file']
+        fname_out = PFM['lv4_forc_dir'] + '/' + PFM['lv4_atm_file'] 
+    
+    with open(fname_in,'rb') as fp:
+        ATM_R = pickle.load(fp)
+
+
     ds = xr.Dataset(
         data_vars = dict(
             Tair       = (["tair_time","er","xr"],ATM_R['Tair'],ATM_R['vinfo']['Tair']),
@@ -413,4 +465,12 @@ def atm_roms_dict_to_netcdf(ATM_R,fn_out):
         )
     # print(ds)
 
-    ds.to_netcdf(fn_out)
+    ds.to_netcdf(fname_out)
+
+
+if __name__ == "__main__":
+    args = sys.argv
+    # args[0] = current file
+    # args[1] = function name
+    # args[2:] = function args : (*unpacked)
+    globals()[args[1]](*args[2:])

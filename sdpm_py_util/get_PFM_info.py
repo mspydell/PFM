@@ -12,6 +12,27 @@ import sys
 import pickle
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
+import grid_functions as grdfuns
+import numpy as np
+
+def get_llbox(fname):
+    
+   RMG = grdfuns.roms_grid_to_dict(fname)
+   lt_mx = np.max(RMG['lat_rho'])
+   lt_mn = np.min(RMG['lat_rho'])
+   ln_mx = np.max(RMG['lon_rho'])
+   ln_mn = np.min(RMG['lon_rho'])
+   dlt = 0.1605 # this is 15 km in degrees at 33 deg
+   dln = 0.1353 # this is 15 km in degrees at 33 deg
+   lt_mx = lt_mx + dlt
+   lt_mn = lt_mn - dlt
+   ln_mx = ln_mx + dln
+   ln_mn = ln_mn - dln
+   llb = [lt_mn, lt_mx, ln_mn, ln_mx]
+#      latlonbox = [28.0, 37.0, -125.0, -115.0]
+
+   return llb
+
 
 def get_PFM_info():
 
@@ -33,35 +54,45 @@ def get_PFM_info():
       lo_env = 'mss_swell'
       pfm_grid_dir =  pfm_root_dir +  'Grids'       
       lv1_root_dir =  pfm_root_dir +  'LV1_Forecast/'
+      lv2_root_dir =  pfm_root_dir +  'LV2_Forecast/'
+ 
       lv1_run_dir = lv1_root_dir + 'Run'
       lv1_his_dir = lv1_root_dir + 'His'
       lv1_forc_dir = lv1_root_dir + 'Forc'
       lv1_tide_dir = lv1_root_dir + 'Tides'
       lv1_plot_dir = lv1_root_dir + 'Plots'          
-         
+
+      lv2_run_dir = lv2_root_dir + 'Run'
+      lv2_his_dir = lv2_root_dir + 'His'
+      lv2_forc_dir = lv2_root_dir + 'Forc'
+      lv2_plot_dir = lv2_root_dir + 'Plots'          
+
+
       
    # defaults that should work on all machines
       parent = Path(__file__).absolute().parent.parent
 
       lv1_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV1_rx020_hmask.nc'
+      lv2_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV2_rx020.nc'
+      lv3_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV3_rx020.nc'
    #   if str(HOSTNAME) == 'swell':
    #       lv1_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV1_rx020_hmask.nc'
    #   else:
    #       lv1_grid_file = '/Users/mspydell/research/FF2024/models/SDPM_mss/PFM_user/grids/GRID_SDTJRE_LV1.nc'
 
-   #   lv2_grid_file = str(lv2_grid_dir) + '/GRID_SDTJRE_LV1_rx020_hmask.nc'
-   #   lv3_grid_file = str(lv3_grid_dir) + '/GRID_SDTJRE_LV1_rx020_hmask.nc'   
+  
+      run_type = 'forecast'
 
    # what is the ocean / atm model used to force?
       ocn_model = 'hycom'
       atm_model = 'nam_nest'
+      atm_get_method = 'open_dap_nc'
    # what is the time resolution of the models (in days)
       daystep_ocn = 3/24
       daystep_atm = 3/24
    # this is the box that covers LV1 so we get only a rectangle of hycom data
    # needs to be floats
    #   latlonbox = [27.75, 37.25, -124.5+360, -115.5+360]
-      latlonbox = [28.0, 37.0, -125.0, -115.0]
    # roms will be run with this time step (in days)
       daystep = 1
       
@@ -79,33 +110,61 @@ def get_PFM_info():
       SS=dict()
       SS['L1','Nz']          = 40
       SS['L1','Vtransform']  = 2                       # transformation equation
-      SS['L1','Vstretching'] = 4                    # stretching function
-      SS['L1','THETA_S']     = 8.0                      # surface stretching parameter
-      SS['L1','THETA_B']     = 3.0                      # bottom  stretching parameter
-      SS['L1','TCLINE']      = 50.0                      # critical depth (m)
+      SS['L1','Vstretching'] = 4                       # stretching function
+      SS['L1','THETA_S']     = 8.0                     # surface stretching parameter
+      SS['L1','THETA_B']     = 3.0                     # bottom  stretching parameter
+      SS['L1','TCLINE']      = 50.0                    # critical depth (m)
       SS['L1','hc']          = 50.0 
+      
+      SS['L2','Nz']          = 40
+      SS['L2','Vtransform']  = 2                       # transformation equation
+      SS['L2','Vstretching'] = 4                       # stretching function
+      SS['L2','THETA_S']     = 8.0                     # surface stretching parameter
+      SS['L2','THETA_B']     = 3.0                     # bottom  stretching parameter
+      SS['L2','TCLINE']      = 50.0                    # critical depth (m)
+      SS['L2','hc']          = 50.0 
+
+      LLB = dict()
+      LLB['L1'] = get_llbox(lv1_grid_file)
+      LLB['L2'] = get_llbox(lv2_grid_file)
+      LLB['L3'] = get_llbox(lv3_grid_file)
+
 
    # gridding info
       NN=dict() 
-      NN['L1','Lm']  = 251    # Lm in input file
-      NN['L1','Mm']  = 388   # Mm in input file
-      NN['L1','ntilei'] = 6  # number of tiles in I-direction
-      NN['L1','ntilej'] = 18 # number of tiles in J-direction
+      NN['L1','Lm']  = 251     # Lm in input file
+      NN['L1','Mm']  = 388     # Mm in input file
+      NN['L1','ntilei'] = 6    # number of tiles in I-direction
+      NN['L1','ntilej'] = 18   # number of tiles in J-direction
       NN['L1','np'] = NN['L1','ntilei'] * NN['L1','ntilej'] # total number of processors
-      NN['L1','nnodes'] = 3  # number of nodes to be used.  not for .in file but for slurm!
+      NN['L1','nnodes'] = 3    # number of nodes to be used.  not for .in file but for slurm!
+
+      NN['L2','Lm']  = 264     # Lm in input file
+      NN['L2','Mm']  = 396     # Mm in input file
+      NN['L2','ntilei'] = 6    # number of tiles in I-direction
+      NN['L2','ntilej'] = 18   # number of tiles in J-direction
+      NN['L2','np'] = NN['L2','ntilei'] * NN['L2','ntilej'] # total number of processors
+      NN['L2','nnodes'] = 3    # number of nodes to be used.  not for .in file but for slurm!
 
    # timing info
       tt=dict()
       tt['L1','dtsec'] = 60
       tt['L1','ndtfast'] = 15
       tt['L1','forecast_days'] = 2.5
+      tt['L2','dtsec'] = 30
+      tt['L2','ndtfast'] = 15
+      tt['L2','forecast_days'] = 2.5
 
    # output info
       OP = dict()
       OP['L1','his_interval'] = 3600 # how often in sec outut is written to his.nc   
-      OP['L1','rst_interval'] = 0.5 # how often in days, a restart file is made.
+      OP['L1','rst_interval'] = 0.5  # how often in days, a restart file is made.
+      OP['L2','his_interval'] = 3600 # how often in sec outut is written to his.nc
+      OP['L2','rst_interval'] = 0.5  # how often in days, a restart file is made. 
 
       PFM = dict()
+      PFM['run_type'] = run_type
+
       # first the environment
       PFM['lo_env'] = lo_env
       PFM['parent'] = parent
@@ -115,35 +174,58 @@ def get_PFM_info():
       PFM['lv1_grid_dir'] = pfm_grid_dir
       PFM['lv1_his_dir'] = lv1_his_dir
       PFM['lv1_plot_dir'] = lv1_plot_dir         
-      PFM['lv1_grid_file'] = lv1_grid_file
 
-      PFM['lv1_depth_file'] = 'roms_tmp_depth_file.pkl' 
-      PFM['lv1_ocn_tmp_pckl_file'] = 'hycom_tmp_pckl_file.pkl' 
-      PFM['lv1_ocnR_tmp_pckl_file'] = 'ocnR_temp_pckl_file.pkl'
+      PFM['lv2_run_dir'] = lv2_run_dir
+      PFM['lv2_forc_dir'] = lv2_forc_dir
+      PFM['lv2_grid_dir'] = pfm_grid_dir
+      PFM['lv2_his_dir'] = lv2_his_dir
+      PFM['lv2_plot_dir'] = lv2_plot_dir         
+      
+      PFM['lv1_grid_file'] = lv1_grid_file
+      PFM['lv2_grid_file'] = lv2_grid_file
+      PFM['lv3_grid_file'] = lv3_grid_file
+
+      PFM['lv1_depth_file']          = 'roms_tmp_depth_file.pkl' 
+      PFM['lv1_ocn_tmp_pckl_file']   = 'hycom_tmp_pckl_file.pkl' 
+      PFM['lv1_ocnR_tmp_pckl_file']  = 'ocnR_temp_pckl_file.pkl'
       PFM['lv1_ocnIC_tmp_pckl_file'] = 'ocnIC_tmp_pckl_file.pkl'
       PFM['lv1_ocnBC_tmp_pckl_file'] = 'ocnBC_tmp_pckl_file.pkl'
-      PFM['lv1_ocn_tmp_nck_file'] = 'hycom_tmp_ncks_file.nc'
-      PFM['lv1_atm_file'] = 'LV1_ATM_FORCING.nc'
-      PFM['lv1_ini_file'] = 'LV1_OCEAN_IC.nc'
-      PFM['lv1_bc_file'] =  'LV1_OCEAN_BC.nc'   
-      PFM['lv1_tide_fname'] = 'roms_tide_adcirc_LV01.nc'
+      PFM['lv1_ocn_tmp_nck_file']    = 'hycom_tmp_ncks_file.nc'
+      PFM['atm_tmp_pckl_file']       = 'atm_tmp_pckl_file.pkl'
+      PFM['atm_tmp_LV1_pckl_file']   = 'atm_tmp_LV1_pckl_file.pkl'
+      PFM['atm_tmp_LV2_pckl_file']   = 'atm_tmp_LV2_pckl_file.pkl'
+      PFM['atm_tmp_LV3_pckl_file']   = 'atm_tmp_LV3_pckl_file.pkl'
+      PFM['atm_tmp_LV4_pckl_file']   = 'atm_tmp_LV4_pckl_file.pkl'
+      PFM['lv1_atm_file']            = 'LV1_ATM_FORCING.nc'
+      PFM['lv1_ini_file']            = 'LV1_OCEAN_IC.nc'
+      PFM['lv1_bc_file']             = 'LV1_OCEAN_BC.nc'   
+      PFM['lv2_atm_file']            = 'LV2_ATM_FORCING.nc'
+      PFM['lv2_ini_file']            = 'LV2_OCEAN_IC.nc'
+      PFM['lv2_bc_file']             = 'LV2_OCEAN_BC.nc'   
+      PFM['lv3_atm_file']            = 'LV3_ATM_FORCING.nc'
+      PFM['lv3_ini_file']            = 'LV3_OCEAN_IC.nc'
+      PFM['lv3_bc_file']             = 'LV3_OCEAN_BC.nc'   
+      PFM['lv1_tide_fname']          = 'roms_tide_adcirc_LV01.nc'
       
-      PFM['modtime0'] = modtime0
+      PFM['modtime0']        = modtime0
       PFM['roms_time_units'] = roms_time_units
-      PFM['ds_fmt'] = ds_fmt
-      PFM['forecast_days'] = fdays
-      PFM['ndefhis'] = 0 # when zero, only 1 history file is made.
+      PFM['ds_fmt']          = ds_fmt
+      PFM['forecast_days']   = fdays
+      PFM['ndefhis']         = 0 # when zero, only 1 history file is made.
    
-      PFM['daystep'] = daystep
-      PFM['daystep_ocn'] = daystep_ocn
-      PFM['daystep_atm'] = daystep_atm
-      PFM['ocn_model'] = ocn_model
-      PFM['atm_model'] = atm_model
-      PFM['latlonbox'] = latlonbox
-      PFM['stretching'] = SS
-      PFM['gridinfo'] = NN
-      PFM['tinfo'] = tt
-      PFM['outputinfo'] = OP
+      PFM['daystep']        = daystep
+      PFM['daystep_ocn']    = daystep_ocn
+      PFM['daystep_atm']    = daystep_atm
+      PFM['ocn_model']      = ocn_model
+      PFM['atm_model']      = atm_model
+      PFM['atm_get_method'] = atm_get_method
+      #latlonbox = [28.0, 37.0, -125.0, -115.0]     
+      #PFM['latlonbox']      = latlonbox
+      PFM['latlonbox']      = LLB
+      PFM['stretching']     = SS
+      PFM['gridinfo']       = NN
+      PFM['tinfo']          = tt
+      PFM['outputinfo']     = OP
 
       # now do the timing information
       start_time = datetime.now()
