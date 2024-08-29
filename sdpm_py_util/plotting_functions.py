@@ -12,6 +12,7 @@ from get_PFM_info import get_PFM_info
 import grid_functions as grdfuns
 import pickle
 import matplotlib.dates as mdates
+from matplotlib.gridspec import GridSpec
 
 
 
@@ -1217,8 +1218,68 @@ def plot_ocn_ic_fields(filepath, fields_to_plot=None, time_index=0, depth_index=
             plt.close()
     nc.close()
 
+def plot_ssh_his_tseries_v2(fn,Ix,Iy,sv_fig):
 
-def plot_ssh_his_tseries(fn,Iy,Ix,sv_fig):
+    his_ds = nc.Dataset(fn)
+
+    fig = plt.figure(figsize=(6,10))
+    gs = fig.add_gridspec(4, 4)
+
+    ax1 = fig.add_subplot(gs[0:3, :], projection=ccrs.PlateCarree())
+
+    lt = his_ds.variables['lat_rho'][:]
+    ln = his_ds.variables['lon_rho'][:]
+    hb = his_ds.variables['h'][:]
+    plevs = np.arange(-4800, 0, 20)
+    cmap = plt.get_cmap('viridis')
+    cset = ax1.contourf(ln, lt, -hb, plevs, cmap=cmap, transform=ccrs.PlateCarree())
+    plt.set_cmap(cmap)
+    #cbar = fig.colorbar(cset, ax=ax1, orientation='horizontal', pad = 0.05)
+    for a in range(len(Ix)):
+        ax1.plot(ln[Iy[a],Ix[a]],lt[Iy[a],Ix[a]],'ro', transform=ccrs.PlateCarree())
+
+    ax1.set_title('ROMS LV1 bathymetry')
+    ax1.add_feature(cfeature.LAND)
+    ax1.add_feature(cfeature.BORDERS)
+    ax1.add_feature(cfeature.COASTLINE, linewidth = 2.0)    
+   #ax1.grid(True)
+    #ax1.set_aspect(aspect='auto')
+    ax1.set_xticks(np.round(np.linspace(np.min(ln), np.max(ln), num=5), 2))
+    ax1.set_yticks(np.round(np.linspace(np.min(lt), np.max(lt), num=5), 2))
+    ax1.set_xlabel('Longitude')
+    ax1.set_ylabel('Latitude')
+ 
+
+    ax2 = fig.add_subplot(gs[3, :])
+    times = his_ds.variables['ocean_time']
+    times2 = num2date(times[:], times.units)
+    times2 = np.array([datetime(year=date.year, month=date.month, day=date.day, 
+                              hour=date.hour, minute=date.minute, second=date.second) for date in times2])
+    #ln = his_ds.variables['lon_rho'][:]
+    #lt = his_ds.variables['lat_rho'][:]
+    txt_lg = []
+    for a in range(len(Ix)):
+        yy = his_ds.variables['zeta'][:,Iy[a],Ix[a]]
+        ax2.plot(times2,yy)
+        ln3=ln[Iy[a],Ix[a]]
+        lt3=lt[Iy[a],Ix[a]]
+        #ln3 = .01 * np.floor(round(ln3*100))
+        #lt3 = .01 * np.floor(round(lt3*100))
+        txt = f'({lt3:5.2f},{ln3:5.2f})'
+        txt_lg.append(txt)
+            
+    plt.legend(txt_lg, loc="upper left")    
+    ax2.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d %H:%M'))
+    plt.gcf().autofmt_xdate()
+    ax2.set_ylabel('Sea Surface Height (m)')
+    if sv_fig == 1:
+        PFM=get_PFM_info()
+        fn_out = PFM['lv1_plot_dir'] + '/his_ssh_tseries_' + PFM['yyyymmdd'] + PFM['hhmm'] + '_v2.png'
+        plt.savefig(fn_out, dpi=300)
+    else:
+        plt.show()
+
+def plot_ssh_his_tseries(fn,Ix,Iy,sv_fig):
     his_ds = nc.Dataset(fn)
     times = his_ds.variables['ocean_time']
     times2 = num2date(times[:], times.units)
@@ -1233,9 +1294,9 @@ def plot_ssh_his_tseries(fn,Iy,Ix,sv_fig):
         ax.plot(times2,yy)
         ln3=ln[Iy[a],Ix[a]]
         lt3=lt[Iy[a],Ix[a]]
-        ln3 = .01 * round(ln3*100)
-        lt3 = .01 * round(lt3*100)
-        txt = '(' + str(lt3) + ',' + str(ln3) + ')'
+        #ln3 = .01 * np.floor(round(ln3*100))
+        #lt3 = .01 * np.floor(round(lt3*100))
+        txt = f'({lt3:5.2f},{ln3:5.2f})'
         txt_lg.append(txt)
             
     plt.legend(txt_lg, loc="upper left")    
@@ -1259,9 +1320,10 @@ def plot_roms_LV1_bathy_and_locs(fn,Ix,Iy,sv_fig):
     cmap = plt.get_cmap('viridis')
     cset = ax.contourf(ln, lt, -hb, plevs, cmap=cmap, transform=ccrs.PlateCarree())
     plt.set_cmap(cmap)
-    cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad = 0.05)
     for a in range(len(Ix)):
-        ax.plot(ln[Iy[a],Ix[a]],lt[Iy[a],Ix[a]],'ro')
+        ax.plot(ln[Iy[a],Ix[a]],lt[Iy[a],Ix[a]],'ro', transform=ccrs.PlateCarree())
+
+    cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad = 0.05)
 
     ax.set_title('ROMS LV1 bathymetry')
     ax.add_feature(cfeature.COASTLINE)
@@ -1325,7 +1387,9 @@ def plot_his_temps_wuv(fn,It,Iz,sv_fig):
     annotation = f'Surface Temp [C] and currents | Forecast: {start_time.strftime("%Y-%m-%d %H:%M:%S")} | Forecast Hour: {forecast_hours:.1f}'
 
     ax.text(0.5, 1.05, annotation, transform=ax.transAxes, ha='center', fontsize=12)
-    ax.add_feature(cfeature.COASTLINE)
+    ax.add_feature(cfeature.LAND)
+    ax.add_feature(cfeature.BORDERS)
+    ax.add_feature(cfeature.COASTLINE, linewidth = 2.0)    
     ax.set_xlabel('Longitude')
     ax.set_ylabel('Latitude')
     ax.grid(True)
@@ -1349,8 +1413,9 @@ def make_all_his_figures(lvl):
         Iy = np.array([175,170])
         It = 0
 
-    plot_roms_LV1_bathy_and_locs(fn,Ix,Iy,sv_fig)
-    plot_ssh_his_tseries(fn,Ix,Iy,sv_fig)
+    #plot_roms_LV1_bathy_and_locs(fn,Ix,Iy,sv_fig)
+    #plot_ssh_his_tseries(fn,Ix,Iy,sv_fig)
+    plot_ssh_his_tseries_v2(fn,Ix,Iy,sv_fig)
     plot_his_temps_wuv(fn,It,iz,sv_fig)
     plot_his_temps_wuv(fn,It+24,iz,sv_fig)  # 24h forecast
     plot_his_temps_wuv(fn,It+48,iz,sv_fig)  # 48h forecast
