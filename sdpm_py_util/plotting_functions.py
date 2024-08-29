@@ -1269,13 +1269,13 @@ def plot_ssh_his_tseries_v2(fn,Ix,Iy,sv_fig):
         txt_lg.append(txt)
             
     plt.legend(txt_lg, loc="upper left")    
-    ax2.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d %H'))
+    ax2.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d %H:%M'))
     #plt.gcf().autofmt_xdate()
     plt.setp(plt.xticks()[1], rotation=30, ha='right') # ha is the same as horizontalalignment
     ax2.set_ylabel('Sea Surface Height (m)')
     if sv_fig == 1:
         PFM=get_PFM_info()
-        fn_out = PFM['lv1_plot_dir'] + '/his_ssh_tseries_' + PFM['yyyymmdd'] + PFM['hhmm'] + '_v2.png'
+        fn_out = PFM['lv1_plot_dir'] + '/his_ssh_tseries_' + PFM['yyyymmdd'] + PFM['hhmm'] + '.png'
         plt.savefig(fn_out, dpi=300)
     else:
         plt.show()
