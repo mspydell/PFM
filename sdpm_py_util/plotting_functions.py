@@ -1222,8 +1222,8 @@ def plot_ssh_his_tseries_v2(fn,Ix,Iy,sv_fig):
 
     his_ds = nc.Dataset(fn)
 
-    fig = plt.figure(figsize=(6,10))
-    gs = fig.add_gridspec(4, 4)
+    fig = plt.figure(figsize=(6.5,10))
+    gs = fig.add_gridspec(5, 5)
 
     ax1 = fig.add_subplot(gs[0:3, :], projection=ccrs.PlateCarree())
 
@@ -1234,7 +1234,7 @@ def plot_ssh_his_tseries_v2(fn,Ix,Iy,sv_fig):
     cmap = plt.get_cmap('viridis')
     cset = ax1.contourf(ln, lt, -hb, plevs, cmap=cmap, transform=ccrs.PlateCarree())
     plt.set_cmap(cmap)
-    #cbar = fig.colorbar(cset, ax=ax1, orientation='horizontal', pad = 0.05)
+    cbar = fig.colorbar(cset, ax=ax1, orientation='vertical', pad = 0.07)
     for a in range(len(Ix)):
         ax1.plot(ln[Iy[a],Ix[a]],lt[Iy[a],Ix[a]],'ro', transform=ccrs.PlateCarree())
 
@@ -1269,8 +1269,9 @@ def plot_ssh_his_tseries_v2(fn,Ix,Iy,sv_fig):
         txt_lg.append(txt)
             
     plt.legend(txt_lg, loc="upper left")    
-    ax2.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d %H:%M'))
-    plt.gcf().autofmt_xdate()
+    ax2.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d %H'))
+    #plt.gcf().autofmt_xdate()
+    plt.setp(plt.xticks()[1], rotation=30, ha='right') # ha is the same as horizontalalignment
     ax2.set_ylabel('Sea Surface Height (m)')
     if sv_fig == 1:
         PFM=get_PFM_info()
