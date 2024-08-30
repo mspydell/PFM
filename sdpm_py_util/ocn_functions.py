@@ -2937,7 +2937,7 @@ def mk_LV2_BC_dict():
     indu = get_indices_to_fill(G1['mask_u'])
     indv = get_indices_to_fill(G1['mask_v'])
 
-    #
+    # bookkeeping so that everything needed for each variable is associated with that variable
     v_list1 = ['zeta','ubar','vbar']
     v_list2 = ['temp','salt','u','v']
 
@@ -3002,20 +3002,20 @@ def mk_LV2_BC_dict():
     intf_d2['u']    = interp_u
     intf_d2['v']    = interp_v
     
-    for vn in v_list1:
-        msk = msk_d1[vn]
-        msk2 = msk2_d1[vn]
-        ind = ind_d1[vn]
-        xx2 = lon_d1[vn]
-        yy2 = lat_d1[vn]
+    for vn in v_list1: # loop through all 2d variables
+        msk = msk_d1[vn] # get mask on LV1
+        msk2 = msk2_d1[vn] # get mask on LV2
+        ind = ind_d1[vn] # get indices so that land can be filled with nearest neighbor
+        xx2 = lon_d1[vn] # get xi_LV2 on LV1
+        yy2 = lat_d1[vn] # get eta_LV2 on LV1, to use with the interpolator
         interpfun = intf_d1[vn]
-        for tind in np.arange(Nt):
+        for tind in np.arange(Nt): # loop through times
             z0 = np.squeeze( his_ds.variables[vn][tind,:,:] )
             z0[msk==0] = z0[msk==1][ind] # fill the mask with nearest neighbor
-            setattr(interpfun,'values',z0)
+            setattr(interpfun,'values',z0) # change the interpolator z values
             z2 = interpfun((yy2,xx2)) # perhaps change here to directly interpolate to (xi,eta) on the edges?
-            z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the mask
-            OCN_BC[vn+'_south'][tind,:] = z2[0,:]
+            z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the land
+            OCN_BC[vn+'_south'][tind,:] = z2[0,:] # fill correctly
             OCN_BC[vn+'_north'][tind,:] = z2[-1,:]
             OCN_BC[vn+'_west'][tind,:]  = z2[:,0]
 
@@ -3036,11 +3036,6 @@ def mk_LV2_BC_dict():
                 OCN_BC[vn+'_south'][tind,zind,:] = z2[0,:]
                 OCN_BC[vn+'_north'][tind,zind,:] = z2[-1,:]
                 OCN_BC[vn+'_west'][tind,zind,:]  = z2[:,0]
-
-
-
-    
-
 
     fout = '/scratch/PFM_Simulations/LV2_Forecast/Forc/test_BC_LV2.pkl'
 #    with open(LV2_BC_pckl,'wb') as fout:
