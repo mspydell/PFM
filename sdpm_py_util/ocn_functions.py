@@ -10,6 +10,7 @@ import grid_functions as grdfuns
 import os
 import os.path
 import pickle
+from scipy.spatial import cKDTree
 
 #sys.path.append('../sdpm_py_util')
 from get_PFM_info import get_PFM_info
@@ -17,7 +18,7 @@ from get_PFM_info import get_PFM_info
 import numpy as np
 import xarray as xr
 import netCDF4 as nc
-from scipy.interpolate import RegularGridInterpolator
+from scipy.interpolate import RegularGridInterpolator, LinearNDInterpolator
 from scipy.interpolate import interp1d
 
 import seawater
@@ -516,7 +517,6 @@ def extrap_nearest_to_masked(X, Y, fld, fld0=0):
     If input is not a masked array:        
         * Return the array.    
     """
-    from scipy.spatial import cKDTree
     
     # first make sure nans are masked
     if np.ma.is_masked(fld) == False:
@@ -2369,11 +2369,8 @@ def ocn_r_2_BCdict_pckl(fname_out):
     # this returns another dictionary OCN_BC that has all needed fields 
     # for making the BC.nc file
 
-    PFM=get_PFM_info()
-
-    
+    PFM=get_PFM_info()    
     RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
-
     OCN_R = load_ocnR_from_pckl_files()
 
 
@@ -2814,6 +2811,245 @@ def ocn_r_2_BCdict_pckl(fname_out):
         pickle.dump(OCN_BC,fout)
         print('OCN_BC dict saved with pickle')
 
+def get_child_xi_eta_interp(ln1,lt1,ln2,lt2):
+    # this function returns the index values of (lat,lon) in grid 2 on grid 1
+    # this way we can ruse egular grid interpolator
+    # this function also returns the regular grid interpolator object
+    M, L = np.shape(ln1) 
+    Xind, Yind = np.meshgrid(np.arange(L),np.arange(M))
+    points1 = np.zeros( (M*L, 2) )
+    points1[:,1] = ln1.flatten()
+    points1[:,0] = lt1.flatten()
+    scat_interp_xi  = LinearNDInterpolator(points1,Xind.flatten())
+    scat_interp_eta = LinearNDInterpolator(points1,Yind.flatten())
+    xi_2  = scat_interp_xi(lt2,ln2)
+    eta_2 = scat_interp_eta(lt2,ln2)
+
+    interper = RegularGridInterpolator( (np.arange(M), np.arange(L)), lt1 )
+
+    return xi_2, eta_2, interper
+
+def get_indices_to_fill(gr_msk):
+        M, L = np.shape(gr_msk)
+        X, Y = np.meshgrid(np.arange(L),np.arange(M))
+
+        xyorig = np.array((X[gr_msk==1],Y[gr_msk==1])).T
+        xynew = np.array((X[gr_msk==0],Y[gr_msk==0])).T
+        a = cKDTree(xyorig).query(xynew)
+        aa = a[1]
+
+        return aa 
+
+def mk_LV2_BC_dict():
+
+    PFM=get_PFM_info()    
+    G1 = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
+    G2 = grdfuns.roms_grid_to_dict(PFM['lv2_grid_file'])
+    ltr1 = G1['lat_rho']
+    lnr1 = G1['lon_rho']
+    ltr2 = G2['lat_rho']
+    lnr2 = G2['lon_rho']
+    ltu1 = G1['lat_u']
+    lnu1 = G1['lon_u']
+    ltu2 = G2['lat_u']
+    lnu2 = G2['lon_u']
+    ltv1 = G1['lat_v']
+    lnv1 = G1['lon_v']
+    ltv2 = G2['lat_v']
+    lnv2 = G2['lon_v']
+
+    fn = PFM['lv1_his_name_full']
+    his_ds = nc.Dataset(fn)
+    
+    LV1_BC_pckl = PFM['lv1_forc_dir'] + '/' + PFM['lv1_ocnBC_tmp_pckl_file']    
+#    LV2_BC_pckl = PFM['lv2_forc_dir'] + '/' + PFM['lv2_ocnBC_tmp_pckl_file']    
+
+    with open(LV1_BC_pckl,'rb') as fout:
+        BC1=pickle.load(fout)
+        print('OCN_LV1_BC dict loaded with pickle')
+
+    OCN_BC = dict()
+    OCN_BC['vinfo'] = dict()
+    OCN_BC['vinfo'] = BC1['vinfo']
+
+    Nz   = PFM['stretching']['L2','Nz']                              # number of vertical levels: 40
+    Vtr  = PFM['stretching']['L2','Vtransform']                       # transformation equation: 2
+    Vst  = PFM['stretching']['L2','Vstretching']                    # stretching function: 4 
+    th_s = PFM['stretching']['L2','THETA_S']                      # surface stretching parameter: 8
+    th_b = PFM['stretching']['L2','THETA_B']                      # bottom  stretching parameter: 3
+    Tcl  = PFM['stretching']['L2','TCLINE']                      # critical depth (m): 50
+    hc   = PFM['stretching']['L2','hc']
+
+    OCN_BC['Nz'] = np.squeeze(Nz)
+    OCN_BC['Vtr'] = np.squeeze(Vtr)
+    OCN_BC['Vst'] = np.squeeze(Vst)
+    OCN_BC['th_s'] = np.squeeze(th_s)
+    OCN_BC['th_b'] = np.squeeze(th_b)
+    OCN_BC['Tcl'] = np.squeeze(Tcl)
+    OCN_BC['hc'] = np.squeeze(hc)
+
+    hraw = None
+    if Vst == 4:
+        zrom = s_coordinate_4(G1['h'], th_b , th_s , Tcl , Nz, hraw=hraw, zeta=np.squeeze(his_ds.variables['zeta'][0,:,:]))
+        
+    OCN_BC['Cs_r'] = np.squeeze(zrom.Cs_r)
+
+    OCN_BC['ocean_time'] = his_ds.variables['ocean_time'][:]
+    Nt = len( OCN_BC['ocean_time'] )
+    OCN_BC['ocean_time_ref'] = BC1['ocean_time_ref']
+
+    nlt, nln = np.shape(ltr2)
+
+    OCN_BC['temp_south'] = np.zeros((Nt,Nz,nln))
+    OCN_BC['salt_south'] = np.zeros((Nt,Nz,nln))
+    OCN_BC['u_south']    = np.zeros((Nt,Nz,nln-1))
+    OCN_BC['v_south']    = np.zeros((Nt,Nz,nln))
+    OCN_BC['ubar_south'] = np.zeros((Nt,nln-1))
+    OCN_BC['vbar_south'] = np.zeros((Nt,nln))
+    OCN_BC['zeta_south'] = np.zeros((Nt,nln))
+
+    OCN_BC['temp_north'] = np.zeros((Nt,Nz,nln))
+    OCN_BC['salt_north'] = np.zeros((Nt,Nz,nln))
+    OCN_BC['u_north']    = np.zeros((Nt,Nz,nln-1))
+    OCN_BC['v_north']    = np.zeros((Nt,Nz,nln))
+    OCN_BC['ubar_north'] = np.zeros((Nt,nln-1))
+    OCN_BC['vbar_north'] = np.zeros((Nt,nln))
+    OCN_BC['zeta_north'] = np.zeros((Nt,nln))
+
+    OCN_BC['temp_west'] = np.zeros((Nt,Nz,nlt))
+    OCN_BC['salt_west'] = np.zeros((Nt,Nz,nlt))
+    OCN_BC['u_west']    = np.zeros((Nt,Nz,nlt))
+    OCN_BC['v_west']    = np.zeros((Nt,Nz,nlt-1))
+    OCN_BC['ubar_west'] = np.zeros((Nt,nlt))
+    OCN_BC['vbar_west'] = np.zeros((Nt,nlt-1))
+    OCN_BC['zeta_west'] = np.zeros((Nt,nlt))
+
+    # get x,y on LV1 grid.
+    # x1,y1 = ll2xy(lnr1, ltr1, np.mean(lnr1), np.mean(ltr1))
+
+    # get (x,y) grids, note zi = interp_r( (eta,xi) )
+    xi_r2, eta_r2, interp_r = get_child_xi_eta_interp(lnr1,ltr1,lnr2,ltr2)
+    xi_u2, eta_u2, interp_u = get_child_xi_eta_interp(lnu1,ltu1,lnu2,ltu2)
+    xi_v2, eta_v2, interp_v = get_child_xi_eta_interp(lnv1,ltv1,lnv2,ltv2)
+
+    # get nearest indices, from bad indices, so that land can be filled
+    indr = get_indices_to_fill(G1['mask_rho'])
+    indu = get_indices_to_fill(G1['mask_u'])
+    indv = get_indices_to_fill(G1['mask_v'])
+
+    #
+    v_list1 = ['zeta','ubar','vbar']
+    v_list2 = ['temp','salt','u','v']
+
+    msk_d1 = dict()
+    msk_d1['zeta'] = G1['mask_rho']
+    msk_d1['ubar'] = G1['mask_u']
+    msk_d1['vbar'] = G1['mask_v']
+    msk_d2 = dict()
+    msk_d2['temp'] = G1['mask_rho']
+    msk_d2['salt'] = G1['mask_rho']
+    msk_d2['u']    = G1['mask_u']
+    msk_d2['v']    = G1['mask_v']
+
+    msk2_d1 = dict()
+    msk2_d1['zeta'] = G2['mask_rho']
+    msk2_d1['ubar'] = G2['mask_u']
+    msk2_d1['vbar'] = G2['mask_v']
+    msk2_d2 = dict()
+    msk2_d2['temp'] = G2['mask_rho']
+    msk2_d2['salt'] = G2['mask_rho']
+    msk2_d2['u']    = G2['mask_u']
+    msk2_d2['v']    = G2['mask_v']
+
+
+    ind_d1 = dict()
+    ind_d1['zeta'] = indr
+    ind_d1['ubar'] = indu
+    ind_d1['vbar'] = indv
+    ind_d2 = dict()
+    ind_d2['temp'] = indr
+    ind_d2['salt'] = indr
+    ind_d2['u']    = indu
+    ind_d2['v']    = indv
+
+    lat_d1 = dict()
+    lat_d1['zeta'] = eta_r2
+    lat_d1['ubar'] = eta_u2
+    lat_d1['vbar'] = eta_v2
+    lat_d2 = dict()
+    lat_d2['temp'] = eta_r2
+    lat_d2['salt'] = eta_r2
+    lat_d2['u']    = eta_u2
+    lat_d2['v']    = eta_v2
+
+    lon_d1 = dict()
+    lon_d1['zeta'] = xi_r2
+    lon_d1['ubar'] = xi_u2
+    lon_d1['vbar'] = xi_v2
+    lon_d2 = dict()
+    lon_d2['temp'] = xi_r2
+    lon_d2['salt'] = xi_r2
+    lon_d2['u']    = xi_u2
+    lon_d2['v']    = xi_v2
+
+    intf_d1 = dict()
+    intf_d1['zeta'] = interp_r
+    intf_d1['ubar'] = interp_u
+    intf_d1['vbar'] = interp_v
+    intf_d2 = dict()
+    intf_d2['temp'] = interp_r
+    intf_d2['salt'] = interp_r
+    intf_d2['u']    = interp_u
+    intf_d2['v']    = interp_v
+    
+    for vn in v_list1:
+        msk = msk_d1[vn]
+        msk2 = msk2_d1[vn]
+        ind = ind_d1[vn]
+        xx2 = lon_d1[vn]
+        yy2 = lat_d1[vn]
+        interpfun = intf_d1[vn]
+        for tind in np.arange(Nt):
+            z0 = np.squeeze( his_ds.variables[vn][tind,:,:] )
+            z0[msk==0] = z0[msk==1][ind] # fill the mask with nearest neighbor
+            setattr(interpfun,'values',z0)
+            z2 = interpfun((yy2,xx2)) # perhaps change here to directly interpolate to (xi,eta) on the edges?
+            z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the mask
+            OCN_BC[vn+'_south'][tind,:] = z2[0,:]
+            OCN_BC[vn+'_north'][tind,:] = z2[-1,:]
+            OCN_BC[vn+'_west'][tind,:]  = z2[:,0]
+
+    for vn in v_list2:
+        msk = msk_d2[vn]
+        msk2 = msk2_d2[vn]
+        ind = ind_d2[vn]
+        xx2 = lon_d2[vn]
+        yy2 = lat_d2[vn]
+        interpfun = intf_d2[vn]
+        for tind in np.arange(Nt):
+            for zind in np.arange(Nz):
+                z0 = np.squeeze( his_ds.variables[vn][tind,zind,:,:] )
+                z0[msk==0] = z0[msk==1][ind]
+                setattr(interpfun,'values',z0)
+                z2 = interpfun((yy2,xx2))
+                z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the mask
+                OCN_BC[vn+'_south'][tind,zind,:] = z2[0,:]
+                OCN_BC[vn+'_north'][tind,zind,:] = z2[-1,:]
+                OCN_BC[vn+'_west'][tind,zind,:]  = z2[:,0]
+
+
+
+    
+
+
+    fout = '/scratch/PFM_Simulations/LV2_Forecast/Forc/test_BC_LV2.pkl'
+#    with open(LV2_BC_pckl,'wb') as fout:
+    with open(fout,'wb') as fout:
+        pickle.dump(OCN_BC,fout)
+        print('OCN_LV2_BC dict saved with pickle')
+
+    #return OCN_BC
+    #return xi_r2, eta_r2, interp_r
 
 def ocn_roms_IC_dict_to_netcdf_pckl(fname_in,fn_out):
 
