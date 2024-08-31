@@ -1138,7 +1138,7 @@ PIO_I2C_Preq = 65                 ! Maximum pending I2C requests
 ! the last one.
 
      NFFILES == 1                          ! number of unique forcing files
-     FRCNAME == $lv1_forc_dir$/LV1_ATM_FORCING.nc
+     FRCNAME == $lv2_forc_dir$/LV2_ATM_FORCING.nc
                
 
 ! Output NetCDF file names, [1:Ngrids].

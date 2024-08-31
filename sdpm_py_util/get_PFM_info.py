@@ -15,6 +15,7 @@ from datetime import datetime, timezone, timedelta
 import grid_functions as grdfuns
 import numpy as np
 
+## FF what does this function do?  what is fname?  
 def get_llbox(fname):
     
    RMG = grdfuns.roms_grid_to_dict(fname)
@@ -252,9 +253,14 @@ def get_PFM_info():
       
       PFM['lv1_his_name'] = 'LV1_ocean_his_' + yyyymmdd + '1200' + '.nc'
       PFM['lv1_rst_name'] = 'LV1_ocean_rst_' + yyyymmdd + '1200' + '.nc' 
-      
       PFM['lv1_his_name_full'] = PFM['lv1_his_dir'] + '/' + PFM['lv1_his_name']
       PFM['lv1_rst_name_full'] = PFM['lv1_forc_dir'] + '/' + PFM['lv1_rst_name']
+
+      PFM['lv2_his_name'] = 'LV2_ocean_his_' + yyyymmdd + '1200' + '.nc'
+      PFM['lv2_rst_name'] = 'LV2_ocean_rst_' + yyyymmdd + '1200' + '.nc' 
+      PFM['lv2_his_name_full'] = PFM['lv2_his_dir'] + '/' + PFM['lv2_his_name']
+      PFM['lv2_rst_name_full'] = PFM['lv2_forc_dir'] + '/' + PFM['lv2_rst_name']
+      
       PFM['info_file'] = pfm_info_full
 
       with open(pfm_info_full,'wb') as fout:
