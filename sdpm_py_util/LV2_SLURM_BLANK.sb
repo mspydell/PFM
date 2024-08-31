@@ -10,14 +10,14 @@
 #SBATCH --partition=fast
 
 # number of MPI tasks
-#SBATCH --ntasks=108
+#SBATCH --ntasks=$np$
 
 # number of cpus for a task
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=128G
 
 # number of nodes to use
-#SBATCH --nodes=3
+#SBATCH --nodes=$nnodes$
 
 # number of tasks per node
 #SBATCH --ntasks-per-node=36
@@ -32,7 +32,8 @@ module load slurm
 
 export LD_LIBRARY_PATH=/cm/shared/apps/netcdf/gcc/64/4.8.1/lib:$LD_LIBRARY_PATH
 
-MYAPP=/scratch/matt/sdtjre_L2/romsM_L2
+MYAPP=$lv2_executable$
 
-mpirun -v -np 108 $MYAPP ocean_2019_LV2.in > L2test_I06J18.out
+mpirun -v -np $np$  $MYAPP  $lv2_infile_local$  > $lv2_logfile_local$
+
 
