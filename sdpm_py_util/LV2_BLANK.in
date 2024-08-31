@@ -64,16 +64,17 @@
 !
 ! Application title.
 
-       TITLE = LV2_2019
+       TITLE = LV2 Forecast ROMS 
 
 ! C-preprocessing Flag.
 
-    MyAppCPP = SCB_EPA_SECOND
+    MyAppCPP = LVTWO_FORECAST
 
 ! Input variable information file name.  This file needs to be processed
 ! first so all information arrays can be initialized properly.
 
-     VARNAME = /home/matt/models/roms/ROMS/External/varinfo.yaml
+     VARNAME = $roms_varinfo_dir$
+
 
 ! Number of nested grids.
 
@@ -91,12 +92,12 @@ GridsInLayer =  1
 ! Grid dimension parameters. See notes below in the Glossary for how to set
 ! these parameters correctly.
 
-          Lm == 264            ! Number of I-direction INTERIOR RHO-points
-          Mm == 396            ! Number of J-direction INTERIOR RHO-points
-           N == 40             ! Number of vertical levels
+          Lm == $ncols$        ! Number of I-direction INTERIOR RHO-points
+          Mm == $nrows$       ! Number of J-direction INTERIOR RHO-points
+           N == $nz$             ! Number of vertical levels
           ND == 11            ! Number of wave directional bins
 
-        Nbed =  1             ! Number of sediment bed layers
+        Nbed =  0             ! Number of sediment bed layers
 
          NAT =  2             ! Number of active tracers (usually, 2)
          NPT =  0             ! Number of inactive passive tracers
@@ -107,8 +108,8 @@ GridsInLayer =  1
 ! shared-memory configurations used to determine tile horizontal range
 ! indices (Istr,Iend) and (Jstr,Jend), [1:Ngrids].
 
-      NtileI == 6                               ! I-direction partition
-      NtileJ == 18                               ! J-direction partition
+      NtileI == $ntilei$                               ! I-direction partition
+      NtileJ == $ntilej$                               ! J-direction partition
 
 ! Set horizontal and vertical advection schemes for active and inert
 ! tracers. A different advection scheme is allowed for each tracer.
@@ -251,15 +252,10 @@ ad_VolCons(north) ==  F                            ! northern boundary
 
 ! Time-Stepping parameters.
 
-      NTIMES == 20160  ! 7 days from 12/31/2018 to 01/7/2020
-          DT == 30.0d0
-     NDTFAST == 15
+      NTIMES == $ntimes$
+          DT == $dt$
+     NDTFAST == $ndtfast$                     ! was 15
 
-! Number of timesteps for computing observation impacts during the
-! analysis-forecast cycle.
-
-  NTIMES_ANA == 1440                               ! analysis interval
-  NTIMES_FCT == 1440                               ! forecast interval
 
 ! Model iteration loops parameters.
 
@@ -278,26 +274,26 @@ ad_VolCons(north) ==  F                            ! northern boundary
 
 ! Input/Output parameters.
 
-       NRREC == -1
+       NRREC == $nrrec$
    LcycleRST == T
-        NRST == 720
+        NRST == $nrst$
         NSTA == 1
         NFLT == 1
-       NINFO == 1
+       NINFO == $ninfo$
 
 ! Output history, quicksave, average, and diagnostic files parameters.
 
      LDEFOUT == T
-        NHIS == 120
-     NDEFHIS == 0
+        NHIS == $nhis$
+     NDEFHIS == $ndefhis$
         NQCK == 0
      NDEFQCK == 0
       NTSAVG == 1
-        NAVG == 60
-     NDEFAVG == 0
+        NAVG == $nhis$
+     NDEFAVG == $ndefhis$
       NTSDIA == 1
-        NDIA == 60
-     NDEFDIA == 0
+        NDIA == $ndia$
+     NDEFDIA == $ndefdia$
 
 ! Output tangent linear and adjoint models parameters.
 
@@ -427,14 +423,14 @@ LtracerSponge == F F                            ! temperature, salinity, inert
 ! Set vertical, terrain-following coordinates transformation equation and
 ! stretching function (see below for details), [1:Ngrids].
 
-  Vtransform == 2                          ! transformation equation
- Vstretching == 4                          ! stretching function
+ Vtransform == $vtransform$               ! transformation equation
+ Vstretching == $vstretching$              ! stretching function
 
 ! Vertical S-coordinates parameters (see below for details), [1:Ngrids].
 
-     THETA_S == 8.0d0                      ! surface stretching parameter
-     THETA_B == 3.0d0                      ! bottom  stretching parameter
-      TCLINE == 50.0d0                      ! critical depth (m)
+     THETA_S == $theta_s$              ! surface stretching parameter
+     THETA_B == $theta_b$              ! bottom  stretching parameter
+      TCLINE == $tcline$               ! critical depth (m)
 
 ! Mean Density and Brunt-Vaisala frequency.
 
@@ -445,7 +441,7 @@ LtracerSponge == F F                            ! temperature, salinity, inert
 ! origin for tidal forcing, and model reference time for output
 ! NetCDF units attribute.
 
-      DSTART =  7304.5d0                      ! days
+      DSTART =  $dstart$                      ! days
   TIDE_START =  6025.0d0                      ! days
     TIME_REF =  19990101.0d0                      ! yyyymmdd.dd
 
@@ -1063,8 +1059,8 @@ PIO_I2C_Preq = 65                 ! Maximum pending I2C requests
 
 ! Input NetCDF file names, [1:Ngrids].
 
-     GRDNAME == /scratch/matt/sdtjre_L2/GRID_SDTJRE_LV2_rx020.nc
-     ININAME == /scratch/matt/sdtjre_L2/ocean_rst_LV2_EPA20172018.nc
+     GRDNAME == $lv2_grid_dir$/GRID_SDTJRE_LV2_rx020.nc
+     ININAME == $lv2_ini_file$
      ITLNAME == ocean_itl.nc
      IRPNAME == ocean_irp.nc
      IADNAME == ocean_iad.nc
@@ -1109,7 +1105,7 @@ PIO_I2C_Preq = 65                 ! Maximum pending I2C requests
      CLMNAME == ocean_clm.nc
 
      NBCFILES == 1                          ! number of boundary files
-     BRYNAME == /scratch/matt/sdtjre_L2/BC_LV2_tide_20192020.nc
+     BRYNAME == $lv2_bc_file$
 
 ! Input climatology nudging coefficients file name.
 
@@ -1121,7 +1117,7 @@ PIO_I2C_Preq = 65                 ! Maximum pending I2C requests
 
 ! Input tidal forcing file name.
 
-    TIDENAME == ocean_tide.nc
+    TIDENAME == ocean_tide.nc       ! note no tides here
 
 ! Input forcing NetCDF file name(s).
 !
@@ -1142,23 +1138,22 @@ PIO_I2C_Preq = 65                 ! Maximum pending I2C requests
 ! the last one.
 
      NFFILES == 1                          ! number of unique forcing files
-
-     FRCNAME == /scratch/matt/sdtjre_L2/roms_nam_LV2_20181216_20190115.nc 
+     FRCNAME == $lv1_forc_dir$/LV1_ATM_FORCING.nc
                
 
 ! Output NetCDF file names, [1:Ngrids].
 
      DAINAME == ocean_dai.nc
      GSTNAME == ocean_gst.nc
-     RSTNAME == ocean_rst_LV2_20192020.nc 
-     HISNAME == ocean_his_LV2_20192020.nc
+     RSTNAME == $lv2_rst_name_full$
+     HISNAME == $lv2_his_name_full$     
      QCKNAME == ocean_qck.nc
      TLMNAME == ocean_tlm.nc
      TLFNAME == ocean_tlf.nc
      ADJNAME == ocean_adj.nc
      AVGNAME == ocean_avg_coupled.nc
      HARNAME == ocean_har.nc
-     DIANAME == ocean_dia.nc
+     DIANAME == $lv2_his_dir$/ocean_dia.nc     
      STANAME == ocean_sta.nc
      FLTNAME == ocean_flt.nc
 
