@@ -1,318 +1,266 @@
 
-Starting the LV1 simulation, Current time  2024-08-21 14:44:48.363635
+Starting the LV1 simulation, Current time  2024-08-31 05:00:02.416958
+we are going to start clean...
+getting PFM info...
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
+removing PFM info file...
+now removing all input files...
+PFM info was saved as /scratch/PFM_Simulations/PFM_run_info.pkl
+Starting: driver_run_forecast_LV1
+Current local Time = 2024-08-31 05:00:02.964875 UTC =  2024-08-31 12:00:02.964878+00:00  Fetch time =  2024-08-30 12:00:00
 
-
-swell
-Starting: driver_run_forecast_LV1: Current local Time = 2024-08-21 14:44:48.363706 UTC =  2024-08-21 21:44:48.363707+00:00  Fetch time =  2024-08-20 12:00:00
-Preparing forecast starting on 20240820 at  1200
+Preparing forecast starting on 20240830 at  1200
 ocean boundary and initial conditions will be from:
 hycom
 atm forcing will be from:
 nam_nest
-before getting OCN, using:
-228276
-kilobytes
-going to use subprocess, and save a pickle file.
-/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
-  import seawater
-swell
+
+Getting OCN forecast data. Going to use subprocess, and save a pickle file of ocn data.
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
 in the parallel ncks switch
-Time to get full file using parallel ncks = 45.23 sec
+Time to get full file using parallel ncks = 73.42 sec
 Return code = 0 (0=success, 1=skipped ncks)
+
+max and min raw hycom data (iz is top [0] to bottom [39]):
+max zeta   =  0.393 m          at  ( it, ilat, ilon)     =  ( 18,   5,   3)
+min zeta   = -0.056 m          at  ( it, ilat, ilon)     =  (  0, 179,  20)
+max u      =  0.410 m/s        at  ( it, iz, ilat, ilon) =  (  5,  9,  68,  45)
+min u      = -0.443 m/s        at  ( it, iz, ilat, ilon) =  ( 16,  5,  44,  79)
+max v      =  0.451 m/s        at  ( it, iz, ilat, ilon) =  (  9,  4, 115,  70)
+min v      = -0.709 m/s        at  ( it, iz, ilat, ilon) =  (  4,  0, 193,   0)
+max temp   = 25.195 C          at  ( it, iz, ilat, ilon) =  ( 20,  0, 126,  77)
+min temp   =  1.385 C          at  ( it, iz, ilat, ilon) =  (  0, 38,  56,   3)
+max dT/dz  =  2.998 C/m        at  ( it, iz, ilat, ilon) =  ( 16,  1, 113,  82)
+min dT/dz  = -0.064 C/m        at  ( it, iz, ilat, ilon) =  (  8, 13, 131,  70)
+max salt   = 34.713 psu        at  ( it, iz, ilat, ilon) =  (  0, 37, 134,  33)
+min salt   = 32.490 psu        at  ( it, iz, ilat, ilon) =  (  2, 10, 124,  10)
+max dS/dz  =  0.107 psu/m      at  ( it, iz, ilat, ilon) =  (  1,  3, 100,  81)
+min dS/dz  = -0.052 psu/m      at  ( it, iz, ilat, ilon) =  ( 17,  8, 111,   4)
+
 Hycom OCN dict saved with pickle
-hycom data saved with pickle, correctly?
-CompletedProcess(args=['python', 'ocn_functions.py', 'get_ocn_data_as_dict_pckl', '20240820', 'forecast', 'hycom', 'ncks_para'], returncode=0)
-0=yes,1=no
-swell
+did subprocess run correctly? 0 (0=yes,1=no)
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
 /scratch/PFM_Simulations/LV1_Forecast/Forc/hycom_tmp_pckl_file.pkl
 OCN dict loaded with pickle
-before gc.collect and getting OCN_R, using:
-908728
-kilobytes
-after gc.collect and before OCN_R, using:
-908728
-kilobytes
-starting: ocnfuns.hycom_to_roms_latlon(OCN,RMG)
+this took:
+0:01:50.450395
 
-putting the hycom data in /scratch/PFM_Simulations/LV1_Forecast/Forc/hycom_tmp_pckl_file.pkl on the roms grid
+
+starting: ocnfuns.hycom_to_roms_latlon(OCN,RMG)
+putting the hycom data in /scratch/PFM_Simulations/LV1_Forecast/Forc/hycom_tmp_pckl_file.pkl on the roms grid...
 and saving 17 pickle files...
-doing depth using subprocess
-/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
-  import seawater
-swell
-doing lat_rho using subprocess
-/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
-  import seawater
-swell
-doing lon_rho using subprocess
-/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
-  import seawater
-swell
-doing lat_u using subprocess
-/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
-  import seawater
-swell
-doing lon_u using subprocess
-/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
-  import seawater
-swell
-doing lat_v using subprocess
-/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
-  import seawater
-swell
-doing lon_v using subprocess
-/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
-  import seawater
-swell
-doing ocean_time using subprocess
-/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
-  import seawater
-swell
-doing ocean_time_ref using subprocess
-/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
-  import seawater
-swell
-doing salt using subprocess
-/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
-  import seawater
-swell
-doing temp using subprocess
-/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
-  import seawater
-swell
-doing ubar using subprocess
-/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
-  import seawater
-swell
-doing urm using subprocess
-/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
-  import seawater
-swell
-doing vbar using subprocess
-/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
-  import seawater
-swell
-doing vrm using subprocess
-/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
-  import seawater
-swell
-doing zeta using subprocess
-/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
-  import seawater
-swell
-doing vinfo using subprocess
-/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
-  import seawater
-swell
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
 ...done. 
 all 17 ocnR pickle files were made correctly
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
 
+max and min of hycom data on ROMS grid (iz is top [0] to bottom [39]):
+max zeta   =  0.328 m          at  ( it, ilat, ilon)     =  ( 20,  30,   0)
+min zeta   = -0.045 m          at  ( it, ilat, ilon)     =  (  1, 389,  86)
+max urm    =  0.447 m/s        at  ( it, iz, ilat, ilon) =  (  4,  9, 133,  58)
+min urm    = -0.438 m/s        at  ( it, iz, ilat, ilon) =  ( 16,  3,  26, 156)
+max vrm    =  0.440 m/s        at  ( it, iz, ilat, ilon) =  (  9,  4, 191, 201)
+min vrm    = -0.577 m/s        at  ( it, iz, ilat, ilon) =  (  5,  0, 155, 233)
+max temp   = 25.068 C          at  ( it, iz, ilat, ilon) =  ( 20,  0, 204, 237)
+min temp   =  1.389 C          at  ( it, iz, ilat, ilon) =  (  0, 38, 208,   1)
+max dT/dz  =  2.935 C/m        at  ( it, iz, ilat, ilon) =  ( 16,  1, 168, 243)
+min dT/dz  = -0.311 C/m        at  ( it, iz, ilat, ilon) =  ( 19,  2, 279, 182)
+max salt   = 34.712 psu        at  ( it, iz, ilat, ilon) =  (  0, 37, 290,  86)
+min salt   = 32.492 psu        at  ( it, iz, ilat, ilon) =  (  1, 10, 302,   1)
+max dS/dz  =  0.107 psu/m      at  ( it, iz, ilat, ilon) =  (  1,  3, 141, 227)
+min dS/dz  = -0.043 psu/m      at  ( it, iz, ilat, ilon) =  ( 16,  5, 295, 143)
 driver_run_forecast_LV1: done with hycom_to_roms_latlon
-using:
-908728
-kilobytes
-swell
-swell
-using:
-3342968
-kilobytes
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
+this took:
+0:01:37.759616
+
+
 making the depth pickle file...
-/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
-  import seawater
 making roms depth pickle file /scratch/PFM_Simulations/LV1_Forecast/Forc/roms_tmp_depth_file.pkl...
-swell
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
 ROMS depths for IC/BC saved with pickle to /scratch/PFM_Simulations/LV1_Forecast/Forc/roms_tmp_depth_file.pkl
 ...done makeing depth pickle file.
 subprocess return code? 0 (0=good)
-...done.
-going to save OCN_IC to a pickle file to:
-/scratch/PFM_Simulations/LV1_Forecast/Forc/ocnIC_tmp_pckl_file.pkl
-/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
-  import seawater
-swell
-swell
-got here in IC, 1
-got here in IC, 2
+this took:
+0:00:02.041177
+
+
+going to save OCN_IC to a pickle file: /scratch/PFM_Simulations/LV1_Forecast/Forc/ocnIC_tmp_pckl_file.pkl
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
 OCN_IC dict saved with pickle
-OCN IC data saved with pickle, correctly?
-CompletedProcess(args=['python', 'ocn_functions.py', 'ocn_r_2_ICdict_pckl', '/scratch/PFM_Simulations/LV1_Forecast/Forc/ocnIC_tmp_pckl_file.pkl'], returncode=0)
-0=yes,1=no
+OCN IC data saved with pickle, correctly? 0 (0=yes,1=no)
 driver_run_forecast_LV1: done with ocn_r_2_ICdict
-using:
-3342968
-kilobytes
-using:
-3342968
-kilobytes
+this took:
+0:00:27.083764
+
+
 making IC file from pickled IC: /scratch/PFM_Simulations/LV1_Forecast/Forc/LV1_OCEAN_IC.nc
-/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
-  import seawater
 OCN_IC dict loaded with pickle
-<xarray.Dataset>
-Dimensions:      (time: 1, s_rho: 40, er: 390, xr: 253, eu: 390, xu: 252,
-                  ev: 389, xv: 253)
-Coordinates:
-    lat_rho      (er, xr) float64 28.52 28.53 28.54 28.55 ... 36.38 36.39 36.39
-    lon_rho      (er, xr) float64 -120.3 -120.2 -120.2 ... -118.8 -118.8 -118.8
-    lat_u        (eu, xu) float64 28.52 28.53 28.54 28.55 ... 36.38 36.38 36.39
-    lon_u        (eu, xu) float64 -120.3 -120.2 -120.2 ... -118.8 -118.8 -118.8
-    lat_v        (ev, xv) float64 28.53 28.54 28.54 28.55 ... 36.37 36.38 36.39
-    lon_v        (ev, xv) float64 -120.3 -120.2 -120.2 ... -118.8 -118.8 -118.8
-    ocean_time   (time) float64 9.364e+03
-    Cs_r         (s_rho) float64 -0.9827 -0.9383 ... -9.61e-05 -1.061e-05
-Dimensions without coordinates: time, s_rho, er, xr, eu, xu, ev, xv
-Data variables: (12/13)
-    temp         (time, s_rho, er, xr) float64 1.104 1.295 1.297 ... 10.68 10.68
-    salt         (time, s_rho, er, xr) float64 34.71 34.67 34.67 ... 33.91 33.91
-    u            (time, s_rho, eu, xu) float64 -0.01381 -0.01417 ... 0.002281
-    v            (time, s_rho, ev, xv) float64 0.01445 0.01491 ... -0.004733
-    ubar         (time, eu, xu) float64 -0.009224 -0.009372 ... 0.0004658
-    vbar         (time, ev, xv) float64 0.008888 0.008949 ... 0.006804 0.006804
-    ...           ...
-    Vtransform   int64 2
-    Vstretching  int64 4
-    theta_s      float64 8.0
-    theta_b      float64 3.0
-    Tcline       float64 50.0
-    hc           float64 50.0
-Attributes:
-    type:       ocean initial condition file fields for starting roms
-    time info:  ocean time is from 1999/01/01 00:00:00
-OCN IC nc data saved, correctly?
-CompletedProcess(args=['python', 'ocn_functions.py', 'ocn_roms_IC_dict_to_netcdf_pckl', '/scratch/PFM_Simulations/LV1_Forecast/Forc/ocnIC_tmp_pckl_file.pkl', '/scratch/PFM_Simulations/LV1_Forecast/Forc/LV1_OCEAN_IC.nc'], returncode=0)
-0=yes,1=no
-done makeing IC .nc file.
-using:
-3342968
-kilobytes
-using:
-3342968
-kilobytes
+
+max and min of data in ROMS IC file (iz is bottom [0] to top [39], note: it is always 0 b/c IC):
+max zeta   =  0.305 m          at  ( it, ilat, ilon)     =  (  0,  28,   0)
+min zeta   = -0.045 m          at  ( it, ilat, ilon)     =  (  0, 389,  83)
+max ubar   =  0.142 m/s        at  ( it, ilat, ilon)     =  (  0, 162, 175)
+min ubar   = -0.174 m/s        at  ( it, ilat, ilon)     =  (  0, 265, 138)
+max vbar   =  0.238 m/s        at  ( it, ilat, ilon)     =  (  0, 169, 205)
+min vbar   = -0.129 m/s        at  ( it, ilat, ilon)     =  (  0, 157, 230)
+max u      =  0.386 m/s        at  ( it, iz, ilat, ilon) =  (  0, 30, 135,  54)
+min u      = -0.421 m/s        at  ( it, iz, ilat, ilon) =  (  0, 35,  25, 157)
+max v      =  0.393 m/s        at  ( it, iz, ilat, ilon) =  (  0, 33, 189, 200)
+min v      = -0.437 m/s        at  ( it, iz, ilat, ilon) =  (  0, 39, 326,  41)
+max temp   = 23.133 C          at  ( it, iz, ilat, ilon) =  (  0, 39, 189, 243)
+min temp   =  0.961 C          at  ( it, iz, ilat, ilon) =  (  0,  0, 106,  41)
+max salt   = 34.709 psu        at  ( it, iz, ilat, ilon) =  (  0,  0,   7,  42)
+min salt   = 32.494 psu        at  ( it, iz, ilat, ilon) =  (  0, 30, 302,   1)
+OCN IC nc data saved, correctly? 0 (0=yes)
+done makeing IC file.
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
+this took:
+0:00:04.216888
+
+
 going to save OCN_BC to a pickle file to:
 /scratch/PFM_Simulations/LV1_Forecast/Forc/ocnBC_tmp_pckl_file.pkl
-/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
-  import seawater
-swell
-swell
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
 loading /scratch/PFM_Simulations/LV1_Forecast/Forc/roms_tmp_depth_file.pkl
 OCN_BC dict saved with pickle
-OCN BC data saved with pickle, correctly?
-0
-0=yes,1=no
-using:
-3342968
-kilobytes
+OCN BC data saved with pickle, correctly? 0 (0=yes)
+this took:
+0:00:06.268459
+
+
 making BC nc file from pickled BC: /scratch/PFM_Simulations/LV1_Forecast/Forc/LV1_OCEAN_BC.nc
-/home/ffeddersen/PFM/sdpm_py_util/ocn_functions.py:28: UserWarning: The seawater library is deprecated! Please use gsw instead.
-  import seawater
 OCN_BC dict loaded with pickle
-<xarray.Dataset>
-Dimensions:      (temp_time: 21, s_rho: 40, xr: 253, salt_time: 21,
-                  v3d_time: 21, xu: 252, xv: 253, v2d_time: 21, zeta_time: 21,
-                  er: 390, eu: 390, ev: 389, time: 21)
-Coordinates:
-    ocean_time   (time) float64 9.364e+03 9.364e+03 ... 9.366e+03 9.366e+03
-  * zeta_time    (zeta_time) float64 9.364e+03 9.364e+03 ... 9.366e+03 9.366e+03
-  * v2d_time     (v2d_time) float64 9.364e+03 9.364e+03 ... 9.366e+03 9.366e+03
-  * v3d_time     (v3d_time) float64 9.364e+03 9.364e+03 ... 9.366e+03 9.366e+03
-  * salt_time    (salt_time) float64 9.364e+03 9.364e+03 ... 9.366e+03 9.366e+03
-  * temp_time    (temp_time) float64 9.364e+03 9.364e+03 ... 9.366e+03 9.366e+03
-    Cs_r         (s_rho) float64 -0.9827 -0.9383 ... -9.61e-05 -1.061e-05
-Dimensions without coordinates: s_rho, xr, xu, xv, er, eu, ev, time
-Data variables: (12/27)
-    temp_south   (temp_time, s_rho, xr) float64 1.104 1.295 ... 11.23 11.23
-    salt_south   (salt_time, s_rho, xr) float64 34.71 34.67 ... 33.98 33.98
-    u_south      (v3d_time, s_rho, xu) float64 -0.01381 -0.01417 ... -0.004257
-    v_south      (v3d_time, s_rho, xv) float64 0.01445 0.01491 ... -0.01788
-    ubar_south   (v2d_time, xu) float64 -0.009224 -0.009372 ... 0.0002958
-    vbar_south   (v2d_time, xv) float64 0.008888 0.008949 ... 0.0009698
-    ...           ...
-    Vtransform   int64 2
-    Vstretching  int64 4
-    theta_s      float64 8.0
-    theta_b      float64 3.0
-    Tcline       float64 50.0
-    hc           float64 50.0
-Attributes:
-    type:       ocean boundary condition file fields for starting roms
-    time info:  ocean time is from 1999/01/01 00:00:00
-OCN BC nc data saved, correctly?
-CompletedProcess(args=['python', 'ocn_functions.py', 'ocn_roms_BC_dict_to_netcdf_pckl', '/scratch/PFM_Simulations/LV1_Forecast/Forc/ocnBC_tmp_pckl_file.pkl', '/scratch/PFM_Simulations/LV1_Forecast/Forc/LV1_OCEAN_BC.nc'], returncode=0)
-0=yes,1=no
-done makeing IC .nc file.
-using:
-3342968
-kilobytes
-driver_run_forecast_LV1: done with ocn_r_2_BCdict
-getting atm forecast for:
-[datetime.datetime(2024, 8, 20, 12, 0)
- datetime.datetime(2024, 8, 20, 15, 0)
- datetime.datetime(2024, 8, 20, 18, 0)
- datetime.datetime(2024, 8, 20, 21, 0)
- datetime.datetime(2024, 8, 21, 0, 0) datetime.datetime(2024, 8, 21, 3, 0)
- datetime.datetime(2024, 8, 21, 6, 0) datetime.datetime(2024, 8, 21, 9, 0)
- datetime.datetime(2024, 8, 21, 12, 0)
- datetime.datetime(2024, 8, 21, 15, 0)
- datetime.datetime(2024, 8, 21, 18, 0)
- datetime.datetime(2024, 8, 21, 21, 0)
- datetime.datetime(2024, 8, 22, 0, 0) datetime.datetime(2024, 8, 22, 3, 0)
- datetime.datetime(2024, 8, 22, 6, 0) datetime.datetime(2024, 8, 22, 9, 0)
- datetime.datetime(2024, 8, 22, 12, 0)
- datetime.datetime(2024, 8, 22, 15, 0)
- datetime.datetime(2024, 8, 22, 18, 0)
- datetime.datetime(2024, 8, 22, 21, 0)
- datetime.datetime(2024, 8, 23, 0, 0)]
+
+max and min of data in ROMS BC file (iz is bottom [0] to top [39]):
+max zeta_north =  0.147 m          at  ( it, ilon)     =  ( 20,   0)
+min zeta_north = -0.045 m          at  ( it, ilon)     =  (  1,  86)
+max zeta_south =  0.314 m          at  ( it, ilon)     =  ( 11,   0)
+min zeta_south =  0.030 m          at  ( it, ilon)     =  (  1, 159)
+max zeta_west  =  0.328 m          at  ( it, ilat)     =  ( 20,  30)
+min zeta_west  =  0.075 m          at  ( it, ilat)     =  (  5, 156)
+max ubar_north =  0.036 m/s        at  ( it, ilon)     =  ( 19, 127)
+min ubar_north = -0.015 m/s        at  ( it, ilon)     =  (  5,   1)
+max ubar_south =  0.025 m/s        at  ( it, ilon)     =  ( 20, 150)
+min ubar_south = -0.049 m/s        at  ( it, ilon)     =  ( 15, 240)
+max ubar_west  =  0.052 m/s        at  ( it, ilat)     =  ( 18, 130)
+min ubar_west  = -0.031 m/s        at  ( it, ilat)     =  ( 18, 297)
+max vbar_north =  0.146 m/s        at  ( it, ilon)     =  (  1,  98)
+min vbar_north = -0.021 m/s        at  ( it, ilon)     =  (  0,  30)
+max vbar_south =  0.076 m/s        at  ( it, ilon)     =  (  8, 184)
+min vbar_south = -0.038 m/s        at  ( it, ilon)     =  ( 20, 137)
+max vbar_west  =  0.021 m/s        at  ( it, ilat)     =  (  8, 341)
+min vbar_west  = -0.017 m/s        at  ( it, ilat)     =  (  0, 215)
+max u_north    =  0.289 m/s        at  ( it, iz, ilon) =  (  0,  32,  29)
+min u_north    = -0.153 m/s        at  ( it, iz, ilon) =  ( 15,  35, 114)
+max u_south    =  0.230 m/s        at  ( it, iz, ilon) =  ( 19,  32, 150)
+min u_south    = -0.294 m/s        at  ( it, iz, ilon) =  ( 12,  39,  45)
+max u_west     =  0.375 m/s        at  ( it, iz, ilat) =  ( 12,  32, 129)
+min u_west     = -0.433 m/s        at  ( it, iz, ilat) =  ( 20,  39, 293)
+max v_north    =  0.330 m/s        at  ( it, iz, ilon) =  (  1,  21, 107)
+min v_north    = -0.377 m/s        at  ( it, iz, ilon) =  (  2,  39,  31)
+max v_south    =  0.409 m/s        at  ( it, iz, ilon) =  (  2,  32, 181)
+min v_south    = -0.459 m/s        at  ( it, iz, ilon) =  (  6,  39, 127)
+max v_west     =  0.106 m/s        at  ( it, iz, ilat) =  (  0,  32, 329)
+min v_west     = -0.421 m/s        at  ( it, iz, ilat) =  ( 20,  39, 180)
+max temp_north = 19.254 C          at  ( it, iz, ilon) =  ( 20,  39,   0)
+min temp_north =  1.061 C          at  ( it, iz, ilon) =  ( 13,   0,   4)
+max temp_south = 21.969 C          at  ( it, iz, ilon) =  ( 11,  39, 221)
+min temp_south =  1.105 C          at  ( it, iz, ilon) =  (  4,   0,   0)
+max temp_west  = 21.196 C          at  ( it, iz, ilat) =  ( 20,  39,   0)
+min temp_west  =  1.050 C          at  ( it, iz, ilat) =  ( 12,   0, 360)
+max salt_north = 34.708 psu        at  ( it, iz, ilon) =  (  0,   0,   0)
+min salt_north = 33.004 psu        at  ( it, iz, ilon) =  ( 20,  27,   0)
+max salt_south = 34.707 psu        at  ( it, iz, ilon) =  ( 13,   0,   0)
+min salt_south = 33.143 psu        at  ( it, iz, ilon) =  (  7,  28, 118)
+max salt_west  = 34.709 psu        at  ( it, iz, ilat) =  (  1,   0,  65)
+min salt_west  = 32.493 psu        at  ( it, iz, ilat) =  (  1,  30, 302)
+OCN BC nc data saved, correctly? 0 (0=yes)
+done makeing BC nc file.
+this took:
+0:00:00.787862
+
+
+getting the atm data now...
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
+
+ATM dict saved with pickle.
+return code: 0 (0=good)
+...done.
+this took:
+0:00:40.016609
+
+
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
 done with plotting ATM fields
+this took:
+0:00:05.661774
+
+
+in atmfuns.get_atm_data_on_roms_grid(ATM,RMG)
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
+
+ATM on roms grid dict saved with pickle.
+return code: 0 (0=good)
 done with: atmfuns.get_atm_data_on_roms_grid(ATM,RMG)
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
 done with: pltfuns.plot_all_fields_in_one(ATM, ATM_R, RMG, PFM)
+this took:
+0:00:11.858369
+
+
 driver_run_forcast_LV1: saving ATM file to /scratch/PFM_Simulations/LV1_Forecast/Forc/LV1_ATM_FORCING.nc
-<xarray.Dataset>
-Dimensions:     (tair_time: 21, er: 390, xr: 253, pair_time: 21, qair_time: 21,
-                 wind_time: 21, rain_time: 21, srf_time: 21, lrf_time: 21,
-                 time: 21)
-Coordinates:
-    lat         (er, xr) float64 28.52 28.53 28.54 28.55 ... 36.38 36.39 36.39
-    lon         (er, xr) float64 -120.3 -120.2 -120.2 ... -118.8 -118.8 -118.8
-    ocean_time  (time) float64 9.364e+03 9.364e+03 ... 9.366e+03 9.366e+03
-  * tair_time   (tair_time) float64 9.364e+03 9.364e+03 ... 9.366e+03 9.366e+03
-  * pair_time   (pair_time) float64 9.364e+03 9.364e+03 ... 9.366e+03 9.366e+03
-  * qair_time   (qair_time) float64 9.364e+03 9.364e+03 ... 9.366e+03 9.366e+03
-  * wind_time   (wind_time) float64 9.364e+03 9.364e+03 ... 9.366e+03 9.366e+03
-  * rain_time   (rain_time) float64 9.364e+03 9.364e+03 ... 9.366e+03 9.366e+03
-  * srf_time    (srf_time) float64 9.364e+03 9.364e+03 ... 9.366e+03 9.366e+03
-  * lrf_time    (lrf_time) float64 9.364e+03 9.364e+03 ... 9.366e+03 9.366e+03
-Dimensions without coordinates: er, xr, time
-Data variables:
-    Tair        (tair_time, er, xr) float64 20.53 20.51 20.5 ... 30.35 30.31
-    Pair        (pair_time, er, xr) float64 1.016e+03 1.016e+03 ... 1.011e+03
-    Qair        (qair_time, er, xr) float64 85.59 85.65 85.72 ... 30.44 31.01
-    Uwind       (wind_time, er, xr) float64 -1.553 -1.514 -1.477 ... 3.177 3.17
-    Vwind       (wind_time, er, xr) float64 -7.437 -7.437 ... -0.6961 -0.7531
-    rain        (rain_time, er, xr) float64 0.0 0.0 0.0 0.0 ... 0.0 0.0 0.0 0.0
-    swrad       (srf_time, er, xr) float64 0.0 0.0 0.0 0.0 ... 420.9 422.3 422.1
-    lwrad       (lrf_time, er, xr) float64 -71.13 -71.0 -70.9 ... -168.4 -168.6
-    lwrad_down  (lrf_time, er, xr) float64 338.1 338.2 338.2 ... 312.8 312.3
-Attributes:
-    type:       atmospheric forcing file fields for surface fluxes
-    time info:  ocean time is from 1999/01/01 00:00:00
-driver_run_forecast_LV1:  done with writing ATM file, Current time  2024-08-21 14:50:07.338799
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
+return code: 0 (0=good)
+driver_run_forecast_LV1:  done with writing ATM.nc file.
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
 done with pltfuns.load_and_plot_atm(PFM)
+this took:
+0:00:05.166552
+
+
 driver_run_forecast_LV1:  now make .in and .sb files
  --- making dot_in for 
 ...done
 now running roms with slurm
 run_slurm_LV1: current directory is now:  /scratch/PFM_Simulations/LV1_Forecast/Run
-CompletedProcess(args=['sbatch', '--wait', 'LV1_SLURM.sb'], returncode=0, stdout=b'Submitted batch job 330\n', stderr=b'')
+CompletedProcess(args=['sbatch', '--wait', 'LV1_SLURM.sb'], returncode=0, stdout=b'Submitted batch job 358\n', stderr=b'')
 subprocess slurm ran correctly? 0 (0=yes)
 run_slurm_LV1: run command:  ['sbatch', '--wait', 'LV1_SLURM.sb']
+this took:
+0:06:02.045038
 
-Finished the LV1 simulation, Current time  2024-08-21 14:56:13.338161
+
+
+Finished the LV1 simulation
 now making LV1 history file plots
-swell
-swell
-swell
-swell
-swell
-swell
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
+PFM info was loaded from /scratch/PFM_Simulations/PFM_run_info.pkl
+Current time:  2024-08-31 05:11:20.948844
+total time to run script was:
+0:11:17.443645
 
 
