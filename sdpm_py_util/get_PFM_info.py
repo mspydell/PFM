@@ -239,7 +239,7 @@ def get_PFM_info():
 
       fetch_time = datetime.now(timezone.utc) - timedelta(days=1)
 
-      if hour_utc < 12:
+      if hour_utc < 11:
          fetch_time = datetime(fetch_time.year,fetch_time.month, fetch_time.day, 12) - timedelta(days=1)
       else:
          fetch_time = datetime(fetch_time.year,fetch_time.month, fetch_time.day, 12)    
