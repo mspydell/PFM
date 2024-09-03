@@ -370,7 +370,10 @@ os.chdir('../driver')
 print('\nFinished the LV1 simulation, Current time ', datetime.now())
 
 # now making history file plots
+# this needs to be collected together into a function or a subprocess call
+
 print('now making LV1 history file plots')
+
 
 fn = PFM['lv1_his_dir'] + '/LV1_ocean_his.nc'
 Ix = np.array([175,240])
