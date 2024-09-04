@@ -14,7 +14,7 @@ def initialize_simulation(clean_start):
         print('getting PFM info...')
         PFM=get_PFM_info()
 
-        dirs=[PFM['lv1_his_dir'],PFM['lv1_plot_dir'],PFM['lv1_forc_dir']] 
+        dirs=[PFM['lv1_his_dir'],PFM['lv1_plot_dir'],PFM['lv1_forc_dir'],PFM['lv2_his_dir'],PFM['lv2_plot_dir'],PFM['lv2_forc_dir']] 
 
         runl = ['/*.out','/*.sb','/*.log','/*.in']
 
