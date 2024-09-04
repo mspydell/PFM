@@ -43,3 +43,14 @@ def initialize_simulation(clean_start):
         print('NO files are being deleted.')        
 
 
+def remake_PFM_pkl_file():
+        print('we are remaking the PFM.pkl file...')
+        print('getting PFM info...')
+        PFM=get_PFM_info()
+
+        print('removing PFM info file...')
+        os.remove(PFM['info_file'])
+        print('now removing all input files...')
+
+        PFM=get_PFM_info()
+ 

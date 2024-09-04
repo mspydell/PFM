@@ -2894,8 +2894,8 @@ def mk_LV2_BC_dict():
         
     OCN_BC['Cs_r'] = np.squeeze(zrom.Cs_r)
 
-    OCN_BC['ocean_time'] = his_ds.variables['ocean_time'][:]
-    Nt = len( OCN_BC['ocean_time'] )
+    OCN_BC['ocean_time'] = his_ds.variables['ocean_time'][:] / (3600.0 * 24) # his.nc has time in sec past reference time.
+    Nt = len( OCN_BC['ocean_time'] )                                           # need in days past.
     OCN_BC['ocean_time_ref'] = BC1['ocean_time_ref']
 
     nlt, nln = np.shape(ltr2)
@@ -3037,7 +3037,9 @@ def mk_LV2_BC_dict():
                 OCN_BC[vn+'_north'][tind,zind,:] = z2[-1,:]
                 OCN_BC[vn+'_west'][tind,zind,:]  = z2[:,0]
 
-    fout = '/scratch/PFM_Simulations/LV2_Forecast/Forc/test_BC_LV2.pkl'
+    #fout = '/scratch/PFM_Simulations/LV2_Forecast/Forc/test_BC_LV2.pkl'
+    fout =  PFM['lv2_forc_dir'] + '/' + PFM['lv2_ocnBC_tmp_pckl_file']
+
 #    with open(LV2_BC_pckl,'wb') as fout:
     with open(fout,'wb') as fout:
         pickle.dump(OCN_BC,fout)
@@ -3065,6 +3067,8 @@ def mk_LV2_IC_dict():
     ltv2 = G2['lat_v']
     lnv2 = G2['lon_v']
     
+ #   print(np.shape(ltr1))
+ #   print(np.shape(ltr2))
 #    LV1_BC_pckl = PFM['lv1_forc_dir'] + '/' + PFM['lv1_ocnBC_tmp_pckl_file']    
 #    LV2_BC_pckl = PFM['lv2_forc_dir'] + '/' + PFM['lv2_ocnBC_tmp_pckl_file']    
     LV1_IC_pckl = PFM['lv1_forc_dir'] + '/' + PFM['lv1_ocnIC_tmp_pckl_file']
@@ -3072,6 +3076,8 @@ def mk_LV2_IC_dict():
     with open(LV1_IC_pckl,'rb') as fout:
         IC1=pickle.load(fout)
         print('LV1 OCN_IC dict loaded with pickle')
+
+ #   print(np.shape(IC1['zeta']))
 
     OCN_IC = dict()
     OCN_IC['vinfo'] = dict()
@@ -3194,6 +3200,7 @@ def mk_LV2_IC_dict():
     intf_d2['v']    = interp_v
     
     for vn in v_list1: # loop through all 2d variables
+   #     print(vn)
         msk = msk_d1[vn] # get mask on LV1
         msk2 = msk2_d1[vn] # get mask on LV2
         ind = ind_d1[vn] # get indices so that land can be filled with nearest neighbor
@@ -3202,6 +3209,7 @@ def mk_LV2_IC_dict():
         interpfun = intf_d1[vn]
         tind = 0
         z0 = np.squeeze(IC1[vn][tind,:,:] )
+    #    print(np.shape(z0))
         z0[msk==0] = z0[msk==1][ind] # fill the mask with nearest neighbor
         setattr(interpfun,'values',z0) # change the interpolator z values
         z2 = interpfun((yy2,xx2)) # perhaps change here to directly interpolate to (xi,eta) on the edges?
@@ -3224,8 +3232,8 @@ def mk_LV2_IC_dict():
             z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the mask
             OCN_IC[vn][tind,zind,:,:] = z2[:,:]
                 
-    #fout = PFM['lv1_forc_dir'] + '/' + PFM['lv1_ocnIC_tmp_pckl_file']
-    fout = '/scratch/PFM_Simulations/LV2_Forecast/Forc/test_IC_LV2.pkl'
+    fout = PFM['lv2_forc_dir'] + '/' + PFM['lv2_ocnIC_tmp_pckl_file']
+    #fout = '/scratch/PFM_Simulations/LV2_Forecast/Forc/test_IC_LV2.pkl'
 #    with open(LV2_BC_pckl,'wb') as fout:
     with open(fout,'wb') as fout:
         pickle.dump(OCN_IC,fout)

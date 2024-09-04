@@ -435,6 +435,8 @@ def atm_roms_dict_to_netcdf(lv):
     with open(fname_in,'rb') as fp:
         ATM_R = pickle.load(fp)
 
+    print('file_out is:')
+    print(fname_out)
 
     ds = xr.Dataset(
         data_vars = dict(
