@@ -20,7 +20,6 @@ import grid_functions as grdfuns
 import plotting_functions as pltfuns
 from get_PFM_info import get_PFM_info
 from make_LV1_dotin_and_SLURM import make_LV1_dotin_and_SLURM
-from make_LV2_dotin_and_SLURM import make_LV2_dotin_and_SLURM
 from run_slurm_LV1 import run_slurm_LV1
 from init_funs import initialize_simulation
 
@@ -86,8 +85,6 @@ if use_ncks == 1:
     else:
         print('\nGetting OCN forecast data. Going to use subprocess, and save a pickle file of ocn data.')
         os.chdir('../sdpm_py_util')
-        #cmd_list = ['python','ocn_functions.py','get_ocn_data_as_dict_pckl',yyyymmdd,run_type,ocn_mod,'ncks_para']
-     #-W "ignore"
         cmd_list = ['python','-W','ignore','ocn_functions.py','get_ocn_data_as_dict_pckl',yyyymmdd,run_type,ocn_mod,'ncks_para']
         ret1 = subprocess.run(cmd_list)     
         os.chdir('../driver')
@@ -103,20 +100,21 @@ else: # this was used for testing and loading a previous pickle file
     else:
         with open(fn_pckl,'rb') as fp:
             OCN = pickle.load(fp)
-            #print('OCN dict loaded with pickle')
-
-## plot OCN
 
 if plot_ocn ==1:
-    pltfuns.plot_ocn_fields_from_dict_pckl(fn_pckl)
-
-gc.collect()
+    print('making some plots from: ' + fn_pckl)
+    cmd_list = ['python','-W','ignore','plotting_functions.py','plot_ocn_fields_from_dict_pckl',fn_pckl]
+    os.chdir('../sdpm_py_util')
+    ret1 = subprocess.run(cmd_list)     
+    #pltfuns.plot_ocn_fields_from_dict_pckl(fn_pckl)
+    print('subprocess return code? ' + str(ret1.returncode) +  ' (0=good)')
+    print('...done')
+    os.chdir('../driver')
 
 t1= datetime.now()
 print('this took:')
 print(t1-t0)
 print('\n')
-
 
 # put the ocn data on the roms grid
 print('starting: ocnfuns.hycom_to_roms_latlon(OCN,RMG)')
@@ -126,18 +124,34 @@ if sv_ocnR_pkl_file==0:
 else:
     os.chdir('../sdpm_py_util')
     print('putting the hycom data in ' + fn_pckl + ' on the roms grid...')
-    ocnfuns.make_all_tmp_pckl_ocnR_files(fn_pckl)
+    cmd_list = ['python','-W','ignore','ocn_functions.py','make_all_tmp_pckl_ocnR_files',fn_pckl]
+    os.chdir('../sdpm_py_util')
+    ret1 = subprocess.run(cmd_list)     
+    #ocnfuns.make_all_tmp_pckl_ocnR_files(fn_pckl)
     os.chdir('../driver')
+    print('subprocess return code? ' + str(ret1.returncode) +  ' (0=good)')
 
-ocnfuns.print_maxmin_HYrm_pickles()
+
+cmd_list = ['python','-W','ignore','ocn_functions.py','print_maxmin_HYrm_pickles']
+os.chdir('../sdpm_py_util')
+ret1 = subprocess.run(cmd_list)     
+os.chdir('../driver')
+#ocnfuns.print_maxmin_HYrm_pickles()
 print('driver_run_forecast_LV1: done with hycom_to_roms_latlon')
 # add OCN + OCN_R plotting function here !!!
 
 ## plot OCN_R
 if plot_ocnr == 1:
-    pltfuns.plot_ocn_R_fields_pckl()
+#    pltfuns.plot_ocn_R_fields_pckl()
+    print('plotting LV1 ocn_R_fields...')
+    cmd_list = ['python','-W','ignore','plotting_functions.py','plot_ocn_R_fields_pckl']
+    os.chdir('../sdpm_py_util')
+    ret1 = subprocess.run(cmd_list)     
+    os.chdir('../driver')
+    print('subprocess return code? ' + str(ret1.returncode) +  ' (0=good)')
 
 t2 = datetime.now()
+print('...done with LV1 ocn_R')
 print('this took:')
 print(t2-t1)
 print('\n')
@@ -155,7 +169,6 @@ t3 = datetime.now()
 print('this took:')
 print(t3-t2)
 print('\n')
-
 
 
 if fr_ocnR_pkl_file==0:
@@ -249,7 +262,6 @@ print('this took:')
 print(t8-t7)
 print('\n')
 
-
 # plot some stuff
 if plot_atm == 1:
     pltfuns.plot_atm_fields()
@@ -327,11 +339,6 @@ print('\nFinished the LV1 simulation')
 print('now making LV1 history file plots')
 pltfuns.make_all_his_figures('LV1')
 print('Current time: ', datetime.now())
-
-t13 = datetime.now()
-print('total time to run script was:')
-print(t13-t0)
-print('\n')
 
 #######################
 

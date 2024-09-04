@@ -28,8 +28,6 @@ def initialize_simulation(clean_start):
             elif 'Plots' in dd:
                 ddd = dd + '/*.png'
             for f in glob.glob(ddd):
-                #print('removing:')
-                #print(f)
                 os.remove(f)        
         for pp in ['lv1_run_dir','lv2_run_dir']:
             for dd in runl:

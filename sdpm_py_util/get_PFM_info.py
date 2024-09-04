@@ -23,14 +23,14 @@ def get_llbox(fname):
    lt_mn = np.min(RMG['lat_rho'])
    ln_mx = np.max(RMG['lon_rho'])
    ln_mn = np.min(RMG['lon_rho'])
-   dlt = 0.1605 # this is 15 km in degrees at 33 deg
-   dln = 0.1353 # this is 15 km in degrees at 33 deg
+   dlt = 0.1605 # this is 15 km in degrees at 33 deg N
+   dln = 0.1353 # this is 15 km in degrees at 33 deg N
    lt_mx = lt_mx + dlt
    lt_mn = lt_mn - dlt
    ln_mx = ln_mx + dln
    ln_mn = ln_mn - dln
    llb = [lt_mn, lt_mx, ln_mn, ln_mx]
-#      latlonbox = [28.0, 37.0, -125.0, -115.0]
+#      latlonbox = [28.0, 37.0, -125.0, -115.0] # original hard coded numbers.
 
    return llb
 
@@ -88,23 +88,19 @@ def get_PFM_info():
       ocn_model = 'hycom'
       atm_model = 'nam_nest'
       atm_get_method = 'open_dap_nc'
-   # what is the time resolution of the models (in days)
+   # what is the time resolution of the models (in days), (used? 9/4/24 MSS)
       daystep_ocn = 3/24
       daystep_atm = 3/24
-   # this is the box that covers LV1 so we get only a rectangle of hycom data
-   # needs to be floats
-   #   latlonbox = [27.75, 37.25, -124.5+360, -115.5+360]
    # roms will be run with this time step (in days)
-      daystep = 1
+      daystep = 1 # not used right now (9/4/24 MSS)
       
    # this it the one place where the model time reference is set
       modtime0 = datetime(1999,1,1,0,0)
-   # correct string for time units in ROMS forcing files
    # see notes in Evernote, Run Log 9, 2020.10.06
       roms_time_units = 'seconds since 1990-01-01 00:00:00'
-   # format used for naming day folders
+   # format used for naming day folders, (used? 9/4/24)
       ds_fmt = '%Y.%m.%d'
-   # number of forecast days
+   # number of forecast days (used? 9/4/24)
       fdays = 3
 
    # vertical stretching info for each grid are embedded in a dict
@@ -233,9 +229,6 @@ def get_PFM_info():
       # now do the timing information
       start_time = datetime.now()
       utc_time = datetime.now(timezone.utc)
-      year_utc = utc_time.year
-      month_utc = utc_time.month
-      day_utc = utc_time.day
       hour_utc = utc_time.hour
 
       fetch_time = datetime.now(timezone.utc) - timedelta(days=1)

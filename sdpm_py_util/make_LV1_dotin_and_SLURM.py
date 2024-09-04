@@ -1,26 +1,16 @@
 """
-This creates and populates directories for ROMS runs on mox or similar.
-Its main product is the .in file used for a ROMS run.
-
-It is designed to work with the BLANK.in file, replacing things like
+This is designed to work with the BLANK.in file, replacing things like
 $whatever$ with meaningful values.
 
-To test from ipython on mac:
-run make_dot_in -g cas6 -t v00 -x uu0m -r backfill -s continuation -d 2019.07.04 -bu 0 -np 400
-
-If you call with -short_roms True it will create a .in that runs for a shorter time or
-writes history files more frequently (exact behavior is in the code below).  This can
-be really useful for debugging.
+!!!            everything is read in from PFM_info.                   !!!!!!
+!!!            the values in PFM_info are set in get_PFM_info.py      !!!!!!
 
 --- to reload a module ---
 import sys, importlib
 importlib.reload(sys.modules['foo'])
 from foo import bar
-
 """
 
-
-# NOTE: we limit the imports to modules that exist in python3 on mox
 from pathlib import Path
 import sys
 from datetime import datetime, timedelta
@@ -29,28 +19,10 @@ from get_PFM_info import get_PFM_info
 
 def  make_LV1_dotin_and_SLURM( PFM , yyyymmddhhmm):
 
-
-    pth = Path(__file__).absolute().parent.parent.parent / 'lo_tools' / 'lo_tools'
-    if str(pth) not in sys.path:
-        sys.path.append(str(pth))
-
-    dot_in_dir = Path(__file__).absolute().parent
-
-    #Ldir = dfun.intro() # this handles all the argument passing
-
-
-    #fdt = datetime.strptime(Ldir['date_string'], Lfun.ds_fmt)
-    #fdt_yesterday = fdt - timedelta(days=1)
-
-    ## This stuff above is all about directories.  The important thing below
-    ## is that the run_dir needs to be set and the 
-
-    print(' --- making dot_in for ')  # + Ldir['date_string'])
+    print(' --- making dot_in and dot_sb --- ')  # + Ldir['date_string'])
 
     # initialize dict to hold values that we will substitute into the dot_in file.
     D = dict()
-
-    #D['EX_NAME'] = Ldir['ex_name'].upper()
 
     # this is where the varinfo.yaml file is located.
     # the original location was 
@@ -58,66 +30,22 @@ def  make_LV1_dotin_and_SLURM( PFM , yyyymmddhhmm):
     # but now it is
     D['roms_varinfo_dir'] = PFM['lv1_run_dir'] +  '/LV1_varinfo.yaml'  ## FIX!
 
-    #### USER DEFINED VALUES ####
-
-    #Ldir['run_type'] == 'forecast'
-
-    ## number of grid points in each direction
-
-    #ncols = 251    # Lm in input file
-    #nrows = 388   # Mm in input file
-    ncols = PFM['gridinfo']['L1','Lm']
-    nrows = PFM['gridinfo']['L1','Mm']
-    nz   = PFM['stretching']['L1','Nz']     # number of vertical levels: 40
-    #nz =  40     # number of vertical levels
-    D['ncols'] = ncols
-    D['nrows'] = nrows
-    D['nz'] = nz
-
-    # The LV1 TILING shoudl be hard coded
-#    ntilei = 6  # number of tiles in I-direction
-#    ntilej = 18 # number of tiles in J-direction
-#    np = ntilei*ntilej  # total number of processors
-#    nnodes = 3  # number of nodes to be used.  not for .in file but for slurm!
-
- #   D['ntilei'] = ntilei
- #   D['ntilej'] = ntilej
- #   D['np'] = np
- #   D['nnodes'] = nnodes
-
+    # grid info
+    D['ncols']  = PFM['gridinfo']['L1','Lm']
+    D['nrows']  = PFM['gridinfo']['L1','Mm']
+    D['nz']     = PFM['stretching']['L1','Nz']
     D['ntilei'] = PFM['gridinfo']['L1','ntilei']
     D['ntilej'] = PFM['gridinfo']['L1','ntilej']
-    D['np'] = PFM['gridinfo']['L1','np']
+    D['np']     = PFM['gridinfo']['L1','np']
     D['nnodes'] = PFM['gridinfo']['L1','nnodes']
 
-
-    ### time stuff
-
-#    dtsec = 60
-    dtsec = PFM['tinfo']['L1','dtsec']
-    # time step in seconds (should fit evenly into 3600 sec)
-    #if Ldir['blow_ups'] == 0:
-    #    dtsec = 60
-    #elif Ldir['blow_ups'] == 1:
-    #    dtsec = 45
-    #elif Ldir['blow_ups'] == 2:
-    #    dtsec = 30
-    #else:
-    #    print('Unsupported number of blow ups: %d' % (Ldir['blow_ups']))
-
-#    D['ndtfast'] = 15
-    D['ndtfast'] = PFM['tinfo']['L1','ndtfast']
+    # timing info
+    dtsec         = PFM['tinfo']['L1','dtsec']
+    D['ndtfast']  = PFM['tinfo']['L1','ndtfast']
     forecast_days = PFM['tinfo']['L1','forecast_days']  #   forecast_days=2;
-    days_to_run = forecast_days  #float(Ldir['forecast_days'])
-
-    #his_interval = 3600 # seconds to define and write to history files
-    #rst_interval = 1 # days between writing to the restart file (e.g. 5)
-    his_interval = PFM['outputinfo']['L1','his_interval']
-    rst_interval = PFM['outputinfo']['L1','rst_interval']
-
-
-    #### END USER DEFINED VALUES ####
-
+    days_to_run   = forecast_days  #float(Ldir['forecast_days'])
+    his_interval  = PFM['outputinfo']['L1','his_interval']
+    rst_interval  = PFM['outputinfo']['L1','rst_interval']
 
     # a string version of dtsec, for the .in file
     if dtsec == int(dtsec):  ## should this be a floating point number?  it could be 2.5 etc.
@@ -127,84 +55,72 @@ def  make_LV1_dotin_and_SLURM( PFM , yyyymmddhhmm):
         dt = str(dtsec) + 'd0'
         D['dt'] = dt
 
-        # this is the number of time steps to run runs for.  dtsec is BC timestep
-    D['ntimes'] = int(days_to_run*86400/dtsec)
-    D['ninfo'] = 1 # how often to write info to the log file (# of time steps)
-    D['nhis'] = int(his_interval/dtsec) # how often to write to the history files
+    # this is the number of time steps to run runs for.  dtsec is BC timestep
+    D['ntimes']  = int(days_to_run*86400/dtsec)
+    D['ninfo']   = 1 # how often to write info to the log file (# of time steps)
+    D['nhis']    = int(his_interval/dtsec) # how often to write to the history files
     D['ndefhis'] = PFM['ndefhis'] # how often, in time steps, to create new history files, =0 only one his.nc file
-    D['nrst'] = int(rst_interval*86400/dtsec)
-    D['ndia'] = 60 # write to log file every time step.
+    D['nrst']    = int(rst_interval*86400/dtsec)
+    D['ndia']    = 60 # write to log file every time step.
     D['ndefdia'] = 60
 
-
     #date_string_yesterday = fdt_yesterday.strftime(Lfun.ds_fmt)
-    t0 = PFM['modtime0']
-    t2 = datetime.strptime( yyyymmddhhmm, '%Y%m%d%H%M')
-    dt = (t2-t0)/timedelta(days=1) # days since 19990101
+    t0          = PFM['modtime0']
+    t2          = datetime.strptime( yyyymmddhhmm, '%Y%m%d%H%M')
+    dt          = (t2-t0)/timedelta(days=1) # days since 19990101
     D['dstart'] = str(dt) + 'd0' # this is in the form xxxxx.5 due to 12:00 start time for hycom
 
         # Paths to forcing various file locations
-    D['lv1_grid_dir'] = PFM['lv1_grid_dir']
-    D['lv1_run_dir'] = PFM['lv1_run_dir']     
-    D['lv1_forc_dir'] = PFM['lv1_forc_dir']   
-    D['lv1_his_dir'] = PFM['lv1_his_dir']
-
+    D['lv1_grid_dir']      = PFM['lv1_grid_dir']
+    D['lv1_run_dir']       = PFM['lv1_run_dir']     
+    D['lv1_forc_dir']      = PFM['lv1_forc_dir']   
+    D['lv1_his_dir']       = PFM['lv1_his_dir']
     D['lv1_his_name_full'] = PFM['lv1_his_name_full']
     D['lv1_rst_name_full'] = PFM['lv1_rst_name_full'] 
     
     start_type = 'new'
 
     if start_type == 'perfect':
-        nrrec = '-1' # '-1' for a perfect restart
+        nrrec   = '-1' # '-1' for a perfect restart
         ininame = 'ocean_rst.nc' # start from restart file
         lv1_ini_dir = PFM['lv1_run_dir']
     else: 
-        nrrec = '0' # '0' for a history or ini file
+        nrrec   = '0' # '0' for a history or ini file
         ininame = PFM['lv1_ini_file']  # start from ini file
         lv1_ini_dir = PFM['lv1_forc_dir']
 
-    D['nrrec'] = nrrec
+    D['nrrec']        = nrrec
     D['lv1_ini_file'] = lv1_ini_dir + '/' + ininame
-    D['lv1_bc_file'] = PFM['lv1_forc_dir'] + '/' + PFM['lv1_bc_file']    
+    D['lv1_bc_file']  = PFM['lv1_forc_dir'] + '/' + PFM['lv1_bc_file']    
 
- #   vtransform = 2
- #   vstretching = 4
- #   D['vtransform']=vtransform
- #   D['vstretching']=vstretching
- #   D['theta_s']='8.0d0'
- #   D['theta_b']='3.0d0'
- #   D['tcline']='50.0d0'
+    D['vtransform']  = PFM['stretching']['L1','Vtransform']
+    D['vstretching'] = PFM['stretching']['L1','Vstretching']
+    D['theta_s']     = str( PFM['stretching']['L1','THETA_S'] ) + 'd0' #'8.0d0'
+    D['theta_b']     = str( PFM['stretching']['L1','THETA_B'] ) + 'd0' #'3.0d0'
+    D['tcline']      = str( PFM['stretching']['L1','TCLINE'] )  + 'd0' #'50.0d0'
 
-    D['vtransform'] = PFM['stretching']['L1','Vtransform']
-    D['vstretching']= PFM['stretching']['L1','Vstretching']
-    D['theta_s']= str( PFM['stretching']['L1','THETA_S'] ) + 'd0' #'8.0d0'
-    D['theta_b']= str( PFM['stretching']['L1','THETA_B'] ) + 'd0' #'3.0d0'
-    D['tcline']= str( PFM['stretching']['L1','TCLINE'] ) + 'd0' #'50.0d0'
-
-
-    lv1_infile_local = 'LV1_forecast_run.in'
+    lv1_infile_local  = 'LV1_forecast_run.in'
     lv1_logfile_local = 'LV1_forecast.log'
-    lv1_sbfile_local = 'LV1_SLURM.sb'
-    D['lv1_infile_local'] = lv1_infile_local
+    lv1_sbfile_local  = 'LV1_SLURM.sb'
+    D['lv1_infile_local']  = lv1_infile_local
     D['lv1_logfile_local'] = lv1_logfile_local
-    D['lv1_tides_file'] = PFM['lv1_tide_dir'] + '/' + PFM['lv1_tide_fname']
+    D['lv1_tides_file']    = PFM['lv1_tide_dir'] + '/' + PFM['lv1_tide_fname']
 
-    lv1_executable = 'LV1_oceanM'
+    lv1_executable      = 'LV1_oceanM'
     D['lv1_executable'] = PFM['lv1_run_dir'] + '/' + lv1_executable
 
-    #/scratch/PFM_Simulations/LV1_Forecast/Run/LV1_oceanM
-    #/scratch/PFM_Simulations/LV1_Forecast/Run/LV1_oceanM
-    # END DERIVED VALUES
-    dot_in_dir = '.'
+    # we assume that we are in the PFM/sdpm_py_util/ directory.
+    # might want a check to see if you are here. If not, then
+    # cd here?
+    dot_in_dir   = '.'
     blank_infile = dot_in_dir +'/' +  'LV1_BLANK.in'
     blank_sbfile = dot_in_dir +'/' +  'LV1_SLURM_BLANK.sb'
-
-    lv1_infile = D['lv1_run_dir'] + '/' + lv1_infile_local
-    lv1_sbfile = D['lv1_run_dir'] + '/' + lv1_sbfile_local
+    lv1_infile   = D['lv1_run_dir'] + '/' + lv1_infile_local
+    lv1_sbfile   = D['lv1_run_dir'] + '/' + lv1_sbfile_local
 
 
     ## create lv1_infile_local .in ##########################
-    f = open( blank_infile,'r')
+    f  = open( blank_infile,'r')
     f2 = open( lv1_infile,'w')   # change this name to be LV1_forecast_yyyymmddd_HHMMZ.in
     for line in f:
         for var in D.keys():
@@ -220,7 +136,7 @@ def  make_LV1_dotin_and_SLURM( PFM , yyyymmddhhmm):
 
 
     ## create slurb lv1 .sb file  ##########################
-    f = open( blank_sbfile,'r')
+    f  = open( blank_sbfile,'r')
     f2 = open( lv1_sbfile,'w')   # change this name to be LV1_forecast_yyyymmddd_HHMMZ.in
     for line in f:
         for var in D.keys():
