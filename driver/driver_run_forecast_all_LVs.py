@@ -19,7 +19,7 @@ from run_slurm_LV2 import run_slurm_LV2
 ##############
 # Run LV1...
 t00 = datetime.now()
-cmd_list = ['python','-W','ignore','driver_run_forecast_LV1_v4.py'] # this is in the .../PFM/driver/ directory
+cmd_list = ['python','-u','-W','ignore','driver_run_forecast_LV1_v4.py'] # this is in the .../PFM/driver/ directory
 ret1 = subprocess.run(cmd_list)
 print('return code for level 1:' + str(ret1.returncode) + ' (0=good)')  
 print('LV1 took:')
@@ -30,7 +30,7 @@ print('\n')
 ###############
 # Run LV2...
 t0 = datetime.now()
-cmd_list = ['python','-W','ignore','driver_run_LV2_v1.py'] # this is in the .../PFM/driver/ directory
+cmd_list = ['python','-u','-W','ignore','driver_run_LV2_v1.py'] # this is in the .../PFM/driver/ directory
 ret1 = subprocess.run(cmd_list)
 print('return code for level 2:' + str(ret1.returncode) + ' (0=good)')  
 print('LV2 took:')

@@ -50,7 +50,7 @@ def get_PFM_info():
    if Path(pfm_info_full).is_file():
       with open(pfm_info_full,'rb') as fp:
          PFM = pickle.load(fp)
-         print('PFM info was loaded from ' + pfm_info_full)
+         #print('PFM info was loaded from ' + pfm_info_full)
    else:         
       lo_env = 'mss_swell'
       pfm_grid_dir =  pfm_root_dir +  'Grids'       
