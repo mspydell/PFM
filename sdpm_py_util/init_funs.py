@@ -31,12 +31,11 @@ def initialize_simulation(clean_start):
                 #print('removing:')
                 #print(f)
                 os.remove(f)        
-        for dd in runl:
-            ddd = PFM['lv1_run_dir'] + dd
-            for f in glob.glob(ddd):
-                #print('removing')
-                #print(f)
-                os.remove(f)
+        for pp in ['lv1_run_dir','lv2_run_dir']:
+            for dd in runl:
+                ddd = PFM[pp] + dd
+                for f in glob.glob(ddd):
+                    os.remove(f)
 
     else:
         print('we are NOT starting clean.')
