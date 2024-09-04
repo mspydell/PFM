@@ -14,7 +14,7 @@ def initialize_simulation(clean_start):
         print('getting PFM info...')
         PFM=get_PFM_info()
 
-        dirs=[PFM['lv1_his_dir'],PFM['lv1_plot_dir'],PFM['lv1_forc_dir']] 
+        dirs=[PFM['lv1_his_dir'],PFM['lv1_plot_dir'],PFM['lv1_forc_dir'],PFM['lv2_his_dir'],PFM['lv2_plot_dir'],PFM['lv2_forc_dir']] 
 
         runl = ['/*.out','/*.sb','/*.log','/*.in']
 
@@ -43,3 +43,14 @@ def initialize_simulation(clean_start):
         print('NO files are being deleted.')        
 
 
+def remake_PFM_pkl_file():
+        print('we are remaking the PFM.pkl file...')
+        print('getting PFM info...')
+        PFM=get_PFM_info()
+
+        print('removing PFM info file...')
+        os.remove(PFM['info_file'])
+        print('now removing all input files...')
+
+        PFM=get_PFM_info()
+ 

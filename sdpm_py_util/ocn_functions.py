@@ -2894,8 +2894,8 @@ def mk_LV2_BC_dict():
         
     OCN_BC['Cs_r'] = np.squeeze(zrom.Cs_r)
 
-    OCN_BC['ocean_time'] = his_ds.variables['ocean_time'][:]
-    Nt = len( OCN_BC['ocean_time'] )
+    OCN_BC['ocean_time'] = his_ds.variables['ocean_time'][:] / (3600.0 * 24) # his.nc has time in sec past reference time.
+    Nt = len( OCN_BC['ocean_time'] )                                           # need in days past.
     OCN_BC['ocean_time_ref'] = BC1['ocean_time_ref']
 
     nlt, nln = np.shape(ltr2)
@@ -3037,11 +3037,207 @@ def mk_LV2_BC_dict():
                 OCN_BC[vn+'_north'][tind,zind,:] = z2[-1,:]
                 OCN_BC[vn+'_west'][tind,zind,:]  = z2[:,0]
 
-    fout = '/scratch/PFM_Simulations/LV2_Forecast/Forc/test_BC_LV2.pkl'
+    #fout = '/scratch/PFM_Simulations/LV2_Forecast/Forc/test_BC_LV2.pkl'
+    fout =  PFM['lv2_forc_dir'] + '/' + PFM['lv2_ocnBC_tmp_pckl_file']
+
 #    with open(LV2_BC_pckl,'wb') as fout:
     with open(fout,'wb') as fout:
         pickle.dump(OCN_BC,fout)
         print('OCN_LV2_BC dict saved with pickle')
+
+    #return OCN_BC
+    #return xi_r2, eta_r2, interp_r
+
+
+def mk_LV2_IC_dict():
+
+    PFM=get_PFM_info()    
+    G1 = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
+    G2 = grdfuns.roms_grid_to_dict(PFM['lv2_grid_file'])
+    ltr1 = G1['lat_rho']
+    lnr1 = G1['lon_rho']
+    ltr2 = G2['lat_rho']
+    lnr2 = G2['lon_rho']
+    ltu1 = G1['lat_u']
+    lnu1 = G1['lon_u']
+    ltu2 = G2['lat_u']
+    lnu2 = G2['lon_u']
+    ltv1 = G1['lat_v']
+    lnv1 = G1['lon_v']
+    ltv2 = G2['lat_v']
+    lnv2 = G2['lon_v']
+    
+ #   print(np.shape(ltr1))
+ #   print(np.shape(ltr2))
+#    LV1_BC_pckl = PFM['lv1_forc_dir'] + '/' + PFM['lv1_ocnBC_tmp_pckl_file']    
+#    LV2_BC_pckl = PFM['lv2_forc_dir'] + '/' + PFM['lv2_ocnBC_tmp_pckl_file']    
+    LV1_IC_pckl = PFM['lv1_forc_dir'] + '/' + PFM['lv1_ocnIC_tmp_pckl_file']
+
+    with open(LV1_IC_pckl,'rb') as fout:
+        IC1=pickle.load(fout)
+        print('LV1 OCN_IC dict loaded with pickle')
+
+ #   print(np.shape(IC1['zeta']))
+
+    OCN_IC = dict()
+    OCN_IC['vinfo'] = dict()
+    OCN_IC['vinfo'] = IC1['vinfo']
+
+    Nz   = PFM['stretching']['L2','Nz']                              # number of vertical levels: 40
+    Vtr  = PFM['stretching']['L2','Vtransform']                       # transformation equation: 2
+    Vst  = PFM['stretching']['L2','Vstretching']                    # stretching function: 4 
+    th_s = PFM['stretching']['L2','THETA_S']                      # surface stretching parameter: 8
+    th_b = PFM['stretching']['L2','THETA_B']                      # bottom  stretching parameter: 3
+    Tcl  = PFM['stretching']['L2','TCLINE']                      # critical depth (m): 50
+    hc   = PFM['stretching']['L2','hc']
+
+    OCN_IC['Nz'] = np.squeeze(Nz)
+    OCN_IC['Vtr'] = np.squeeze(Vtr)
+    OCN_IC['Vst'] = np.squeeze(Vst)
+    OCN_IC['th_s'] = np.squeeze(th_s)
+    OCN_IC['th_b'] = np.squeeze(th_b)
+    OCN_IC['Tcl'] = np.squeeze(Tcl)
+    OCN_IC['hc'] = np.squeeze(hc)
+
+    hraw = None
+    if Vst == 4:
+        zrom = s_coordinate_4(G1['h'], th_b , th_s , Tcl , Nz, hraw=hraw, zeta=np.squeeze(IC1['zeta'][0,:,:]))
+        
+    OCN_IC['Cs_r'] = np.squeeze(zrom.Cs_r)
+
+    OCN_IC['ocean_time']     = IC1['ocean_time']
+    OCN_IC['ocean_time_ref'] = IC1['ocean_time_ref']
+
+    OCN_IC['lat_rho'] = ltr2
+    OCN_IC['lon_rho'] = lnr2
+    OCN_IC['lat_u']   = ltu2
+    OCN_IC['lon_u']   = lnu2
+    OCN_IC['lat_v']   = ltv2
+    OCN_IC['lon_v']   = lnv2
+
+    nlt, nln = np.shape(ltr2)
+    OCN_IC['temp'] = np.zeros((1,Nz,nlt,nln))
+    OCN_IC['salt'] = np.zeros((1,Nz,nlt,nln))
+    OCN_IC['u'] = np.zeros((1,Nz,nlt,nln-1))
+    OCN_IC['v'] = np.zeros((1,Nz,nlt-1,nln))
+    OCN_IC['zeta'] = np.zeros((1,nlt,nln))
+    OCN_IC['ubar'] = np.zeros((1,nlt,nln-1))
+    OCN_IC['vbar'] = np.zeros((1,nlt-1,nln))
+
+    # get (x,y) grids, note zi = interp_r( (eta,xi) )
+    xi_r2, eta_r2, interp_r = get_child_xi_eta_interp(lnr1,ltr1,lnr2,ltr2)
+    xi_u2, eta_u2, interp_u = get_child_xi_eta_interp(lnu1,ltu1,lnu2,ltu2)
+    xi_v2, eta_v2, interp_v = get_child_xi_eta_interp(lnv1,ltv1,lnv2,ltv2)
+
+    # get nearest indices, from bad indices, so that land can be filled
+    indr = get_indices_to_fill(G1['mask_rho'])
+    indu = get_indices_to_fill(G1['mask_u'])
+    indv = get_indices_to_fill(G1['mask_v'])
+
+    # bookkeeping so that everything needed for each variable is associated with that variable
+    v_list1 = ['zeta','ubar','vbar']
+    v_list2 = ['temp','salt','u','v']
+
+    msk_d1 = dict()
+    msk_d1['zeta'] = G1['mask_rho']
+    msk_d1['ubar'] = G1['mask_u']
+    msk_d1['vbar'] = G1['mask_v']
+    msk_d2 = dict()
+    msk_d2['temp'] = G1['mask_rho']
+    msk_d2['salt'] = G1['mask_rho']
+    msk_d2['u']    = G1['mask_u']
+    msk_d2['v']    = G1['mask_v']
+
+    msk2_d1 = dict()
+    msk2_d1['zeta'] = G2['mask_rho']
+    msk2_d1['ubar'] = G2['mask_u']
+    msk2_d1['vbar'] = G2['mask_v']
+    msk2_d2 = dict()
+    msk2_d2['temp'] = G2['mask_rho']
+    msk2_d2['salt'] = G2['mask_rho']
+    msk2_d2['u']    = G2['mask_u']
+    msk2_d2['v']    = G2['mask_v']
+
+
+    ind_d1 = dict()
+    ind_d1['zeta'] = indr
+    ind_d1['ubar'] = indu
+    ind_d1['vbar'] = indv
+    ind_d2 = dict()
+    ind_d2['temp'] = indr
+    ind_d2['salt'] = indr
+    ind_d2['u']    = indu
+    ind_d2['v']    = indv
+
+    lat_d1 = dict()
+    lat_d1['zeta'] = eta_r2
+    lat_d1['ubar'] = eta_u2
+    lat_d1['vbar'] = eta_v2
+    lat_d2 = dict()
+    lat_d2['temp'] = eta_r2
+    lat_d2['salt'] = eta_r2
+    lat_d2['u']    = eta_u2
+    lat_d2['v']    = eta_v2
+
+    lon_d1 = dict()
+    lon_d1['zeta'] = xi_r2
+    lon_d1['ubar'] = xi_u2
+    lon_d1['vbar'] = xi_v2
+    lon_d2 = dict()
+    lon_d2['temp'] = xi_r2
+    lon_d2['salt'] = xi_r2
+    lon_d2['u']    = xi_u2
+    lon_d2['v']    = xi_v2
+
+    intf_d1 = dict()
+    intf_d1['zeta'] = interp_r
+    intf_d1['ubar'] = interp_u
+    intf_d1['vbar'] = interp_v
+    intf_d2 = dict()
+    intf_d2['temp'] = interp_r
+    intf_d2['salt'] = interp_r
+    intf_d2['u']    = interp_u
+    intf_d2['v']    = interp_v
+    
+    for vn in v_list1: # loop through all 2d variables
+   #     print(vn)
+        msk = msk_d1[vn] # get mask on LV1
+        msk2 = msk2_d1[vn] # get mask on LV2
+        ind = ind_d1[vn] # get indices so that land can be filled with nearest neighbor
+        xx2 = lon_d1[vn] # get xi_LV2 on LV1
+        yy2 = lat_d1[vn] # get eta_LV2 on LV1, to use with the interpolator
+        interpfun = intf_d1[vn]
+        tind = 0
+        z0 = np.squeeze(IC1[vn][tind,:,:] )
+    #    print(np.shape(z0))
+        z0[msk==0] = z0[msk==1][ind] # fill the mask with nearest neighbor
+        setattr(interpfun,'values',z0) # change the interpolator z values
+        z2 = interpfun((yy2,xx2)) # perhaps change here to directly interpolate to (xi,eta) on the edges?
+        z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the land
+        OCN_IC[vn][tind,:,:] = z2[:,:] # fill correctly
+ 
+    for vn in v_list2:
+        msk = msk_d2[vn]
+        msk2 = msk2_d2[vn]
+        ind = ind_d2[vn]
+        xx2 = lon_d2[vn]
+        yy2 = lat_d2[vn]
+        interpfun = intf_d2[vn]
+        tind = 0
+        for zind in np.arange(Nz):
+            z0 = np.squeeze( IC1[vn][tind,zind,:,:] )
+            z0[msk==0] = z0[msk==1][ind]
+            setattr(interpfun,'values',z0)
+            z2 = interpfun((yy2,xx2))
+            z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the mask
+            OCN_IC[vn][tind,zind,:,:] = z2[:,:]
+                
+    fout = PFM['lv2_forc_dir'] + '/' + PFM['lv2_ocnIC_tmp_pckl_file']
+    #fout = '/scratch/PFM_Simulations/LV2_Forecast/Forc/test_IC_LV2.pkl'
+#    with open(LV2_BC_pckl,'wb') as fout:
+    with open(fout,'wb') as fout:
+        pickle.dump(OCN_IC,fout)
+        print('OCN_LV2_IC dict saved with pickle')
 
     #return OCN_BC
     #return xi_r2, eta_r2, interp_r

@@ -1218,7 +1218,7 @@ def plot_ocn_ic_fields(filepath, fields_to_plot=None, time_index=0, depth_index=
             plt.close()
     nc.close()
 
-def plot_ssh_his_tseries_v2(fn,Ix,Iy,sv_fig):
+def plot_ssh_his_tseries_v2(fn,Ix,Iy,sv_fig,lvl):
 
     his_ds = nc.Dataset(fn)
 
@@ -1230,7 +1230,10 @@ def plot_ssh_his_tseries_v2(fn,Ix,Iy,sv_fig):
     lt = his_ds.variables['lat_rho'][:]
     ln = his_ds.variables['lon_rho'][:]
     hb = his_ds.variables['h'][:]
-    plevs = np.arange(-4800, 0, 20)
+    if lvl == 'LV1':
+        plevs = np.arange(-4800, 0, 20)
+    elif lvl == 'LV2':
+        plevs = np.arange(-2400, -9, 1)
     cmap = plt.get_cmap('viridis')
     cset = ax1.contourf(ln, lt, -hb, plevs, cmap=cmap, transform=ccrs.PlateCarree())
     plt.set_cmap(cmap)
@@ -1238,7 +1241,11 @@ def plot_ssh_his_tseries_v2(fn,Ix,Iy,sv_fig):
     for a in range(len(Ix)):
         ax1.plot(ln[Iy[a],Ix[a]],lt[Iy[a],Ix[a]],'ro', transform=ccrs.PlateCarree())
 
-    ax1.set_title('ROMS LV1 bathymetry')
+    if lvl == 'LV1':
+        ax1.set_title('ROMS LV1 bathymetry')
+    elif lvl == 'LV2':
+        ax1.set_title('ROMS LV2 bathymetry')
+
     ax1.add_feature(cfeature.LAND)
     ax1.add_feature(cfeature.BORDERS)
     ax1.add_feature(cfeature.COASTLINE, linewidth = 2.0)    
@@ -1275,7 +1282,13 @@ def plot_ssh_his_tseries_v2(fn,Ix,Iy,sv_fig):
     ax2.set_ylabel('Sea Surface Height (m)')
     if sv_fig == 1:
         PFM=get_PFM_info()
-        fn_out = PFM['lv1_plot_dir'] + '/his_ssh_tseries_' + PFM['yyyymmdd'] + PFM['hhmm'] + '.png'
+        if lvl == 'LV1':
+            fn_out = PFM['lv1_plot_dir'] + '/his_ssh_tseries_LV1_' + PFM['yyyymmdd'] + PFM['hhmm'] + '.png'
+        elif lvl == 'LV2':
+            fn_out = PFM['lv2_plot_dir'] + '/his_ssh_tseries_LV2_' + PFM['yyyymmdd'] + PFM['hhmm'] + '.png'
+        elif lvl == 'LV3':
+            fn_out = PFM['lv3_plot_dir'] + '/his_ssh_tseries_LV3_' + PFM['yyyymmdd'] + PFM['hhmm'] + '.png'
+
         plt.savefig(fn_out, dpi=300)
     else:
         plt.show()
@@ -1343,10 +1356,13 @@ def plot_roms_LV1_bathy_and_locs(fn,Ix,Iy,sv_fig):
         plt.show()
 
 
-def plot_his_temps_wuv(fn,It,Iz,sv_fig):
+def plot_his_temps_wuv(fn,It,Iz,sv_fig,lvl):
 
     PFM=get_PFM_info()
-    RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
+    if lvl == 'LV1':
+        RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
+    elif lvl == 'LV2':
+        RMG = grdfuns.roms_grid_to_dict(PFM['lv2_grid_file'])
 
     his_ds = nc.Dataset(fn)
     lt = his_ds.variables['lat_rho'][:]
@@ -1399,7 +1415,13 @@ def plot_his_temps_wuv(fn,It,Iz,sv_fig):
     ax.set_yticks(np.round(np.linspace(np.min(lt), np.max(lt), num=5), 2))
 
     if sv_fig == 1:
-        fn_out = PFM['lv1_plot_dir'] + '/his_tempuv_' + PFM['yyyymmdd'] + PFM['hhmm'] + '_' + str(It) + 'hr.png'
+        if lvl == 'LV1':
+            fn_out = PFM['lv1_plot_dir'] + '/his_tempuv_LV1_' + PFM['yyyymmdd'] + PFM['hhmm'] + '_' + str(It) + 'hr.png'
+        elif lvl == 'LV2':            
+            fn_out = PFM['lv2_plot_dir'] + '/his_tempuv_LV2_' + PFM['yyyymmdd'] + PFM['hhmm'] + '_' + str(It) + 'hr.png'
+        elif lvl == 'LV3':            
+            fn_out = PFM['lv3_plot_dir'] + '/his_tempuv_LV3_' + PFM['yyyymmdd'] + PFM['hhmm'] + '_' + str(It) + 'hr.png'
+        
         plt.savefig(fn_out, dpi=300)
     else:
         plt.show()
@@ -1413,12 +1435,31 @@ def make_all_his_figures(lvl):
         Ix = np.array([175,240])
         Iy = np.array([175,170])
         It = 0
+    elif lvl == 'LV2':
+        fn = PFM['lv2_his_name_full']
+        Ix = np.array([175,240])
+        Iy = np.array([175,170])
+        It = 0
+    elif lvl == 'LV3':
+        fn = PFM['lv2_his_name_full']
+        Ix = np.array([175,240])
+        Iy = np.array([175,170])
+        It = 0
+
 
     #plot_roms_LV1_bathy_and_locs(fn,Ix,Iy,sv_fig)
     #plot_ssh_his_tseries(fn,Ix,Iy,sv_fig)
-    plot_ssh_his_tseries_v2(fn,Ix,Iy,sv_fig)
-    plot_his_temps_wuv(fn,It,iz,sv_fig)
-    plot_his_temps_wuv(fn,It+24,iz,sv_fig)  # 24h forecast
-    plot_his_temps_wuv(fn,It+48,iz,sv_fig)  # 48h forecast
-    plot_his_temps_wuv(fn,It+60,iz,sv_fig)  # 60 h forecast
+    plot_ssh_his_tseries_v2(fn,Ix,Iy,sv_fig,lvl)
+    plot_his_temps_wuv(fn,It,iz,sv_fig,lvl)
+    plot_his_temps_wuv(fn,It+24,iz,sv_fig,lvl)  # 24h forecast
+    plot_his_temps_wuv(fn,It+48,iz,sv_fig,lvl)  # 48h forecast
+    plot_his_temps_wuv(fn,It+60,iz,sv_fig,lvl)  # 60 h forecast
+
+
+if __name__ == "__main__":
+    args = sys.argv
+    # args[0] = current file
+    # args[1] = function name
+    # args[2:] = function args : (*unpacked)
+    globals()[args[1]](*args[2:])
 
