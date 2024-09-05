@@ -2840,11 +2840,49 @@ def get_indices_to_fill(gr_msk):
 
         return aa 
 
-def mk_LV2_BC_dict():
+def mk_LV2_BC_dict(lvl):
 
-    PFM=get_PFM_info()    
-    G1 = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
-    G2 = grdfuns.roms_grid_to_dict(PFM['lv2_grid_file'])
+    PFM=get_PFM_info()
+    if lvl == '2':
+        G1 = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
+        G2 = grdfuns.roms_grid_to_dict(PFM['lv2_grid_file'])
+        fn = PFM['lv1_his_name_full']
+        LV1_BC_pckl = PFM['lv1_forc_dir'] + '/' + PFM['lv1_ocnBC_tmp_pckl_file']    
+        Nz   = PFM['stretching']['L2','Nz']                              # number of vertical levels: 40
+        Vtr  = PFM['stretching']['L2','Vtransform']                       # transformation equation: 2
+        Vst  = PFM['stretching']['L2','Vstretching']                    # stretching function: 4 
+        th_s = PFM['stretching']['L2','THETA_S']                      # surface stretching parameter: 8
+        th_b = PFM['stretching']['L2','THETA_B']                      # bottom  stretching parameter: 3
+        Tcl  = PFM['stretching']['L2','TCLINE']                      # critical depth (m): 50
+        hc   = PFM['stretching']['L2','hc']
+        fn_out =  PFM['lv2_forc_dir'] + '/' + PFM['lv2_ocnBC_tmp_pckl_file']
+    elif lvl == '3':
+        G1 = grdfuns.roms_grid_to_dict(PFM['lv2_grid_file'])
+        G2 = grdfuns.roms_grid_to_dict(PFM['lv3_grid_file'])
+        fn = PFM['lv2_his_name_full']
+        LV1_BC_pckl = PFM['lv2_forc_dir'] + '/' + PFM['lv2_ocnBC_tmp_pckl_file']    
+        Nz   = PFM['stretching']['L3','Nz']                              # number of vertical levels: 40
+        Vtr  = PFM['stretching']['L3','Vtransform']                       # transformation equation: 2
+        Vst  = PFM['stretching']['L3','Vstretching']                    # stretching function: 4 
+        th_s = PFM['stretching']['L3','THETA_S']                      # surface stretching parameter: 8
+        th_b = PFM['stretching']['L3','THETA_B']                      # bottom  stretching parameter: 3
+        Tcl  = PFM['stretching']['L3','TCLINE']                      # critical depth (m): 50
+        hc   = PFM['stretching']['L3','hc']
+        fn_out =  PFM['lv3_forc_dir'] + '/' + PFM['lv3_ocnBC_tmp_pckl_file']
+    elif lvl == '4':
+        G1 = grdfuns.roms_grid_to_dict(PFM['lv3_grid_file'])
+        G2 = grdfuns.roms_grid_to_dict(PFM['lv4_grid_file'])
+        fn = PFM['lv3_his_name_full']
+        LV1_BC_pckl = PFM['lv3_forc_dir'] + '/' + PFM['lv3_ocnBC_tmp_pckl_file']    
+        Nz   = PFM['stretching']['L4','Nz']                              # number of vertical levels: 40
+        Vtr  = PFM['stretching']['L4','Vtransform']                       # transformation equation: 2
+        Vst  = PFM['stretching']['L4','Vstretching']                    # stretching function: 4 
+        th_s = PFM['stretching']['L4','THETA_S']                      # surface stretching parameter: 8
+        th_b = PFM['stretching']['L4','THETA_B']                      # bottom  stretching parameter: 3
+        Tcl  = PFM['stretching']['L4','TCLINE']                      # critical depth (m): 50
+        hc   = PFM['stretching']['L4','hc']
+        fn_out =  PFM['lv4_forc_dir'] + '/' + PFM['lv4_ocnBC_tmp_pckl_file']
+
     ltr1 = G1['lat_rho']
     lnr1 = G1['lon_rho']
     ltr2 = G2['lat_rho']
@@ -2858,27 +2896,15 @@ def mk_LV2_BC_dict():
     ltv2 = G2['lat_v']
     lnv2 = G2['lon_v']
 
-    fn = PFM['lv1_his_name_full']
     his_ds = nc.Dataset(fn)
     
-    LV1_BC_pckl = PFM['lv1_forc_dir'] + '/' + PFM['lv1_ocnBC_tmp_pckl_file']    
-#    LV2_BC_pckl = PFM['lv2_forc_dir'] + '/' + PFM['lv2_ocnBC_tmp_pckl_file']    
-
     with open(LV1_BC_pckl,'rb') as fout:
         BC1=pickle.load(fout)
-        print('OCN_LV1_BC dict loaded with pickle')
+        print('OCN_LV' + str(int(lvl)-1) + '_BC dict loaded with pickle')
 
     OCN_BC = dict()
     OCN_BC['vinfo'] = dict()
     OCN_BC['vinfo'] = BC1['vinfo']
-
-    Nz   = PFM['stretching']['L2','Nz']                              # number of vertical levels: 40
-    Vtr  = PFM['stretching']['L2','Vtransform']                       # transformation equation: 2
-    Vst  = PFM['stretching']['L2','Vstretching']                    # stretching function: 4 
-    th_s = PFM['stretching']['L2','THETA_S']                      # surface stretching parameter: 8
-    th_b = PFM['stretching']['L2','THETA_B']                      # bottom  stretching parameter: 3
-    Tcl  = PFM['stretching']['L2','TCLINE']                      # critical depth (m): 50
-    hc   = PFM['stretching']['L2','hc']
 
     OCN_BC['Nz'] = np.squeeze(Nz)
     OCN_BC['Vtr'] = np.squeeze(Vtr)
@@ -3037,23 +3063,59 @@ def mk_LV2_BC_dict():
                 OCN_BC[vn+'_north'][tind,zind,:] = z2[-1,:]
                 OCN_BC[vn+'_west'][tind,zind,:]  = z2[:,0]
 
-    #fout = '/scratch/PFM_Simulations/LV2_Forecast/Forc/test_BC_LV2.pkl'
-    fout =  PFM['lv2_forc_dir'] + '/' + PFM['lv2_ocnBC_tmp_pckl_file']
 
-#    with open(LV2_BC_pckl,'wb') as fout:
-    with open(fout,'wb') as fout:
+    with open(fn_out,'wb') as fout:
         pickle.dump(OCN_BC,fout)
-        print('OCN_LV2_BC dict saved with pickle')
+        print('OCN_LV',lvl,'_BC dict saved with pickle to: ',fn_out)
 
     #return OCN_BC
     #return xi_r2, eta_r2, interp_r
 
 
-def mk_LV2_IC_dict():
+def mk_LV2_IC_dict(lvl):
 
     PFM=get_PFM_info()    
-    G1 = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
-    G2 = grdfuns.roms_grid_to_dict(PFM['lv2_grid_file'])
+    if lvl == '2':
+        G1 = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
+        G2 = grdfuns.roms_grid_to_dict(PFM['lv2_grid_file'])
+        fn = PFM['lv1_his_name_full']
+        LV1_IC_pckl = PFM['lv1_forc_dir'] + '/' + PFM['lv1_ocnIC_tmp_pckl_file']
+        Nz   = PFM['stretching']['L2','Nz']                              # number of vertical levels: 40
+        Vtr  = PFM['stretching']['L2','Vtransform']                       # transformation equation: 2
+        Vst  = PFM['stretching']['L2','Vstretching']                    # stretching function: 4 
+        th_s = PFM['stretching']['L2','THETA_S']                      # surface stretching parameter: 8
+        th_b = PFM['stretching']['L2','THETA_B']                      # bottom  stretching parameter: 3
+        Tcl  = PFM['stretching']['L2','TCLINE']                      # critical depth (m): 50
+        hc   = PFM['stretching']['L2','hc']
+        fn_out = PFM['lv2_forc_dir'] + '/' + PFM['lv2_ocnIC_tmp_pckl_file']
+    elif lvl == '3':
+        G1 = grdfuns.roms_grid_to_dict(PFM['lv2_grid_file'])
+        G2 = grdfuns.roms_grid_to_dict(PFM['lv3_grid_file'])
+        fn = PFM['lv2_his_name_full']
+        LV1_IC_pckl = PFM['lv2_forc_dir'] + '/' + PFM['lv2_ocnIC_tmp_pckl_file']
+        Nz   = PFM['stretching']['L3','Nz']                              # number of vertical levels: 40
+        Vtr  = PFM['stretching']['L3','Vtransform']                       # transformation equation: 2
+        Vst  = PFM['stretching']['L3','Vstretching']                    # stretching function: 4 
+        th_s = PFM['stretching']['L3','THETA_S']                      # surface stretching parameter: 8
+        th_b = PFM['stretching']['L3','THETA_B']                      # bottom  stretching parameter: 3
+        Tcl  = PFM['stretching']['L3','TCLINE']                      # critical depth (m): 50
+        hc   = PFM['stretching']['L3','hc']
+        fn_out = PFM['lv3_forc_dir'] + '/' + PFM['lv3_ocnIC_tmp_pckl_file']
+    elif lvl == '4':
+        G1 = grdfuns.roms_grid_to_dict(PFM['lv3_grid_file'])
+        G2 = grdfuns.roms_grid_to_dict(PFM['lv4_grid_file'])
+        fn = PFM['lv3_his_name_full']
+        LV1_IC_pckl = PFM['lv3_forc_dir'] + '/' + PFM['lv3_ocnIC_tmp_pckl_file']
+        Nz   = PFM['stretching']['L4','Nz']                              # number of vertical levels: 40
+        Vtr  = PFM['stretching']['L4','Vtransform']                       # transformation equation: 2
+        Vst  = PFM['stretching']['L4','Vstretching']                    # stretching function: 4 
+        th_s = PFM['stretching']['L4','THETA_S']                      # surface stretching parameter: 8
+        th_b = PFM['stretching']['L4','THETA_B']                      # bottom  stretching parameter: 3
+        Tcl  = PFM['stretching']['L4','TCLINE']                      # critical depth (m): 50
+        hc   = PFM['stretching']['L4','hc']
+        fn_out = PFM['lv4_forc_dir'] + '/' + PFM['lv4_ocnIC_tmp_pckl_file']
+    
+    
     ltr1 = G1['lat_rho']
     lnr1 = G1['lon_rho']
     ltr2 = G2['lat_rho']
@@ -3067,29 +3129,16 @@ def mk_LV2_IC_dict():
     ltv2 = G2['lat_v']
     lnv2 = G2['lon_v']
     
- #   print(np.shape(ltr1))
- #   print(np.shape(ltr2))
-#    LV1_BC_pckl = PFM['lv1_forc_dir'] + '/' + PFM['lv1_ocnBC_tmp_pckl_file']    
-#    LV2_BC_pckl = PFM['lv2_forc_dir'] + '/' + PFM['lv2_ocnBC_tmp_pckl_file']    
-    LV1_IC_pckl = PFM['lv1_forc_dir'] + '/' + PFM['lv1_ocnIC_tmp_pckl_file']
 
     with open(LV1_IC_pckl,'rb') as fout:
         IC1=pickle.load(fout)
-        print('LV1 OCN_IC dict loaded with pickle')
+        print('LV'+str(int(lvl)-1)+'OCN_IC dict loaded with pickle')
 
  #   print(np.shape(IC1['zeta']))
 
     OCN_IC = dict()
     OCN_IC['vinfo'] = dict()
     OCN_IC['vinfo'] = IC1['vinfo']
-
-    Nz   = PFM['stretching']['L2','Nz']                              # number of vertical levels: 40
-    Vtr  = PFM['stretching']['L2','Vtransform']                       # transformation equation: 2
-    Vst  = PFM['stretching']['L2','Vstretching']                    # stretching function: 4 
-    th_s = PFM['stretching']['L2','THETA_S']                      # surface stretching parameter: 8
-    th_b = PFM['stretching']['L2','THETA_B']                      # bottom  stretching parameter: 3
-    Tcl  = PFM['stretching']['L2','TCLINE']                      # critical depth (m): 50
-    hc   = PFM['stretching']['L2','hc']
 
     OCN_IC['Nz'] = np.squeeze(Nz)
     OCN_IC['Vtr'] = np.squeeze(Vtr)
@@ -3232,12 +3281,11 @@ def mk_LV2_IC_dict():
             z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the mask
             OCN_IC[vn][tind,zind,:,:] = z2[:,:]
                 
-    fout = PFM['lv2_forc_dir'] + '/' + PFM['lv2_ocnIC_tmp_pckl_file']
     #fout = '/scratch/PFM_Simulations/LV2_Forecast/Forc/test_IC_LV2.pkl'
 #    with open(LV2_BC_pckl,'wb') as fout:
-    with open(fout,'wb') as fout:
+    with open(fn_out,'wb') as fout:
         pickle.dump(OCN_IC,fout)
-        print('OCN_LV2_IC dict saved with pickle')
+        print('OCN_LV'+lvl+'_IC dict saved with pickle')
 
     #return OCN_BC
     #return xi_r2, eta_r2, interp_r

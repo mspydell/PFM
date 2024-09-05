@@ -75,7 +75,7 @@ print('\n')
 t1 = datetime.now()
 print('driver_run_forcast_LV2: saving LV2_OCN_BC pickle file')
 os.chdir('../sdpm_py_util')
-cmd_list = ['python','-W','ignore','ocn_functions.py','mk_LV2_BC_dict']
+cmd_list = ['python','-W','ignore','ocn_functions.py','mk_LV2_BC_dict',str(level)]
 ret5 = subprocess.run(cmd_list)   
 print('return code: ' + str(ret5.returncode) + ' (0=good)')  
 os.chdir('../sdpm_py_util')
@@ -105,7 +105,7 @@ print('\n')
 t1=datetime.now()
 print('driver_run_forcast_LV2: making and saving LV2_OCN_IC pickle file')
 os.chdir('../sdpm_py_util')
-cmd_list = ['python','-W','ignore','ocn_functions.py','mk_LV2_IC_dict']
+cmd_list = ['python','-W','ignore','ocn_functions.py','mk_LV2_IC_dict',str(level)]
 ret5 = subprocess.run(cmd_list)   
 print('return code: ' + str(ret5.returncode) + ' (0=good)')  
 os.chdir('../sdpm_py_util')

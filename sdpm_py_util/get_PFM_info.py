@@ -137,6 +137,14 @@ def get_PFM_info():
       SS['L2','TCLINE']      = 50.0                    # critical depth (m)
       SS['L2','hc']          = 50.0 
 
+      SS['L3','Nz']          = 40
+      SS['L3','Vtransform']  = 2                       # transformation equation
+      SS['L3','Vstretching'] = 4                       # stretching function
+      SS['L3','THETA_S']     = 8.0                     # surface stretching parameter
+      SS['L3','THETA_B']     = 3.0                     # bottom  stretching parameter
+      SS['L3','TCLINE']      = 50.0                    # critical depth (m)
+      SS['L3','hc']          = 50.0 
+
       LLB = dict()
       LLB['L1'] = get_llbox(lv1_grid_file)
       LLB['L2'] = get_llbox(lv2_grid_file)
