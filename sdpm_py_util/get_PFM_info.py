@@ -54,23 +54,35 @@ def get_PFM_info():
    else:         
       # set up the dict that will be saved
       PFM = dict()
-      PFM['pfm_info_full'] = pfm_info_full
+      PFM['info_file'] = pfm_info_full
+
       lo_env = 'mss_swell'
       pfm_grid_dir =  pfm_root_dir +  'Grids'       
       lv1_root_dir =  pfm_root_dir +  'LV1_Forecast/'
       lv2_root_dir =  pfm_root_dir +  'LV2_Forecast/'
+      lv3_root_dir =  pfm_root_dir +  'LV3_Forecast/'
+      lv4_root_dir =  pfm_root_dir +  'LV4_Forecast/'
  
-      lv1_run_dir = lv1_root_dir + 'Run'
-      lv1_his_dir = lv1_root_dir + 'His'
+      lv1_run_dir  = lv1_root_dir + 'Run'
+      lv1_his_dir  = lv1_root_dir + 'His'
       lv1_forc_dir = lv1_root_dir + 'Forc'
       lv1_tide_dir = lv1_root_dir + 'Tides'
       lv1_plot_dir = lv1_root_dir + 'Plots'          
 
-      lv2_run_dir = lv2_root_dir + 'Run'
-      lv2_his_dir = lv2_root_dir + 'His'
+      lv2_run_dir  = lv2_root_dir + 'Run'
+      lv2_his_dir  = lv2_root_dir + 'His'
       lv2_forc_dir = lv2_root_dir + 'Forc'
       lv2_plot_dir = lv2_root_dir + 'Plots'          
 
+      lv3_run_dir  = lv3_root_dir + 'Run'
+      lv3_his_dir  = lv3_root_dir + 'His'
+      lv3_forc_dir = lv3_root_dir + 'Forc'
+      lv3_plot_dir = lv3_root_dir + 'Plots'          
+
+      lv4_run_dir  = lv4_root_dir + 'Run'
+      lv4_his_dir  = lv4_root_dir + 'His'
+      lv4_forc_dir = lv4_root_dir + 'Forc'
+      lv4_plot_dir = lv4_root_dir + 'Plots'          
 
       
    # defaults that should work on all machines
@@ -79,6 +91,7 @@ def get_PFM_info():
       lv1_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV1_rx020_hmask.nc'
       lv2_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV2_rx020.nc'
       lv3_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV3_rx020.nc'
+      lv4_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV4_rx020.nc'
    #   if str(HOSTNAME) == 'swell':
    #       lv1_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV1_rx020_hmask.nc'
    #   else:
@@ -128,6 +141,7 @@ def get_PFM_info():
       LLB['L1'] = get_llbox(lv1_grid_file)
       LLB['L2'] = get_llbox(lv2_grid_file)
       LLB['L3'] = get_llbox(lv3_grid_file)
+      #LLB['L4'] = get_llbox(lv4_grid_file)
 
 
    # gridding info
@@ -146,14 +160,26 @@ def get_PFM_info():
       NN['L2','np'] = NN['L2','ntilei'] * NN['L2','ntilej'] # total number of processors
       NN['L2','nnodes'] = 3    # number of nodes to be used.  not for .in file but for slurm!
 
+      NN['L3','Lm']  = 249     # Lm in input file
+      NN['L3','Mm']  = 411     # Mm in input file
+      NN['L3','ntilei'] = 6    # number of tiles in I-direction
+      NN['L3','ntilej'] = 18   # number of tiles in J-direction
+      NN['L3','np'] = NN['L2','ntilei'] * NN['L2','ntilej'] # total number of processors
+      NN['L3','nnodes'] = 3    # number of nodes to be used.  not for .infile but for slurm!
+
    # timing info
       tt=dict()
       tt['L1','dtsec'] = 60
       tt['L1','ndtfast'] = 15
       tt['L1','forecast_days'] = 2.5
+      
       tt['L2','dtsec'] = 30
       tt['L2','ndtfast'] = 15
       tt['L2','forecast_days'] = 2.5
+      
+      tt['L3','dtsec'] = 15
+      tt['L3','ndtfast'] = 15
+      tt['L3','forecast_days'] = 2.5
 
    # output info
       OP = dict()
@@ -161,53 +187,78 @@ def get_PFM_info():
       OP['L1','rst_interval'] = 0.5  # how often in days, a restart file is made.
       OP['L2','his_interval'] = 3600 # how often in sec outut is written to his.nc
       OP['L2','rst_interval'] = 0.5  # how often in days, a restart file is made. 
+      OP['L3','his_interval'] = 3600 # how often in sec outut is written to his.nc
+      OP['L3','rst_interval'] = 0.5  # how often in days, a restart file is made. 
 
       PFM['run_type'] = run_type
 
       # first the environment
       PFM['lo_env'] = lo_env
       PFM['parent'] = parent
-      PFM['lv1_run_dir'] = lv1_run_dir
+      PFM['lv1_run_dir']  = lv1_run_dir
       PFM['lv1_forc_dir'] = lv1_forc_dir
       PFM['lv1_tide_dir'] = lv1_tide_dir   
       PFM['lv1_grid_dir'] = pfm_grid_dir
-      PFM['lv1_his_dir'] = lv1_his_dir
+      PFM['lv1_his_dir']  = lv1_his_dir
       PFM['lv1_plot_dir'] = lv1_plot_dir         
 
-      PFM['lv2_run_dir'] = lv2_run_dir
+      PFM['lv2_run_dir']  = lv2_run_dir
       PFM['lv2_forc_dir'] = lv2_forc_dir
       PFM['lv2_grid_dir'] = pfm_grid_dir
-      PFM['lv2_his_dir'] = lv2_his_dir
+      PFM['lv2_his_dir']  = lv2_his_dir
       PFM['lv2_plot_dir'] = lv2_plot_dir         
-      
+
+      PFM['lv3_run_dir']  = lv3_run_dir
+      PFM['lv3_forc_dir'] = lv3_forc_dir
+      PFM['lv3_grid_dir'] = pfm_grid_dir
+      PFM['lv3_his_dir']  = lv3_his_dir
+      PFM['lv3_plot_dir'] = lv3_plot_dir         
+
+      PFM['lv4_run_dir']  = lv4_run_dir
+      PFM['lv4_forc_dir'] = lv4_forc_dir
+      PFM['lv4_grid_dir'] = pfm_grid_dir
+      PFM['lv4_his_dir']  = lv4_his_dir
+      PFM['lv4_plot_dir'] = lv4_plot_dir         
+  
       PFM['lv1_grid_file'] = lv1_grid_file
       PFM['lv2_grid_file'] = lv2_grid_file
       PFM['lv3_grid_file'] = lv3_grid_file
+      PFM['lv4_grid_file'] = lv4_grid_file
 
+      PFM['lv1_tide_fname']          = 'roms_tide_adcirc_LV01.nc'
+      PFM['atm_tmp_pckl_file']       = 'atm_tmp_pckl_file.pkl'
       PFM['lv1_depth_file']          = 'roms_tmp_depth_file.pkl' 
       PFM['lv1_ocn_tmp_pckl_file']   = 'hycom_tmp_pckl_file.pkl' 
       PFM['lv1_ocnR_tmp_pckl_file']  = 'ocnR_temp_pckl_file.pkl'
       PFM['lv1_ocnIC_tmp_pckl_file'] = 'ocnIC_tmp_pckl_file.pkl'
-      PFM['lv2_ocnIC_tmp_pckl_file'] = 'ocnIC_LV2_tmp_pckl_file.pkl'   
-      PFM['lv1_ocnBC_tmp_pckl_file'] = 'ocnBC_tmp_pckl_file.pkl'
-      PFM['lv2_ocnBC_tmp_pckl_file'] = 'BC_LV2_tmp_file.pkl'
       PFM['lv1_ocn_tmp_nck_file']    = 'hycom_tmp_ncks_file.nc'
-      PFM['atm_tmp_pckl_file']       = 'atm_tmp_pckl_file.pkl'
+      PFM['lv1_ocnBC_tmp_pckl_file'] = 'ocnBC_tmp_pckl_file.pkl'
       PFM['atm_tmp_LV1_pckl_file']   = 'atm_tmp_LV1_pckl_file.pkl'
-      PFM['atm_tmp_LV2_pckl_file']   = 'atm_tmp_LV2_pckl_file.pkl'
-      PFM['atm_tmp_LV3_pckl_file']   = 'atm_tmp_LV3_pckl_file.pkl'
-      PFM['atm_tmp_LV4_pckl_file']   = 'atm_tmp_LV4_pckl_file.pkl'
       PFM['lv1_atm_file']            = 'LV1_ATM_FORCING.nc'
       PFM['lv1_ini_file']            = 'LV1_OCEAN_IC.nc'
       PFM['lv1_bc_file']             = 'LV1_OCEAN_BC.nc'   
+
+      PFM['lv2_ocnIC_tmp_pckl_file'] = 'ocnIC_LV2_tmp_pckl_file.pkl'   
+      PFM['lv2_ocnBC_tmp_pckl_file'] = 'BC_LV2_tmp_file.pkl'
+      PFM['atm_tmp_LV2_pckl_file']   = 'atm_tmp_LV2_pckl_file.pkl'
       PFM['lv2_atm_file']            = 'LV2_ATM_FORCING.nc'
       PFM['lv2_ini_file']            = 'LV2_OCEAN_IC.nc'
       PFM['lv2_bc_file']             = 'LV2_OCEAN_BC.nc'   
+      
+      PFM['lv3_ocnIC_tmp_pckl_file'] = 'ocnIC_LV3_tmp_pckl_file.pkl'   
+      PFM['lv3_ocnBC_tmp_pckl_file'] = 'BC_LV3_tmp_file.pkl'
+      PFM['atm_tmp_LV3_pckl_file']   = 'atm_tmp_LV3_pckl_file.pkl'
       PFM['lv3_atm_file']            = 'LV3_ATM_FORCING.nc'
       PFM['lv3_ini_file']            = 'LV3_OCEAN_IC.nc'
       PFM['lv3_bc_file']             = 'LV3_OCEAN_BC.nc'   
-      PFM['lv1_tide_fname']          = 'roms_tide_adcirc_LV01.nc'
-      
+
+      PFM['lv4_ocnIC_tmp_pckl_file'] = 'ocnIC_LV4_tmp_pckl_file.pkl'   
+      PFM['lv4_ocnBC_tmp_pckl_file'] = 'BC_LV4_tmp_file.pkl'
+      PFM['atm_tmp_LV4_pckl_file']   = 'atm_tmp_LV4_pckl_file.pkl'
+      PFM['lv4_atm_file']            = 'LV4_ATM_FORCING.nc'
+      PFM['lv4_ini_file']            = 'LV4_OCEAN_IC.nc'
+      PFM['lv4_bc_file']             = 'LV4_OCEAN_BC.nc'   
+     
       PFM['modtime0']        = modtime0
       PFM['roms_time_units'] = roms_time_units
       PFM['ds_fmt']          = ds_fmt
@@ -256,12 +307,21 @@ def get_PFM_info():
       PFM['lv2_rst_name'] = 'LV2_ocean_rst_' + yyyymmdd + '1200' + '.nc' 
       PFM['lv2_his_name_full'] = PFM['lv2_his_dir'] + '/' + PFM['lv2_his_name']
       PFM['lv2_rst_name_full'] = PFM['lv2_forc_dir'] + '/' + PFM['lv2_rst_name']
-      
-      PFM['info_file'] = pfm_info_full
 
-      with open(PFM['pfm_info_full'],'wb') as fout:
+      PFM['lv3_his_name'] = 'LV3_ocean_his_' + yyyymmdd + '1200' + '.nc'
+      PFM['lv3_rst_name'] = 'LV3_ocean_rst_' + yyyymmdd + '1200' + '.nc' 
+      PFM['lv3_his_name_full'] = PFM['lv3_his_dir'] + '/'  + PFM['lv3_his_name']
+      PFM['lv3_rst_name_full'] = PFM['lv3_forc_dir'] + '/' + PFM['lv3_rst_name']
+
+      PFM['lv4_his_name'] = 'LV4_ocean_his_' + yyyymmdd + '1200' + '.nc'
+      PFM['lv4_rst_name'] = 'LV4_ocean_rst_' + yyyymmdd + '1200' + '.nc' 
+      PFM['lv4_his_name_full'] = PFM['lv4_his_dir'] + '/'  + PFM['lv4_his_name']
+      PFM['lv4_rst_name_full'] = PFM['lv4_forc_dir'] + '/' + PFM['lv4_rst_name']
+   
+
+      with open(PFM['info_file'],'wb') as fout:
          pickle.dump(PFM,fout)
-         print('PFM info was saved as ' + PFM['pfm_info_full'])
+         print('PFM info was saved as ' + PFM['info_file'])
        
    return PFM
 

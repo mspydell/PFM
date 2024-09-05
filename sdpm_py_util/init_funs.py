@@ -55,23 +55,39 @@ def initialize_simulation(args):
             PFM['utc_time']   = utc_time
             print('fetch_time is now: ', fetch_time)
             print('resaving the PFM.pkl file with specified start time.')
-            with open(PFM['pfm_info_full'],'wb') as fout:
+            with open(PFM['info_file'],'wb') as fout:
                 pickle.dump(PFM,fout)
-                print('PFM info was resaved as ' + PFM['pfm_info_full'])
+                print('PFM info was resaved as ' + PFM['info_file'])
 
     else:
         print('we are NOT starting clean.')
         print('NO files are being deleted.')        
 
 
-def remake_PFM_pkl_file():
-        print('we are remaking the PFM.pkl file...')
-        print('getting PFM info...')
-        PFM=get_PFM_info()
+def remake_PFM_pkl_file(args):
+    print('we are remaking the PFM.pkl file...')
+    print('getting PFM info...')
+    PFM=get_PFM_info()
 
-        print('removing PFM info file...')
-        os.remove(PFM['info_file'])
-        print('now removing all input files...')
+    print('removing PFM info file...')
+    os.remove(PFM['info_file'])
 
-        PFM=get_PFM_info()
+    PFM=get_PFM_info()
  
+    if args != 0:
+        yyyymmdd = args
+        print('now changing the start date to: ', yyyymmdd)
+        start_time  = datetime.now()
+        utc_time    = datetime.now(timezone.utc)
+        fetch_time  = date(int(yyyymmdd[0:4]),int(yyyymmdd[4:6]),int(yyyymmdd[6:8]))
+        PFM['yyyymmdd']   = yyyymmdd
+        PFM['hhmm']       = '1200'
+        PFM['fetch_time'] = fetch_time
+        PFM['start_time'] = start_time
+        PFM['utc_time']   = utc_time
+        print('fetch_time is now: ', fetch_time)
+        print('resaving the PFM.pkl file with specified start time.')
+        with open(PFM['info_file'],'wb') as fout:
+            pickle.dump(PFM,fout)
+            print('PFM info was resaved as ' + PFM['info_file'])
+
