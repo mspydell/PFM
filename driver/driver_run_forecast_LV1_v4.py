@@ -3,11 +3,9 @@
 
 import sys
 import pickle
-import numpy as np
 import os
 from datetime import datetime
 import gc
-import resource
 import subprocess
 
 ##############
@@ -25,12 +23,21 @@ from init_funs import initialize_simulation
 
 print('\nStarting the LV1 simulation, Current time ', datetime.now())
 
+nn = len(sys.argv)
+print('number of arguments passed: ',nn)
+if nn == 2:
+    print('\n\n!!!!!   we are forcing the simulation to start from: ', sys.argv[1], '  !!!!!\n\n')
+
 # we are going to make a forecast
 run_type = 'forecast'
 
 # PFM has all of the information needed to run the model
 clean_start = True
-initialize_simulation(clean_start) # this removes the PFM_info.pkl file if clean_start = True
+if nn == 1:
+    initialize_simulation(clean_start) # this removes the PFM_info.pkl file if clean_start = True
+elif nn == 2:
+    initialize_simulation((clean_start,sys.argv[1])) # this removes the PFM_info.pkl file if clean_start = True
+
 PFM=get_PFM_info()
 RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
 

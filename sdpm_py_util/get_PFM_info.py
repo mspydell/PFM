@@ -52,6 +52,9 @@ def get_PFM_info():
          PFM = pickle.load(fp)
          #print('PFM info was loaded from ' + pfm_info_full)
    else:         
+      # set up the dict that will be saved
+      PFM = dict()
+      PFM['pfm_info_full'] = pfm_info_full
       lo_env = 'mss_swell'
       pfm_grid_dir =  pfm_root_dir +  'Grids'       
       lv1_root_dir =  pfm_root_dir +  'LV1_Forecast/'
@@ -159,7 +162,6 @@ def get_PFM_info():
       OP['L2','his_interval'] = 3600 # how often in sec outut is written to his.nc
       OP['L2','rst_interval'] = 0.5  # how often in days, a restart file is made. 
 
-      PFM = dict()
       PFM['run_type'] = run_type
 
       # first the environment
@@ -239,11 +241,11 @@ def get_PFM_info():
          fetch_time = datetime(fetch_time.year,fetch_time.month, fetch_time.day, 12)    
       
       yyyymmdd = "%d%02d%02d" % (fetch_time.year, fetch_time.month, fetch_time.day)
-      PFM['yyyymmdd']=yyyymmdd
-      PFM['hhmm']='1200'
-      PFM['fetch_time']=fetch_time
-      PFM['start_time']=start_time
-      PFM['utc_time']=utc_time
+      PFM['yyyymmdd']   = yyyymmdd
+      PFM['hhmm']       = '1200'
+      PFM['fetch_time'] = fetch_time
+      PFM['start_time'] = start_time
+      PFM['utc_time']   = utc_time
       
       PFM['lv1_his_name'] = 'LV1_ocean_his_' + yyyymmdd + '1200' + '.nc'
       PFM['lv1_rst_name'] = 'LV1_ocean_rst_' + yyyymmdd + '1200' + '.nc' 
@@ -257,9 +259,9 @@ def get_PFM_info():
       
       PFM['info_file'] = pfm_info_full
 
-      with open(pfm_info_full,'wb') as fout:
+      with open(PFM['pfm_info_full'],'wb') as fout:
          pickle.dump(PFM,fout)
-         print('PFM info was saved as ' + pfm_info_full)
+         print('PFM info was saved as ' + PFM['pfm_info_full'])
        
    return PFM
 
