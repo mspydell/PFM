@@ -2842,46 +2842,48 @@ def get_indices_to_fill(gr_msk):
 
 def mk_LV2_BC_dict(lvl):
 
-    PFM=get_PFM_info()
+    PFM=get_PFM_info()  
     if lvl == '2':
         G1 = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
         G2 = grdfuns.roms_grid_to_dict(PFM['lv2_grid_file'])
         fn = PFM['lv1_his_name_full']
-        LV1_BC_pckl = PFM['lv1_forc_dir'] + '/' + PFM['lv1_ocnBC_tmp_pckl_file']    
-        Nz   = PFM['stretching']['L2','Nz']                              # number of vertical levels: 40
-        Vtr  = PFM['stretching']['L2','Vtransform']                       # transformation equation: 2
-        Vst  = PFM['stretching']['L2','Vstretching']                    # stretching function: 4 
-        th_s = PFM['stretching']['L2','THETA_S']                      # surface stretching parameter: 8
-        th_b = PFM['stretching']['L2','THETA_B']                      # bottom  stretching parameter: 3
-        Tcl  = PFM['stretching']['L2','TCLINE']                      # critical depth (m): 50
-        hc   = PFM['stretching']['L2','hc']
-        fn_out =  PFM['lv2_forc_dir'] + '/' + PFM['lv2_ocnBC_tmp_pckl_file']
+        LV1_BC_pckl = PFM['lv1_forc_dir'] + '/' + PFM['lv1_ocnBC_tmp_pckl_file']
+        lv1 = 'L1'
+        lv2 = 'L2'
+        fn_out = PFM['lv2_forc_dir'] + '/' + PFM['lv2_ocnBC_tmp_pckl_file']
     elif lvl == '3':
         G1 = grdfuns.roms_grid_to_dict(PFM['lv2_grid_file'])
         G2 = grdfuns.roms_grid_to_dict(PFM['lv3_grid_file'])
         fn = PFM['lv2_his_name_full']
-        LV1_BC_pckl = PFM['lv2_forc_dir'] + '/' + PFM['lv2_ocnBC_tmp_pckl_file']    
-        Nz   = PFM['stretching']['L3','Nz']                              # number of vertical levels: 40
-        Vtr  = PFM['stretching']['L3','Vtransform']                       # transformation equation: 2
-        Vst  = PFM['stretching']['L3','Vstretching']                    # stretching function: 4 
-        th_s = PFM['stretching']['L3','THETA_S']                      # surface stretching parameter: 8
-        th_b = PFM['stretching']['L3','THETA_B']                      # bottom  stretching parameter: 3
-        Tcl  = PFM['stretching']['L3','TCLINE']                      # critical depth (m): 50
-        hc   = PFM['stretching']['L3','hc']
-        fn_out =  PFM['lv3_forc_dir'] + '/' + PFM['lv3_ocnBC_tmp_pckl_file']
+        LV1_BC_pckl = PFM['lv2_forc_dir'] + '/' + PFM['lv2_ocnBC_tmp_pckl_file']
+        lv1 = 'L2'
+        lv2 = 'L3'
+        fn_out = PFM['lv3_forc_dir'] + '/' + PFM['lv3_ocnBC_tmp_pckl_file']
     elif lvl == '4':
         G1 = grdfuns.roms_grid_to_dict(PFM['lv3_grid_file'])
         G2 = grdfuns.roms_grid_to_dict(PFM['lv4_grid_file'])
         fn = PFM['lv3_his_name_full']
-        LV1_BC_pckl = PFM['lv3_forc_dir'] + '/' + PFM['lv3_ocnBC_tmp_pckl_file']    
-        Nz   = PFM['stretching']['L4','Nz']                              # number of vertical levels: 40
-        Vtr  = PFM['stretching']['L4','Vtransform']                       # transformation equation: 2
-        Vst  = PFM['stretching']['L4','Vstretching']                    # stretching function: 4 
-        th_s = PFM['stretching']['L4','THETA_S']                      # surface stretching parameter: 8
-        th_b = PFM['stretching']['L4','THETA_B']                      # bottom  stretching parameter: 3
-        Tcl  = PFM['stretching']['L4','TCLINE']                      # critical depth (m): 50
-        hc   = PFM['stretching']['L4','hc']
-        fn_out =  PFM['lv4_forc_dir'] + '/' + PFM['lv4_ocnBC_tmp_pckl_file']
+        LV1_BC_pckl = PFM['lv3_forc_dir'] + '/' + PFM['lv3_ocnBC_tmp_pckl_file']
+        lv1 = 'L3'
+        lv2 = 'L4'
+     
+    # parent vertical stretching info 
+    Nz1   = PFM['stretching'][lv1,'Nz']                              # number of vertical levels: 40
+    Vtr1  = PFM['stretching'][lv1,'Vtransform']                       # transformation equation: 2
+    Vst1  = PFM['stretching'][lv1,'Vstretching']                    # stretching function: 4 
+    th_s1 = PFM['stretching'][lv1,'THETA_S']                      # surface stretching parameter: 8
+    th_b1 = PFM['stretching'][lv1,'THETA_B']                      # bottom  stretching parameter: 3
+    Tcl1  = PFM['stretching'][lv1,'TCLINE']                      # critical depth (m): 50
+    hc1   = PFM['stretching'][lv1,'hc']
+    
+    # child vertical stretching info
+    Nz2   = PFM['stretching'][lv2,'Nz']                              # number of vertical levels: 40
+    Vtr2  = PFM['stretching'][lv2,'Vtransform']                       # transformation equation: 2
+    Vst2  = PFM['stretching'][lv2,'Vstretching']                    # stretching function: 4 
+    th_s2 = PFM['stretching'][lv2,'THETA_S']                      # surface stretching parameter: 8
+    th_b2 = PFM['stretching'][lv2,'THETA_B']                      # bottom  stretching parameter: 3
+    Tcl2  = PFM['stretching'][lv2,'TCLINE']                      # critical depth (m): 50
+    hc2   = PFM['stretching'][lv2,'hc']
 
     ltr1 = G1['lat_rho']
     lnr1 = G1['lon_rho']
@@ -2906,19 +2908,18 @@ def mk_LV2_BC_dict(lvl):
     OCN_BC['vinfo'] = dict()
     OCN_BC['vinfo'] = BC1['vinfo']
 
-    OCN_BC['Nz'] = np.squeeze(Nz)
-    OCN_BC['Vtr'] = np.squeeze(Vtr)
-    OCN_BC['Vst'] = np.squeeze(Vst)
-    OCN_BC['th_s'] = np.squeeze(th_s)
-    OCN_BC['th_b'] = np.squeeze(th_b)
-    OCN_BC['Tcl'] = np.squeeze(Tcl)
-    OCN_BC['hc'] = np.squeeze(hc)
+    OCN_BC['Nz'] = np.squeeze(Nz2)
+    OCN_BC['Vtr'] = np.squeeze(Vtr2)
+    OCN_BC['Vst'] = np.squeeze(Vst2)
+    OCN_BC['th_s'] = np.squeeze(th_s2)
+    OCN_BC['th_b'] = np.squeeze(th_b2)
+    OCN_BC['Tcl'] = np.squeeze(Tcl2)
+    OCN_BC['hc'] = np.squeeze(hc2)
 
     hraw = None
-    if Vst == 4:
-        zrom = s_coordinate_4(G1['h'], th_b , th_s , Tcl , Nz, hraw=hraw, zeta=np.squeeze(his_ds.variables['zeta'][0,:,:]))
+    if Vst1 == 4:
+        zrom1 = s_coordinate_4(G1['h'], th_b1 , th_s1 , Tcl1 , Nz1, hraw=hraw, zeta=np.squeeze(his_ds.variables['zeta'][:,:,:]))
         
-    OCN_BC['Cs_r'] = np.squeeze(zrom.Cs_r)
 
     OCN_BC['ocean_time'] = his_ds.variables['ocean_time'][:] / (3600.0 * 24) # his.nc has time in sec past reference time.
     Nt = len( OCN_BC['ocean_time'] )                                           # need in days past.
@@ -2926,29 +2927,63 @@ def mk_LV2_BC_dict(lvl):
 
     nlt, nln = np.shape(ltr2)
 
-    OCN_BC['temp_south'] = np.zeros((Nt,Nz,nln))
-    OCN_BC['salt_south'] = np.zeros((Nt,Nz,nln))
-    OCN_BC['u_south']    = np.zeros((Nt,Nz,nln-1))
-    OCN_BC['v_south']    = np.zeros((Nt,Nz,nln))
+    OCN_BC['temp_south'] = np.zeros((Nt,Nz2,nln))
+    OCN_BC['salt_south'] = np.zeros((Nt,Nz2,nln))
+    OCN_BC['u_south']    = np.zeros((Nt,Nz2,nln-1))
+    OCN_BC['v_south']    = np.zeros((Nt,Nz2,nln))
     OCN_BC['ubar_south'] = np.zeros((Nt,nln-1))
     OCN_BC['vbar_south'] = np.zeros((Nt,nln))
     OCN_BC['zeta_south'] = np.zeros((Nt,nln))
 
-    OCN_BC['temp_north'] = np.zeros((Nt,Nz,nln))
-    OCN_BC['salt_north'] = np.zeros((Nt,Nz,nln))
-    OCN_BC['u_north']    = np.zeros((Nt,Nz,nln-1))
-    OCN_BC['v_north']    = np.zeros((Nt,Nz,nln))
+    OCN_BC['temp_north'] = np.zeros((Nt,Nz2,nln))
+    OCN_BC['salt_north'] = np.zeros((Nt,Nz2,nln))
+    OCN_BC['u_north']    = np.zeros((Nt,Nz2,nln-1))
+    OCN_BC['v_north']    = np.zeros((Nt,Nz2,nln))
     OCN_BC['ubar_north'] = np.zeros((Nt,nln-1))
     OCN_BC['vbar_north'] = np.zeros((Nt,nln))
     OCN_BC['zeta_north'] = np.zeros((Nt,nln))
 
-    OCN_BC['temp_west'] = np.zeros((Nt,Nz,nlt))
-    OCN_BC['salt_west'] = np.zeros((Nt,Nz,nlt))
-    OCN_BC['u_west']    = np.zeros((Nt,Nz,nlt))
-    OCN_BC['v_west']    = np.zeros((Nt,Nz,nlt-1))
+    OCN_BC['temp_west'] = np.zeros((Nt,Nz2,nlt))
+    OCN_BC['salt_west'] = np.zeros((Nt,Nz2,nlt))
+    OCN_BC['u_west']    = np.zeros((Nt,Nz2,nlt))
+    OCN_BC['v_west']    = np.zeros((Nt,Nz2,nlt-1))
     OCN_BC['ubar_west'] = np.zeros((Nt,nlt))
     OCN_BC['vbar_west'] = np.zeros((Nt,nlt-1))
     OCN_BC['zeta_west'] = np.zeros((Nt,nlt))
+
+    ZZ = dict() # this is a dict of the depths based on horizontal interpolation
+    ZZ['rho_west'] = np.zeros((Nt,Nz1,nlt))
+    ZZ['rho_north'] = np.zeros((Nt,Nz1,nln))
+    ZZ['rho_south'] = np.zeros((Nt,Nz1,nln))
+    ZZ['u_west'] = np.zeros((Nt,Nz1,nlt))
+    ZZ['u_north'] = np.zeros((Nt,Nz1,nln-1))
+    ZZ['u_south'] = np.zeros((Nt,Nz1,nln-1))
+    ZZ['v_west'] = np.zeros((Nt,Nz1,nlt-1))
+    ZZ['v_north'] = np.zeros((Nt,Nz1,nln))
+    ZZ['v_south'] = np.zeros((Nt,Nz1,nln))
+
+    ZTA = dict() # this is a dict of zeta along the edges of the child boundary for each variable
+    ZTA['v_north'] = np.zeros((Nt,nln))
+    ZTA['v_south'] = np.zeros((Nt,nln))
+    ZTA['v_west'] = np.zeros((Nt,nlt-1))
+    ZTA['u_north'] = np.zeros((Nt,nln-1))
+    ZTA['u_south'] = np.zeros((Nt,nln-1))
+    ZTA['u_west'] = np.zeros((Nt,nlt))
+    ZTA['rho_north'] = np.zeros((Nt,nln))
+    ZTA['rho_south'] = np.zeros((Nt,nln))
+    ZTA['rho_west'] = np.zeros((Nt,nlt))
+
+    Z2 = dict() # this is a dict of depths along the boundaries on the child grid
+    Z2['v_north'] = np.zeros((Nt,Nz2,nln))
+    Z2['v_south'] = np.zeros((Nt,Nz2,nln))
+    Z2['v_west'] = np.zeros((Nt,Nz2,nlt-1))
+    Z2['u_north'] = np.zeros((Nt,Nz2,nln-1))
+    Z2['u_south'] = np.zeros((Nt,Nz2,nln-1))
+    Z2['u_west'] = np.zeros((Nt,Nz2,nlt))
+    Z2['rho_north'] = np.zeros((Nt,Nz2,nln))
+    Z2['rho_south'] = np.zeros((Nt,Nz2,nln))
+    Z2['rho_west'] = np.zeros((Nt,Nz2,nlt))
+
 
     # get x,y on LV1 grid.
     # x1,y1 = ll2xy(lnr1, ltr1, np.mean(lnr1), np.mean(ltr1))
@@ -3027,6 +3062,7 @@ def mk_LV2_BC_dict(lvl):
     intf_d2['salt'] = interp_r
     intf_d2['u']    = interp_u
     intf_d2['v']    = interp_v
+
     
     for vn in v_list1: # loop through all 2d variables
         msk = msk_d1[vn] # get mask on LV1
@@ -3040,10 +3076,21 @@ def mk_LV2_BC_dict(lvl):
             z0[msk==0] = z0[msk==1][ind] # fill the mask with nearest neighbor
             setattr(interpfun,'values',z0) # change the interpolator z values
             z2 = interpfun((yy2,xx2)) # perhaps change here to directly interpolate to (xi,eta) on the edges?
-            z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the land
+            #z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the land
             OCN_BC[vn+'_south'][tind,:] = z2[0,:] # fill correctly
             OCN_BC[vn+'_north'][tind,:] = z2[-1,:]
             OCN_BC[vn+'_west'][tind,:]  = z2[:,0]
+            if vn == 'zeta': # this is zeta at child grid edges, for interpolating in z later
+                ZTA['rho_south'][tind,:] = z2[0,:]
+                ZTA['rho_north'][tind,:] = z2[-1,:]
+                ZTA['rho_west'][tind,:] = z2[:,0]
+                ZTA['u_south'][tind,:] = 0.5*( z2[0,0:-1]+z2[0,1:] )
+                ZTA['u_north'][tind,:] = 0.5*( z2[-1,0:-1]+z2[-1,1:] )
+                ZTA['u_west'][tind,:]  = 0.5*( z2[:,0]+z2[:,1] )
+                ZTA['v_south'][tind,:] = 0.5*( z2[0,:]+z2[1,:] )
+                ZTA['v_north'][tind,:] = 0.5*( z2[-2,:]+z2[-1,:] )
+                ZTA['v_west'][tind,:]  = 0.5*( z2[0:-1,0]+z2[1:,0] )
+
 
     for vn in v_list2:
         msk = msk_d2[vn]
@@ -3053,7 +3100,7 @@ def mk_LV2_BC_dict(lvl):
         yy2 = lat_d2[vn]
         interpfun = intf_d2[vn]
         for tind in np.arange(Nt):
-            for zind in np.arange(Nz):
+            for zind in np.arange(Nz1):
                 z0 = np.squeeze( his_ds.variables[vn][tind,zind,:,:] )
                 z0[msk==0] = z0[msk==1][ind]
                 setattr(interpfun,'values',z0)
@@ -3063,6 +3110,77 @@ def mk_LV2_BC_dict(lvl):
                 OCN_BC[vn+'_north'][tind,zind,:] = z2[-1,:]
                 OCN_BC[vn+'_west'][tind,zind,:]  = z2[:,0]
 
+                if vn == 'temp':
+                    z0 = np.squeeze( zrom1.z_r[tind,zind,:,:])
+                    z0[msk==0] = z0[msk==1][ind] # fill in masked areas with nearest neighbor
+                    setattr(interpfun,'values',z0)
+                    z2 = interpfun((yy2,xx2))
+                    ZZ['rho_north'][tind,zind,:] = z2[-1,:] # we need the depths that the horizontal interpolation thinks it is
+                    ZZ['rho_south'][tind,zind,:] = z2[0,:]
+                    ZZ['rho_west'][tind,zind,:] = z2[:,0]
+                if vn == 'u':
+                    z0 = np.squeeze( zrom1.z_r[tind,zind,:,:])
+                    z0 = 0.5 * ( z0[:,0:-1] + z0[:,1:] )
+                    z0[msk==0] = z0[msk==1][ind] # fill in masked areas with nearest neighbor
+                    setattr(interpfun,'values',z0)
+                    z2 = interpfun((yy2,xx2))
+                    ZZ['u_north'][tind,zind,:] = z2[-1,:] # we need the depths that the horizontal interpolation thinks it is
+                    ZZ['u_south'][tind,zind,:] = z2[0,:]
+                    ZZ['u_west'][tind,zind,:] = z2[:,0]
+                if vn == 'v':
+                    z0 = np.squeeze( zrom1.z_r[tind,zind,:,:])
+                    z0 = 0.5 * ( z0[0:-1,:] + z0[1:,:] )
+                    z0[msk==0] = z0[msk==1][ind] # fill in masked areas with nearest neighbor
+                    setattr(interpfun,'values',z0)
+                    z2 = interpfun((yy2,xx2))
+                    ZZ['v_north'][tind,zind,:] = z2[-1,:] # we need the depths that the horizontal interpolation thinks it is
+                    ZZ['v_south'][tind,zind,:] = z2[0,:]
+                    ZZ['v_west'][tind,zind,:] = z2[:,0]
+
+    h = G2['h']
+    hu = .5*( h[:,0:-1] + h[:,1:] )
+    hv = .5*( h[0:-1,:] + h[1:,:] )
+
+    zr2 = s_coordinate_4(h[-1,:], th_b2 , th_s2 , Tcl2 , Nz2, hraw=hraw, zeta = ZTA['rho_north'][:,:])
+    Z2['rho_north'][:,:,:] = zr2.z_r[:,:,:]
+    zr2 = s_coordinate_4(h[0,:], th_b2 , th_s2 , Tcl2 , Nz2, hraw=hraw, zeta = ZTA['rho_south'][:,:])
+    Z2['rho_south'][:,:,:] = zr2.z_r[:,:,:]
+    zr2 = s_coordinate_4(h[:,0], th_b2 , th_s2 , Tcl2 , Nz2, hraw=hraw, zeta = ZTA['rho_west'][:,:])
+    Z2['rho_west'][:,:,:] = zr2.z_r[:,:,:]
+    zr2 = s_coordinate_4(hu[-1,:], th_b2 , th_s2 , Tcl2 , Nz2, hraw=hraw, zeta = ZTA['u_north'][:,:])
+    Z2['u_north'][:,:,:] = zr2.z_r[:,:,:]
+    zr2 = s_coordinate_4(hu[0,:], th_b2 , th_s2 , Tcl2 , Nz2, hraw=hraw, zeta = ZTA['u_south'][:,:])
+    Z2['u_south'][:,:,:] = zr2.z_r[:,:,:]
+    zr2 = s_coordinate_4(hu[:,0], th_b2 , th_s2 , Tcl2 , Nz2, hraw=hraw, zeta = ZTA['u_west'][:,:])
+    Z2['u_west'][:,:,:] = zr2.z_r[:,:,:]
+    zr2 = s_coordinate_4(hv[-1,:], th_b2 , th_s2 , Tcl2 , Nz2, hraw=hraw, zeta = ZTA['v_north'][:,:])
+    Z2['v_north'][:,:,:] = zr2.z_r[:,:,:]
+    zr2 = s_coordinate_4(hv[0,:], th_b2 , th_s2 , Tcl2 , Nz2, hraw=hraw, zeta = ZTA['v_south'][:,:])
+    Z2['v_south'][:,:,:] = zr2.z_r[:,:,:]
+    zr2 = s_coordinate_4(hv[:,0], th_b2 , th_s2 , Tcl2 , Nz2, hraw=hraw, zeta = ZTA['v_west'][:,:])
+    Z2['v_west'][:,:,:] = zr2.z_r[:,:,:]
+
+    OCN_BC['Cs_r'] = np.squeeze(zr2.Cs_r)
+
+    # now loop through all 3d variables and vertically interpolate to the correct z levels.
+    for vn in v_list2:
+        if vn in ['temp','salt']:
+            zt = 'rho'
+        else:
+            zt = vn
+        for bnd in ['_north','_south','_west']:
+            v1 = OCN_BC[vn+bnd][:,:,:] # the horizontally interpolated field
+            nnt,nnz,nnp = np.shape(v1)
+            for cc in np.arange(nnt):
+                for aa in np.arange(nnp):
+                    vp = np.squeeze( v1[cc,:,aa]) # the vertical data
+                    zp = np.squeeze( ZZ[zt+bnd][cc,:,aa] ) # z locations data thinks it is at
+                    zf = np.squeeze( Z2[zt+bnd][cc,:,aa]) # z locations where the data should be
+                    Fz = interp1d(zp,vp,bounds_error=False,kind='linear',fill_value = 'extrapolate') 
+                    vf =  np.squeeze(Fz(zf))
+                    OCN_BC[vn+bnd][cc,:,aa] = vf                
+
+    #fn_out = '/scratch/PFM_Simulations/LV3_Forecast/Forc/test_BC_LV3.pkl'
 
     with open(fn_out,'wb') as fout:
         pickle.dump(OCN_BC,fout)
@@ -3074,48 +3192,49 @@ def mk_LV2_BC_dict(lvl):
 
 def mk_LV2_IC_dict(lvl):
 
-    PFM=get_PFM_info()    
+    PFM=get_PFM_info()  
     if lvl == '2':
         G1 = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
         G2 = grdfuns.roms_grid_to_dict(PFM['lv2_grid_file'])
         fn = PFM['lv1_his_name_full']
         LV1_IC_pckl = PFM['lv1_forc_dir'] + '/' + PFM['lv1_ocnIC_tmp_pckl_file']
-        Nz   = PFM['stretching']['L2','Nz']                              # number of vertical levels: 40
-        Vtr  = PFM['stretching']['L2','Vtransform']                       # transformation equation: 2
-        Vst  = PFM['stretching']['L2','Vstretching']                    # stretching function: 4 
-        th_s = PFM['stretching']['L2','THETA_S']                      # surface stretching parameter: 8
-        th_b = PFM['stretching']['L2','THETA_B']                      # bottom  stretching parameter: 3
-        Tcl  = PFM['stretching']['L2','TCLINE']                      # critical depth (m): 50
-        hc   = PFM['stretching']['L2','hc']
+        lv1 = 'L1'
+        lv2 = 'L2'
         fn_out = PFM['lv2_forc_dir'] + '/' + PFM['lv2_ocnIC_tmp_pckl_file']
     elif lvl == '3':
         G1 = grdfuns.roms_grid_to_dict(PFM['lv2_grid_file'])
         G2 = grdfuns.roms_grid_to_dict(PFM['lv3_grid_file'])
         fn = PFM['lv2_his_name_full']
         LV1_IC_pckl = PFM['lv2_forc_dir'] + '/' + PFM['lv2_ocnIC_tmp_pckl_file']
-        Nz   = PFM['stretching']['L3','Nz']                              # number of vertical levels: 40
-        Vtr  = PFM['stretching']['L3','Vtransform']                       # transformation equation: 2
-        Vst  = PFM['stretching']['L3','Vstretching']                    # stretching function: 4 
-        th_s = PFM['stretching']['L3','THETA_S']                      # surface stretching parameter: 8
-        th_b = PFM['stretching']['L3','THETA_B']                      # bottom  stretching parameter: 3
-        Tcl  = PFM['stretching']['L3','TCLINE']                      # critical depth (m): 50
-        hc   = PFM['stretching']['L3','hc']
+        lv1 = 'L2'
+        lv2 = 'L3'
         fn_out = PFM['lv3_forc_dir'] + '/' + PFM['lv3_ocnIC_tmp_pckl_file']
     elif lvl == '4':
         G1 = grdfuns.roms_grid_to_dict(PFM['lv3_grid_file'])
         G2 = grdfuns.roms_grid_to_dict(PFM['lv4_grid_file'])
         fn = PFM['lv3_his_name_full']
         LV1_IC_pckl = PFM['lv3_forc_dir'] + '/' + PFM['lv3_ocnIC_tmp_pckl_file']
-        Nz   = PFM['stretching']['L4','Nz']                              # number of vertical levels: 40
-        Vtr  = PFM['stretching']['L4','Vtransform']                       # transformation equation: 2
-        Vst  = PFM['stretching']['L4','Vstretching']                    # stretching function: 4 
-        th_s = PFM['stretching']['L4','THETA_S']                      # surface stretching parameter: 8
-        th_b = PFM['stretching']['L4','THETA_B']                      # bottom  stretching parameter: 3
-        Tcl  = PFM['stretching']['L4','TCLINE']                      # critical depth (m): 50
-        hc   = PFM['stretching']['L4','hc']
-        fn_out = PFM['lv4_forc_dir'] + '/' + PFM['lv4_ocnIC_tmp_pckl_file']
+        lv1 = 'L3'
+        lv2 = 'L4'
+     
+    # parent vertical stretching info 
+    Nz1   = PFM['stretching'][lv1,'Nz']                              # number of vertical levels: 40
+    Vtr1  = PFM['stretching'][lv1,'Vtransform']                       # transformation equation: 2
+    Vst1  = PFM['stretching'][lv1,'Vstretching']                    # stretching function: 4 
+    th_s1 = PFM['stretching'][lv1,'THETA_S']                      # surface stretching parameter: 8
+    th_b1 = PFM['stretching'][lv1,'THETA_B']                      # bottom  stretching parameter: 3
+    Tcl1  = PFM['stretching'][lv1,'TCLINE']                      # critical depth (m): 50
+    hc1   = PFM['stretching'][lv1,'hc']
     
-    
+    # child vertical stretching info
+    Nz2   = PFM['stretching'][lv2,'Nz']                              # number of vertical levels: 40
+    Vtr2  = PFM['stretching'][lv2,'Vtransform']                       # transformation equation: 2
+    Vst2  = PFM['stretching'][lv2,'Vstretching']                    # stretching function: 4 
+    th_s2 = PFM['stretching'][lv2,'THETA_S']                      # surface stretching parameter: 8
+    th_b2 = PFM['stretching'][lv2,'THETA_B']                      # bottom  stretching parameter: 3
+    Tcl2  = PFM['stretching'][lv2,'TCLINE']                      # critical depth (m): 50
+    hc2   = PFM['stretching'][lv2,'hc']
+
     ltr1 = G1['lat_rho']
     lnr1 = G1['lon_rho']
     ltr2 = G2['lat_rho']
@@ -3129,10 +3248,9 @@ def mk_LV2_IC_dict(lvl):
     ltv2 = G2['lat_v']
     lnv2 = G2['lon_v']
     
-
     with open(LV1_IC_pckl,'rb') as fout:
         IC1=pickle.load(fout)
-        print('LV'+str(int(lvl)-1)+'OCN_IC dict loaded with pickle')
+        print('LV_'+str(int(lvl)-1)+'_OCN_IC dict loaded with pickle')
 
  #   print(np.shape(IC1['zeta']))
 
@@ -3140,19 +3258,13 @@ def mk_LV2_IC_dict(lvl):
     OCN_IC['vinfo'] = dict()
     OCN_IC['vinfo'] = IC1['vinfo']
 
-    OCN_IC['Nz'] = np.squeeze(Nz)
-    OCN_IC['Vtr'] = np.squeeze(Vtr)
-    OCN_IC['Vst'] = np.squeeze(Vst)
-    OCN_IC['th_s'] = np.squeeze(th_s)
-    OCN_IC['th_b'] = np.squeeze(th_b)
-    OCN_IC['Tcl'] = np.squeeze(Tcl)
-    OCN_IC['hc'] = np.squeeze(hc)
-
-    hraw = None
-    if Vst == 4:
-        zrom = s_coordinate_4(G1['h'], th_b , th_s , Tcl , Nz, hraw=hraw, zeta=np.squeeze(IC1['zeta'][0,:,:]))
-        
-    OCN_IC['Cs_r'] = np.squeeze(zrom.Cs_r)
+    OCN_IC['Nz'] = np.squeeze(Nz2)
+    OCN_IC['Vtr'] = np.squeeze(Vtr2)
+    OCN_IC['Vst'] = np.squeeze(Vst2)
+    OCN_IC['th_s'] = np.squeeze(th_s2)
+    OCN_IC['th_b'] = np.squeeze(th_b2)
+    OCN_IC['Tcl'] = np.squeeze(Tcl2)
+    OCN_IC['hc'] = np.squeeze(hc2)
 
     OCN_IC['ocean_time']     = IC1['ocean_time']
     OCN_IC['ocean_time_ref'] = IC1['ocean_time_ref']
@@ -3165,13 +3277,19 @@ def mk_LV2_IC_dict(lvl):
     OCN_IC['lon_v']   = lnv2
 
     nlt, nln = np.shape(ltr2)
-    OCN_IC['temp'] = np.zeros((1,Nz,nlt,nln))
-    OCN_IC['salt'] = np.zeros((1,Nz,nlt,nln))
-    OCN_IC['u'] = np.zeros((1,Nz,nlt,nln-1))
-    OCN_IC['v'] = np.zeros((1,Nz,nlt-1,nln))
+    OCN_IC['temp'] = np.zeros((1,Nz2,nlt,nln))
+    OCN_IC['salt'] = np.zeros((1,Nz2,nlt,nln))
+    OCN_IC['u'] = np.zeros((1,Nz2,nlt,nln-1))
+    OCN_IC['v'] = np.zeros((1,Nz2,nlt-1,nln))
     OCN_IC['zeta'] = np.zeros((1,nlt,nln))
     OCN_IC['ubar'] = np.zeros((1,nlt,nln-1))
     OCN_IC['vbar'] = np.zeros((1,nlt-1,nln))
+
+    # get a dict of depths that the interpolation thinks it is on
+    ZZ = dict() 
+    ZZ['rho'] = np.zeros((1,Nz2,nlt,nln))
+    ZZ['u'] = np.zeros((1,Nz2,nlt,nln-1))
+    ZZ['v'] = np.zeros((1,Nz2,nlt-1,nln))
 
     # get (x,y) grids, note zi = interp_r( (eta,xi) )
     xi_r2, eta_r2, interp_r = get_child_xi_eta_interp(lnr1,ltr1,lnr2,ltr2)
@@ -3248,8 +3366,7 @@ def mk_LV2_IC_dict(lvl):
     intf_d2['u']    = interp_u
     intf_d2['v']    = interp_v
     
-    for vn in v_list1: # loop through all 2d variables
-   #     print(vn)
+    for vn in v_list1: # loop through all 2d variables and horizontally interpolate 
         msk = msk_d1[vn] # get mask on LV1
         msk2 = msk2_d1[vn] # get mask on LV2
         ind = ind_d1[vn] # get indices so that land can be filled with nearest neighbor
@@ -3258,13 +3375,23 @@ def mk_LV2_IC_dict(lvl):
         interpfun = intf_d1[vn]
         tind = 0
         z0 = np.squeeze(IC1[vn][tind,:,:] )
-    #    print(np.shape(z0))
         z0[msk==0] = z0[msk==1][ind] # fill the mask with nearest neighbor
         setattr(interpfun,'values',z0) # change the interpolator z values
         z2 = interpfun((yy2,xx2)) # perhaps change here to directly interpolate to (xi,eta) on the edges?
         z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the land
         OCN_IC[vn][tind,:,:] = z2[:,:] # fill correctly
  
+    # get vertical gridding for both levels
+    hraw = None
+    if Vst1 == 4:
+        zrom1 = s_coordinate_4(G1['h'], th_b1 , th_s1 , Tcl1 , Nz1, hraw=hraw, zeta=np.squeeze(IC1['zeta'][0,:,:]))
+    if Vst2 == 4:    
+        zrom2 = s_coordinate_4(G2['h'], th_b2 , th_s2 , Tcl2 , Nz2, hraw=hraw, zeta=np.squeeze(OCN_IC['zeta'][0,:,:]))
+
+    ZZ2 = np.squeeze(zrom2.z_r[0,:,:,:])    
+    OCN_IC['Cs_r'] = np.squeeze(zrom2.Cs_r)
+
+    # now loop through all 3d variables and horizontally interpolate at each S level
     for vn in v_list2:
         msk = msk_d2[vn]
         msk2 = msk2_d2[vn]
@@ -3272,23 +3399,66 @@ def mk_LV2_IC_dict(lvl):
         xx2 = lon_d2[vn]
         yy2 = lat_d2[vn]
         interpfun = intf_d2[vn]
-        tind = 0
-        for zind in np.arange(Nz):
+        tind = 0 
+        for zind in np.arange(Nz1):  # first we horizontally interpolate at each S level
             z0 = np.squeeze( IC1[vn][tind,zind,:,:] )
             z0[msk==0] = z0[msk==1][ind]
             setattr(interpfun,'values',z0)
             z2 = interpfun((yy2,xx2))
             z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the mask
             OCN_IC[vn][tind,zind,:,:] = z2[:,:]
+            if vn == 'temp':
+                z0 = np.squeeze( zrom1.z_r[tind,zind,:,:])
+                z0[msk==0] = z0[msk==1][ind] # fill in masked areas with nearest neighbor
+                setattr(interpfun,'values',z0)
+                z2 = interpfun((yy2,xx2))
+                ZZ['rho'][tind,zind,:,:] = z2 # we need the depths that the horizontal interpolation thinks it is
+            if vn == 'u':
+                z0 = np.squeeze( zrom1.z_r[tind,zind,:,:])
+                z0 = 0.5 * ( z0[:,0:-1] + z0[:,1:] )
+                z0[msk==0] = z0[msk==1][ind] # fill in masked areas with nearest neighbor
+                setattr(interpfun,'values',z0)
+                z2 = interpfun((yy2,xx2))
+                ZZ['u'][tind,zind,:,:] = z2
+            if vn == 'v':
+                z0 = np.squeeze( zrom1.z_r[tind,zind,:,:])
+                z0 = 0.5 * ( z0[0:-1,:] + z0[1:,:] )
+                z0[msk==0] = z0[msk==1][ind] # fill in masked areas with nearest neighbor
+                setattr(interpfun,'values',z0)
+                z2 = interpfun((yy2,xx2))
+                ZZ['v'][tind,zind,:,:] = z2
+
+    zlist = dict()
+    zlist['temp'] = 'rho'
+    zlist['salt'] = 'rho'
+    zlist['u'] = 'u'
+    zlist['v'] = 'v'
+
+    # now loop through all 3d variables and vertically interpolate to the correct z levels.
+    for vn in v_list2:
+        tind = 0
+        v1 = OCN_IC[vn][tind,:,:,:] # the horizontally interpolated field
+        z1 = ZZ[zlist[vn]][tind,:,:,:] # the depths that the interpolation thinks it is on
+        nnz,nnlt,nnln = np.shape(v1)
+        for aa in np.arange(nnlt):
+            for bb in np.arange(nnln):
+                if vn in ['temp','salt']:
+                    z2 = np.squeeze( ZZ2[:,aa,bb])
+                if vn == 'u':
+                    z2 = np.squeeze( 0.5*( ZZ2[:,aa,bb]+ZZ2[:,aa,bb+1] ) )
+                if vn == 'v':
+                    z2 = np.squeeze( 0.5*( ZZ2[:,aa,bb]+ZZ2[:,aa+1,bb] ) )
+
+                Fz = interp1d(np.squeeze(z1[:,aa,bb]),np.squeeze(v1[:,aa,bb]),bounds_error=False,kind='linear',fill_value = 'extrapolate') 
+                v2 =  np.squeeze(Fz(z2))
+                OCN_IC[vn][tind,:,aa,bb] = v2                
                 
-    #fout = '/scratch/PFM_Simulations/LV2_Forecast/Forc/test_IC_LV2.pkl'
+#    fn_out = '/scratch/PFM_Simulations/LV3_Forecast/Forc/test_IC_LV3.pkl'
 #    with open(LV2_BC_pckl,'wb') as fout:
     with open(fn_out,'wb') as fout:
         pickle.dump(OCN_IC,fout)
         print('OCN_LV'+lvl+'_IC dict saved with pickle')
 
-    #return OCN_BC
-    #return xi_r2, eta_r2, interp_r
 
 def ocn_roms_IC_dict_to_netcdf_pckl(fname_in,fn_out):
 

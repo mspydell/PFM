@@ -20,7 +20,7 @@
 #SBATCH --nodes=$nnodes$
 
 # number of tasks per node
-#SBATCH --ntasks-per-node=$ntask$
+#SBATCH --ntasks-per-node=36
 
 module purge
 
