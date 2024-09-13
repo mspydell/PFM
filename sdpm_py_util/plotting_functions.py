@@ -1234,6 +1234,9 @@ def plot_ssh_his_tseries_v2(fn,Ix,Iy,sv_fig,lvl):
         plevs = np.arange(-4800, 0, 20)
     elif lvl == 'LV2':
         plevs = np.arange(-2400, -9, 1)
+    elif lvl == 'LV3':
+        plevs = np.arange(-1500, -1, 1)
+    
     cmap = plt.get_cmap('viridis')
     cset = ax1.contourf(ln, lt, -hb, plevs, cmap=cmap, transform=ccrs.PlateCarree())
     plt.set_cmap(cmap)
@@ -1245,6 +1248,8 @@ def plot_ssh_his_tseries_v2(fn,Ix,Iy,sv_fig,lvl):
         ax1.set_title('ROMS LV1 bathymetry')
     elif lvl == 'LV2':
         ax1.set_title('ROMS LV2 bathymetry')
+    elif lvl == 'LV3':
+        ax1.set_title('ROMS LV3 bathymetry')
 
     ax1.add_feature(cfeature.LAND)
     ax1.add_feature(cfeature.BORDERS)
@@ -1363,6 +1368,8 @@ def plot_his_temps_wuv(fn,It,Iz,sv_fig,lvl):
         RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
     elif lvl == 'LV2':
         RMG = grdfuns.roms_grid_to_dict(PFM['lv2_grid_file'])
+    elif lvl == 'LV3':
+        RMG = grdfuns.roms_grid_to_dict(PFM['lv3_grid_file'])
 
     his_ds = nc.Dataset(fn)
     lt = his_ds.variables['lat_rho'][:]
@@ -1440,10 +1447,10 @@ def make_all_his_figures(lvl):
         Ix = np.array([175,240])
         Iy = np.array([175,170])
         It = 0
-    elif lvl == 'LV3':
-        fn = PFM['lv2_his_name_full']
-        Ix = np.array([175,240])
-        Iy = np.array([175,170])
+    elif lvl == 'LV3': # 413 by 251
+        fn = PFM['lv3_his_name_full']
+        Ix = np.array([210,227])
+        Iy = np.array([325,200])
         It = 0
 
 
