@@ -13,6 +13,7 @@ from init_funs import remake_PFM_pkl_file
 from get_PFM_info import get_PFM_info
 from make_LV3_dotin_and_SLURM import make_LV3_dotin_and_SLURM
 from run_slurm_LV3 import run_slurm_LV3
+import plotting_functions as pltfuns
 
 ##############
 
@@ -154,4 +155,9 @@ t2 = datetime.now()
 print(t2-t1)
 print('\n')
 #print(t2-t00)
+
+print('now making LV3 history file plots')
+pltfuns.make_all_his_figures('LV3')
+t2 = datetime.now()
+
 

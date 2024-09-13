@@ -1389,7 +1389,7 @@ def plot_his_temps_wuv(fn,It,Iz,sv_fig,lvl):
     #print(np.shape(v))
 
     fig, ax = plt.subplots(figsize=(8, 12), subplot_kw={'projection': ccrs.PlateCarree()})
-    plevs = np.arange(np.floor(np.min(temp)), np.ceil(np.max(temp)), .25)
+    plevs = np.arange(np.floor(np.min(temp))-0.25, np.ceil(np.max(temp))+0.25, .25)
     cmap = plt.get_cmap('turbo')
     cset = ax.contourf(ln, lt, temp, plevs, cmap=cmap, transform=ccrs.PlateCarree())
     plt.set_cmap(cmap)

@@ -101,9 +101,10 @@ def get_PFM_info():
       run_type = 'forecast'
 
    # what is the ocean / atm model used to force?
-      ocn_model = 'hycom'
+      ocn_model = 'hycom_new' # worked with 'hycom' but that is now (9/13/24) depricated
       atm_model = 'nam_nest'
       atm_get_method = 'open_dap_nc'
+      ocn_get_method = 'ncks_para'
    # what is the time resolution of the models (in days), (used? 9/4/24 MSS)
       daystep_ocn = 3/24
       daystep_atm = 3/24
@@ -279,6 +280,7 @@ def get_PFM_info():
       PFM['ocn_model']      = ocn_model
       PFM['atm_model']      = atm_model
       PFM['atm_get_method'] = atm_get_method
+      PFM['ocn_get_method'] = ocn_get_method
       #latlonbox = [28.0, 37.0, -125.0, -115.0]     
       #PFM['latlonbox']      = latlonbox
       PFM['latlonbox']      = LLB

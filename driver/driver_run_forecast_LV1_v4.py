@@ -29,7 +29,6 @@ if nn == 2:
     print('\n\n!!!!!   we are forcing the simulation to start from: ', sys.argv[1], '  !!!!!\n\n')
 
 # we are going to make a forecast
-run_type = 'forecast'
 
 # PFM has all of the information needed to run the model
 clean_start = True
@@ -39,6 +38,7 @@ elif nn == 2:
     initialize_simulation((clean_start,sys.argv[1])) # this removes the PFM_info.pkl file if clean_start = True
 
 PFM=get_PFM_info()
+run_type = PFM['run_type']
 RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
 
 print("Starting: driver_run_forecast_LV1")
@@ -50,6 +50,8 @@ print("\nPreparing forecast starting on",yyyymmdd,"at ",hhmm)
 ocn_mod = PFM['ocn_model']
 print('ocean boundary and initial conditions will be from:')
 print(ocn_mod)
+ocn_get_method = PFM['ocn_get_method']
+print('getting the ocean data using: ' + ocn_get_method)
 
 atm_mod = PFM['atm_model']
 print('atm forcing will be from:')
@@ -87,7 +89,7 @@ fn_atm_out = PFM['lv1_forc_dir'] + '/' + PFM['lv1_atm_file'] # LV1 atm forcing f
 t0 = datetime.now()
 if use_ncks == 1:
     if use_pckl_sav == 0: # the original way that breaks when going to OCN_R
-        OCN = ocnfuns.get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,'ncks_para')
+        OCN = ocnfuns.get_ocn_data_as_dict(yyyymmdd,run_type,ocn_mod,ocn_get_method)
         print('driver_run_forecast_LV1: done with get_ocn_data_as_dict: Current time ',datetime.now() )
     else:
         print('\nGetting OCN forecast data. Going to use subprocess, and save a pickle file of ocn data.')

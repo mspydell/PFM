@@ -525,10 +525,10 @@ def get_ocn_data_as_dict_pckl(yyyymmdd,run_type,ocn_mod,get_method):
 
             cat_fname = PFM['lv1_forc_dir'] + '/' + 'hy_cat_' + dstr0 + '.nc'
 
-            print(ncfiles)
+            #print(ncfiles)
             ds = xr.open_mfdataset(ncfiles,combine = 'by_coords',data_vars='all',coords='all')
 
-            print(ds.data_vars)
+            #print(ds.data_vars)
 
             enc_dict = {'zlib':True, 'complevel':1, '_FillValue':1e20}
             Enc_dict = {vn:enc_dict for vn in ds.data_vars}
