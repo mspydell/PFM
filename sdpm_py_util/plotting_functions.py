@@ -1366,10 +1366,16 @@ def plot_his_temps_wuv(fn,It,Iz,sv_fig,lvl):
     PFM=get_PFM_info()
     if lvl == 'LV1':
         RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
+        res = '110m'
+        res2 = 'i'
     elif lvl == 'LV2':
         RMG = grdfuns.roms_grid_to_dict(PFM['lv2_grid_file'])
+        res = '50m'
+        res2 = 'h'
     elif lvl == 'LV3':
         RMG = grdfuns.roms_grid_to_dict(PFM['lv3_grid_file'])
+        res = '10m'
+        res2 = 'f'
 
     his_ds = nc.Dataset(fn)
     lt = his_ds.variables['lat_rho'][:]
@@ -1413,7 +1419,11 @@ def plot_his_temps_wuv(fn,It,Iz,sv_fig,lvl):
     ax.text(0.5, 1.05, annotation, transform=ax.transAxes, ha='center', fontsize=12)
     ax.add_feature(cfeature.LAND)
     ax.add_feature(cfeature.BORDERS)
-    ax.add_feature(cfeature.COASTLINE, linewidth = 2.0)    
+    #coast = cfeature.GSHHSFeature(scale='full')
+    #ax.add_feature(cfeature.COASTLINE, resolution=res, linewidth = 1.25)   
+    coast = cfeature.GSHHSFeature(scale=res2)
+    ax.add_feature(coast)
+    #ax.coastlines(resolution=res)
     ax.set_xlabel('Longitude')
     ax.set_ylabel('Latitude')
     ax.grid(True)

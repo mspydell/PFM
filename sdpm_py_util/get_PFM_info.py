@@ -297,9 +297,9 @@ def get_PFM_info():
       fetch_time = datetime.now(timezone.utc) - timedelta(days=1)
 
       if hour_utc < 11:
-         fetch_time = datetime(fetch_time.year,fetch_time.month, fetch_time.day, 12) - timedelta(days=1)
+         fetch_time = datetime(fetch_time.year,fetch_time.month, fetch_time.day, 12) - timedelta(days=3)
       else:
-         fetch_time = datetime(fetch_time.year,fetch_time.month, fetch_time.day, 12)    
+         fetch_time = datetime(fetch_time.year,fetch_time.month, fetch_time.day, 12) - timedelta(days=2)
       
       yyyymmdd = "%d%02d%02d" % (fetch_time.year, fetch_time.month, fetch_time.day)
       PFM['yyyymmdd']   = yyyymmdd
