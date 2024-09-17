@@ -234,6 +234,8 @@ def get_PFM_info():
       PFM['lv3_grid_file'] = lv3_grid_file
       PFM['lv4_grid_file'] = lv4_grid_file
 
+      PFM['hycom_data_dir'] = '/scratch/PFM_Simulations/hycom_data/'
+
       PFM['lv1_tide_fname']          = 'roms_tide_adcirc_LV01.nc'
       PFM['atm_tmp_pckl_file']       = 'atm_tmp_pckl_file.pkl'
       PFM['lv1_depth_file']          = 'roms_tmp_depth_file.pkl' 

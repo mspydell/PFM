@@ -116,6 +116,118 @@ def para_loop_new(url,dtff,aa,bb,PFM,dstr_ft):
     ret1 = subprocess.call(cmd_list)
     return ret1
 
+def hycom_grabber(url,dtff,vnm,dstr_ft):
+    # this is the function that is parallelized
+    # the input is url: the hycom url to get data from
+    # dtff: the time stamp of the forecast, ie, the file we want
+    # aa: a box that defines the region of interest
+    # PFM: used to set the path of where the .nc files go
+    # dstr_ft: the date string of the forecast model run. ie. the first
+    #          time stamp of the forecast
+    
+    PFM = get_PFM_info()
+
+    south = PFM['latlonbox']['L1'][0]
+    north = PFM['latlonbox']['L1'][1]
+    west = PFM['latlonbox']['L1'][2]+360.0
+    east = PFM['latlonbox']['L1'][3]+360.0
+
+    # time limits
+    dtff_adv = dtff+timedelta(hours=0.5) # hours=2 makes it only get 1 time.
+    dstr0 = dtff.strftime('%Y-%m-%dT%H:%M')
+    dstr1 = dtff_adv.strftime('%Y-%m-%dT%H:%M')
+    # use subprocess.call() to execute the ncks command
+    if vnm == '_ssh':
+        vstr = 'surf_el' 
+    if vnm == '_t3z':
+        vstr = 'water_temp'
+    if vnm == '_s3z':
+        vstr = 'salinity'
+    if vnm == '_u3z':
+        vstr = 'water_u'
+    if vnm == '_v3z':
+        vstr = 'water_v'
+    #where to save the data
+    
+    ffname = 'hy'+ vnm + '_' + dstr_ft + '_' + dtff.strftime("%Y-%m-%dT%H:%M") +'.nc'
+
+    #full_fn_out = PFM['hycom_data_dir'] + ffname
+    full_fn_out = '/scratch/PFM_Simulations/hycom_data/' + ffname
+
+    cmd_list = ['ncks',
+        '-d', 'time,'+dstr0+','+dstr1,
+        '-d', 'lon,'+str(west)+','+str(east),
+        '-d', 'lat,'+str(south)+','+str(north),
+        '-v', vstr,
+        url ,
+        '-4', '-O', full_fn_out]
+
+    # run ncks
+    ret1 = subprocess.call(cmd_list)
+    return ret1
+
+
+def get_hycom_data(yyyymmdd):
+    # this function gets all of the new hycom data as separate files for each field (ssh,temp,salt,u,v) and each time
+    # and puts each .nc file in the directory for hycom data
+    yyyy = yyyymmdd[0:4]
+    mm = yyyymmdd[4:6]
+    dd = yyyymmdd[6:8]
+
+    PFM=get_PFM_info()
+    ocn_name = ['https://tds.hycom.org/thredds/dodsC/FMRC_ESPC-D-V02','runs/FMRC_ESPC-D-V02','_RUN_'+ yyyy + '-' + mm + '-' + dd + 'T12:00:00Z']
+    var_names = ['_ssh','_s3z','_t3z','_u3z','_v3z']
+
+    
+    # time limits
+    Tfor = 8.0 # hycom should go out 8 days.
+    # the first time to get
+    dstr0 = yyyy + '-' + mm + '-' + dd + 'T12:00'
+    t00 = datetime.strptime(dstr0,"%Y-%m-%dT%H:%M")
+    # the last time to get
+    t10 = t00 + Tfor * timedelta(days=1)
+
+    # form list of days to get, datetimes
+    dt0 = t00
+    dt1 = t10 
+    dt_list_full = []
+    dtff = dt0
+    ncfiles = [] # this is the list with paths of all of the .nc files made with ncks_para
+            #timestamps
+    while dtff <= dt1:
+        for bb in var_names:
+            ffn = PFM['lv1_forc_dir'] + '/hy'+ bb + '_' + dstr0 + '_' + dtff.strftime("%Y-%m-%dT%H:%M") +'.nc'
+            ncfiles.append(ffn)
+        
+        dt_list_full.append(dtff) # these are the times to get forecast for...
+        dtff = dtff + timedelta(hours=3)
+
+        
+    #this is where we para
+    tt0 = time.time()
+
+    # create parallel executor
+    with ThreadPoolExecutor() as executor:
+        threads = []
+        for bb in var_names:
+            for dtff in dt_list_full:
+                fn = hycom_grabber #define function
+                hycom = ocn_name[0]+bb+ocn_name[1]+bb+ocn_name[2]
+                args = [hycom,dtff,bb,dstr0] #define args to function
+                kwargs = {} #
+                # start thread by submitting it to the executor
+                threads.append(executor.submit(fn, *args, **kwargs))
+            
+        for future in as_completed(threads):
+            # retrieve the result
+            result = future.result()
+            # report the result
+    
+    #result = tt0
+    #print('Time to get all files using parallel ncks = %0.2f sec' % (time.time()-tt0))
+    #print('Return code = ' + str(result) + ' (0=success, 1=skipped ncks)')
+
+
 def get_ocn_data_as_dict_pckl(yyyymmdd,run_type,ocn_mod,get_method):
 #    import pygrib
     PFM=get_PFM_info()
