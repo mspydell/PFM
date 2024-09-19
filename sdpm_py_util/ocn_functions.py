@@ -166,6 +166,37 @@ def hycom_grabber(url,dtff,vnm,dstr_ft):
     ret1 = subprocess.call(cmd_list)
     return ret1
 
+def check_hycom_data(yyyymmdd,times):
+    yyyy = yyyymmdd[0:4]
+    mm = yyyymmdd[4:6]
+    dd = yyyymmdd[6:8]
+    dstr0 = yyyy + '-' + mm + '-' + dd + 'T12:00' # this is the forecast time
+
+    var_names = ['_ssh','_s3z','_t3z','_u3z','_v3z']
+    nc_out_names = [] # this will be the list of all of the hycom.nc files that we are checking to see if they are there
+    
+    hycom_dir = '/scratch/PFM_Simulations/hycom_data/'
+
+    dtff = times[0]
+    t2 = times[1]
+
+    num_missing = 0
+    num_files = 0
+
+    while dtff <= t2:
+        for vnm in var_names:
+            ffname = 'hy'+ vnm + '_' + dstr0 + '_' + dtff.strftime("%Y-%m-%dT%H:%M") +'.nc'
+            full_fn_out = hycom_dir + ffname
+            nc_out_names.append(ffname)
+            num_files = num_files + 1
+            if os.path.isfile(full_fn_out) == False:
+                print(full_fn_out)
+                num_missing = num_missing + 1
+
+        dtff = dtff + timedelta(hours=3)
+
+    return num_files, num_missing
+
 
 def get_hycom_data(yyyymmdd):
     # this function gets all of the new hycom data as separate files for each field (ssh,temp,salt,u,v) and each time
@@ -178,7 +209,7 @@ def get_hycom_data(yyyymmdd):
     ocn_name = ['https://tds.hycom.org/thredds/dodsC/FMRC_ESPC-D-V02','runs/FMRC_ESPC-D-V02','_RUN_'+ yyyy + '-' + mm + '-' + dd + 'T12:00:00Z']
     var_names = ['_ssh','_s3z','_t3z','_u3z','_v3z']
 
-    
+ 
     # time limits
     Tfor = 8.0 # hycom should go out 8 days.
     # the first time to get
@@ -227,6 +258,170 @@ def get_hycom_data(yyyymmdd):
     #print('Time to get all files using parallel ncks = %0.2f sec' % (time.time()-tt0))
     #print('Return code = ' + str(result) + ' (0=success, 1=skipped ncks)')
 
+def cat_hycom_to_onenc(yyyymmdd,times):
+    
+    PFM=get_PFM_info()
+    yyyy = yyyymmdd[0:4]
+    mm = yyyymmdd[4:6]
+    dd = yyyymmdd[6:8]
+    dstr0 = yyyy + '-' + mm + '-' + dd + 'T12:00' # this is the forecast time
+
+    var_names = ['_ssh','_s3z','_t3z','_u3z','_v3z']
+    nc_in_names = [] # this will be the list of all of the hycom.nc files that we will cat!
+    
+    hycom_dir = '/scratch/PFM_Simulations/hycom_data/'
+
+    dtff = times[0]
+    t2 = times[1]
+
+    while dtff <= t2:
+        for vnm in var_names:
+            ffname = 'hy'+ vnm + '_' + dstr0 + '_' + dtff.strftime("%Y-%m-%dT%H:%M") +'.nc'
+            full_fn_out = hycom_dir + ffname
+            nc_in_names.append(full_fn_out)
+        dtff = dtff + timedelta(hours=3)
+
+    cat_fname = PFM['lv1_forc_dir'] + '/' + 'hy_cat_' + dstr0 + '.nc'
+
+    ds = xr.open_mfdataset(nc_in_names,combine = 'by_coords',data_vars='all',coords='all')
+    enc_dict = {'zlib':True, 'complevel':1, '_FillValue':1e20}
+    Enc_dict = {vn:enc_dict for vn in ds.data_vars}
+    ds.to_netcdf(cat_fname,encoding=Enc_dict)
+    ds.close()
+    del ds
+    
+def hycom_cat_to_pickles(yyyymmdd):
+
+    PFM=get_PFM_info()
+
+    yyyy = yyyymmdd[0:4]
+    mm = yyyymmdd[4:6]
+    dd = yyyymmdd[6:8]    
+    dstr0 = yyyy + '-' + mm + '-' + dd + 'T12:00'
+    cat_fname = PFM['lv1_forc_dir'] + '/' + 'hy_cat_' + dstr0 + '.nc'
+    dss = xr.open_dataset(cat_fname)
+            
+    lat = dss.lat.values
+    lon = dss.lon.values
+    z   = dss.depth.values
+    t   = dss.time.values # these are strings?
+    eta = dss.surf_el.values
+    temp= dss.water_temp.values
+    sal = dss.salinity.values
+    u   = dss.water_u.values
+    v   = dss.water_v.values
+    t_ref = PFM['modtime0']
+    dt = (dss.time - np.datetime64(t_ref))  / np.timedelta64(1,'D') # this gets time in days from t_ref
+    t_rom = dt.values
+    dss.close()
+    del dss
+    gc.collect()
+
+    # set up dict and fill in
+    OCN = dict()
+    OCN['vinfo'] = dict()
+
+    # this is the complete list of variables that need to be in the netcdf file
+    vlist = ['lon','lat','ocean_time','surf_el','water_u','water_v','temp','sal']
+
+    for aa in vlist:
+        OCN['vinfo'][aa] = dict()
+
+    OCN['lon']=lon - 360 # make the lons negative consistent with most 
+    OCN['lat']=lat
+
+    OCN['ocean_time'] = t_rom
+    OCN['ocean_time_ref'] = t_ref
+    
+    OCN['u'] = u
+    del u
+    OCN['v'] = v
+    del v
+    OCN['temp'] = temp
+    del temp
+    OCN['salt'] = sal
+    del sal
+    OCN['zeta'] = eta
+    del eta
+    OCN['depth'] = z
+
+    print('\nmax and min raw hycom data (iz is top [0] to bottom [39]):')
+    vlist = ['zeta','u','v','temp','salt']
+    ulist = ['m','m/s','m/s','C','psu']
+    ulist2 = dict(zip(vlist,ulist))
+    print_var_max_mins(OCN,vlist,ulist2)
+
+    # put the units in OCN...
+    OCN['vinfo']['lon'] = {'long_name':'longitude',
+                    'units':'degrees_east'}
+    OCN['vinfo']['lat'] = {'long_name':'latitude',
+                    'units':'degrees_north'}
+    OCN['vinfo']['ocean_time'] = {'long_name':'time since initialization',
+                    'units':'days',
+                    'coordinates':'temp_time',
+                    'field':'ocean_time, scalar, series'}
+    OCN['vinfo']['ocean_time_ref'] = {'long_name': 'the reference date tref (initialization time)'}
+    OCN['vinfo']['depth'] = {'long_name':'ocean depth',
+                        'units':'m'}
+    OCN['vinfo']['temp'] = {'long_name':'ocean temperature',
+                    'units':'degrees C',
+                    'coordinates':'z,lat,lon',
+                    'time':'ocean_time'}
+    OCN['vinfo']['salt'] = {'long_name':'ocean salinity',
+                    'units':'psu',
+                    'coordinates':'z,lat,lon',
+                    'time':'ocean_time'}
+    OCN['vinfo']['u'] = {'long_name':'ocean east west velocity',
+                    'units':'m/s',
+                    'coordinates':'z,lat,lon',
+                    'time':'ocean_time'}
+    OCN['vinfo']['v'] = {'long_name':'ocean north south velocity',
+                    'units':'m/s',
+                    'coordinates':'z,lat,lon',
+                    'time':'ocean_time'}
+    OCN['vinfo']['zeta'] = {'long_name':'ocean sea surface height',
+                    'units':'m',
+                    'coordinates':'lat,lon',
+                    'time':'ocean_time'}
+
+    gc.collect()
+    fn_out = PFM['lv1_forc_dir'] + '/' + PFM['lv1_ocn_tmp_pckl_file']
+    with open(fn_out,'wb') as fp:
+        pickle.dump(OCN,fp)
+        print('\nHycom OCN dict saved with pickle')
+
+
+def print_var_max_mins(OCN,vlist,ulist2):
+
+    for vnm in vlist:
+        ind_mx = np.unravel_index(np.nanargmax(OCN[vnm], axis=None), OCN[vnm].shape)
+        ind_mn = np.unravel_index(np.nanargmin(OCN[vnm], axis=None), OCN[vnm].shape)
+        mxx = OCN[vnm][ind_mx]
+        mnn = OCN[vnm][ind_mn]
+
+        if vnm == 'zeta':
+            print(f'max {vnm:6} = {mxx:6.3f} {ulist2[vnm]:5}      at  ( it, ilat, ilon)     =  ({ind_mx[0]:3},{ind_mx[1]:4},{ind_mx[2]:4})')
+            print(f'min {vnm:6} = {mnn:6.3f} {ulist2[vnm]:5}      at  ( it, ilat, ilon)     =  ({ind_mn[0]:3},{ind_mn[1]:4},{ind_mn[2]:4})')
+        else:
+            print(f'max {vnm:6} = {mxx:6.3f} {ulist2[vnm]:5}      at  ( it, iz, ilat, ilon) =  ({ind_mx[0]:3},{ind_mx[1]:3},{ind_mx[2]:4},{ind_mx[3]:4})')
+            print(f'min {vnm:6} = {mnn:6.3f} {ulist2[vnm]:5}      at  ( it, iz, ilat, ilon) =  ({ind_mn[0]:3},{ind_mn[1]:3},{ind_mn[2]:4},{ind_mn[3]:4})')
+        if vnm == 'temp' or vnm == 'salt':
+            if vnm == 'salt':
+                vvv = 'dS/dz'
+                uvv = 'psu/m'
+            else:
+                vvv = 'dT/dz'
+                uvv = 'C/m'
+            dz = OCN['depth'][1:] - OCN['depth'][0:-1]
+            dT = OCN[vnm][:,0:-1,:,:] - OCN[vnm][:,1:,:,:]
+            dTdz = dT / dz[None,:,None,None]
+            ind_mx = np.unravel_index(np.nanargmax(dTdz, axis=None), dTdz.shape)
+            ind_mn = np.unravel_index(np.nanargmin(dTdz, axis=None), dTdz.shape)
+            mxx = dTdz[ind_mx]
+            mnn = dTdz[ind_mn]
+            print(f'max {vvv:6} = {mxx:6.3f} {uvv:5}      at  ( it, iz, ilat, ilon) =  ({ind_mx[0]:3},{ind_mx[1]:3},{ind_mx[2]:4},{ind_mx[3]:4})')
+            print(f'min {vvv:6} = {mnn:6.3f} {uvv:5}      at  ( it, iz, ilat, ilon) =  ({ind_mn[0]:3},{ind_mn[1]:3},{ind_mn[2]:4},{ind_mn[3]:4})')
+
 
 def get_ocn_data_as_dict_pckl(yyyymmdd,run_type,ocn_mod,get_method):
 #    import pygrib
@@ -266,37 +461,6 @@ def get_ocn_data_as_dict_pckl(yyyymmdd,run_type,ocn_mod,get_method):
         tr_days = tr.astype("timedelta64[ms]").astype(float) / 1000 / 3600 / 24
         # tr_sec is now an ndarray of days past the reference day
         return tr_days
-
-    def print_var_max_mins(OCN,vlist,ulist2):
-
-        for vnm in vlist:
-            ind_mx = np.unravel_index(np.nanargmax(OCN[vnm], axis=None), OCN[vnm].shape)
-            ind_mn = np.unravel_index(np.nanargmin(OCN[vnm], axis=None), OCN[vnm].shape)
-            mxx = OCN[vnm][ind_mx]
-            mnn = OCN[vnm][ind_mn]
-
-            if vnm == 'zeta':
-                print(f'max {vnm:6} = {mxx:6.3f} {ulist2[vnm]:5}      at  ( it, ilat, ilon)     =  ({ind_mx[0]:3},{ind_mx[1]:4},{ind_mx[2]:4})')
-                print(f'min {vnm:6} = {mnn:6.3f} {ulist2[vnm]:5}      at  ( it, ilat, ilon)     =  ({ind_mn[0]:3},{ind_mn[1]:4},{ind_mn[2]:4})')
-            else:
-                print(f'max {vnm:6} = {mxx:6.3f} {ulist2[vnm]:5}      at  ( it, iz, ilat, ilon) =  ({ind_mx[0]:3},{ind_mx[1]:3},{ind_mx[2]:4},{ind_mx[3]:4})')
-                print(f'min {vnm:6} = {mnn:6.3f} {ulist2[vnm]:5}      at  ( it, iz, ilat, ilon) =  ({ind_mn[0]:3},{ind_mn[1]:3},{ind_mn[2]:4},{ind_mn[3]:4})')
-            if vnm == 'temp' or vnm == 'salt':
-                if vnm == 'salt':
-                    vvv = 'dS/dz'
-                    uvv = 'psu/m'
-                else:
-                    vvv = 'dT/dz'
-                    uvv = 'C/m'
-                dz = OCN['depth'][1:] - OCN['depth'][0:-1]
-                dT = OCN[vnm][:,0:-1,:,:] - OCN[vnm][:,1:,:,:]
-                dTdz = dT / dz[None,:,None,None]
-                ind_mx = np.unravel_index(np.nanargmax(dTdz, axis=None), dTdz.shape)
-                ind_mn = np.unravel_index(np.nanargmin(dTdz, axis=None), dTdz.shape)
-                mxx = dTdz[ind_mx]
-                mnn = dTdz[ind_mn]
-                print(f'max {vvv:6} = {mxx:6.3f} {uvv:5}      at  ( it, iz, ilat, ilon) =  ({ind_mx[0]:3},{ind_mx[1]:3},{ind_mx[2]:4},{ind_mx[3]:4})')
-                print(f'min {vvv:6} = {mnn:6.3f} {uvv:5}      at  ( it, iz, ilat, ilon) =  ({ind_mn[0]:3},{ind_mn[1]:3},{ind_mn[2]:4},{ind_mn[3]:4})')
 
 
     if get_method == 'open_dap_pydap' or get_method == 'open_dap_nc' or get_method == 'ncks' or get_method == 'ncks_para' and run_type == 'forecast':
