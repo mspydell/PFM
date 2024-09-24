@@ -11,6 +11,7 @@ import os
 import os.path
 import pickle
 from scipy.spatial import cKDTree
+import glob
 
 #sys.path.append('../sdpm_py_util')
 from get_PFM_info import get_PFM_info
@@ -154,13 +155,25 @@ def hycom_grabber(url,dtff,vnm,dstr_ft):
     #full_fn_out = PFM['hycom_data_dir'] + ffname
     full_fn_out = '/scratch/PFM_Simulations/hycom_data/' + ffname
 
-    cmd_list = ['ncks',
-        '-d', 'time,'+dstr0+','+dstr1,
-        '-d', 'lon,'+str(west)+','+str(east),
-        '-d', 'lat,'+str(south)+','+str(north),
-        '-v', vstr,
-        url ,
-        '-4', '-O', full_fn_out]
+    tst_err = 1
+    if tst_err == 1: # this didn't do it. got an error. should fix so that ncks doesn't make a ton of errors...
+        cmd_list = ['ncks',
+            '-q',
+            '-D', '0',
+            '-d', 'time,'+dstr0+','+dstr1,
+            '-d', 'lon,'+str(west)+','+str(east),
+            '-d', 'lat,'+str(south)+','+str(north),
+            '-v', vstr,
+            url ,
+            '-4', '-O', full_fn_out]
+    else:
+        cmd_list = ['ncks',
+            '-d', 'time,'+dstr0+','+dstr1,
+            '-d', 'lon,'+str(west)+','+str(east),
+            '-d', 'lat,'+str(south)+','+str(north),
+            '-v', vstr,
+            url ,
+            '-4', '-O', full_fn_out]
 
     # run ncks
     ret1 = subprocess.call(cmd_list)
@@ -190,12 +203,120 @@ def check_hycom_data(yyyymmdd,times):
             nc_out_names.append(ffname)
             num_files = num_files + 1
             if os.path.isfile(full_fn_out) == False:
-                print(full_fn_out)
+                #print(full_fn_out)
                 num_missing = num_missing + 1
 
         dtff = dtff + timedelta(hours=3)
 
     return num_files, num_missing
+
+def stored_hycom_dates():
+    # this function returns the list 'yyyy-mm-dd' of the hycom data we have downloaded and stored
+    hycom_dir = '/scratch/PFM_Simulations/hycom_data/'
+    fns = glob.glob(hycom_dir + '*.nc')
+
+    fns3 = []
+    for fns2 in fns:
+        fns3.append(fns2[43:53])
+
+    set_res = set(fns3)
+    list_res = list(set_res)
+    list_res2 = sorted(list_res) # 
+    return list_res2
+
+def get_missing_file_num_list(hy_dates):
+    # this function returns a list of the number of files missing for each string in hy_dates
+
+    missing = []
+    for dts in hy_dates:
+        dstr0 = dts + 'T12:00' # this is the forecast time
+        t1 =  datetime.strptime(dstr0,"%Y-%m-%dT%H:%M")
+        t2 = t1 + 8.0 * timedelta(days=1)
+        times = [t1,t2]
+        yyyymmdd = dts[0:4] + dts[5:7] + dts[8:10]
+        n0, num_missing = check_hycom_data(yyyymmdd,times)
+        missing.append(num_missing)
+
+    return missing
+
+def clean_hycom_dir():
+
+    hycom_dir = '/scratch/PFM_Simulations/hycom_data/'
+    hy_dates = stored_hycom_dates()
+    if len(hy_dates) == 1:
+        print('there is only one hycom date in the directoy')
+        print('we are not deleting any files.')
+    else:
+        fn_miss_list = get_missing_file_num_list(hy_dates)
+
+        fn2 = np.array(fn_miss_list)
+        ind0 = np.where(fn2 == 0)[0]
+        keeper = np.max(ind0)
+
+        cnt = 0
+        for dt in hy_dates:
+            if cnt != keeper:
+                print('the date ' + dt + ' will be deleted')
+                fnsd = hycom_dir + '*' + dt + 'T12:00_2*.nc'
+                fls2d = glob.glob(fnsd)
+                print(fls2d)
+                print('will be deleted')
+                for ff in fls2d:
+                    os.remove(ff)
+            else:
+                print('the date ' + dt + ' will not be deleted')
+            cnt=cnt+1
+
+
+def refresh_hycom_dir():
+
+    t0s = stored_hycom_dates()
+    if len(t0s) > 1: # first clean the directory if there is more than 1 date in it...
+        clean_hycom_dir()
+        t0s = stored_hycom_dates() # now len(t0s) will be 1!
+
+    dstr0 = t0s[0] + 'T12:00' # this is the forecast time
+    t0 =  datetime.strptime(dstr0,"%Y-%m-%dT%H:%M")
+    tnow = datetime.now()
+    tget = []
+
+    if t0>tnow - 2 * timedelta(days=1):
+        print('the directory is up to date and there are no possible hycom files to download')
+    else:
+        while t0<tnow - 2* timedelta(days=1): # the 2 is here because hycom forecasts are never available day of.
+            t0 = t0 + timedelta(days=1)
+            yyyymmdd = "%d%02d%02d" % (t0.year, t0.month, t0.day)
+            tget.append(yyyymmdd)
+
+        print('we will download, hopefully, the hycom with these forecast dates:')
+        print(tget)
+        for tt in tget:
+            print('downloading hycom ' + tt + ' forecast...')
+            get_hycom_data(tt)
+            print('...done')
+
+
+def get_hycom_foretime(t1str,t2str):
+
+    refresh_hycom_dir() # this function adds hycom files to the directory. There will always be a forecast with 8 days of data
+    t0s = stored_hycom_dates()
+    t1 =  datetime.strptime(t1str,"%Y%m%d%H%M")
+    t2 =  datetime.strptime(t2str,"%Y%m%d%H%M")
+    times = [t1,t2]
+
+    missing = []
+    for dts in t0s:
+        yyyymmdd = dts[0:4] + dts[5:7] + dts[8:10]
+        n0, num_missing = check_hycom_data(yyyymmdd,times)
+        missing.append(num_missing)
+
+    fn2 = np.array(missing)
+    ind0 = np.where(fn2 == 0)[0]
+    keeper = np.max(ind0)
+    tkeep = t0s[keeper]
+    yyyymmdd = tkeep[0:4] + tkeep[5:7] + tkeep[8:10]
+
+    return yyyymmdd
 
 
 def get_hycom_data(yyyymmdd):
@@ -258,8 +379,12 @@ def get_hycom_data(yyyymmdd):
     #print('Time to get all files using parallel ncks = %0.2f sec' % (time.time()-tt0))
     #print('Return code = ' + str(result) + ' (0=success, 1=skipped ncks)')
 
-def cat_hycom_to_onenc(yyyymmdd,times):
-    
+def cat_hycom_to_onenc(yyyymmdd,t1str,t2str):
+
+    t1 =  datetime.strptime(t1str,"%Y%m%d%H%M")
+    t2 =  datetime.strptime(t2str,"%Y%m%d%H%M")
+    times = [t1,t2]
+
     PFM=get_PFM_info()
     yyyy = yyyymmdd[0:4]
     mm = yyyymmdd[4:6]
