@@ -105,6 +105,15 @@ def get_PFM_info():
       atm_model = 'nam_nest'
       atm_get_method = 'open_dap_nc'
       ocn_get_method = 'ncks_para'
+
+   # we now set the forecast duration depending on atm_model
+      if atm_model == 'nam_nest':
+          PFM['forecast_days'] = 2.5
+      if atm_model == 'gfs':
+          PFM['forecast_days'] = 5.0
+
+
+      
    # what is the time resolution of the models (in days), (used? 9/4/24 MSS)
       daystep_ocn = 3/24
       daystep_atm = 3/24
@@ -118,7 +127,6 @@ def get_PFM_info():
    # format used for naming day folders, (used? 9/4/24)
       ds_fmt = '%Y.%m.%d'
    # number of forecast days (used? 9/4/24)
-      fdays = 3
 
    # vertical stretching info for each grid are embedded in a dict
       SS=dict()
@@ -180,15 +188,15 @@ def get_PFM_info():
       tt=dict()
       tt['L1','dtsec'] = 60
       tt['L1','ndtfast'] = 15
-      tt['L1','forecast_days'] = 2.5
+      tt['L1','forecast_days'] = PFM['forecast_days']
       
       tt['L2','dtsec'] = 30
       tt['L2','ndtfast'] = 15
-      tt['L2','forecast_days'] = 2.5
+      tt['L2','forecast_days'] = PFM['forecast_days']
       
       tt['L3','dtsec'] = 15
       tt['L3','ndtfast'] = 15
-      tt['L3','forecast_days'] = 2.5
+      tt['L3','forecast_days'] = PFM['forecast_days']
 
    # output info
       OP = dict()
@@ -234,6 +242,8 @@ def get_PFM_info():
       PFM['lv3_grid_file'] = lv3_grid_file
       PFM['lv4_grid_file'] = lv4_grid_file
 
+      PFM['hycom_data_dir'] = '/scratch/PFM_Simulations/hycom_data/'
+
       PFM['lv1_tide_fname']          = 'roms_tide_adcirc_LV01.nc'
       PFM['atm_tmp_pckl_file']       = 'atm_tmp_pckl_file.pkl'
       PFM['lv1_depth_file']          = 'roms_tmp_depth_file.pkl' 
@@ -271,7 +281,6 @@ def get_PFM_info():
       PFM['modtime0']        = modtime0
       PFM['roms_time_units'] = roms_time_units
       PFM['ds_fmt']          = ds_fmt
-      PFM['forecast_days']   = fdays
       PFM['ndefhis']         = 0 # when zero, only 1 history file is made.
    
       PFM['daystep']        = daystep
@@ -291,40 +300,64 @@ def get_PFM_info():
 
       # now do the timing information
       start_time = datetime.now()
-      utc_time = datetime.now(timezone.utc)
-      hour_utc = utc_time.hour
+
+      # fetch_time sets 1st time of the PFM forecast. It will go to the nearest 6 hr based on nam becoming available
+      # nam_nest is available 3 hrs after 0,6,12,18 Z
+      # gfs is available 5.5 hrs after 0,6,12,18, Z
+
 
       fetch_time = datetime.now(timezone.utc) 
+      utc_time = fetch_time
+      hour_utc = utc_time.hour
+      year_utc = utc_time.year
+      mon_utc  = utc_time.month
+      day_utc  = utc_time.day
 
-      if hour_utc < 11:
-         fetch_time = datetime(fetch_time.year,fetch_time.month, fetch_time.day, 12) - timedelta(days=3)
-      else:
-         fetch_time = datetime(fetch_time.year,fetch_time.month, fetch_time.day, 12) - timedelta(days=2)
-      
-      yyyymmdd = "%d%02d%02d" % (fetch_time.year, fetch_time.month, fetch_time.day)
+      past_6 = hour_utc % 6 # this is the number of hours past 0,6,12,18...
+      if atm_model == 'nam_nest':
+         if past_6 > 3:
+            past_6 = past_6
+         else:
+            past_6 = past_6 + 6     
+      if atm_model == 'gfs':
+         past_6 = past_6 + 6     
+ 
+      # fetch_time2 is now the start time of the PFM simulation based on the closest available
+      # nam data to now.
+      fetch_time2 = datetime(year_utc,mon_utc,day_utc,hour_utc,0,0,0)
+      fetch_time2 = fetch_time2 - timedelta(hours=past_6)
+
+      #if hour_utc < 11:
+      #   fetch_time = datetime(fetch_time.year,fetch_time.month, fetch_time.day, 12) - timedelta(days=4)
+      #else:
+      #   fetch_time = datetime(fetch_time.year,fetch_time.month, fetch_time.day, 12) - timedelta(days=3)
+      hhmm = fetch_time2.strftime("%H%M")
+
+      yyyymmdd = "%d%02d%02d" % (fetch_time2.year, fetch_time2.month, fetch_time2.day)
+>>>>>>> 147e6fbb6b44a8c9fd7070210219e5d01f288436
       PFM['yyyymmdd']   = yyyymmdd
-      PFM['hhmm']       = '1200'
-      PFM['fetch_time'] = fetch_time
-      PFM['start_time'] = start_time
-      PFM['utc_time']   = utc_time
+      PFM['hhmm']       = hhmm        # this is the HHMM of the forecast, aligns with NAM
+      PFM['fetch_time'] = fetch_time2 # this is the start time of the PFM forecast
+      PFM['start_time'] = start_time  # this is when we started running PFM
+      PFM['utc_time']   = utc_time    # this is when we started PFM in UTC
       
-      PFM['lv1_his_name'] = 'LV1_ocean_his_' + yyyymmdd + '1200' + '.nc'
-      PFM['lv1_rst_name'] = 'LV1_ocean_rst_' + yyyymmdd + '1200' + '.nc' 
+      PFM['lv1_his_name'] = 'LV1_ocean_his_' + yyyymmdd + hhmm + '.nc'
+      PFM['lv1_rst_name'] = 'LV1_ocean_rst_' + yyyymmdd + hhmm + '.nc' 
       PFM['lv1_his_name_full'] = PFM['lv1_his_dir'] + '/' + PFM['lv1_his_name']
       PFM['lv1_rst_name_full'] = PFM['lv1_forc_dir'] + '/' + PFM['lv1_rst_name']
 
-      PFM['lv2_his_name'] = 'LV2_ocean_his_' + yyyymmdd + '1200' + '.nc'
-      PFM['lv2_rst_name'] = 'LV2_ocean_rst_' + yyyymmdd + '1200' + '.nc' 
+      PFM['lv2_his_name'] = 'LV2_ocean_his_' + yyyymmdd + hhmm + '.nc'
+      PFM['lv2_rst_name'] = 'LV2_ocean_rst_' + yyyymmdd + hhmm + '.nc' 
       PFM['lv2_his_name_full'] = PFM['lv2_his_dir'] + '/' + PFM['lv2_his_name']
       PFM['lv2_rst_name_full'] = PFM['lv2_forc_dir'] + '/' + PFM['lv2_rst_name']
 
-      PFM['lv3_his_name'] = 'LV3_ocean_his_' + yyyymmdd + '1200' + '.nc'
-      PFM['lv3_rst_name'] = 'LV3_ocean_rst_' + yyyymmdd + '1200' + '.nc' 
+      PFM['lv3_his_name'] = 'LV3_ocean_his_' + yyyymmdd + hhmm + '.nc'
+      PFM['lv3_rst_name'] = 'LV3_ocean_rst_' + yyyymmdd + hhmm + '.nc' 
       PFM['lv3_his_name_full'] = PFM['lv3_his_dir'] + '/'  + PFM['lv3_his_name']
       PFM['lv3_rst_name_full'] = PFM['lv3_forc_dir'] + '/' + PFM['lv3_rst_name']
 
-      PFM['lv4_his_name'] = 'LV4_ocean_his_' + yyyymmdd + '1200' + '.nc'
-      PFM['lv4_rst_name'] = 'LV4_ocean_rst_' + yyyymmdd + '1200' + '.nc' 
+      PFM['lv4_his_name'] = 'LV4_ocean_his_' + yyyymmdd + hhmm + '.nc'
+      PFM['lv4_rst_name'] = 'LV4_ocean_rst_' + yyyymmdd + hhmm + '.nc' 
       PFM['lv4_his_name_full'] = PFM['lv4_his_dir'] + '/'  + PFM['lv4_his_name']
       PFM['lv4_rst_name_full'] = PFM['lv4_forc_dir'] + '/' + PFM['lv4_rst_name']
    

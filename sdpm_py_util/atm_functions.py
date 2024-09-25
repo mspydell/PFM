@@ -17,7 +17,10 @@ import grid_functions as grdfuns
 def get_atm_data_as_dict():
     
     PFM        = get_PFM_info()   
-    yyyymmdd   = PFM['yyyymmdd']
+    ftime = PFM['fetch_time']
+    yyyymmdd = "%d%02d%02d" % (ftime.year, ftime.month, ftime.day)
+
+    #yyyymmdd   = PFM['yyyymmdd']
     hhmm       = PFM['hhmm']
     run_type   = PFM['run_type']
     atm_mod    = PFM['atm_model']
