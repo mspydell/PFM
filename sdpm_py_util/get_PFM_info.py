@@ -334,7 +334,6 @@ def get_PFM_info():
       hhmm = fetch_time2.strftime("%H%M")
 
       yyyymmdd = "%d%02d%02d" % (fetch_time2.year, fetch_time2.month, fetch_time2.day)
->>>>>>> 147e6fbb6b44a8c9fd7070210219e5d01f288436
       PFM['yyyymmdd']   = yyyymmdd
       PFM['hhmm']       = hhmm        # this is the HHMM of the forecast, aligns with NAM
       PFM['fetch_time'] = fetch_time2 # this is the start time of the PFM forecast
