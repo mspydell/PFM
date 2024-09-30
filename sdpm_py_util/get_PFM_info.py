@@ -314,6 +314,7 @@ def get_PFM_info():
       # nam_nest is available 3 hrs after 0,6,12,18 Z
       # gfs is available 5.5 hrs after 0,6,12,18, Z
 
+
       fetch_time = datetime.now(timezone.utc) 
       utc_time = fetch_time
       hour_utc = utc_time.hour
