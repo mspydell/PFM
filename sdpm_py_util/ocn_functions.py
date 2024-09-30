@@ -114,7 +114,12 @@ def para_loop_new(url,dtff,aa,bb,PFM,dstr_ft):
         '-4', '-O', full_fn_out]
 
     # run ncks
-    ret1 = subprocess.call(cmd_list)
+    hide_out = 1
+    if hide_out == 1:
+        print('trying to hide output... does not work')
+        ret1 = subprocess.call(cmd_list, stdout=subprocess.STDOUT, stderr=subprocess.DEVNULL)
+    else:
+        ret1 = subprocess.call(cmd_list)
     return ret1
 
 def hycom_grabber(url,dtff,vnm,dstr_ft):
@@ -195,18 +200,22 @@ def check_hycom_data(yyyymmdd,times):
 
     num_missing = 0
     num_files = 0
+    zeta_1hr = 1
 
-    while dtff <= t2:
-        for vnm in var_names:
+    for vnm in var_names:
+        dhr = 3
+        dtff = times[0]
+        if vnm == '_ssh' and zeta_1hr == 1:
+            dhr = 1
+        while dtff <= t2:
             ffname = 'hy'+ vnm + '_' + dstr0 + '_' + dtff.strftime("%Y-%m-%dT%H:%M") +'.nc'
             full_fn_out = hycom_dir + ffname
             nc_out_names.append(ffname)
             num_files = num_files + 1
+            dtff = dtff + dhr * timedelta(hours=1)
             if os.path.isfile(full_fn_out) == False:
                 #print(full_fn_out)
                 num_missing = num_missing + 1
-
-        dtff = dtff + timedelta(hours=3)
 
     return num_files, num_missing
 
@@ -280,10 +289,10 @@ def refresh_hycom_dir():
     tnow = datetime.now()
     tget = []
 
-    if t0>tnow - 2 * timedelta(days=1):
+    if t0>tnow - 1 * timedelta(days=1):
         print('the directory is up to date and there are no possible hycom files to download')
-    else:
-        while t0<tnow - 2* timedelta(days=1): # the 2 is here because hycom forecasts are never available day of.
+    else:   # with 1 below, we try to get yesterdays forecast. Not often there but we try!
+        while t0<tnow - 1 * timedelta(days=1):  
             t0 = t0 + timedelta(days=1)
             yyyymmdd = "%d%02d%02d" % (t0.year, t0.month, t0.day)
             tget.append(yyyymmdd)
@@ -379,6 +388,81 @@ def get_hycom_data(yyyymmdd):
     #print('Time to get all files using parallel ncks = %0.2f sec' % (time.time()-tt0))
     #print('Return code = ' + str(result) + ' (0=success, 1=skipped ncks)')
 
+
+def get_hycom_data_1hr(yyyymmdd):
+    # this function gets all of the new hycom data as separate files for each field (ssh,temp,salt,u,v) and each time
+    # and puts each .nc file in the directory for hycom data
+
+    yyyy = yyyymmdd[0:4]
+    mm = yyyymmdd[4:6]
+    dd = yyyymmdd[6:8]
+    ocn_name = ['https://tds.hycom.org/thredds/dodsC/FMRC_ESPC-D-V02','runs/FMRC_ESPC-D-V02','_RUN_'+ yyyy + '-' + mm + '-' + dd + 'T12:00:00Z']
+    
+    # time limits
+    Tfor = 8.0 # hycom should go out 8 days.
+    # the first time to get
+    dstr0 = yyyy + '-' + mm + '-' + dd + 'T12:00'
+    t00 = datetime.strptime(dstr0,"%Y-%m-%dT%H:%M")
+    # the last time to get
+    t10 = t00 + Tfor * timedelta(days=1)
+    
+    t1str = "%d%02d%02d%02d%02d" % (t00.year, t00.month, t00.day, t00.hour, t00.minute)
+    t2str = "%d%02d%02d%02d%02d" % (t10.year, t10.month, t10.day, t10.hour, t10.minute)
+    ncfiles = get_hycom_nc_file_names(yyyymmdd,t1str,t2str)
+
+    # create parallel executor
+    with ThreadPoolExecutor() as executor:
+        threads = []
+        for fname in ncfiles:
+            dtffstr = fname[-19:-3] # this is the forecast time we want
+            dtff    = datetime.strptime(dtffstr,"%Y-%m-%dT%H:%M")
+            bb = fname[-41:-37] # this is the field, eg. _ssh, _s3z, etc
+            fun = hycom_grabber #define function
+            hycom = ocn_name[0]+bb+ocn_name[1]+bb+ocn_name[2]
+            args = [hycom,dtff,bb,dstr0] #define args to function
+            kwargs = {} #
+            # start thread by submitting it to the executor
+            threads.append(executor.submit(fun, *args, **kwargs))
+            
+        for future in as_completed(threads):
+            # retrieve the result
+            result = future.result()
+            # report the result
+
+def get_hycom_nc_file_names(yyyymmdd,t1str,t2str):
+
+    yyyy = yyyymmdd[0:4]
+    mm = yyyymmdd[4:6]
+    dd = yyyymmdd[6:8]
+    # the time of the hycom forecast
+    dstr0 = yyyy + '-' + mm + '-' + dd + 'T12:00'
+
+
+    var_names = ['_s3z','_t3z','_u3z','_v3z','_ssh']
+    PFM=get_PFM_info()
+
+    t00 =  datetime.strptime(t1str,"%Y%m%d%H%M")
+    t10 =  datetime.strptime(t2str,"%Y%m%d%H%M")
+
+    # form list of days to get, datetimes
+    dt0 = t00
+    dt1 = t10 
+    ncfiles = [] # this is the list of all of the nc files we will get from hycom
+    one_hr = timedelta(hours=1)
+
+    for bb in var_names:
+        dtff = dt0
+        dhr = 3
+        if bb=='_ssh': # hook to get 1hr resolution zeta
+            dhr = 1
+        while dtff <= dt1:
+            ffn = PFM['hycom_data_dir'] + 'hy'+ bb + '_' + dstr0 + '_' + dtff.strftime("%Y-%m-%dT%H:%M") +'.nc'
+            ncfiles.append(ffn)
+            dtff = dtff + dhr * one_hr
+
+    return ncfiles
+
+
 def cat_hycom_to_onenc(yyyymmdd,t1str,t2str):
 
     t1 =  datetime.strptime(t1str,"%Y%m%d%H%M")
@@ -411,9 +495,52 @@ def cat_hycom_to_onenc(yyyymmdd,t1str,t2str):
     ds = xr.open_mfdataset(nc_in_names,combine = 'by_coords',data_vars='all',coords='all')
     enc_dict = {'zlib':True, 'complevel':1, '_FillValue':1e20}
     Enc_dict = {vn:enc_dict for vn in ds.data_vars}
+    print('writing to .nc ...')
     ds.to_netcdf(cat_fname,encoding=Enc_dict)
     ds.close()
     del ds
+
+def cat_hycom_to_twonc_1hr(yyyymmdd,t1str,t2str):
+
+    nc_in_names = get_hycom_nc_file_names(yyyymmdd,t1str,t2str)
+
+    nc_1hr = []
+    nc_3hr = []
+    
+    for fn in nc_in_names:
+        vnm = fn[-41:-37]
+        if vnm == '_ssh':
+            nc_1hr.append(fn)
+        else:
+            nc_3hr.append(fn)
+
+    yyyy = yyyymmdd[0:4]
+    mm = yyyymmdd[4:6]
+    dd = yyyymmdd[6:8]
+    dstr0 = yyyy + '-' + mm + '-' + dd + 'T12:00' # this is the forecast time
+
+    PFM=get_PFM_info()
+
+    cat_1hr_fn = PFM['lv1_forc_dir'] + '/' + 'hy_cat_1hr_' + dstr0 + '.nc'
+    cat_3hr_fn = PFM['lv1_forc_dir'] + '/' + 'hy_cat_3hr_' + dstr0 + '.nc'
+
+    ds = xr.open_mfdataset(nc_1hr,combine = 'by_coords',data_vars='all',coords='all')
+    enc_dict = {'zlib':True, 'complevel':1, '_FillValue':1e20}
+    Enc_dict = {vn:enc_dict for vn in ds.data_vars}
+    print('writing to .nc ...')
+    ds.to_netcdf(cat_1hr_fn,encoding=Enc_dict)
+    ds.close()
+    del ds
+
+    ds = xr.open_mfdataset(nc_3hr,combine = 'by_coords',data_vars='all',coords='all')
+    enc_dict = {'zlib':True, 'complevel':1, '_FillValue':1e20}
+    Enc_dict = {vn:enc_dict for vn in ds.data_vars}
+    print('writing to .nc ...')
+    ds.to_netcdf(cat_3hr_fn,encoding=Enc_dict)
+    ds.close()
+    del ds
+
+
     
 def hycom_cat_to_pickles(yyyymmdd):
 
@@ -515,6 +642,116 @@ def hycom_cat_to_pickles(yyyymmdd):
         pickle.dump(OCN,fp)
         print('\nHycom OCN dict saved with pickle')
 
+def hycom_cats_to_pickle(yyyymmdd):
+
+    PFM=get_PFM_info()
+
+    yyyy = yyyymmdd[0:4]
+    mm = yyyymmdd[4:6]
+    dd = yyyymmdd[6:8]    
+    dstr0 = yyyy + '-' + mm + '-' + dd + 'T12:00'
+    
+    cat_1hr_fn = PFM['lv1_forc_dir'] + '/' + 'hy_cat_1hr_' + dstr0 + '.nc'
+    cat_3hr_fn = PFM['lv1_forc_dir'] + '/' + 'hy_cat_3hr_' + dstr0 + '.nc'
+        
+    dss = xr.open_dataset(cat_3hr_fn)
+            
+    lat = dss.lat.values
+    lon = dss.lon.values
+    z   = dss.depth.values
+    temp= dss.water_temp.values
+    sal = dss.salinity.values
+    u   = dss.water_u.values
+    v   = dss.water_v.values
+    t_ref = PFM['modtime0']
+    dt = (dss.time - np.datetime64(t_ref))  / np.timedelta64(1,'D') # this gets time in days from t_ref
+    t_rom = dt.values
+    dss.close()
+    del dss
+    gc.collect()
+
+    dss = xr.open_dataset(cat_1hr_fn)
+    eta = dss.surf_el.values
+    dt = (dss.time - np.datetime64(t_ref))  / np.timedelta64(1,'D') # this gets time in days from t_ref
+    t_rom2 = dt.values
+
+    # set up dict and fill in
+    OCN = dict()
+    OCN['vinfo'] = dict()
+
+    # this is the complete list of variables that need to be in the netcdf file
+    vlist = ['lon','lat','ocean_time','surf_el','water_u','water_v','temp','sal','surf_el_time']
+
+    for aa in vlist:
+        OCN['vinfo'][aa] = dict()
+
+    OCN['lon']=lon - 360 # make the lons negative consistent with most 
+    OCN['lat']=lat
+
+    OCN['ocean_time'] = t_rom
+    OCN['ocean_time_ref'] = t_ref
+    OCN['zeta_time'] = t_rom2
+    
+    OCN['u'] = u
+    del u
+    OCN['v'] = v
+    del v
+    OCN['temp'] = temp
+    del temp
+    OCN['salt'] = sal
+    del sal
+    OCN['zeta'] = eta
+    del eta
+    OCN['depth'] = z
+
+    print('\nmax and min raw hycom data (iz is top [0] to bottom [39]):')
+    vlist = ['zeta','u','v','temp','salt']
+    ulist = ['m','m/s','m/s','C','psu']
+    ulist2 = dict(zip(vlist,ulist))
+    print_var_max_mins(OCN,vlist,ulist2)
+
+    # put the units in OCN...
+    OCN['vinfo']['lon'] = {'long_name':'longitude',
+                    'units':'degrees_east'}
+    OCN['vinfo']['lat'] = {'long_name':'latitude',
+                    'units':'degrees_north'}
+    OCN['vinfo']['ocean_time'] = {'long_name':'time since initialization',
+                    'units':'days',
+                    'coordinates':'temp_time',
+                    'field':'ocean_time, scalar, series'}
+    OCN['vinfo']['zeta_time'] = {'long_name':'time since initialization for zeta',
+                    'units':'days',
+                    'coordinates':'zeta_time',
+                    'field':'ocean_time, scalar, series'}
+    OCN['vinfo']['ocean_time_ref'] = {'long_name': 'the reference date tref (initialization time)'}
+    OCN['vinfo']['depth'] = {'long_name':'ocean depth',
+                        'units':'m'}
+    OCN['vinfo']['temp'] = {'long_name':'ocean temperature',
+                    'units':'degrees C',
+                    'coordinates':'z,lat,lon',
+                    'time':'ocean_time'}
+    OCN['vinfo']['salt'] = {'long_name':'ocean salinity',
+                    'units':'psu',
+                    'coordinates':'z,lat,lon',
+                    'time':'ocean_time'}
+    OCN['vinfo']['u'] = {'long_name':'ocean east west velocity',
+                    'units':'m/s',
+                    'coordinates':'z,lat,lon',
+                    'time':'ocean_time'}
+    OCN['vinfo']['v'] = {'long_name':'ocean north south velocity',
+                    'units':'m/s',
+                    'coordinates':'z,lat,lon',
+                    'time':'ocean_time'}
+    OCN['vinfo']['zeta'] = {'long_name':'ocean sea surface height',
+                    'units':'m',
+                    'coordinates':'lat,lon',
+                    'time':'ocean_time'}
+
+    gc.collect()
+    fn_out = PFM['lv1_forc_dir'] + '/' + PFM['lv1_ocn_tmp_pckl_file']
+    with open(fn_out,'wb') as fp:
+        pickle.dump(OCN,fp)
+        print('\nHycom OCN dict saved with pickle')
 
 def print_var_max_mins(OCN,vlist,ulist2):
 
@@ -1702,6 +1939,184 @@ def make_all_tmp_pckl_ocnR_files(fname_in):
     os.chdir('../driver')
 
 
+def make_all_tmp_pckl_ocnR_files_1hrzeta(fname_in):
+    
+    print('and saving 18 pickle files...')
+    
+    ork = ['depth','lat_rho','lon_rho','lat_u','lon_u','lat_v','lon_v','ocean_time','zeta_time','ocean_time_ref','salt','temp','ubar','urm','vbar','vrm','zeta','vinfo']
+    
+    os.chdir('../sdpm_py_util')
+    rctot = 0
+
+    for aa in ork:
+        cmd_list = ['python','-W','ignore','ocn_functions.py','make_tmp_hy_on_rom_pckl_files_1hrzeta',fname_in,aa]
+        ret1 = subprocess.run(cmd_list)     
+        rctot = rctot + ret1.returncode
+        if ret1.returncode != 0:
+            print('the ' + aa + ' pickle file was not made correctly')
+
+    if rctot == 0: 
+        print('...done. \nall 18 ocnR pickle files were made correctly')
+    else:
+        print('...done. \nat least one of the ocnR pickle files were not made correctly')
+    
+    os.chdir('../driver')
+
+def make_tmp_hy_on_rom_pckl_files_1hrzeta(fname_in,var_name):
+    # HYcom and RoMsGrid come in as dicts with ROMS variable names    
+    # The output of this, HYrm, is a dict with 
+    # hycom fields on roms horizontal grid points
+    # but hycom z levels.
+    # velocity will be on both (lat_u,lon_u)
+    # and (lat_v,lon_v).
+
+    # load the hycom data
+    with open(fname_in,'rb') as fp:
+        HY = pickle.load(fp)
+        #print('OCN dict loaded with pickle')
+
+    lnhy = HY['lon']
+    lthy = HY['lat']
+
+    PFM=get_PFM_info()
+    RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
+
+    NR,NC = np.shape(RMG['lon_rho'])
+    NZ = len(HY['depth'])
+    NT = len(HY['ocean_time'])
+    NTz = len(HY['zeta_time'])
+
+    fn_temp = PFM['lv1_forc_dir'] + '/tmp_' + var_name + '.pkl'
+
+    HYrm=dict()
+    if var_name == 'vinfo':
+        HYrm['vinfo']=dict()
+        HYrm['vinfo']['depth'] = HY['vinfo']['depth']
+        HYrm['vinfo']['ocean_time'] = HY['vinfo']['ocean_time']
+        HYrm['vinfo']['zeta_time'] = HY['vinfo']['zeta_time']
+
+        HYrm['vinfo']['ocean_time_ref'] = HY['vinfo']['ocean_time_ref']
+        HYrm['vinfo']['lon_rho'] = {'long_name':'rho point longitude',
+                            'units':'degrees_east'}
+        HYrm['vinfo']['lat_rho'] = {'long_name':'rho point latitude',
+                            'units':'degrees_north'}
+        HYrm['vinfo']['lon_u'] = {'long_name':'rho point longitude',
+                            'units':'degrees_east'}
+        HYrm['vinfo']['lat_u'] = {'long_name': 'u point latitude',
+                            'units':'degrees_north'}
+        HYrm['vinfo']['lon_v'] = {'long_name':'v point longitude',
+                            'units':'degrees_east'}
+        HYrm['vinfo']['lat_v'] = {'long_name':'v point latitude',
+                            'units':'degrees_north'}
+        HYrm['vinfo']['temp'] = {'long_name':'ocean temperature',
+                            'units':'degrees C',
+                            'coordinates':'z,lat_rho,lon_rho',
+                            'time':'ocean_time'}
+        HYrm['vinfo']['salt'] = {'long_name':'ocean salinity',
+                            'units':'psu',
+                            'coordinates':'z,lat_rho,lon_rho',
+                            'time':'ocean_time'}
+        HYrm['vinfo']['zeta'] = {'long_name':'ocean sea surface height',
+                            'units':'m',
+                            'coordinates':'lat_rho,lon_rho',
+                            'time':'ocean_time'}
+        HYrm['vinfo']['urm'] = {'long_name':'ocean xi velocity',
+                            'units':'m/s',
+                            'coordinates':'z,lat_u,lon_u',
+                            'time':'ocean_time',
+                            'note':'this is now rotated in the roms xi direction'}
+        HYrm['vinfo']['vrm'] = {'long_name':'ocean eta velocity',
+                            'units':'m/s',
+                            'coordinates':'z,lat_v,lon_v',
+                            'time':'ocean_time',
+                            'note':'this is now rotated in the roms eta direction'}
+        HYrm['vinfo']['ubar'] = {'long_name':'ocean xi depth avg velocity',
+                            'units':'m/s',
+                            'coordinates':'lat_u,lon_u',
+                            'time':'ocean_time',
+                            'note':'uses hycom depths and this is now rotated in the roms xi direction'}
+        HYrm['vinfo']['vbar'] = {'long_name':'ocean eta depth avg velocity',
+                            'units':'m/s',
+                            'coordinates':'lat_v,lon_v',
+                            'time':'ocean_time',
+                            'note':'uses hycom depths and this is now rotated in the roms eta direction'}
+            
+    elif var_name == 'depth' or var_name == 'ocean_time' or var_name == 'zeta_time': 
+        HYrm[var_name] = HY[var_name][:] # depths are from hycom
+      
+    elif var_name == 'ocean_time_ref': 
+        HYrm[var_name] = HY[var_name] 
+    
+    elif var_name == 'lat_rho' or var_name == 'lon_rho' or var_name == 'lat_u' or var_name == 'lon_u' or var_name == 'lat_v' or var_name == 'lon_v':
+        HYrm[var_name] = RMG[var_name][:]
+   
+    elif var_name == 'zeta':
+        Fz = RegularGridInterpolator((HY['lat'],HY['lon']),HY['zeta'][0,:,:])
+        HYrm[var_name] = np.zeros((NTz,NR,NC))
+        for cc in range(NTz):
+            zhy2 = HY[var_name][cc,:,:]
+            HYrm[var_name][cc,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],Fz)            
+
+    elif var_name == 'salt' or var_name == 'temp':
+        Fz = RegularGridInterpolator((HY['lat'],HY['lon']),HY['zeta'][0,:,:])
+        HYrm[var_name] = np.zeros((NT,NZ,NR,NC))
+        for cc in range(NT):
+            for bb in range(NZ):
+                zhy2 = HY[var_name][cc,bb,:,:]
+                HYrm[var_name][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],Fz)            
+
+    elif var_name == 'urm' or var_name == 'vrm':
+        Fz = RegularGridInterpolator((HY['lat'],HY['lon']),HY['zeta'][0,:,:])
+
+        hyz = HY['depth']
+        angr = RMG['angle']
+        cosang = np.cos(angr)
+        sinang = np.sin(angr)
+
+        if var_name == 'urm':
+            HYrm['urm'] = np.zeros((NT,NZ,NR,NC-1))
+        else:
+            HYrm['vrm'] = np.zeros((NT,NZ,NR-1,NC)) 
+        
+        for cc in range(NT):
+            for bb in range(NZ):
+                uhy = HY['u'][cc,bb,:,:]
+                vhy = HY['v'][cc,bb,:,:]
+                u1 = interp_hycom_to_roms(lnhy,lthy,uhy,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],Fz)
+                v1 = interp_hycom_to_roms(lnhy,lthy,vhy,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],Fz)            
+                if var_name == 'urm':
+                    u2 = cosang * u1 + sinang * v1
+                    u3 = .5*( u2[:,0:-1]+u2[:,1:] )
+                    HYrm['urm'][cc,bb,:,:] = u3
+                else:
+                    v2 = cosang * v1 - sinang * u1
+                    v3 = .5*( v2[0:-1,:]+v2[1:,:] )
+                    HYrm['vrm'][cc,bb,:,:] = v3
+
+        if var_name == 'urm':
+            Hru = 0.5 * (RMG['h'][:,0:-1] + RMG['h'][:,1:])
+            utst = Hru[None,:,:] - hyz[:,None,None]
+            umsk = 0*utst
+            umsk[utst>=0] = 1 # this should put zeros at all depths below the bottom
+            HYrm['urm'] = HYrm['urm']*umsk[None,:,:,:]
+        else:
+            Hrv = 0.5 * (RMG['h'][0:-1,:] + RMG['h'][1:,:])
+            vtst = Hrv[None,:,:] - hyz[:,None,None]
+            vmsk = 0*vtst
+            vmsk[vtst>=0] = 1 # and ones at all depths above the bottom
+            HYrm['vrm'] = HYrm['vrm']*vmsk[None,:,:,:]
+
+    elif var_name == 'vbar': # zeros is just a place holder as depth avg velocities are calculated later 
+        HYrm[var_name] = np.zeros((NT,NR-1,NC))
+    elif var_name == 'ubar':
+        HYrm[var_name] = np.zeros((NT,NR,NC-1))    
+
+    with open(fn_temp,'wb') as fp:
+        pickle.dump(HYrm[var_name],fp)
+
+
+
+
 def make_tmp_hy_on_rom_pckl_files(fname_in,var_name):
     # HYcom and RoMsGrid come in as dicts with ROMS variable names    
     # The output of this, HYrm, is a dict with 
@@ -1732,6 +2147,8 @@ def make_tmp_hy_on_rom_pckl_files(fname_in,var_name):
         HYrm['vinfo']=dict()
         HYrm['vinfo']['depth'] = HY['vinfo']['depth']
         HYrm['vinfo']['ocean_time'] = HY['vinfo']['ocean_time']
+        #HYrm['vinfo']['zeta_time'] = HY['vinfo']['zeta_time']
+
         HYrm['vinfo']['ocean_time_ref'] = HY['vinfo']['ocean_time_ref']
         HYrm['vinfo']['lon_rho'] = {'long_name':'rho point longitude',
                             'units':'degrees_east'}
@@ -1851,6 +2268,9 @@ def make_tmp_hy_on_rom_pckl_files(fname_in,var_name):
     with open(fn_temp,'wb') as fp:
         pickle.dump(HYrm[var_name],fp)
 
+
+
+
 def print_maxmin_HYrm_pickles():
 
     HYrm = load_ocnR_from_pckl_files()
@@ -1893,7 +2313,11 @@ def print_maxmin_HYrm_pickles():
 def load_ocnR_from_pckl_files():
 
     PFM=get_PFM_info()
-    ork = ['depth','lat_rho','lon_rho','lat_u','lon_u','lat_v','lon_v','ocean_time','ocean_time_ref','salt','temp','ubar','urm','vbar','vrm','zeta','vinfo']
+    onehr_zeta = 1
+    if onehr_zeta == 0:
+        ork = ['depth','lat_rho','lon_rho','lat_u','lon_u','lat_v','lon_v','ocean_time','ocean_time_ref','salt','temp','ubar','urm','vbar','vrm','zeta','vinfo']
+    else:
+        ork = ['depth','lat_rho','lon_rho','lat_u','lon_u','lat_v','lon_v','ocean_time','zeta_time','ocean_time_ref','salt','temp','ubar','urm','vbar','vrm','zeta','vinfo']
 
     OCN_R = dict()
     for nm in ork:
@@ -1902,6 +2326,7 @@ def load_ocnR_from_pckl_files():
             OCN_R[nm] = pickle.load(fp)
 
     return OCN_R
+
 
 
 def ocn_r_2_ICdict_pckl(fname_out):
@@ -2520,6 +2945,16 @@ def make_rom_depths(fname_depths_pickle):
     else:
         print('depth pickle file ' + fname_depths_pickle + 'already exists.')
 
+def make_rom_depths_1hrzeta(fname_depths_pickle):
+
+    if os.path.isfile(fname_depths_pickle) == False: # might need to make the file if it doesn't exist...
+        print('making roms depth pickle file ' + fname_depths_pickle + '...')
+        make_temp_rom_depth_files_1hrzeta(fname_depths_pickle)
+        print('...done makeing depth pickle file.')
+    else:
+        print('depth pickle file ' + fname_depths_pickle + 'already exists.')
+
+
 
 def load_rom_depths(fname_depths_pickle):
 
@@ -2607,6 +3042,83 @@ def make_temp_rom_depth_files(fname_out):
         pickle.dump(Zrm,fout)
         print('ROMS depths for IC/BC saved with pickle to ' + fname_out)
 
+def make_temp_rom_depth_files_1hrzeta(fname_out):
+    
+    PFM=get_PFM_info()
+    Nz   = PFM['stretching']['L1','Nz']                              # number of vertical levels: 40
+    Vtr  = PFM['stretching']['L1','Vtransform']                       # transformation equation: 2
+    Vst  = PFM['stretching']['L1','Vstretching']                    # stretching function: 4 
+    th_s = PFM['stretching']['L1','THETA_S']                      # surface stretching parameter: 8
+    th_b = PFM['stretching']['L1','THETA_B']                      # bottom  stretching parameter: 3
+    Tcl  = PFM['stretching']['L1','TCLINE']                      # critical depth (m): 50
+    hc   = PFM['stretching']['L1','hc']
+
+    RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
+    hb = RMG['h']
+    hb_u = 0.5 * (hb[:,0:-1]+hb[:,1:])
+    hb_v = 0.5 * (hb[0:-1,:]+hb[1:,:])
+    del RMG
+
+    fn_temp = PFM['lv1_forc_dir'] + '/tmp_' + 'zeta' + '.pkl'
+    with open(fn_temp,'rb') as fp:
+        zeta = pickle.load(fp)
+
+    zeta = np.squeeze(zeta[0::3,:,:])
+
+    Nt,Nlt,Nln = np.shape(zeta)
+    hraw = None
+    Zrm=dict()
+    Zrm['zr_ic']   = np.zeros((Nz,Nlt,Nln))
+    Zrm['zu_ic']   = np.zeros((Nz,Nlt,Nln-1))
+    Zrm['zv_ic']   = np.zeros((Nz,Nlt-1,Nln))
+    Zrm['zr_bc_n'] = np.zeros((Nt,Nz,Nln))
+    Zrm['zr_bc_s'] = np.zeros((Nt,Nz,Nln))
+    Zrm['zr_bc_w'] = np.zeros((Nt,Nz,Nlt))
+    Zrm['zu_bc_n'] = np.zeros((Nt,Nz,Nln-1))
+    Zrm['zu_bc_s'] = np.zeros((Nt,Nz,Nln-1))
+    Zrm['zu_bc_w'] = np.zeros((Nt,Nz,Nlt))
+    Zrm['zv_bc_n'] = np.zeros((Nt,Nz,Nln))
+    Zrm['zv_bc_s'] = np.zeros((Nt,Nz,Nln))
+    Zrm['zv_bc_w'] = np.zeros((Nt,Nz,Nlt-1))
+
+    for aa in range(Nt):
+        zeta_r = np.squeeze(zeta[aa,:,:])
+        zeta_u = np.squeeze( 0.5 * (zeta[aa,:,0:-1]+zeta[aa,:,1:]) )
+        zeta_v = np.squeeze( 0.5 * (zeta[aa,0:-1,:]+zeta[aa,1:,:]) )
+
+        if Vst == 4:
+            zrom = s_coordinate_4(hb, th_b , th_s , Tcl , Nz, hraw=hraw, zeta=zeta_r)
+            zrom_u = s_coordinate_4(hb_u, th_b , th_s , Tcl , Nz, hraw=hraw, zeta=zeta_u)    
+            zrom_v = s_coordinate_4(hb_v, th_b , th_s , Tcl , Nz, hraw=hraw, zeta=zeta_v)
+
+        Zr = zrom.z_r
+        Zu = zrom_u.z_r
+        Zv = zrom_v.z_r
+
+        if aa==0:
+            Zrm['zr_ic'] = np.squeeze(Zr[0,:,:,:])
+            Zrm['zu_ic'] = np.squeeze(Zu[0,:,:,:])
+            Zrm['zv_ic'] = np.squeeze(Zv[0,:,:,:])
+
+        Zrm['zr_bc_n'][aa,:,:] = np.squeeze(Zr[0,:,-1,:])
+        Zrm['zr_bc_s'][aa,:,:] = np.squeeze(Zr[0,:,0,:])
+        Zrm['zr_bc_w'][aa,:,:] = np.squeeze(Zr[0,:,:,0])
+        Zrm['zu_bc_n'][aa,:,:] = np.squeeze(Zu[0,:,-1,:])
+        Zrm['zu_bc_s'][aa,:,:] = np.squeeze(Zu[0,:,0,:])
+        Zrm['zu_bc_w'][aa,:,:] = np.squeeze(Zu[0,:,:,0])
+        Zrm['zv_bc_n'][aa,:,:] = np.squeeze(Zv[0,:,-1,:])
+        Zrm['zv_bc_s'][aa,:,:] = np.squeeze(Zv[0,:,0,:])
+        Zrm['zv_bc_w'][aa,:,:] = np.squeeze(Zv[0,:,:,0])
+    
+    
+    Zrm['Cs_r'] = np.squeeze(zrom.Cs_r)
+
+
+    with open(fname_out,'wb') as fout:
+        pickle.dump(Zrm,fout)
+        print('ROMS depths for IC/BC saved with pickle to ' + fname_out)
+
+
 def get_depth_avg_v(v,z,eta,hb):
 
     z2 = .5 *( z[0:-1]+z[1:] )
@@ -2674,6 +3186,8 @@ def ocn_r_2_BCdict_pckl_new(fname_out):
     # fill in the dict with slicing
     OCN_BC['ocean_time'] = OCN_R['ocean_time']
     Nt = len( OCN_BC['ocean_time'] )
+    #OCN_BC['zeta_time'] = OCN_R['zeta_time']
+    #Ntz = len( OCN_BC['zeta_time'] )
     OCN_BC['ocean_time_ref'] = OCN_R['ocean_time_ref']
 
 
@@ -2921,6 +3435,277 @@ def ocn_r_2_BCdict_pckl_new(fname_out):
         print('OCN_BC dict saved with pickle')
 
 
+def ocn_r_2_BCdict_pckl_new_1hrzeta(fname_out):
+    # this slices the OCN_R dictionary at the first time for all needed 
+    # variables for the boundary condition for roms
+    # it then interpolates from the hycom z values that the vars are on
+    # and places them on the ROMS z levels
+    # this returns another dictionary OCN_BC that has all needed fields 
+    # for making the BC.nc file
+
+    PFM=get_PFM_info()   
+    RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
+    OCN_R = load_ocnR_from_pckl_files()
+    
+    fname_depths = PFM['lv1_forc_dir'] + '/' + PFM['lv1_depth_file']
+
+    print('loading ' + fname_depths)
+    Zrm = load_rom_depths(fname_depths)
+
+    #print(Zrm.keys())
+
+    OCN_BC = dict()
+    # fill in the dict with slicing
+    OCN_BC['ocean_time'] = OCN_R['ocean_time']
+    Nt = len( OCN_BC['ocean_time'] )
+    OCN_BC['zeta_time'] = OCN_R['zeta_time']
+    Ntz = len( OCN_BC['zeta_time'] )
+    OCN_BC['ocean_time_ref'] = OCN_R['ocean_time_ref']
+
+
+    # these variables need to be time sliced and then vertically interpolated
+    #varin3d = ['temp','salt','urm','vrm']
+    zhy = OCN_R['depth'] # these are the hycom depths
+    zhy = np.squeeze(zhy)
+    hb = RMG['h']
+    hb_u = 0.5 * (hb[:,0:-1]+hb[:,1:])
+    hb_v = 0.5 * (hb[0:-1,:]+hb[1:,:])
+    nlt,nln = np.shape(hb)
+
+    Nz   = PFM['stretching']['L1','Nz']                              # number of vertical levels: 40
+    Vtr  = PFM['stretching']['L1','Vtransform']                       # transformation equation: 2
+    Vst  = PFM['stretching']['L1','Vstretching']                    # stretching function: 4 
+    th_s = PFM['stretching']['L1','THETA_S']                      # surface stretching parameter: 8
+    th_b = PFM['stretching']['L1','THETA_B']                      # bottom  stretching parameter: 3
+    Tcl  = PFM['stretching']['L1','TCLINE']                      # critical depth (m): 50
+    hc   = PFM['stretching']['L1','hc']
+
+    OCN_BC['Nz'] = np.squeeze(Nz)
+    OCN_BC['Vtr'] = np.squeeze(Vtr)
+    OCN_BC['Vst'] = np.squeeze(Vst)
+    OCN_BC['th_s'] = np.squeeze(th_s)
+    OCN_BC['th_b'] = np.squeeze(th_b)
+    OCN_BC['Tcl'] = np.squeeze(Tcl)
+    OCN_BC['hc'] = np.squeeze(hc)
+
+    OCN_BC['temp_south'] = np.zeros((Nt,Nz,nln))
+    OCN_BC['salt_south'] = np.zeros((Nt,Nz,nln))
+    OCN_BC['u_south'] = np.zeros((Nt,Nz,nln-1))
+    OCN_BC['v_south'] = np.zeros((Nt,Nz,nln))
+    OCN_BC['ubar_south'] = np.zeros((Nt,nln-1))
+    OCN_BC['vbar_south'] = np.zeros((Nt,nln))
+    OCN_BC['zeta_south'] = np.zeros((Ntz,nln))
+
+    OCN_BC['temp_north'] = np.zeros((Nt,Nz,nln))
+    OCN_BC['salt_north'] = np.zeros((Nt,Nz,nln))
+    OCN_BC['u_north'] = np.zeros((Nt,Nz,nln-1))
+    OCN_BC['v_north'] = np.zeros((Nt,Nz,nln))
+    OCN_BC['ubar_north'] = np.zeros((Nt,nln-1))
+    OCN_BC['vbar_north'] = np.zeros((Nt,nln))
+    OCN_BC['zeta_north'] = np.zeros((Ntz,nln))
+
+    OCN_BC['temp_west'] = np.zeros((Nt,Nz,nlt))
+    OCN_BC['salt_west'] = np.zeros((Nt,Nz,nlt))
+    OCN_BC['u_west'] = np.zeros((Nt,Nz,nlt))
+    OCN_BC['v_west'] = np.zeros((Nt,Nz,nlt-1))
+    OCN_BC['ubar_west'] = np.zeros((Nt,nlt))
+    OCN_BC['vbar_west'] = np.zeros((Nt,nlt-1))
+    OCN_BC['zeta_west'] = np.zeros((Ntz,nlt))
+
+    OCN_BC['zeta_south'] = np.squeeze(OCN_R['zeta'][:,0,:])
+    OCN_BC['zeta_north'] = np.squeeze(OCN_R['zeta'][:,-1,:])
+    OCN_BC['zeta_west'] = np.squeeze(OCN_R['zeta'][:,:,0])
+    OCN_BC['ubar_south'] = np.squeeze(OCN_R['ubar'][:,0,:])
+    OCN_BC['ubar_north'] = np.squeeze(OCN_R['ubar'][:,-1,:])
+    OCN_BC['ubar_west'] = np.squeeze(OCN_R['ubar'][:,:,0])
+    OCN_BC['vbar_south'] = np.squeeze(OCN_R['vbar'][:,0,:])
+    OCN_BC['vbar_north'] = np.squeeze(OCN_R['vbar'][:,-1,:])
+    OCN_BC['vbar_west'] = np.squeeze(OCN_R['vbar'][:,:,0])
+     
+    TMP = dict()
+    TMP['temp_north'] = np.zeros((Nt,Nz,nln)) # a helper becasue we convert to potential temp below
+    TMP['temp_south'] = np.zeros((Nt,Nz,nln)) # a helper becasue we convert to potential temp below
+    TMP['temp_west'] = np.zeros((Nt,Nz,nlt)) # a helper becasue we convert to potential temp below
+    
+ 
+    OCN_BC['vinfo']=dict()
+    OCN_BC['vinfo']['ocean_time'] = OCN_R['vinfo']['ocean_time']
+    OCN_BC['vinfo']['zeta_time'] = OCN_R['vinfo']['zeta_time']
+    OCN_BC['vinfo']['ocean_time_ref'] = OCN_R['vinfo']['ocean_time_ref']
+    OCN_BC['vinfo']['lat_rho'] = OCN_R['vinfo']['lat_rho']
+    OCN_BC['vinfo']['lon_rho'] = OCN_R['vinfo']['lat_rho']
+    OCN_BC['vinfo']['lat_u'] = OCN_R['vinfo']['lat_u']
+    OCN_BC['vinfo']['lon_u'] = OCN_R['vinfo']['lon_u']
+    OCN_BC['vinfo']['lat_v'] = OCN_R['vinfo']['lat_v']
+    OCN_BC['vinfo']['lon_v'] = OCN_R['vinfo']['lon_v']
+
+    OCN_BC['vinfo']['Nz'] = {'long_name':'number of vertical rho levels',
+                             'units':'none'}
+    OCN_BC['vinfo']['Vtr'] = {'long_name':'vertical terrain-following transformation equation'}
+    OCN_BC['vinfo']['Vst'] = {'long_name':'vertical terrain-following stretching function'}
+    OCN_BC['vinfo']['th_s'] = {'long_name':'S-coordinate surface control parameter',
+                               'units':'nondimensional',
+                               'field': 'theta_s, scalar, series'}
+    OCN_BC['vinfo']['th_b'] = {'long_name':'S-coordinate bottom control parameter',
+                               'units':'nondimensional',
+                               'field': 'theta_b, scalar, series'}
+    OCN_BC['vinfo']['Tcl'] = {'long_name':'S-coordinate surface/bottom layer width',
+                               'units':'meter',
+                               'field': 'Tcline, scalar, series'}
+    OCN_BC['vinfo']['hc'] = {'long_name':'S-coordinate parameter, critical depth',
+                               'units':'meter',
+                               'field': 'hc, scalar, series'}
+    
+    OCN_BC['vinfo']['temp_south'] = {'long_name':'ocean potential temperature southern boundary',
+                        'units':'degrees C',
+                        'coordinates':'time,s,xi_rho',
+                        'time':'ocean_time'}
+    OCN_BC['vinfo']['salt_south'] = {'long_name':'ocean salinity southern boundary',
+                        'units':'psu',
+                        'coordinates':'tiem,s,xi_rho',
+                        'time':'ocean_time'}
+    OCN_BC['vinfo']['zeta_south'] = {'long_name':'ocean sea surface height southern boundary',
+                        'units':'m',
+                        'coordinates':'time,xi_rho',
+                        'time':'ocean_time'}
+    OCN_BC['vinfo']['u_south'] = {'long_name':'ocean xi velocity southern boundary',
+                        'units':'m/s',
+                        'coordinates':'time,s,xi_u',
+                        'time':'ocean_time'}
+    OCN_BC['vinfo']['v_south'] = {'long_name':'ocean eta velocity southern boundary',
+                        'units':'m/s',
+                        'coordinates':'time,s,xi_v',
+                        'time':'ocean_time'}
+    OCN_BC['vinfo']['ubar_south'] = {'long_name':'ocean xi depth avg velocity southern boundary',
+                        'units':'m/s',
+                        'coordinates':'time,xi_u',
+                        'note':'uses roms depths'}
+    OCN_BC['vinfo']['vbar_south'] = {'long_name':'ocean eta depth avg velocity southern boundary',
+                        'units':'m/s',
+                        'coordinates':'time,xi_v',
+                        'note':'uses roms depths'}
+
+    OCN_BC['vinfo']['temp_north'] = {'long_name':'ocean potential temperature northern boundary',
+                        'units':'degrees C',
+                        'coordinates':'time,s,xi_rho',
+                        'time':'ocean_time'}
+    OCN_BC['vinfo']['salt_north'] = {'long_name':'ocean salinity northern boundary',
+                        'units':'psu',
+                        'coordinates':'tiem,s,xi_rho',
+                        'time':'ocean_time'}
+    OCN_BC['vinfo']['zeta_north'] = {'long_name':'ocean sea surface height northern boundary',
+                        'units':'m',
+                        'coordinates':'time,xi_rho',
+                        'time':'ocean_time'}
+    OCN_BC['vinfo']['u_north'] = {'long_name':'ocean xi velocity northern boundary',
+                        'units':'m/s',
+                        'coordinates':'time,s,xi_u',
+                        'time':'ocean_time'}
+    OCN_BC['vinfo']['v_north'] = {'long_name':'ocean eta velocity northern boundary',
+                        'units':'m/s',
+                        'coordinates':'time,s,xi_v',
+                        'time':'ocean_time'}
+    OCN_BC['vinfo']['ubar_north'] = {'long_name':'ocean xi depth avg velocity northern boundary',
+                        'units':'m/s',
+                        'coordinates':'time,xi_u',
+                        'note':'uses roms depths'}
+    OCN_BC['vinfo']['vbar_north'] = {'long_name':'ocean eta depth avg velocity northern boundary',
+                        'units':'m/s',
+                        'coordinates':'time,xi_v',
+                        'note':'uses roms depths'}
+
+    OCN_BC['vinfo']['temp_west'] = {'long_name':'ocean potential temperature western boundary',
+                        'units':'degrees C',
+                        'coordinates':'time,s,eta_rho',
+                        'time':'ocean_time'}
+    OCN_BC['vinfo']['salt_west'] = {'long_name':'ocean salinity western boundary',
+                        'units':'psu',
+                        'coordinates':'tiem,s,eta_rho',
+                        'time':'ocean_time'}
+    OCN_BC['vinfo']['zeta_west'] = {'long_name':'ocean sea surface height western boundary',
+                        'units':'m',
+                        'coordinates':'time,eta_rho',
+                        'time':'ocean_time'}
+    OCN_BC['vinfo']['u_west'] = {'long_name':'ocean xi velocity western boundary',
+                        'units':'m/s',
+                        'coordinates':'time,s,eta_u',
+                        'time':'ocean_time'}
+    OCN_BC['vinfo']['v_west'] = {'long_name':'ocean eta velocity western boundary',
+                        'units':'m/s',
+                        'coordinates':'time,s,eta_v',
+                        'time':'ocean_time'}
+    OCN_BC['vinfo']['ubar_west'] = {'long_name':'ocean xi depth avg velocity western boundary',
+                        'units':'m/s',
+                        'coordinates':'time,eta_u',
+                        'note':'uses roms depths'}
+    OCN_BC['vinfo']['vbar_west'] = {'long_name':'ocean eta depth avg velocity western boundary',
+                        'units':'m/s',
+                        'coordinates':'time,eta_v',
+                        'note':'uses roms depths'}
+
+    eta = np.squeeze(OCN_R['zeta'][0::3,:,:])
+    eta_u = 0.5 * (eta[:,:,0:-1]+eta[:,:,1:])
+    eta_v = 0.5 * (eta[:,0:-1,:]+eta[:,1:,:])
+    
+    OCN_BC['Cs_r'] = Zrm['Cs_r']
+    OCN_BC['vinfo']['Cs_r'] = {'long_name':'S-coordinate stretching curves at RHO-points',
+                        'units':'nondimensional',
+                        'valid min':'-1',
+                        'valid max':'0',
+                        'field':'Cs_r, scalar, series'}
+    
+    zr_s = Zrm['zr_bc_s']
+    zr_n = Zrm['zr_bc_n']
+    zr_w = Zrm['zr_bc_w']
+
+    zr_us = Zrm['zu_bc_s']
+    zr_un = Zrm['zu_bc_n']
+    zr_uw = Zrm['zu_bc_w']
+
+    zr_vs = Zrm['zv_bc_s']
+    zr_vn = Zrm['zv_bc_n']
+    zr_vw = Zrm['zv_bc_w']
+ 
+    for aa in range(Nt):
+        for bb in range(nln):
+            TMP['temp_south'][aa,:,bb]    = interp_to_roms_z(-zhy,OCN_R['temp'][aa,:,0,bb],zr_s[aa,:,bb],-hb[0,bb])
+            OCN_BC['salt_south'][aa,:,bb] = interp_to_roms_z(-zhy,OCN_R['salt'][aa,:,0,bb],zr_s[aa,:,bb],-hb[0,bb])
+            OCN_BC['v_south'][aa,:,bb]    = interp_to_roms_z(-zhy,OCN_R['vrm'][aa,:,0,bb],zr_vs[aa,:,bb],-hb_v[0,bb])
+            OCN_BC['vbar_south'][aa,bb]    = get_depth_avg_v(OCN_BC['v_south'][aa,:,bb],zr_vs[aa,:,bb],eta_v[aa,0,bb],hb_v[0,bb])
+            
+            TMP['temp_north'][aa,:,bb]    = interp_to_roms_z(-zhy,OCN_R['temp'][aa,:,-1,bb],zr_n[aa,:,bb],-hb[-1,bb])
+            OCN_BC['salt_north'][aa,:,bb] = interp_to_roms_z(-zhy,OCN_R['salt'][aa,:,-1,bb],zr_n[aa,:,bb],-hb[-1,bb])
+            OCN_BC['v_north'][aa,:,bb]    = interp_to_roms_z(-zhy,OCN_R['vrm'][aa,:,-1,bb],zr_vn[aa,:,bb],-hb_v[-1,bb])
+            OCN_BC['vbar_north'][aa,bb]    = get_depth_avg_v(OCN_BC['v_north'][aa,:,bb],zr_vn[aa,:,bb],eta_v[aa,-1,bb],hb_v[-1,bb])
+                
+            if bb < nln-1:
+                OCN_BC['u_south'][aa,:,bb]  = interp_to_roms_z(-zhy,OCN_R['urm'][aa,:,0,bb],zr_us[aa,:,bb],-hb_u[0,bb])
+                OCN_BC['ubar_south'][aa,bb]  = get_depth_avg_v(OCN_BC['u_south'][aa,:,bb],zr_us[aa,:,bb],eta_u[aa,0,bb],hb_u[0,bb])
+                OCN_BC['u_north'][aa,:,bb]  = interp_to_roms_z(-zhy,OCN_R['urm'][aa,:,-1,bb],zr_un[aa,:,bb],-hb_u[-1,bb])
+                OCN_BC['ubar_north'][aa,bb]  = get_depth_avg_v(OCN_BC['u_south'][aa,:,bb],zr_un[aa,:,bb],eta_u[aa,-1,bb],hb_u[-1,bb])
+
+        for bb in range(nlt):             
+            TMP['temp_west'][aa,:,bb]      = interp_to_roms_z(-zhy,OCN_R['temp'][aa,:,bb,0],zr_w[aa,:,bb],-hb[bb,0])
+            OCN_BC['salt_west'][aa,:,bb]   = interp_to_roms_z(-zhy,OCN_R['salt'][aa,:,bb,0],zr_w[aa,:,bb],-hb[bb,0])
+            OCN_BC['u_west'][aa,:,bb]      = interp_to_roms_z(-zhy,OCN_R['urm'][aa,:,bb,0],zr_uw[aa,:,bb],-hb_u[bb,0])
+            OCN_BC['ubar_west'][aa,bb]      = get_depth_avg_v(OCN_BC['u_west'][aa,:,bb],zr_uw[aa,:,bb],eta_u[aa,bb,0],hb_u[bb,0])
+            
+            if bb < nlt-1:    
+                OCN_BC['v_west'][aa,:,bb]  = interp_to_roms_z(-zhy,OCN_R['vrm'][aa,:,bb,0],zr_vw[aa,:,bb],-hb_v[bb,0])
+                OCN_BC['vbar_west'][aa,bb]  = get_depth_avg_v(OCN_BC['v_west'][aa,:,bb],zr_vw[aa,:,bb],eta_v[aa,bb,0],hb_v[bb,0])
+
+    # ROMS wants potential temperature, not temperature, Parker does this in LO.
+    # this needs the seawater package, conda install seawater, did this for me
+    pdb = -zr_s # pressure in dbar
+    OCN_BC['temp_south'] = seawater.ptmp(np.squeeze(OCN_BC['salt_south']), np.squeeze(TMP['temp_south']),np.squeeze(pdb))  
+    pdb = -zr_n # pressure in dbar
+    OCN_BC['temp_north'] = seawater.ptmp(np.squeeze(OCN_BC['salt_north']), np.squeeze(TMP['temp_north']),np.squeeze(pdb))  
+    pdb = -zr_w # pressure in dbar
+    OCN_BC['temp_west'] = seawater.ptmp(np.squeeze(OCN_BC['salt_west']), np.squeeze(TMP['temp_west']),np.squeeze(pdb))  
+
+    with open(fname_out,'wb') as fout:
+        pickle.dump(OCN_BC,fout)
+        print('OCN_BC dict saved with pickle')
 
 
 
@@ -3754,6 +4539,356 @@ def mk_LV2_BC_dict(lvl):
     #return xi_r2, eta_r2, interp_r
 
 
+def mk_LV2_BC_dict_1hrzeta(lvl):
+
+    PFM=get_PFM_info()  
+    if lvl == '2':
+        G1 = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
+        G2 = grdfuns.roms_grid_to_dict(PFM['lv2_grid_file'])
+        fn = PFM['lv1_his_name_full']
+        LV1_BC_pckl = PFM['lv1_forc_dir'] + '/' + PFM['lv1_ocnBC_tmp_pckl_file']
+        lv1 = 'L1'
+        lv2 = 'L2'
+        fn_out = PFM['lv2_forc_dir'] + '/' + PFM['lv2_ocnBC_tmp_pckl_file']
+    elif lvl == '3':
+        G1 = grdfuns.roms_grid_to_dict(PFM['lv2_grid_file'])
+        G2 = grdfuns.roms_grid_to_dict(PFM['lv3_grid_file'])
+        fn = PFM['lv2_his_name_full']
+        LV1_BC_pckl = PFM['lv2_forc_dir'] + '/' + PFM['lv2_ocnBC_tmp_pckl_file']
+        lv1 = 'L2'
+        lv2 = 'L3'
+        fn_out = PFM['lv3_forc_dir'] + '/' + PFM['lv3_ocnBC_tmp_pckl_file']
+    elif lvl == '4':
+        G1 = grdfuns.roms_grid_to_dict(PFM['lv3_grid_file'])
+        G2 = grdfuns.roms_grid_to_dict(PFM['lv4_grid_file'])
+        fn = PFM['lv3_his_name_full']
+        LV1_BC_pckl = PFM['lv3_forc_dir'] + '/' + PFM['lv3_ocnBC_tmp_pckl_file']
+        lv1 = 'L3'
+        lv2 = 'L4'
+     
+    # parent vertical stretching info 
+    Nz1   = PFM['stretching'][lv1,'Nz']                              # number of vertical levels: 40
+    Vtr1  = PFM['stretching'][lv1,'Vtransform']                       # transformation equation: 2
+    Vst1  = PFM['stretching'][lv1,'Vstretching']                    # stretching function: 4 
+    th_s1 = PFM['stretching'][lv1,'THETA_S']                      # surface stretching parameter: 8
+    th_b1 = PFM['stretching'][lv1,'THETA_B']                      # bottom  stretching parameter: 3
+    Tcl1  = PFM['stretching'][lv1,'TCLINE']                      # critical depth (m): 50
+    hc1   = PFM['stretching'][lv1,'hc']
+    
+    # child vertical stretching info
+    Nz2   = PFM['stretching'][lv2,'Nz']                              # number of vertical levels: 40
+    Vtr2  = PFM['stretching'][lv2,'Vtransform']                       # transformation equation: 2
+    Vst2  = PFM['stretching'][lv2,'Vstretching']                    # stretching function: 4 
+    th_s2 = PFM['stretching'][lv2,'THETA_S']                      # surface stretching parameter: 8
+    th_b2 = PFM['stretching'][lv2,'THETA_B']                      # bottom  stretching parameter: 3
+    Tcl2  = PFM['stretching'][lv2,'TCLINE']                      # critical depth (m): 50
+    hc2   = PFM['stretching'][lv2,'hc']
+
+    ltr1 = G1['lat_rho']
+    lnr1 = G1['lon_rho']
+    ltr2 = G2['lat_rho']
+    lnr2 = G2['lon_rho']
+    ltu1 = G1['lat_u']
+    lnu1 = G1['lon_u']
+    ltu2 = G2['lat_u']
+    lnu2 = G2['lon_u']
+    ltv1 = G1['lat_v']
+    lnv1 = G1['lon_v']
+    ltv2 = G2['lat_v']
+    lnv2 = G2['lon_v']
+
+    his_ds = nc.Dataset(fn)
+    
+    with open(LV1_BC_pckl,'rb') as fout:
+        BC1=pickle.load(fout)
+        print('OCN_LV' + str(int(lvl)-1) + '_BC dict loaded with pickle')
+
+    OCN_BC = dict()
+    OCN_BC['vinfo'] = dict()
+    OCN_BC['vinfo'] = BC1['vinfo']
+
+    OCN_BC['Nz'] = np.squeeze(Nz2)
+    OCN_BC['Vtr'] = np.squeeze(Vtr2)
+    OCN_BC['Vst'] = np.squeeze(Vst2)
+    OCN_BC['th_s'] = np.squeeze(th_s2)
+    OCN_BC['th_b'] = np.squeeze(th_b2)
+    OCN_BC['Tcl'] = np.squeeze(Tcl2)
+    OCN_BC['hc'] = np.squeeze(hc2)
+
+    hraw = None
+    if Vst1 == 4:
+        zrom1 = s_coordinate_4(G1['h'], th_b1 , th_s1 , Tcl1 , Nz1, hraw=hraw, zeta=np.squeeze(his_ds.variables['zeta'][:,:,:]))
+        
+
+    OCN_BC['ocean_time'] = his_ds.variables['ocean_time'][:] / (3600.0 * 24) # his.nc has time in sec past reference time.
+    Nt = len( OCN_BC['ocean_time'] )                                           # need in days past.
+    OCN_BC['ocean_time_ref'] = BC1['ocean_time_ref']
+
+    nlt, nln = np.shape(ltr2)
+
+    OCN_BC['temp_south'] = np.zeros((Nt,Nz2,nln))
+    OCN_BC['salt_south'] = np.zeros((Nt,Nz2,nln))
+    OCN_BC['u_south']    = np.zeros((Nt,Nz2,nln-1))
+    OCN_BC['v_south']    = np.zeros((Nt,Nz2,nln))
+    OCN_BC['ubar_south'] = np.zeros((Nt,nln-1))
+    OCN_BC['vbar_south'] = np.zeros((Nt,nln))
+    OCN_BC['zeta_south'] = np.zeros((Nt,nln))
+
+    OCN_BC['temp_north'] = np.zeros((Nt,Nz2,nln))
+    OCN_BC['salt_north'] = np.zeros((Nt,Nz2,nln))
+    OCN_BC['u_north']    = np.zeros((Nt,Nz2,nln-1))
+    OCN_BC['v_north']    = np.zeros((Nt,Nz2,nln))
+    OCN_BC['ubar_north'] = np.zeros((Nt,nln-1))
+    OCN_BC['vbar_north'] = np.zeros((Nt,nln))
+    OCN_BC['zeta_north'] = np.zeros((Nt,nln))
+
+    OCN_BC['temp_west'] = np.zeros((Nt,Nz2,nlt))
+    OCN_BC['salt_west'] = np.zeros((Nt,Nz2,nlt))
+    OCN_BC['u_west']    = np.zeros((Nt,Nz2,nlt))
+    OCN_BC['v_west']    = np.zeros((Nt,Nz2,nlt-1))
+    OCN_BC['ubar_west'] = np.zeros((Nt,nlt))
+    OCN_BC['vbar_west'] = np.zeros((Nt,nlt-1))
+    OCN_BC['zeta_west'] = np.zeros((Nt,nlt))
+
+    ZZ = dict() # this is a dict of the depths based on horizontal interpolation
+    ZZ['rho_west'] = np.zeros((Nt,Nz1,nlt))
+    ZZ['rho_north'] = np.zeros((Nt,Nz1,nln))
+    ZZ['rho_south'] = np.zeros((Nt,Nz1,nln))
+    ZZ['u_west'] = np.zeros((Nt,Nz1,nlt))
+    ZZ['u_north'] = np.zeros((Nt,Nz1,nln-1))
+    ZZ['u_south'] = np.zeros((Nt,Nz1,nln-1))
+    ZZ['v_west'] = np.zeros((Nt,Nz1,nlt-1))
+    ZZ['v_north'] = np.zeros((Nt,Nz1,nln))
+    ZZ['v_south'] = np.zeros((Nt,Nz1,nln))
+
+    ZTA = dict() # this is a dict of zeta along the edges of the child boundary for each variable
+    ZTA['v_north'] = np.zeros((Nt,nln))
+    ZTA['v_south'] = np.zeros((Nt,nln))
+    ZTA['v_west'] = np.zeros((Nt,nlt-1))
+    ZTA['u_north'] = np.zeros((Nt,nln-1))
+    ZTA['u_south'] = np.zeros((Nt,nln-1))
+    ZTA['u_west'] = np.zeros((Nt,nlt))
+    ZTA['rho_north'] = np.zeros((Nt,nln))
+    ZTA['rho_south'] = np.zeros((Nt,nln))
+    ZTA['rho_west'] = np.zeros((Nt,nlt))
+
+    Z2 = dict() # this is a dict of depths along the boundaries on the child grid
+    Z2['v_north'] = np.zeros((Nt,Nz2,nln))
+    Z2['v_south'] = np.zeros((Nt,Nz2,nln))
+    Z2['v_west'] = np.zeros((Nt,Nz2,nlt-1))
+    Z2['u_north'] = np.zeros((Nt,Nz2,nln-1))
+    Z2['u_south'] = np.zeros((Nt,Nz2,nln-1))
+    Z2['u_west'] = np.zeros((Nt,Nz2,nlt))
+    Z2['rho_north'] = np.zeros((Nt,Nz2,nln))
+    Z2['rho_south'] = np.zeros((Nt,Nz2,nln))
+    Z2['rho_west'] = np.zeros((Nt,Nz2,nlt))
+
+
+    # get x,y on LV1 grid.
+    # x1,y1 = ll2xy(lnr1, ltr1, np.mean(lnr1), np.mean(ltr1))
+
+    # get (x,y) grids, note zi = interp_r( (eta,xi) )
+    xi_r2, eta_r2, interp_r = get_child_xi_eta_interp(lnr1,ltr1,lnr2,ltr2)
+    xi_u2, eta_u2, interp_u = get_child_xi_eta_interp(lnu1,ltu1,lnu2,ltu2)
+    xi_v2, eta_v2, interp_v = get_child_xi_eta_interp(lnv1,ltv1,lnv2,ltv2)
+
+    # get nearest indices, from bad indices, so that land can be filled
+    indr = get_indices_to_fill(G1['mask_rho'])
+    indu = get_indices_to_fill(G1['mask_u'])
+    indv = get_indices_to_fill(G1['mask_v'])
+
+    # bookkeeping so that everything needed for each variable is associated with that variable
+    v_list1 = ['zeta','ubar','vbar']
+    v_list2 = ['temp','salt','u','v']
+
+    msk_d1 = dict()
+    msk_d1['zeta'] = G1['mask_rho']
+    msk_d1['ubar'] = G1['mask_u']
+    msk_d1['vbar'] = G1['mask_v']
+    msk_d2 = dict()
+    msk_d2['temp'] = G1['mask_rho']
+    msk_d2['salt'] = G1['mask_rho']
+    msk_d2['u']    = G1['mask_u']
+    msk_d2['v']    = G1['mask_v']
+
+    msk2_d1 = dict()
+    msk2_d1['zeta'] = G2['mask_rho']
+    msk2_d1['ubar'] = G2['mask_u']
+    msk2_d1['vbar'] = G2['mask_v']
+    msk2_d2 = dict()
+    msk2_d2['temp'] = G2['mask_rho']
+    msk2_d2['salt'] = G2['mask_rho']
+    msk2_d2['u']    = G2['mask_u']
+    msk2_d2['v']    = G2['mask_v']
+
+
+    ind_d1 = dict()
+    ind_d1['zeta'] = indr
+    ind_d1['ubar'] = indu
+    ind_d1['vbar'] = indv
+    ind_d2 = dict()
+    ind_d2['temp'] = indr
+    ind_d2['salt'] = indr
+    ind_d2['u']    = indu
+    ind_d2['v']    = indv
+
+    lat_d1 = dict()
+    lat_d1['zeta'] = eta_r2
+    lat_d1['ubar'] = eta_u2
+    lat_d1['vbar'] = eta_v2
+    lat_d2 = dict()
+    lat_d2['temp'] = eta_r2
+    lat_d2['salt'] = eta_r2
+    lat_d2['u']    = eta_u2
+    lat_d2['v']    = eta_v2
+
+    lon_d1 = dict()
+    lon_d1['zeta'] = xi_r2
+    lon_d1['ubar'] = xi_u2
+    lon_d1['vbar'] = xi_v2
+    lon_d2 = dict()
+    lon_d2['temp'] = xi_r2
+    lon_d2['salt'] = xi_r2
+    lon_d2['u']    = xi_u2
+    lon_d2['v']    = xi_v2
+
+    intf_d1 = dict()
+    intf_d1['zeta'] = interp_r
+    intf_d1['ubar'] = interp_u
+    intf_d1['vbar'] = interp_v
+    intf_d2 = dict()
+    intf_d2['temp'] = interp_r
+    intf_d2['salt'] = interp_r
+    intf_d2['u']    = interp_u
+    intf_d2['v']    = interp_v
+
+    
+    for vn in v_list1: # loop through all 2d variables
+        msk = msk_d1[vn] # get mask on LV1
+        msk2 = msk2_d1[vn] # get mask on LV2
+        ind = ind_d1[vn] # get indices so that land can be filled with nearest neighbor
+        xx2 = lon_d1[vn] # get xi_LV2 on LV1
+        yy2 = lat_d1[vn] # get eta_LV2 on LV1, to use with the interpolator
+        interpfun = intf_d1[vn]
+        for tind in np.arange(Nt): # loop through times
+            z0 = np.squeeze( his_ds.variables[vn][tind,:,:] )
+            z0[msk==0] = z0[msk==1][ind] # fill the mask with nearest neighbor
+            setattr(interpfun,'values',z0) # change the interpolator z values
+            z2 = interpfun((yy2,xx2)) # perhaps change here to directly interpolate to (xi,eta) on the edges?
+            #z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the land
+            OCN_BC[vn+'_south'][tind,:] = z2[0,:] # fill correctly
+            OCN_BC[vn+'_north'][tind,:] = z2[-1,:]
+            OCN_BC[vn+'_west'][tind,:]  = z2[:,0]
+            if vn == 'zeta': # this is zeta at child grid edges, for interpolating in z later
+                ZTA['rho_south'][tind,:] = z2[0,:]
+                ZTA['rho_north'][tind,:] = z2[-1,:]
+                ZTA['rho_west'][tind,:] = z2[:,0]
+                ZTA['u_south'][tind,:] = 0.5*( z2[0,0:-1]+z2[0,1:] )
+                ZTA['u_north'][tind,:] = 0.5*( z2[-1,0:-1]+z2[-1,1:] )
+                ZTA['u_west'][tind,:]  = 0.5*( z2[:,0]+z2[:,1] )
+                ZTA['v_south'][tind,:] = 0.5*( z2[0,:]+z2[1,:] )
+                ZTA['v_north'][tind,:] = 0.5*( z2[-2,:]+z2[-1,:] )
+                ZTA['v_west'][tind,:]  = 0.5*( z2[0:-1,0]+z2[1:,0] )
+
+
+    for vn in v_list2:
+        msk = msk_d2[vn]
+        msk2 = msk2_d2[vn]
+        ind = ind_d2[vn]
+        xx2 = lon_d2[vn]
+        yy2 = lat_d2[vn]
+        interpfun = intf_d2[vn]
+        for tind in np.arange(Nt):
+            for zind in np.arange(Nz1):
+                z0 = np.squeeze( his_ds.variables[vn][tind,zind,:,:] )
+                z0[msk==0] = z0[msk==1][ind]
+                setattr(interpfun,'values',z0)
+                z2 = interpfun((yy2,xx2))
+                z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the mask
+                OCN_BC[vn+'_south'][tind,zind,:] = z2[0,:]
+                OCN_BC[vn+'_north'][tind,zind,:] = z2[-1,:]
+                OCN_BC[vn+'_west'][tind,zind,:]  = z2[:,0]
+
+                if vn == 'temp':
+                    z0 = np.squeeze( zrom1.z_r[tind,zind,:,:])
+                    z0[msk==0] = z0[msk==1][ind] # fill in masked areas with nearest neighbor
+                    setattr(interpfun,'values',z0)
+                    z2 = interpfun((yy2,xx2))
+                    ZZ['rho_north'][tind,zind,:] = z2[-1,:] # we need the depths that the horizontal interpolation thinks it is
+                    ZZ['rho_south'][tind,zind,:] = z2[0,:]
+                    ZZ['rho_west'][tind,zind,:] = z2[:,0]
+                if vn == 'u':
+                    z0 = np.squeeze( zrom1.z_r[tind,zind,:,:])
+                    z0 = 0.5 * ( z0[:,0:-1] + z0[:,1:] )
+                    z0[msk==0] = z0[msk==1][ind] # fill in masked areas with nearest neighbor
+                    setattr(interpfun,'values',z0)
+                    z2 = interpfun((yy2,xx2))
+                    ZZ['u_north'][tind,zind,:] = z2[-1,:] # we need the depths that the horizontal interpolation thinks it is
+                    ZZ['u_south'][tind,zind,:] = z2[0,:]
+                    ZZ['u_west'][tind,zind,:] = z2[:,0]
+                if vn == 'v':
+                    z0 = np.squeeze( zrom1.z_r[tind,zind,:,:])
+                    z0 = 0.5 * ( z0[0:-1,:] + z0[1:,:] )
+                    z0[msk==0] = z0[msk==1][ind] # fill in masked areas with nearest neighbor
+                    setattr(interpfun,'values',z0)
+                    z2 = interpfun((yy2,xx2))
+                    ZZ['v_north'][tind,zind,:] = z2[-1,:] # we need the depths that the horizontal interpolation thinks it is
+                    ZZ['v_south'][tind,zind,:] = z2[0,:]
+                    ZZ['v_west'][tind,zind,:] = z2[:,0]
+
+    h = G2['h']
+    hu = .5*( h[:,0:-1] + h[:,1:] )
+    hv = .5*( h[0:-1,:] + h[1:,:] )
+
+    zr2 = s_coordinate_4(h[-1,:], th_b2 , th_s2 , Tcl2 , Nz2, hraw=hraw, zeta = ZTA['rho_north'][:,:])
+    Z2['rho_north'][:,:,:] = zr2.z_r[:,:,:]
+    zr2 = s_coordinate_4(h[0,:], th_b2 , th_s2 , Tcl2 , Nz2, hraw=hraw, zeta = ZTA['rho_south'][:,:])
+    Z2['rho_south'][:,:,:] = zr2.z_r[:,:,:]
+    zr2 = s_coordinate_4(h[:,0], th_b2 , th_s2 , Tcl2 , Nz2, hraw=hraw, zeta = ZTA['rho_west'][:,:])
+    Z2['rho_west'][:,:,:] = zr2.z_r[:,:,:]
+    zr2 = s_coordinate_4(hu[-1,:], th_b2 , th_s2 , Tcl2 , Nz2, hraw=hraw, zeta = ZTA['u_north'][:,:])
+    Z2['u_north'][:,:,:] = zr2.z_r[:,:,:]
+    zr2 = s_coordinate_4(hu[0,:], th_b2 , th_s2 , Tcl2 , Nz2, hraw=hraw, zeta = ZTA['u_south'][:,:])
+    Z2['u_south'][:,:,:] = zr2.z_r[:,:,:]
+    zr2 = s_coordinate_4(hu[:,0], th_b2 , th_s2 , Tcl2 , Nz2, hraw=hraw, zeta = ZTA['u_west'][:,:])
+    Z2['u_west'][:,:,:] = zr2.z_r[:,:,:]
+    zr2 = s_coordinate_4(hv[-1,:], th_b2 , th_s2 , Tcl2 , Nz2, hraw=hraw, zeta = ZTA['v_north'][:,:])
+    Z2['v_north'][:,:,:] = zr2.z_r[:,:,:]
+    zr2 = s_coordinate_4(hv[0,:], th_b2 , th_s2 , Tcl2 , Nz2, hraw=hraw, zeta = ZTA['v_south'][:,:])
+    Z2['v_south'][:,:,:] = zr2.z_r[:,:,:]
+    zr2 = s_coordinate_4(hv[:,0], th_b2 , th_s2 , Tcl2 , Nz2, hraw=hraw, zeta = ZTA['v_west'][:,:])
+    Z2['v_west'][:,:,:] = zr2.z_r[:,:,:]
+
+    OCN_BC['Cs_r'] = np.squeeze(zr2.Cs_r)
+
+    # now loop through all 3d variables and vertically interpolate to the correct z levels.
+    for vn in v_list2:
+        if vn in ['temp','salt']:
+            zt = 'rho'
+        else:
+            zt = vn
+        for bnd in ['_north','_south','_west']:
+            v1 = OCN_BC[vn+bnd][:,:,:] # the horizontally interpolated field
+            nnt,nnz,nnp = np.shape(v1)
+            for cc in np.arange(nnt):
+                for aa in np.arange(nnp):
+                    vp = np.squeeze( v1[cc,:,aa]) # the vertical data
+                    zp = np.squeeze( ZZ[zt+bnd][cc,:,aa] ) # z locations data thinks it is at
+                    zf = np.squeeze( Z2[zt+bnd][cc,:,aa]) # z locations where the data should be
+                    Fz = interp1d(zp,vp,bounds_error=False,kind='linear',fill_value = 'extrapolate') 
+                    vf =  np.squeeze(Fz(zf))
+                    OCN_BC[vn+bnd][cc,:,aa] = vf                
+
+    #fn_out = '/scratch/PFM_Simulations/LV3_Forecast/Forc/test_BC_LV3.pkl'
+
+    with open(fn_out,'wb') as fout:
+        pickle.dump(OCN_BC,fout)
+        print('OCN_LV',lvl,'_BC dict saved with pickle to: ',fn_out)
+
+
+
+
+
 def mk_LV2_IC_dict(lvl):
 
     PFM=get_PFM_info()  
@@ -4187,16 +5322,104 @@ def ocn_roms_BC_dict_to_netcdf_pckl(fname_in,fn_out):
         )
     # print(ds)
 
-   # these are extra time variables
-   # tvars=['zeta_time', 'v2d_time', 'v3d_time', 'salt_time','temp_time']
-   # for vn in tvars:
-    #    OCN_BC[vn] = OCN_BC['ocean_time']
-     #   OCN_BC['vinfo'][vn] = OCN_BC['vinfo']['ocean_time']
+    ds.to_netcdf(fn_out)
+    ds.close()
 
+def ocn_roms_BC_dict_to_netcdf_pckl_1hrzeta(fname_in,fn_out):
+
+    with open(fname_in,'rb') as fout:
+        ATM_R=pickle.load(fout)
+        print('OCN_BC dict loaded with pickle')
+
+    # lets replace NaNs if there are any
+    vns = ['temp','salt','u','v','ubar','vbar','zeta']
+    sds = ['_north','_south','_west']
+    for vn in vns:
+        for sd in sds:
+            #print('doing ' + vn)
+            ff = ATM_R[vn+sd].copy()
+            ff = np.nan_to_num(ff,nan=np.nanmean(ff))
+            #ff = ff.filled(ff.mean())
+            ATM_R[vn+sd] = ff
+    
+    vlist = ['zeta','ubar','vbar','u','v','temp','salt']
+    ulist = ['m','m/s','m/s','m/s','m/s','C','psu']
+    ulist2 = dict(zip(vlist,ulist))
+    
+    print('\nmax and min of data in ROMS BC file (iz is bottom [0] to top [39]):')
+
+    for var_name in vlist:
+        for sd in sds:
+            ind_mx = np.unravel_index(np.nanargmax(ATM_R[var_name+sd], axis=None), ATM_R[var_name+sd].shape)
+            ind_mn = np.unravel_index(np.nanargmin(ATM_R[var_name+sd], axis=None), ATM_R[var_name+sd].shape)
+            mxx = ATM_R[var_name+sd][ind_mx]
+            mnn = ATM_R[var_name+sd][ind_mn]
+            uvnm = ulist2[var_name]
+            if var_name == 'zeta' or var_name == 'ubar' or var_name == 'vbar':
+                if sd == '_north' or sd == '_south':
+                    print(f'max {var_name+sd:10} = {mxx:6.3f} {uvnm:5}      at  ( it, ilon)     =  ({ind_mx[0]:3},{ind_mx[1]:4})')
+                    print(f'min {var_name+sd:10} = {mnn:6.3f} {uvnm:5}      at  ( it, ilon)     =  ({ind_mn[0]:3},{ind_mn[1]:4})')
+                else:
+                    print(f'max {var_name+sd:10} = {mxx:6.3f} {uvnm:5}      at  ( it, ilat)     =  ({ind_mx[0]:3},{ind_mx[1]:4})')
+                    print(f'min {var_name+sd:10} = {mnn:6.3f} {uvnm:5}      at  ( it, ilat)     =  ({ind_mn[0]:3},{ind_mn[1]:4})')
+            else:
+                if sd == '_north' or sd == '_south':
+                    print(f'max {var_name+sd:10} = {mxx:6.3f} {uvnm:5}      at  ( it, iz, ilon) =  ({ind_mx[0]:3},{ind_mx[1]:4},{ind_mx[2]:4})')
+                    print(f'min {var_name+sd:10} = {mnn:6.3f} {uvnm:5}      at  ( it, iz, ilon) =  ({ind_mn[0]:3},{ind_mn[1]:4},{ind_mn[2]:4})')
+                else:
+                    print(f'max {var_name+sd:10} = {mxx:6.3f} {uvnm:5}      at  ( it, iz, ilat) =  ({ind_mx[0]:3},{ind_mx[1]:4},{ind_mx[2]:4})')
+                    print(f'min {var_name+sd:10} = {mnn:6.3f} {uvnm:5}      at  ( it, iz, ilat) =  ({ind_mn[0]:3},{ind_mn[1]:4},{ind_mn[2]:4})')
+
+
+    ds = xr.Dataset(
+        data_vars = dict(
+            temp_south       = (["temp_time","s_rho","xr"],ATM_R['temp_south'],ATM_R['vinfo']['temp_south']),
+            salt_south       = (["salt_time","s_rho","xr"],ATM_R['salt_south'],ATM_R['vinfo']['salt_south']),
+            u_south          = (["v3d_time","s_rho","xu"],ATM_R['u_south'],ATM_R['vinfo']['u_south']),
+            v_south          = (["v3d_time","s_rho","xv"],ATM_R['v_south'],ATM_R['vinfo']['v_south']),
+            ubar_south       = (["v2d_time","xu"],ATM_R['ubar_south'],ATM_R['vinfo']['ubar_south']),
+            vbar_south       = (["v2d_time","xv"],ATM_R['vbar_south'],ATM_R['vinfo']['vbar_south']),
+            zeta_south       = (["zeta_time","xr"],ATM_R['zeta_south'],ATM_R['vinfo']['zeta_south']),
+            temp_north       = (["temp_time","s_rho","xr"],ATM_R['temp_north'],ATM_R['vinfo']['temp_north']),
+            salt_north       = (["salt_time","s_rho","xr"],ATM_R['salt_north'],ATM_R['vinfo']['salt_north']),
+            u_north          = (["v3d_time","s_rho","xu"],ATM_R['u_north'],ATM_R['vinfo']['u_north']),
+            v_north          = (["v3d_time","s_rho","xv"],ATM_R['v_north'],ATM_R['vinfo']['v_north']),
+            ubar_north       = (["v2d_time","xu"],ATM_R['ubar_north'],ATM_R['vinfo']['ubar_north']),
+            vbar_north       = (["v2d_time","xv"],ATM_R['vbar_north'],ATM_R['vinfo']['vbar_north']),
+            zeta_north       = (["zeta_time","xr"],ATM_R['zeta_north'],ATM_R['vinfo']['zeta_north']),
+            temp_west        = (["temp_time","s_rho","er"],ATM_R['temp_west'],ATM_R['vinfo']['temp_west']),
+            salt_west        = (["salt_time","s_rho","er"],ATM_R['salt_west'],ATM_R['vinfo']['salt_west']),
+            u_west           = (["v3d_time","s_rho","eu"],ATM_R['u_west'],ATM_R['vinfo']['u_west']),
+            v_west           = (["v3d_time","s_rho","ev"],ATM_R['v_west'],ATM_R['vinfo']['v_west']),
+            ubar_west        = (["v2d_time","eu"],ATM_R['ubar_west'],ATM_R['vinfo']['ubar_west']),
+            vbar_west        = (["v2d_time","ev"],ATM_R['vbar_west'],ATM_R['vinfo']['vbar_west']),
+            zeta_west        = (["zeta_time","er"],ATM_R['zeta_west'],ATM_R['vinfo']['zeta_west']),
+            Vtransform       = ([],ATM_R['Vtr'],ATM_R['vinfo']['Vtr']),
+            Vstretching      = ([],ATM_R['Vst'],ATM_R['vinfo']['Vst']),
+            theta_s          = ([],ATM_R['th_s'],ATM_R['vinfo']['th_s']),
+            theta_b          = ([],ATM_R['th_b'],ATM_R['vinfo']['th_b']),
+            Tcline           = ([],ATM_R['Tcl'],ATM_R['vinfo']['Tcl']),
+            hc               = ([],ATM_R['hc'],ATM_R['vinfo']['hc']),
+        ),
+        coords=dict(
+            ocean_time = (["time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
+            zeta_time  = (["zeta_time"],ATM_R['zeta_time'], ATM_R['vinfo']['zeta_time']),
+            v2d_time   = (["v2d_time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
+            v3d_time   = (["v3d_time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
+            salt_time  = (["salt_time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
+            temp_time  = (["temp_time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
+            Cs_r       = (["s_rho"],ATM_R['Cs_r'],ATM_R['vinfo']['Cs_r']),
+         ),
+        attrs={'type':'ocean boundary condition file fields for starting roms',
+            'time info':'ocean time is from '+ ATM_R['ocean_time_ref'].strftime("%Y/%m/%d %H:%M:%S") },
+        )
+    # print(ds)
+
+   
 
 
     ds.to_netcdf(fn_out)
-    ds.close()
+    ds.close()    
 
 if __name__ == "__main__":
     args = sys.argv

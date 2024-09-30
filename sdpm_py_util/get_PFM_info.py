@@ -111,9 +111,7 @@ def get_PFM_info():
           PFM['forecast_days'] = 2.5
       if atm_model == 'gfs':
           PFM['forecast_days'] = 5.0
-
-
-      
+   
    # what is the time resolution of the models (in days), (used? 9/4/24 MSS)
       daystep_ocn = 3/24
       daystep_atm = 3/24
@@ -244,7 +242,7 @@ def get_PFM_info():
 
       PFM['hycom_data_dir'] = '/scratch/PFM_Simulations/hycom_data/'
 
-      PFM['lv1_tide_fname']          = 'roms_tide_adcirc_LV01.nc'
+      PFM['lv1_tides_file']          = 'ocean_tide.nc'
       PFM['atm_tmp_pckl_file']       = 'atm_tmp_pckl_file.pkl'
       PFM['lv1_depth_file']          = 'roms_tmp_depth_file.pkl' 
       PFM['lv1_ocn_tmp_pckl_file']   = 'hycom_tmp_pckl_file.pkl' 
@@ -256,6 +254,17 @@ def get_PFM_info():
       PFM['lv1_atm_file']            = 'LV1_ATM_FORCING.nc'
       PFM['lv1_ini_file']            = 'LV1_OCEAN_IC.nc'
       PFM['lv1_bc_file']             = 'LV1_OCEAN_BC.nc'   
+      PFM['lv1_executable']          = 'LV1_oceanM'
+      add_tides=0
+      if add_tides==1:
+         print('we are using the ROMS with LV1 tidal forcing')
+         PFM['lv1_executable']          = 'LV1_oceanM_w_tide_forcing'
+         PFM['lv1_tide_fname']          = 'roms_tide_adcirc_LV01.nc'
+         PFM['lv1_tides_file']          = PFM['lv1_tide_dir'] + '/' + PFM['lv1_tide_fname']
+      else:
+          print('we are not adding tidal forcing as Hycom includes tides.')
+       
+
 
       PFM['lv2_ocnIC_tmp_pckl_file'] = 'ocnIC_LV2_tmp_pckl_file.pkl'   
       PFM['lv2_ocnBC_tmp_pckl_file'] = 'BC_LV2_tmp_file.pkl'

@@ -18,7 +18,8 @@ print('=======================================================')
 print('driver_LV1.py is now running...')
 #cmd_list = ['python','-u','-W','ignore','driver_run_forecast_LV1_v4.py'] # this is in the .../PFM/driver/ directory
 #cmd_list = ['python','-u','-W','ignore','driver_run_forecast_LV1_v4.py','20240915'] # this is in the .../PFM/driver/ directory
-cmd_list = ['python','-u','-W','ignore','driver_forecast_LV1_newtiming.py'] # this is in the .../PFM/driver/ directory
+#cmd_list = ['python','-u','-W','ignore','driver_forecast_LV1_newtiming.py'] # this is in the .../PFM/driver/ directory
+cmd_list = ['python','-u','-W','ignore','driver_LV1_1hrzetaBC.py'] # this is in the .../PFM/driver/ directory
 ret1 = subprocess.run(cmd_list)
 print('...done.')
 print('return code for level 1:' + str(ret1.returncode) + ' (0=good)')  
