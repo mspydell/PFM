@@ -1414,7 +1414,14 @@ def plot_his_temps_wuv(fn,It,Iz,sv_fig,lvl):
 
     start_time = times2[0]
     forecast_hours = It
-    annotation = f'Surface Temp [C] and currents | Forecast: {start_time.strftime("%Y-%m-%d %H:%M:%S")} | Forecast Hour: {forecast_hours:.1f}'
+    tzone = datetime.now().astimezone().tzinfo
+    if str(tzone) == 'PDT':
+        toff = -7
+    elif str(tzone) == 'PST':
+        toff = -8
+    tfore = times2[It] + toff * timedelta(hours=1)    
+    annotation = (f'{lvl} Surface Temp [C] and currents | Forecast: {start_time.strftime("%Y-%m-%d %H:%M:%S")}\n' 
+                   f'Forecast Hour: {forecast_hours:.1f} ({tfore.strftime("%Y-%m-%d %H:%M:%S")} {str(tzone)})')
 
     ax.text(0.5, 1.05, annotation, transform=ax.transAxes, ha='center', fontsize=12)
     ax.add_feature(cfeature.LAND)
