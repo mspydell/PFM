@@ -1,0 +1,4 @@
+# Python temp files
+__pychache__/
+*.py[cod]
+*$py.class
