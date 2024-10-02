@@ -13,6 +13,8 @@ import grid_functions as grdfuns
 import pickle
 import matplotlib.dates as mdates
 from matplotlib.gridspec import GridSpec
+import pandas as pd
+import requests
 
 
 
@@ -1241,8 +1243,10 @@ def plot_ssh_his_tseries_v2(fn,Ix,Iy,sv_fig,lvl):
     cset = ax1.contourf(ln, lt, -hb, plevs, cmap=cmap, transform=ccrs.PlateCarree())
     plt.set_cmap(cmap)
     cbar = fig.colorbar(cset, ax=ax1, orientation='vertical', pad = 0.07)
+    mrkrs = ['ro','bo']
+    clrs  = ['r','b']
     for a in range(len(Ix)):
-        ax1.plot(ln[Iy[a],Ix[a]],lt[Iy[a],Ix[a]],'ro', transform=ccrs.PlateCarree())
+        ax1.plot(ln[Iy[a],Ix[a]],lt[Iy[a],Ix[a]],mrkrs[a], transform=ccrs.PlateCarree())
 
     if lvl == 'LV1':
         ax1.set_title('ROMS LV1 bathymetry')
@@ -1272,15 +1276,27 @@ def plot_ssh_his_tseries_v2(fn,Ix,Iy,sv_fig,lvl):
     txt_lg = []
     for a in range(len(Ix)):
         yy = his_ds.variables['zeta'][:,Iy[a],Ix[a]]
-        ax2.plot(times2,yy)
+        ax2.plot(times2,yy,clrs[a])
         ln3=ln[Iy[a],Ix[a]]
         lt3=lt[Iy[a],Ix[a]]
         #ln3 = .01 * np.floor(round(ln3*100))
         #lt3 = .01 * np.floor(round(lt3*100))
         txt = f'({lt3:5.2f},{ln3:5.2f})'
         txt_lg.append(txt)
+
+    
+    # code to plot NOAA predictions at SIO pier...
+    t_ob, ssh_ob, t_pr, ssh_pr = get_noaa_predicted_ssh(times2[0]-timedelta(days=0.5),times2[-1]+timedelta(days=0.5))
+    ax2.plot(t_pr,ssh_pr,':g')
+    ax2.plot(t_ob,ssh_ob,':k')
+    txt_lg.append('NOAA SIO predicted')
+    txt_lg.append('NOAA SIO observed')
+
+    ax2.plot((times2[0],times2[0]),(-1,1),'--b')
+    ax2.plot((times2[-1],times2[-1]),(-1,1),'--b')
+
             
-    plt.legend(txt_lg, loc="upper left")    
+    plt.legend(txt_lg, loc="lower right", prop={'size' : 9})    
     ax2.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d %H:%M'))
     #plt.gcf().autofmt_xdate()
     plt.setp(plt.xticks()[1], rotation=30, ha='right') # ha is the same as horizontalalignment
@@ -1478,6 +1494,102 @@ def make_all_his_figures(lvl):
     plot_his_temps_wuv(fn,It+24,iz,sv_fig,lvl)  # 24h forecast
     plot_his_temps_wuv(fn,It+48,iz,sv_fig,lvl)  # 48h forecast
     plot_his_temps_wuv(fn,It+60,iz,sv_fig,lvl)  # 60 h forecast
+
+
+def get_noaa_predicted_ssh(tbeg,tend):
+    
+    t1 = tbeg - timedelta(days=1)
+    t2 = tend + timedelta(days=1)
+    t1str = t1.strftime("%Y%m%d")
+    t2str = t2.strftime("%Y%m%d")
+    meta = {
+        'start': t1str,
+        'end': t2str,
+        'datum': 'MSL',
+        'location': '9410230',
+        'time_zone': 'GMT',
+        'format': 'json',
+        }
+
+    sshob,tob,sshpr,tpr = get_tide_levels(meta)
+    msk = (tpr >= tbeg) & (tpr <= tend)
+    t_pr = tpr[msk]
+    ssh_pr = sshpr[msk]
+
+    msk = (tob >= tbeg) & (tob <= tend)
+    t_ob = tob[msk]
+    ssh_ob = sshob[msk]
+
+
+    return t_ob, ssh_ob, t_pr, ssh_pr
+
+def get_tide_levels(metadata):
+    start_date = pd.to_datetime(metadata['start'])
+    end_date = pd.to_datetime(metadata['end'])
+    datum = metadata['datum']
+    location = metadata['location']
+    time_zone = metadata['time_zone']
+    format = metadata['format']
+    
+    if pd.to_datetime(start_date) > pd.to_datetime(end_date):
+        raise ValueError('start date is after the end date')
+
+    # Initialize lists to hold the combined data
+    all_observed_v = []
+    all_observed_times = []
+    all_predicted_v = []
+    all_prediction_times = []
+    
+    current_start_date = start_date
+    
+    while current_start_date <= end_date:
+        # Calculate the current end date for this iteration (cannot exceed 31 days)
+        current_end_date = min(current_start_date + timedelta(days=30), end_date)
+        
+        # Get predicted data for the current 31-day chunk
+        res = requests.get(f'https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=predictions&application=NOS.COOPS.TAC.WL&begin_date={current_start_date.strftime("%Y%m%d")}&end_date={current_end_date.strftime("%Y%m%d")}&datum={datum}&station={location}&time_zone={time_zone}&units=metric&interval=&format={format}')
+        predictions = res.json()['predictions']
+        
+        # Get observed data for the current 31-day chunk
+        res = requests.get(f'https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=water_level&application=NOS.COOPS.TAC.WL&begin_date={current_start_date.strftime("%Y%m%d")}&end_date={current_end_date.strftime("%Y%m%d")}&datum={datum}&station={location}&time_zone={time_zone}&units=metric&interval=&format={format}')
+        observed_data = res.json()['data'] if 'data' in res.json() else []
+        
+        # Extract prediction times and values
+        prediction_times = [pd.to_datetime(data['t']) for data in predictions]
+        predicted_v = [data['v'] for data in predictions]
+        
+        # Extract observed times and values
+        observed_times = [pd.to_datetime(data['t']) for data in observed_data]
+        observed_v = [entry['v'] for entry in observed_data]
+        
+        # Append the data to the combined lists
+        all_prediction_times.extend(prediction_times)
+        all_predicted_v.extend(predicted_v)
+        all_observed_times.extend(observed_times)
+        all_observed_v.extend(observed_v)
+        
+        # Move to the next chunk
+        current_start_date = current_end_date + timedelta(days=1)
+    
+        #all_observed_times = pd.Timestamp.to_pydatetime(all_observed_times)
+        #all_prediction_times = pd.Timestamp.to_pydatetime(all_prediction_times)
+        #t_ob = np.zeros((len(all_observed_times)))
+        t_ob = []
+        for tt in all_observed_times:
+            t_ob2 = tt.to_pydatetime()
+            t_ob.append(t_ob2)
+
+        t_ob = np.array(t_ob)
+
+        t_pr = []
+        for tt in all_prediction_times:
+            t_ob2 = tt.to_pydatetime()
+            t_pr.append(t_ob2)
+
+        t_pr = np.array(t_pr)
+
+
+    return np.array(all_observed_v).astype(float), t_ob, np.array(all_predicted_v).astype(float), t_pr
 
 
 if __name__ == "__main__":

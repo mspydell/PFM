@@ -116,7 +116,7 @@ def get_atm_data_as_dict():
             Hum  = dataset['rh2m']         # at 2 meters, %
             U    = dataset['ugrd10m']      # at 10 meters, m/s
             V    = dataset['vgrd10m']      # at 10 meters, m/s
-            if atm_name == nam_nest or atm_name == hrrr:
+            if atm_name == nam_nest or atm_name == hrrr or atm_name == gfs:
                 Rain = dataset['pratesfc'] # at surface, kg/m2/s
             if atm_name == nam_1hr:        # or atm_name == hires_fv3
                 Rain = dataset['apcpsfc']  # total precip, kg/m2, need to take diffs of times.    
@@ -128,10 +128,12 @@ def get_atm_data_as_dict():
             # here we find the indices of the data we want for LV1
             Ln0    = ln[:]
             Lt0    = lt[:]
+            if atm_name == gfs:
+                Ln0 = Ln0-360.0
+
             iln    = np.where( (Ln0>=ln_min)*(Ln0<=ln_max) ) # the lon indices where we want data
             ilt    = np.where( (Lt0>=lt_min)*(Lt0<=lt_max) ) # the lat indices where we want data
 
-        
             # now time to get the numbers that we want. I get them as arrays?
             pres2 = Pres[:,ilt[0][0]:ilt[0][-1],iln[0][0]:iln[0][-1]] # indexing looks bad but works
             t     = pres2.time[:].data
