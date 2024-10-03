@@ -1491,7 +1491,9 @@ def make_all_his_figures(lvl):
     #plot_ssh_his_tseries(fn,Ix,Iy,sv_fig)
     plot_ssh_his_tseries_v2(fn,Ix,Iy,sv_fig,lvl)
     plot_his_temps_wuv(fn,It,iz,sv_fig,lvl)
+    plot_his_temps_wuv(fn,It+12,iz,sv_fig,lvl)  # 12 h forecast
     plot_his_temps_wuv(fn,It+24,iz,sv_fig,lvl)  # 24h forecast
+    plot_his_temps_wuv(fn,It+36,iz,sv_fig,lvl)  # 36h           
     plot_his_temps_wuv(fn,It+48,iz,sv_fig,lvl)  # 48h forecast
     plot_his_temps_wuv(fn,It+60,iz,sv_fig,lvl)  # 60 h forecast
 
