@@ -1397,6 +1397,7 @@ def plot_his_temps_wuv(fn,It,Iz,sv_fig,lvl):
     lt = his_ds.variables['lat_rho'][:]
     ln = his_ds.variables['lon_rho'][:]
     temp = his_ds.variables['temp'][It,Iz,:,:]
+    tempall = his_ds.variables['temp'][:,Iz,:,:]
 
     urm = np.squeeze( his_ds.variables['u'][It,Iz,:,:] )
     vrm = np.squeeze( his_ds.variables['v'][It,Iz,:,:] )
@@ -1411,7 +1412,7 @@ def plot_his_temps_wuv(fn,It,Iz,sv_fig,lvl):
     #print(np.shape(v))
 
     fig, ax = plt.subplots(figsize=(8, 12), subplot_kw={'projection': ccrs.PlateCarree()})
-    plevs = np.arange(np.floor(np.min(temp))-0.25, np.ceil(np.max(temp))+0.25, .25)
+    plevs = np.arange(np.floor(np.min(tempall))-0.125, np.ceil(np.max(tempall))+0.125, .125)
     cmap = plt.get_cmap('turbo')
     cset = ax.contourf(ln, lt, temp, plevs, cmap=cmap, transform=ccrs.PlateCarree())
     plt.set_cmap(cmap)
@@ -1474,22 +1475,20 @@ def make_all_his_figures(lvl):
         fn = PFM['lv1_his_name_full']
         Ix = np.array([175,240])
         Iy = np.array([175,170])
-        It = 0
     elif lvl == 'LV2':
         fn = PFM['lv2_his_name_full']
         Ix = np.array([175,240])
         Iy = np.array([175,170])
-        It = 0
     elif lvl == 'LV3': # 413 by 251
         fn = PFM['lv3_his_name_full']
         Ix = np.array([210,227])
         Iy = np.array([325,200])
-        It = 0
 
 
     #plot_roms_LV1_bathy_and_locs(fn,Ix,Iy,sv_fig)
     #plot_ssh_his_tseries(fn,Ix,Iy,sv_fig)
     plot_ssh_his_tseries_v2(fn,Ix,Iy,sv_fig,lvl)
+    It=0
     plot_his_temps_wuv(fn,It,iz,sv_fig,lvl)
     plot_his_temps_wuv(fn,It+12,iz,sv_fig,lvl)  # 12 h forecast
     plot_his_temps_wuv(fn,It+24,iz,sv_fig,lvl)  # 24h forecast
