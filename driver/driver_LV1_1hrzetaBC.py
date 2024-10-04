@@ -61,7 +61,7 @@ print('this took:')
 print(t02-t01)
 print('\n')
 
-print('catting the hycom.nc files into two (1hr and 3hr) nc files ...')
+""" print('catting the hycom.nc files into two (1hr and 3hr) nc files ...')
 t01 = datetime.now() # for keeping track of timing of the simulation
 os.chdir('../sdpm_py_util')
 cmd_list = ['python','-W','ignore','ocn_functions.py','cat_hycom_to_twonc_1hr',yyyymmdd_hy,yyyymmddhhmm_pfm,t2str]
@@ -74,9 +74,9 @@ t02 = datetime.now() # for keeping track of timing of the simulation
 print('this took:')
 print(t02-t01)
 print('\n')
+ """
 
-
-print('making the hycom pickle file from 1hr and 3hr hycom.nc ...')
+""" print('making the hycom pickle file from 1hr and 3hr hycom.nc ...')
 t01 = datetime.now() # for keeping track of timing of the simulation
 os.chdir('../sdpm_py_util')
 cmd_list = ['python','-W','ignore','ocn_functions.py','hycom_cats_to_pickle',yyyymmdd_hy]
@@ -87,6 +87,19 @@ print('did subprocess run correctly? ' + str(ret1.returncode) + ' (0=yes,1=no)')
 #ocnfuns.cat_hycom_to_onenc(yyyymmdd_hy,yyyymmddhhmm_pfm,t2str)
 print('...done.')
 t02 = datetime.now() # for keeping track of timing of the simulation
+print('this took:')
+print(t02-t01)
+print('\n') """
+
+print('making the hycom pickle file from all hycom.nc files ...')
+t01 = datetime.now() 
+os.chdir('../sdpm_py_util')
+cmd_list = ['python','-W','ignore','ocn_functions.py','hycom_ncfiles_to_pickle',yyyymmdd_hy]
+ret1 = subprocess.run(cmd_list)     
+os.chdir('../driver')
+print('did subprocess run correctly? ' + str(ret1.returncode) + ' (0=yes,1=no)')
+print('...done.')
+t02 = datetime.now() 
 print('this took:')
 print(t02-t01)
 print('\n')
@@ -186,7 +199,7 @@ print('\n')
 print('going to save OCN_IC to a pickle file: ' + ocnIC_pckl)
 t01 = datetime.now()
 os.chdir('../sdpm_py_util')
-cmd_list = ['python','-W','ignore','ocn_functions.py','ocn_r_2_ICdict_pckl',ocnIC_pckl]
+cmd_list = ['python','-W','ignore','ocn_functions.py','ocnr_2_ICdict_from_tmppkls',ocnIC_pckl]
 ret3 = subprocess.run(cmd_list)     
 os.chdir('../driver')
 print('OCN IC data saved with pickle, correctly? ' + str(ret3.returncode) + ' (0=yes,1=no)')
@@ -222,7 +235,7 @@ t01 = datetime.now()
 ocnBC_pckl = PFM['lv1_forc_dir'] + '/' + PFM['lv1_ocnBC_tmp_pckl_file']
 print(ocnBC_pckl) 
 os.chdir('../sdpm_py_util')
-cmd_list = ['python','-W','ignore','ocn_functions.py','ocn_r_2_BCdict_pckl_new_1hrzeta',ocnBC_pckl]
+cmd_list = ['python','-W','ignore','ocn_functions.py','ocnr_2_BCdict_1hrzeta_from_tmppkls',ocnBC_pckl]
 ret4 = subprocess.run(cmd_list)     
 os.chdir('../driver')
 print('OCN BC data saved with pickle, correctly? ' + str(ret4.returncode) + ' (0=yes)')

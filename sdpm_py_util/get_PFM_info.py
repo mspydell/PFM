@@ -103,14 +103,16 @@ def get_PFM_info():
    # what is the ocean / atm model used to force?
       ocn_model = 'hycom_new' # worked with 'hycom' but that is now (9/13/24) depricated
       atm_model = 'nam_nest'
+      #atm_model = 'gfs'
+      #atm_model = 'gfs_1hr'
       atm_get_method = 'open_dap_nc'
       ocn_get_method = 'ncks_para'
 
    # we now set the forecast duration depending on atm_model
       if atm_model == 'nam_nest':
           PFM['forecast_days'] = 2.5
-      if atm_model == 'gfs':
-          PFM['forecast_days'] = 5.0
+      if atm_model == 'gfs' or atm_model == 'gfs_1hr':
+          PFM['forecast_days'] = 5.0 # this should be 5, but might be out of bounds?
    
    # what is the time resolution of the models (in days), (used? 9/4/24 MSS)
       daystep_ocn = 3/24
@@ -328,13 +330,13 @@ def get_PFM_info():
             past_6 = past_6
          else:
             past_6 = past_6 + 6     
-      if atm_model == 'gfs':
+      if atm_model == 'gfs' or atm_model == 'gfs_1hr':
          past_6 = past_6 + 6     
  
       # fetch_time2 is now the start time of the PFM simulation based on the closest available
       # nam data to now.
       fetch_time2 = datetime(year_utc,mon_utc,day_utc,hour_utc,0,0,0)
-      fetch_time2 = fetch_time2 - timedelta(hours=past_6)
+      fetch_time2 = fetch_time2 - timedelta(hours=past_6) 
 
       #if hour_utc < 11:
       #   fetch_time = datetime(fetch_time.year,fetch_time.month, fetch_time.day, 12) - timedelta(days=4)

@@ -268,8 +268,8 @@ def clean_hycom_dir():
                 print('the date ' + dt + ' will be deleted')
                 fnsd = hycom_dir + '*' + dt + 'T12:00_2*.nc'
                 fls2d = glob.glob(fnsd)
-                print(fls2d)
-                print('will be deleted')
+                #print(fls2d)
+                #print('will be deleted')
                 for ff in fls2d:
                     os.remove(ff)
             else:
@@ -301,7 +301,7 @@ def refresh_hycom_dir():
         print(tget)
         for tt in tget:
             print('downloading hycom ' + tt + ' forecast...')
-            get_hycom_data(tt)
+            get_hycom_data_1hr(tt)
             print('...done')
 
 
@@ -752,6 +752,183 @@ def hycom_cats_to_pickle(yyyymmdd):
     with open(fn_out,'wb') as fp:
         pickle.dump(OCN,fp)
         print('\nHycom OCN dict saved with pickle')
+
+def hycom_ncfiles_to_pickle(yyyymmdd):
+
+
+    # set up dict and fill in
+    OCN = dict()
+    OCN['vinfo'] = dict()
+    # this is the complete list of variables that need to be in the netcdf file
+    vlist = ['lon','lat','ocean_time','surf_el','water_u','water_v','temp','sal','surf_el_time']
+
+    for aa in vlist:
+        OCN['vinfo'][aa] = dict()
+
+
+    # yyyymmdd is the start day of the hycom forecast
+    PFM=get_PFM_info()
+    t_ref = PFM['modtime0']
+    OCN['ocean_time_ref'] = t_ref
+
+    t1  = PFM['fetch_time']       # this is the start time of the PFM forecast
+    # now a string of the time to start ROMS (and the 1st atm time too)
+    t1str = "%d%02d%02d%02d%02d" % (t1.year, t1.month, t1.day, t1.hour, t1.minute)
+    t2  = t1 + PFM['forecast_days'] * timedelta(days=1)  # this is the last time of the PFM forecast
+
+    t2str = "%d%02d%02d%02d%02d" % (t2.year, t2.month, t2.day, t2.hour, t2.minute)
+
+    nc_in_names = get_hycom_nc_file_names(yyyymmdd,t1str,t2str)
+
+    yyyy = yyyymmdd[0:4]
+    mm = yyyymmdd[4:6]
+    dd = yyyymmdd[6:8]    
+#    dstr0 = yyyy + '-' + mm + '-' + dd + 'T12:00'
+    
+#    var3d_1 = ['t3z','s3z','u3z','v3z']
+#    var3d_2 = ['water_temp','salinity','water_u','water_v']
+#    var2d_1 = ['ssh']
+#    var2d_2 = ['surf_el']
+    
+    # get lists of file names for each variable. I think they are sorted?
+    fn_ssh = [s for s in nc_in_names if "_ssh_" in s]
+    fn_t3z = [s for s in nc_in_names if "_t3z_" in s]
+    fn_s3z = [s for s in nc_in_names if "_s3z_" in s]
+    fn_u3z = [s for s in nc_in_names if "_u3z_" in s]
+    fn_v3z = [s for s in nc_in_names if "_v3z_" in s]
+
+    ntz = len(fn_ssh) # how many times for ssh
+    nt  = len(fn_t3z) # how many times for 3d vars
+
+    dss = xr.open_dataset(fn_ssh[0])
+    lat = dss.lat.values
+    lon = dss.lon.values
+    dss.close()
+
+    OCN['lon']=lon - 360 # make the lons negative consistent with most 
+    OCN['lat']=lat
+
+    nln = len(lon)
+    nlt = len(lat)
+    eta = np.zeros((ntz,nlt,nln))
+    t_rom2 = np.zeros((ntz))
+    cnt=0
+    for fn in fn_ssh:
+        dss = xr.open_dataset(fn)
+        dt = (dss.time - np.datetime64(t_ref))  / np.timedelta64(1,'D') # this gets time in days from t_ref
+        t_rom2[cnt] = dt.values
+        eta[cnt,:,:] = dss.surf_el.values
+        dss.close()
+        cnt=cnt+1
+
+    OCN['zeta_time'] = t_rom2
+    OCN['zeta'] = eta
+    del eta
+   
+
+    dss = xr.open_dataset(fn_t3z[0])
+    z   = dss.depth.values
+    dss.close()
+    OCN['depth'] = z
+    nz = len(z)
+    temp = np.zeros((nt,nz,nlt,nln))
+    t_rom = np.zeros((nt))
+
+    cnt = 0
+    for fn in fn_t3z:
+        dss = xr.open_dataset(fn)
+        dt = (dss.time - np.datetime64(t_ref))  / np.timedelta64(1,'D') # this gets time in days from t_ref
+        t_rom[cnt] = dt.values
+        temp[cnt,:,:,:] = dss.water_temp.values
+        dss.close()
+        cnt = cnt + 1
+
+    OCN['ocean_time'] = t_rom
+    OCN['temp'] = temp
+    del temp
+
+    cnt = 0
+    sal = np.zeros((nt,nz,nlt,nln))
+    for fn in fn_s3z:
+        dss = xr.open_dataset(fn)
+        sal[cnt,:,:,:] = dss.salinity.values
+        dss.close()
+        cnt = cnt + 1
+
+    OCN['salt'] = sal
+    del sal
+
+    cnt = 0
+    u = np.zeros((nt,nz,nlt,nln))
+    for fn in fn_u3z:
+        dss = xr.open_dataset(fn)
+        u[cnt,:,:,:] = dss.water_u.values
+        dss.close()
+        cnt = cnt + 1
+
+    OCN['u'] = u
+    del u
+    v = np.zeros((nt,nz,nlt,nln))
+    cnt = 0
+    for fn in fn_v3z:
+        dss = xr.open_dataset(fn)
+        v[cnt,:,:,:] = dss.water_v.values
+        dss.close()
+        cnt = cnt + 1
+ 
+    OCN['v'] = v
+    del v
+
+    print('\nmax and min raw hycom data (iz is top [0] to bottom [39]):')
+    vlist = ['zeta','u','v','temp','salt']
+    ulist = ['m','m/s','m/s','C','psu']
+    ulist2 = dict(zip(vlist,ulist))
+    print_var_max_mins(OCN,vlist,ulist2)
+
+    # put the units in OCN...
+    OCN['vinfo']['lon'] = {'long_name':'longitude',
+                    'units':'degrees_east'}
+    OCN['vinfo']['lat'] = {'long_name':'latitude',
+                    'units':'degrees_north'}
+    OCN['vinfo']['ocean_time'] = {'long_name':'time since initialization',
+                    'units':'days',
+                    'coordinates':'temp_time',
+                    'field':'ocean_time, scalar, series'}
+    OCN['vinfo']['zeta_time'] = {'long_name':'time since initialization for zeta',
+                    'units':'days',
+                    'coordinates':'zeta_time',
+                    'field':'ocean_time, scalar, series'}
+    OCN['vinfo']['ocean_time_ref'] = {'long_name': 'the reference date tref (initialization time)'}
+    OCN['vinfo']['depth'] = {'long_name':'ocean depth',
+                        'units':'m'}
+    OCN['vinfo']['temp'] = {'long_name':'ocean temperature',
+                    'units':'degrees C',
+                    'coordinates':'z,lat,lon',
+                    'time':'ocean_time'}
+    OCN['vinfo']['salt'] = {'long_name':'ocean salinity',
+                    'units':'psu',
+                    'coordinates':'z,lat,lon',
+                    'time':'ocean_time'}
+    OCN['vinfo']['u'] = {'long_name':'ocean east west velocity',
+                    'units':'m/s',
+                    'coordinates':'z,lat,lon',
+                    'time':'ocean_time'}
+    OCN['vinfo']['v'] = {'long_name':'ocean north south velocity',
+                    'units':'m/s',
+                    'coordinates':'z,lat,lon',
+                    'time':'ocean_time'}
+    OCN['vinfo']['zeta'] = {'long_name':'ocean sea surface height',
+                    'units':'m',
+                    'coordinates':'lat,lon',
+                    'time':'ocean_time'}
+
+    gc.collect()
+    fn_out = PFM['lv1_forc_dir'] + '/' + PFM['lv1_ocn_tmp_pckl_file']
+    with open(fn_out,'wb') as fp:
+        pickle.dump(OCN,fp)
+        print('\nHycom OCN dict saved with pickle')
+
+
 
 def print_var_max_mins(OCN,vlist,ulist2):
 
@@ -1943,7 +2120,7 @@ def make_all_tmp_pckl_ocnR_files_1hrzeta(fname_in):
     
     print('and saving 18 pickle files...')
     
-    ork = ['depth','lat_rho','lon_rho','lat_u','lon_u','lat_v','lon_v','ocean_time','zeta_time','ocean_time_ref','salt','temp','ubar','urm','vbar','vrm','zeta','vinfo']
+    ork = ['depth','lat_rho','lon_rho','lat_u','lon_u','lat_v','lon_v','ocean_time','zeta_time','ocean_time_ref','zeta','salt','temp','ubar','urm','vbar','vrm','vinfo']
     
     os.chdir('../sdpm_py_util')
     rctot = 0
@@ -1961,6 +2138,33 @@ def make_all_tmp_pckl_ocnR_files_1hrzeta(fname_in):
         print('...done. \nat least one of the ocnR pickle files were not made correctly')
     
     os.chdir('../driver')
+
+
+def make_all_tmp_pckl_ocnR_files_1hrzeta_para(fname_in):
+    
+    print('and saving 18 pickle files...')
+    
+    ork = ['depth','lat_rho','lon_rho','lat_u','lon_u','lat_v','lon_v','ocean_time','zeta_time','ocean_time_ref','zeta','salt','temp','ubar','urm','vbar','vrm','vinfo']
+    
+    os.chdir('../sdpm_py_util')
+    rctot = 0
+
+    for aa in ork:
+        cmd_list = ['python','-W','ignore','ocn_functions.py','make_tmp_hy_on_rom_pckl_files_1hrzeta',fname_in,aa]
+        process = subprocess.Popen(cmd_list)
+        std_out, std_err = process.comminicate()     
+        #rctot = rctot + ret1.returncode
+        #if ret1.returncode != 0:
+        #    print('the ' + aa + ' pickle file was not made correctly')
+        print(std_out)
+    #if rctot == 0: 
+    #    print('...done. \nall 18 ocnR pickle files were made correctly')
+    #else:
+    #    print('...done. \nat least one of the ocnR pickle files were not made correctly')
+    
+    os.chdir('../driver')
+
+
 
 def make_tmp_hy_on_rom_pckl_files_1hrzeta(fname_in,var_name):
     # HYcom and RoMsGrid come in as dicts with ROMS variable names    
@@ -2518,6 +2722,230 @@ def ocn_r_2_ICdict_pckl(fname_out):
         print('OCN_IC dict saved with pickle')
 
 #    return OCN_IC
+
+def load_tmp_pkl(var_name):
+
+    PFM=get_PFM_info()
+    fn_temp = PFM['lv1_forc_dir'] + '/tmp_' + var_name + '.pkl'
+    with open(fn_temp,'rb') as fp:
+        tmp_dat = pickle.load(fp)
+
+    return tmp_dat
+
+def ocnr_2_ICdict_from_tmppkls(fname_out):
+    # this slices the OCN_R dictionary at the first time for all needed 
+    # variables for the initial condition for roms
+    # it then interpolates from the hycom z values that the vars are on
+    # and places them on the ROMS z levels
+    # this returns another dictionary OCN_IC that has all needed fields 
+    # for making the .nc file
+
+    PFM=get_PFM_info()
+    RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
+
+    #OCN_R = load_ocnR_from_pckl_files()
+
+    #with open(fname_in,'rb') as fp:
+    #    OCN_R = pickle.load(fp)
+    #    print('OCN_R dict loaded with pickle')
+
+
+    i0 = 0 # we will use the first time as the initial condition
+    
+    OCN_IC = dict()
+    # fill in the dict with slicing
+    OCN_IC['ocean_time'] = np.zeros((1))
+
+    tmp_dat = load_tmp_pkl('ocean_time')
+    OCN_IC['ocean_time'][0] = tmp_dat[i0]
+    del tmp_dat
+    #OCN_IC['ubar'] = np.squeeze(OCN_R['ubar'][i0,:,:])
+    #OCN_IC['vbar'] = np.squeeze(OCN_R['vbar'][i0,:,:])
+
+    # the variables that are the same
+    var_same = ['lat_rho','lon_rho','lat_u','lon_u','lat_v','lon_v'] 
+    for vn in var_same:
+        OCN_IC[vn] = load_tmp_pkl(vn)
+
+    OCN_IC['ocean_time_ref'] = load_tmp_pkl('ocean_time_ref')
+
+
+    # these variables need to be time sliced and then vertically interpolated
+    #varin3d = ['temp','salt','urm','vrm']
+    zhy = load_tmp_pkl('depth') # these are the hycom depths
+    hb = RMG['h']
+    hb_u = 0.5 * (hb[:,0:-1]+hb[:,1:])
+    hb_v = 0.5 * (hb[0:-1,:]+hb[1:,:])
+    nlt,nln = np.shape(hb)
+
+#    Nz   = RMG['Nz']                              # number of vertical levels: 40
+#    Vtr  = RMG['Vtransform']                       # transformation equation: 2
+#    Vst  = RMG['Vstretching']                    # stretching function: 4 
+#    th_s = RMG['THETA_S']                      # surface stretching parameter: 8
+#    th_b = RMG['THETA_B']                      # bottom  stretching parameter: 3
+#    Tcl  = RMG['TCLINE']                      # critical depth (m): 50
+
+    Nz   = PFM['stretching']['L1','Nz']                              # number of vertical levels: 40
+    Vtr  = PFM['stretching']['L1','Vtransform']                       # transformation equation: 2
+    Vst  = PFM['stretching']['L1','Vstretching']                    # stretching function: 4 
+    th_s = PFM['stretching']['L1','THETA_S']                      # surface stretching parameter: 8
+    th_b = PFM['stretching']['L1','THETA_B']                      # bottom  stretching parameter: 3
+    Tcl  = PFM['stretching']['L1','TCLINE']                      # critical depth (m): 50
+    hc   = PFM['stretching']['L1','hc']
+
+    OCN_IC['zeta'] = np.zeros((1,nlt,nln))
+    tmp_dat = load_tmp_pkl('zeta')
+    OCN_IC['zeta'][0,:,:] = tmp_dat[i0,:,:]
+    del tmp_dat
+
+    eta = np.squeeze(OCN_IC['zeta'][0,:,:])
+    eta_u = 0.5 * (eta[:,0:-1]+eta[:,1:])
+    eta_v = 0.5 * (eta[0:-1,:]+eta[1:,:])
+
+    OCN_IC['Nz'] = np.squeeze(Nz)
+    OCN_IC['Vtr'] = np.squeeze(Vtr)
+    OCN_IC['Vst'] = np.squeeze(Vst)
+    OCN_IC['th_s'] = np.squeeze(th_s)
+    OCN_IC['th_b'] = np.squeeze(th_b)
+    OCN_IC['Tcl'] = np.squeeze(Tcl)
+    OCN_IC['hc'] = np.squeeze(hc)
+
+    TMP = dict()
+    TMP['temp'] = np.zeros((1,Nz,nlt,nln)) # a helper becasue we convert to potential temp below
+    OCN_IC['temp'] = np.zeros((1,Nz,nlt,nln))
+    OCN_IC['salt'] = np.zeros((1,Nz,nlt,nln))
+    OCN_IC['u'] = np.zeros((1,Nz,nlt,nln-1))
+    OCN_IC['v'] = np.zeros((1,Nz,nlt-1,nln))
+    OCN_IC['ubar'] = np.zeros((1,nlt,nln-1))
+    OCN_IC['vbar'] = np.zeros((1,nlt-1,nln))
+
+    OCN_IC['vinfo']=dict()
+    
+    tmp_dat = load_tmp_pkl('vinfo')
+
+    OCN_IC['vinfo']['ocean_time'] = tmp_dat['ocean_time']
+    OCN_IC['vinfo']['ocean_time_ref'] = tmp_dat['ocean_time_ref']
+    OCN_IC['vinfo']['lat_rho'] = tmp_dat['lat_rho']
+    OCN_IC['vinfo']['lon_rho'] = tmp_dat['lat_rho']
+    OCN_IC['vinfo']['lat_u'] = tmp_dat['lat_u']
+    OCN_IC['vinfo']['lon_u'] = tmp_dat['lon_u']
+    OCN_IC['vinfo']['lat_v'] = tmp_dat['lat_v']
+    OCN_IC['vinfo']['lon_v'] = tmp_dat['lon_v']
+    del tmp_dat
+
+    OCN_IC['vinfo']['Nz'] = {'long_name':'number of vertical rho levels',
+                             'units':'none'}
+    OCN_IC['vinfo']['Vtr'] = {'long_name':'vertical terrain-following transformation equation'}
+    OCN_IC['vinfo']['Vst'] = {'long_name':'vertical terrain-following stretching function'}
+    OCN_IC['vinfo']['th_s'] = {'long_name':'S-coordinate surface control parameter',
+                               'units':'nondimensional',
+                               'field': 'theta_s, scalar, series'}
+    OCN_IC['vinfo']['th_b'] = {'long_name':'S-coordinate bottom control parameter',
+                               'units':'nondimensional',
+                               'field': 'theta_b, scalar, series'}
+    OCN_IC['vinfo']['Tcl'] = {'long_name':'S-coordinate surface/bottom layer width',
+                               'units':'meter',
+                               'field': 'Tcline, scalar, series'}
+    OCN_IC['vinfo']['hc'] = {'long_name':'S-coordinate parameter, critical depth',
+                               'units':'meter',
+                               'field': 'hc, scalar, series'}
+    OCN_IC['vinfo']['temp'] = {'long_name':'ocean potential temperature',
+                        'units':'degrees C',
+                        'coordinates':'time,s,lat_rho,lon_rho',
+                        'time':'ocean_time'}
+    OCN_IC['vinfo']['salt'] = {'long_name':'ocean salinity',
+                        'units':'psu',
+                        'coordinates':'tiem,s,lat_rho,lon_rho',
+                        'time':'ocean_time'}
+    OCN_IC['vinfo']['zeta'] = {'long_name':'ocean sea surface height',
+                        'units':'m',
+                        'coordinates':'time,lat_rho,lon_rho',
+                        'time':'ocean_time'}
+    OCN_IC['vinfo']['u'] = {'long_name':'ocean xi velocity',
+                        'units':'m/s',
+                        'coordinates':'time,s,lat_u,lon_u',
+                        'time':'ocean_time'}
+    OCN_IC['vinfo']['v'] = {'long_name':'ocean eta velocity',
+                        'units':'m/s',
+                        'coordinates':'time,s,lat_v,lon_v',
+                        'time':'ocean_time'}
+    OCN_IC['vinfo']['ubar'] = {'long_name':'ocean xi depth avg velocity',
+                        'units':'m/s',
+                        'coordinates':'time,lat_u,lon_u',
+                        'note':'uses roms depths'}
+    OCN_IC['vinfo']['vbar'] = {'long_name':'ocean eta depth avg velocity',
+                        'units':'m/s',
+                        'coordinates':'time,lat_v,lon_v',
+                        'note':'uses roms depths'}
+
+    get_depth_file = 1
+
+    if get_depth_file == 0:
+    # get the roms z's
+        hraw = None
+        if Vst == 4:
+            zrom = s_coordinate_4(hb, th_b , th_s , Tcl , Nz, hraw=hraw, zeta=eta)
+            zrom_u = s_coordinate_4(hb_u, th_b , th_s , Tcl , Nz, hraw=hraw, zeta=eta_u)
+            zrom_v = s_coordinate_4(hb_v, th_b , th_s , Tcl , Nz, hraw=hraw, zeta=eta_v)
+    
+        OCN_IC['Cs_r'] = np.squeeze(zrom.Cs_r)
+        zr=np.squeeze(zrom.z_r[0,:,:,:])    
+        zr_u=np.squeeze(zrom_u.z_r[0,:,:,:])    
+        zr_v=np.squeeze(zrom_v.z_r[0,:,:,:])
+    else:
+        fname_depths = PFM['lv1_forc_dir'] + '/' + PFM['lv1_depth_file']
+        Zrm = load_rom_depths(fname_depths)
+        zr=Zrm['zr_ic']
+        zr_u=Zrm['zu_ic']
+        zr_v=Zrm['zv_ic']
+        OCN_IC['Cs_r'] = Zrm['Cs_r']
+
+    OCN_IC['vinfo']['Cs_r'] = {'long_name':'S-coordinate stretching curves at RHO-points',
+                        'units':'nondimensional',
+                        'valid min':'-1',
+                        'valid max':'0',
+                        'field':'Cs_r, scalar, series'}
+
+    tmp_dat = load_tmp_pkl('temp')
+
+    for aa in range(nlt):
+        for bb in range(nln):    
+            TMP['temp'][0,:,aa,bb]    = interp_to_roms_z(-zhy,tmp_dat[0,:,aa,bb],zr[:,aa,bb],-hb[aa,bb])
+ 
+    del tmp_dat
+    tmp_dat = load_tmp_pkl('salt')
+    for aa in range(nlt):
+        for bb in range(nln):    
+            OCN_IC['salt'][0,:,aa,bb] = interp_to_roms_z(-zhy,tmp_dat[0,:,aa,bb],zr[:,aa,bb],-hb[aa,bb])
+            
+            
+    del tmp_dat
+    tmp_dat = load_tmp_pkl('vrm')
+    for aa in range(nlt-1):
+        for bb in range(nln):    
+            OCN_IC['v'][0,:,aa,bb]    = interp_to_roms_z(-zhy,tmp_dat[0,:,aa,bb],zr_v[:,aa,bb],-hb_v[aa,bb])
+            OCN_IC['vbar'][0,aa,bb]    = get_depth_avg_v(OCN_IC['v'][0,:,aa,bb],zr_v[:,aa,bb],eta_v[aa,bb],hb_v[aa,bb])
+ 
+    del tmp_dat
+    tmp_dat = load_tmp_pkl('urm')
+    for aa in range(nlt):
+        for bb in range(nln-1):    
+            OCN_IC['u'][0,:,aa,bb]    = interp_to_roms_z(-zhy,tmp_dat[0,:,aa,bb],zr_u[:,aa,bb],-hb_u[aa,bb])
+            OCN_IC['ubar'][0,aa,bb]    = get_depth_avg_v(OCN_IC['u'][0,:,aa,bb],zr_u[:,aa,bb],eta_u[aa,bb],hb_u[aa,bb])
+
+    del tmp_dat
+    # ROMS wants potential temperature, not temperature
+    # this needs the seawater package, conda install seawater, did this for me
+    pdb = -zr # pressure in dbar
+    OCN_IC['temp'][0,:,:,:] = seawater.ptmp(np.squeeze(OCN_IC['salt']), np.squeeze(TMP['temp']),np.squeeze(pdb))  
+
+
+    with open(fname_out,'wb') as fout:
+        pickle.dump(OCN_IC,fout)
+        print('OCN_IC dict saved with pickle')
+
+#    return OCN_IC
+
 
 
 
@@ -3708,6 +4136,298 @@ def ocn_r_2_BCdict_pckl_new_1hrzeta(fname_out):
         print('OCN_BC dict saved with pickle')
 
 
+def ocnr_2_BCdict_1hrzeta_from_tmppkls(fname_out):
+    # this slices the OCN_R dictionary at the first time for all needed 
+    # variables for the boundary condition for roms
+    # it then interpolates from the hycom z values that the vars are on
+    # and places them on the ROMS z levels
+    # this returns another dictionary OCN_BC that has all needed fields 
+    # for making the BC.nc file
+
+    PFM=get_PFM_info()   
+    RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
+#    OCN_R = load_ocnR_from_pckl_files()
+    
+    fname_depths = PFM['lv1_forc_dir'] + '/' + PFM['lv1_depth_file']
+
+    print('loading ' + fname_depths)
+    Zrm = load_rom_depths(fname_depths)
+
+    #print(Zrm.keys())
+
+    OCN_BC = dict()
+    # fill in the dict with slicing
+    OCN_BC['ocean_time'] = load_tmp_pkl('ocean_time')
+    Nt = len( OCN_BC['ocean_time'] )
+    OCN_BC['zeta_time'] = load_tmp_pkl('zeta_time')
+    Ntz = len( OCN_BC['zeta_time'] )
+    #OCN_BC['ocean_time_ref'] = OCN_R['ocean_time_ref']
+    OCN_BC['ocean_time_ref'] = load_tmp_pkl('ocean_time_ref')
+
+
+    # these variables need to be time sliced and then vertically interpolated
+    #varin3d = ['temp','salt','urm','vrm']
+    zhy = load_tmp_pkl('depth') # these are the hycom depths
+    zhy = np.squeeze(zhy)
+    hb = RMG['h']
+    hb_u = 0.5 * (hb[:,0:-1]+hb[:,1:])
+    hb_v = 0.5 * (hb[0:-1,:]+hb[1:,:])
+    nlt,nln = np.shape(hb)
+
+    Nz   = PFM['stretching']['L1','Nz']                              # number of vertical levels: 40
+    Vtr  = PFM['stretching']['L1','Vtransform']                       # transformation equation: 2
+    Vst  = PFM['stretching']['L1','Vstretching']                    # stretching function: 4 
+    th_s = PFM['stretching']['L1','THETA_S']                      # surface stretching parameter: 8
+    th_b = PFM['stretching']['L1','THETA_B']                      # bottom  stretching parameter: 3
+    Tcl  = PFM['stretching']['L1','TCLINE']                      # critical depth (m): 50
+    hc   = PFM['stretching']['L1','hc']
+
+    OCN_BC['Nz'] = np.squeeze(Nz)
+    OCN_BC['Vtr'] = np.squeeze(Vtr)
+    OCN_BC['Vst'] = np.squeeze(Vst)
+    OCN_BC['th_s'] = np.squeeze(th_s)
+    OCN_BC['th_b'] = np.squeeze(th_b)
+    OCN_BC['Tcl'] = np.squeeze(Tcl)
+    OCN_BC['hc'] = np.squeeze(hc)
+
+    OCN_BC['temp_south'] = np.zeros((Nt,Nz,nln))
+    OCN_BC['salt_south'] = np.zeros((Nt,Nz,nln))
+    OCN_BC['u_south'] = np.zeros((Nt,Nz,nln-1))
+    OCN_BC['v_south'] = np.zeros((Nt,Nz,nln))
+    OCN_BC['ubar_south'] = np.zeros((Nt,nln-1))
+    OCN_BC['vbar_south'] = np.zeros((Nt,nln))
+    OCN_BC['zeta_south'] = np.zeros((Ntz,nln))
+
+    OCN_BC['temp_north'] = np.zeros((Nt,Nz,nln))
+    OCN_BC['salt_north'] = np.zeros((Nt,Nz,nln))
+    OCN_BC['u_north'] = np.zeros((Nt,Nz,nln-1))
+    OCN_BC['v_north'] = np.zeros((Nt,Nz,nln))
+    OCN_BC['ubar_north'] = np.zeros((Nt,nln-1))
+    OCN_BC['vbar_north'] = np.zeros((Nt,nln))
+    OCN_BC['zeta_north'] = np.zeros((Ntz,nln))
+
+    OCN_BC['temp_west'] = np.zeros((Nt,Nz,nlt))
+    OCN_BC['salt_west'] = np.zeros((Nt,Nz,nlt))
+    OCN_BC['u_west'] = np.zeros((Nt,Nz,nlt))
+    OCN_BC['v_west'] = np.zeros((Nt,Nz,nlt-1))
+    OCN_BC['ubar_west'] = np.zeros((Nt,nlt))
+    OCN_BC['vbar_west'] = np.zeros((Nt,nlt-1))
+    OCN_BC['zeta_west'] = np.zeros((Ntz,nlt))
+
+    OCN_BC['zeta_south'] = np.squeeze(load_tmp_pkl('zeta')[:,0,:])
+    OCN_BC['zeta_north'] = np.squeeze(load_tmp_pkl('zeta')[:,-1,:])
+    OCN_BC['zeta_west'] = np.squeeze(load_tmp_pkl('zeta')[:,:,0])
+    OCN_BC['ubar_south'] = np.squeeze(load_tmp_pkl('ubar')[:,0,:])
+    OCN_BC['ubar_north'] = np.squeeze(load_tmp_pkl('ubar')[:,-1,:])
+    OCN_BC['ubar_west'] = np.squeeze(load_tmp_pkl('ubar')[:,:,0])
+    OCN_BC['vbar_south'] = np.squeeze(load_tmp_pkl('vbar')[:,0,:])
+    OCN_BC['vbar_north'] = np.squeeze(load_tmp_pkl('vbar')[:,-1,:])
+    OCN_BC['vbar_west'] = np.squeeze(load_tmp_pkl('vbar')[:,:,0])
+     
+    TMP = dict()
+    TMP['temp_north'] = np.zeros((Nt,Nz,nln)) # a helper becasue we convert to potential temp below
+    TMP['temp_south'] = np.zeros((Nt,Nz,nln)) # a helper becasue we convert to potential temp below
+    TMP['temp_west'] = np.zeros((Nt,Nz,nlt)) # a helper becasue we convert to potential temp below
+    
+ 
+    OCN_BC['vinfo']=dict()
+    tmp = load_tmp_pkl('vinfo') 
+    OCN_BC['vinfo']['ocean_time'] = tmp['ocean_time']
+    OCN_BC['vinfo']['zeta_time'] = tmp['zeta_time']
+    OCN_BC['vinfo']['ocean_time_ref'] = tmp['ocean_time_ref']
+    OCN_BC['vinfo']['lat_rho'] = tmp['lat_rho']
+    OCN_BC['vinfo']['lon_rho'] = tmp['lat_rho']
+    OCN_BC['vinfo']['lat_u'] = tmp['lat_u']
+    OCN_BC['vinfo']['lon_u'] = tmp['lon_u']
+    OCN_BC['vinfo']['lat_v'] = tmp['lat_v']
+    OCN_BC['vinfo']['lon_v'] = tmp['lon_v']
+
+    OCN_BC['vinfo']['Nz'] = {'long_name':'number of vertical rho levels',
+                             'units':'none'}
+    OCN_BC['vinfo']['Vtr'] = {'long_name':'vertical terrain-following transformation equation'}
+    OCN_BC['vinfo']['Vst'] = {'long_name':'vertical terrain-following stretching function'}
+    OCN_BC['vinfo']['th_s'] = {'long_name':'S-coordinate surface control parameter',
+                               'units':'nondimensional',
+                               'field': 'theta_s, scalar, series'}
+    OCN_BC['vinfo']['th_b'] = {'long_name':'S-coordinate bottom control parameter',
+                               'units':'nondimensional',
+                               'field': 'theta_b, scalar, series'}
+    OCN_BC['vinfo']['Tcl'] = {'long_name':'S-coordinate surface/bottom layer width',
+                               'units':'meter',
+                               'field': 'Tcline, scalar, series'}
+    OCN_BC['vinfo']['hc'] = {'long_name':'S-coordinate parameter, critical depth',
+                               'units':'meter',
+                               'field': 'hc, scalar, series'}
+    
+    OCN_BC['vinfo']['temp_south'] = {'long_name':'ocean potential temperature southern boundary',
+                        'units':'degrees C',
+                        'coordinates':'time,s,xi_rho',
+                        'time':'ocean_time'}
+    OCN_BC['vinfo']['salt_south'] = {'long_name':'ocean salinity southern boundary',
+                        'units':'psu',
+                        'coordinates':'tiem,s,xi_rho',
+                        'time':'ocean_time'}
+    OCN_BC['vinfo']['zeta_south'] = {'long_name':'ocean sea surface height southern boundary',
+                        'units':'m',
+                        'coordinates':'time,xi_rho',
+                        'time':'ocean_time'}
+    OCN_BC['vinfo']['u_south'] = {'long_name':'ocean xi velocity southern boundary',
+                        'units':'m/s',
+                        'coordinates':'time,s,xi_u',
+                        'time':'ocean_time'}
+    OCN_BC['vinfo']['v_south'] = {'long_name':'ocean eta velocity southern boundary',
+                        'units':'m/s',
+                        'coordinates':'time,s,xi_v',
+                        'time':'ocean_time'}
+    OCN_BC['vinfo']['ubar_south'] = {'long_name':'ocean xi depth avg velocity southern boundary',
+                        'units':'m/s',
+                        'coordinates':'time,xi_u',
+                        'note':'uses roms depths'}
+    OCN_BC['vinfo']['vbar_south'] = {'long_name':'ocean eta depth avg velocity southern boundary',
+                        'units':'m/s',
+                        'coordinates':'time,xi_v',
+                        'note':'uses roms depths'}
+
+    OCN_BC['vinfo']['temp_north'] = {'long_name':'ocean potential temperature northern boundary',
+                        'units':'degrees C',
+                        'coordinates':'time,s,xi_rho',
+                        'time':'ocean_time'}
+    OCN_BC['vinfo']['salt_north'] = {'long_name':'ocean salinity northern boundary',
+                        'units':'psu',
+                        'coordinates':'tiem,s,xi_rho',
+                        'time':'ocean_time'}
+    OCN_BC['vinfo']['zeta_north'] = {'long_name':'ocean sea surface height northern boundary',
+                        'units':'m',
+                        'coordinates':'time,xi_rho',
+                        'time':'ocean_time'}
+    OCN_BC['vinfo']['u_north'] = {'long_name':'ocean xi velocity northern boundary',
+                        'units':'m/s',
+                        'coordinates':'time,s,xi_u',
+                        'time':'ocean_time'}
+    OCN_BC['vinfo']['v_north'] = {'long_name':'ocean eta velocity northern boundary',
+                        'units':'m/s',
+                        'coordinates':'time,s,xi_v',
+                        'time':'ocean_time'}
+    OCN_BC['vinfo']['ubar_north'] = {'long_name':'ocean xi depth avg velocity northern boundary',
+                        'units':'m/s',
+                        'coordinates':'time,xi_u',
+                        'note':'uses roms depths'}
+    OCN_BC['vinfo']['vbar_north'] = {'long_name':'ocean eta depth avg velocity northern boundary',
+                        'units':'m/s',
+                        'coordinates':'time,xi_v',
+                        'note':'uses roms depths'}
+
+    OCN_BC['vinfo']['temp_west'] = {'long_name':'ocean potential temperature western boundary',
+                        'units':'degrees C',
+                        'coordinates':'time,s,eta_rho',
+                        'time':'ocean_time'}
+    OCN_BC['vinfo']['salt_west'] = {'long_name':'ocean salinity western boundary',
+                        'units':'psu',
+                        'coordinates':'tiem,s,eta_rho',
+                        'time':'ocean_time'}
+    OCN_BC['vinfo']['zeta_west'] = {'long_name':'ocean sea surface height western boundary',
+                        'units':'m',
+                        'coordinates':'time,eta_rho',
+                        'time':'ocean_time'}
+    OCN_BC['vinfo']['u_west'] = {'long_name':'ocean xi velocity western boundary',
+                        'units':'m/s',
+                        'coordinates':'time,s,eta_u',
+                        'time':'ocean_time'}
+    OCN_BC['vinfo']['v_west'] = {'long_name':'ocean eta velocity western boundary',
+                        'units':'m/s',
+                        'coordinates':'time,s,eta_v',
+                        'time':'ocean_time'}
+    OCN_BC['vinfo']['ubar_west'] = {'long_name':'ocean xi depth avg velocity western boundary',
+                        'units':'m/s',
+                        'coordinates':'time,eta_u',
+                        'note':'uses roms depths'}
+    OCN_BC['vinfo']['vbar_west'] = {'long_name':'ocean eta depth avg velocity western boundary',
+                        'units':'m/s',
+                        'coordinates':'time,eta_v',
+                        'note':'uses roms depths'}
+
+    eta = np.squeeze(load_tmp_pkl('zeta')[0::3,:,:])
+    eta_u = 0.5 * (eta[:,:,0:-1]+eta[:,:,1:])
+    eta_v = 0.5 * (eta[:,0:-1,:]+eta[:,1:,:])
+    
+    OCN_BC['Cs_r'] = Zrm['Cs_r']
+    OCN_BC['vinfo']['Cs_r'] = {'long_name':'S-coordinate stretching curves at RHO-points',
+                        'units':'nondimensional',
+                        'valid min':'-1',
+                        'valid max':'0',
+                        'field':'Cs_r, scalar, series'}
+    
+    zr_s = Zrm['zr_bc_s']
+    zr_n = Zrm['zr_bc_n']
+    zr_w = Zrm['zr_bc_w']
+
+    zr_us = Zrm['zu_bc_s']
+    zr_un = Zrm['zu_bc_n']
+    zr_uw = Zrm['zu_bc_w']
+
+    zr_vs = Zrm['zv_bc_s']
+    zr_vn = Zrm['zv_bc_n']
+    zr_vw = Zrm['zv_bc_w']
+ 
+    tmp = load_tmp_pkl('temp')
+    for aa in range(Nt):
+        for bb in range(nln):
+            TMP['temp_south'][aa,:,bb]    = interp_to_roms_z(-zhy,tmp[aa,:,0,bb],zr_s[aa,:,bb],-hb[0,bb])
+            TMP['temp_north'][aa,:,bb]    = interp_to_roms_z(-zhy,tmp[aa,:,-1,bb],zr_n[aa,:,bb],-hb[-1,bb])
+        
+        for bb in range(nlt):             
+            TMP['temp_west'][aa,:,bb]      = interp_to_roms_z(-zhy,tmp[aa,:,bb,0],zr_w[aa,:,bb],-hb[bb,0])
+
+    del tmp    
+    tmp = load_tmp_pkl('salt')
+    for aa in range(Nt):
+        for bb in range(nln):
+            OCN_BC['salt_south'][aa,:,bb] = interp_to_roms_z(-zhy,tmp[aa,:,0,bb],zr_s[aa,:,bb],-hb[0,bb])
+            OCN_BC['salt_north'][aa,:,bb] = interp_to_roms_z(-zhy,tmp[aa,:,-1,bb],zr_n[aa,:,bb],-hb[-1,bb])
+
+        for bb in range(nlt):             
+            OCN_BC['salt_west'][aa,:,bb]   = interp_to_roms_z(-zhy,tmp[aa,:,bb,0],zr_w[aa,:,bb],-hb[bb,0])
+
+    del tmp
+    tmp = load_tmp_pkl('vrm')
+    for aa in range(Nt):
+        for bb in range(nln):
+            OCN_BC['v_south'][aa,:,bb]    = interp_to_roms_z(-zhy,tmp[aa,:,0,bb],zr_vs[aa,:,bb],-hb_v[0,bb])
+            OCN_BC['vbar_south'][aa,bb]    = get_depth_avg_v(OCN_BC['v_south'][aa,:,bb],zr_vs[aa,:,bb],eta_v[aa,0,bb],hb_v[0,bb])       
+            OCN_BC['v_north'][aa,:,bb]    = interp_to_roms_z(-zhy,tmp[aa,:,-1,bb],zr_vn[aa,:,bb],-hb_v[-1,bb])
+            OCN_BC['vbar_north'][aa,bb]    = get_depth_avg_v(OCN_BC['v_north'][aa,:,bb],zr_vn[aa,:,bb],eta_v[aa,-1,bb],hb_v[-1,bb])
+
+        for bb in range(nlt-1):             
+            OCN_BC['v_west'][aa,:,bb]  = interp_to_roms_z(-zhy,tmp[aa,:,bb,0],zr_vw[aa,:,bb],-hb_v[bb,0])
+            OCN_BC['vbar_west'][aa,bb]  = get_depth_avg_v(OCN_BC['v_west'][aa,:,bb],zr_vw[aa,:,bb],eta_v[aa,bb,0],hb_v[bb,0])
+
+    del tmp
+    tmp = load_tmp_pkl('urm')
+    for aa in range(Nt):
+        for bb in range(nln-1):
+            OCN_BC['u_south'][aa,:,bb]  = interp_to_roms_z(-zhy,tmp[aa,:,0,bb],zr_us[aa,:,bb],-hb_u[0,bb])
+            OCN_BC['ubar_south'][aa,bb]  = get_depth_avg_v(OCN_BC['u_south'][aa,:,bb],zr_us[aa,:,bb],eta_u[aa,0,bb],hb_u[0,bb])
+            OCN_BC['u_north'][aa,:,bb]  = interp_to_roms_z(-zhy,tmp[aa,:,-1,bb],zr_un[aa,:,bb],-hb_u[-1,bb])
+            OCN_BC['ubar_north'][aa,bb]  = get_depth_avg_v(OCN_BC['u_south'][aa,:,bb],zr_un[aa,:,bb],eta_u[aa,-1,bb],hb_u[-1,bb])
+
+        for bb in range(nlt):             
+            OCN_BC['u_west'][aa,:,bb]      = interp_to_roms_z(-zhy,tmp[aa,:,bb,0],zr_uw[aa,:,bb],-hb_u[bb,0])
+            OCN_BC['ubar_west'][aa,bb]      = get_depth_avg_v(OCN_BC['u_west'][aa,:,bb],zr_uw[aa,:,bb],eta_u[aa,bb,0],hb_u[bb,0])
+            
+    del tmp
+    
+    # ROMS wants potential temperature, not temperature, Parker does this in LO.
+    # this needs the seawater package, conda install seawater, did this for me
+    pdb = -zr_s # pressure in dbar
+    OCN_BC['temp_south'] = seawater.ptmp(np.squeeze(OCN_BC['salt_south']), np.squeeze(TMP['temp_south']),np.squeeze(pdb))  
+    pdb = -zr_n # pressure in dbar
+    OCN_BC['temp_north'] = seawater.ptmp(np.squeeze(OCN_BC['salt_north']), np.squeeze(TMP['temp_north']),np.squeeze(pdb))  
+    pdb = -zr_w # pressure in dbar
+    OCN_BC['temp_west'] = seawater.ptmp(np.squeeze(OCN_BC['salt_west']), np.squeeze(TMP['temp_west']),np.squeeze(pdb))  
+
+    with open(fname_out,'wb') as fout:
+        pickle.dump(OCN_BC,fout)
+        print('OCN_BC dict saved with pickle')
 
 
 def ocn_r_2_BCdict_pckl(fname_out):

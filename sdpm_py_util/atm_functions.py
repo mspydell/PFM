@@ -82,19 +82,26 @@ def get_atm_data_as_dict():
 
         # gfs is at 1 hr resolution, for 5 days
         # 0.25 deg horizontal resolution
-        gfs = 'https://nomads.ncep.noaa.gov/dods/gfs_0p25_1hr/gfs' + yyyymmdd + '/gfs_0p25_1hr_' + hhmm[0:2] + 'z'
-
+        gfs = 'https://nomads.ncep.noaa.gov/dods/gfs_0p25/gfs' + yyyymmdd + '/gfs_0p25_' + hhmm[0:2] + 'z'
+        gfs_1hr = 'https://nomads.ncep.noaa.gov/dods/gfs_0p25_1hr/gfs' + yyyymmdd + '/gfs_0p25_1hr_' + hhmm[0:2] + 'z'
+        
+            #  http://nomads.ncep.noaa.gov:80/dods/gfs_0p25_1hr/gfs20241003/gfs_0p25_1hr_06z
+            #  https://nomads.ncep.noaa.gov/dods/gfs_0p25/gfs20241003/gfs_0p25_06z.info
+        
         if atm_mod == 'nam_nest':
             atm_name = nam_nest
         if atm_mod == 'nam_1hr':
             atm_name = nam_1hr
-        #if atm_mod == 'hires_fv3':
-        #    atm_name = hires_fv3
         if atm_mod == 'hrrr':
             atm_name = hrrr
         if atm_mod == 'gfs':
             atm_name = gfs
+        if atm_mod == 'gfs_1hr':
+            atm_name = gfs_1hr
 
+        print('\nthe url for data is:')
+        print(atm_name)
+        print('\n')
         # define the box to get data in
         lt_min = PFM['latlonbox']['L1'][0]
         lt_max = PFM['latlonbox']['L1'][1]
@@ -116,10 +123,10 @@ def get_atm_data_as_dict():
             Hum  = dataset['rh2m']         # at 2 meters, %
             U    = dataset['ugrd10m']      # at 10 meters, m/s
             V    = dataset['vgrd10m']      # at 10 meters, m/s
-            if atm_name == nam_nest or atm_name == hrrr or atm_name == gfs:
-                Rain = dataset['pratesfc'] # at surface, kg/m2/s
             if atm_name == nam_1hr:        # or atm_name == hires_fv3
-                Rain = dataset['apcpsfc']  # total precip, kg/m2, need to take diffs of times.    
+                Rain = dataset['apcpsfc']  # total precip, kg/m2, need to take diffs of times.   
+            else:
+                Rain = dataset['pratesfc'] # at surface, kg/m2/s
             Swd  = dataset['dswrfsfc']     # downward short-wave at surface, W/m2
             Swu  = dataset['uswrfsfc']     # upward short-wave at surface, W/m2
             Lwd  = dataset['dlwrfsfc']     # downward long-wave at surface, W/m2
@@ -128,11 +135,13 @@ def get_atm_data_as_dict():
             # here we find the indices of the data we want for LV1
             Ln0    = ln[:]
             Lt0    = lt[:]
-            if atm_name == gfs:
+            if atm_name == gfs or atm_name == gfs_1hr:
                 Ln0 = Ln0-360.0
 
             iln    = np.where( (Ln0>=ln_min)*(Ln0<=ln_max) ) # the lon indices where we want data
             ilt    = np.where( (Lt0>=lt_min)*(Lt0<=lt_max) ) # the lat indices where we want data
+
+
 
             # now time to get the numbers that we want. I get them as arrays?
             pres2 = Pres[:,ilt[0][0]:ilt[0][-1],iln[0][0]:iln[0][-1]] # indexing looks bad but works
@@ -172,10 +181,12 @@ def get_atm_data_as_dict():
             Hum  = dataset['rh2m']         # at 2 meters, %
             U    = dataset['ugrd10m']      # at 10 meters, m/s
             V    = dataset['vgrd10m']      # at 10 meters, m/s
-            if atm_name == nam_nest or atm_name == hrrr:
-                Rain = dataset['pratesfc'] # at surface, kg/m2/s
+
             if atm_name == nam_1hr:        # or atm_name == hires_fv3
-                Rain = dataset['apcpsfc']  # total precip, kg/m2, need to take diffs of times.    
+                Rain = dataset['apcpsfc']  # total precip, kg/m2, need to take diffs of times. 
+            else:
+                Rain = dataset['pratesfc'] # at surface, kg/m2/s
+
             Swd  = dataset['dswrfsfc']     # downward short-wave at surface, W/m2
             Swu  = dataset['uswrfsfc']     # upward short-wave at surface, W/m2
             Lwd  = dataset['dlwrfsfc']     # downward long-wave at surface, W/m2
@@ -184,27 +195,76 @@ def get_atm_data_as_dict():
             # here we find the indices of the data we want for LV1
             Ln0    = ln[:]
             Lt0    = lt[:]
-            iln    = np.where( (Ln0>=ln_min)*(Ln0<=ln_max) ) # the lon indices where we want data
-            ilt    = np.where( (Lt0>=lt_min)*(Lt0<=lt_max) ) # the lat indices where we want data
+            
+            t   = time[:].data 
+            t_ref = PFM['modtime0']
+            t_rom = get_roms_times(yyyymmdd,t,t_ref) # now we are in days
+            del t
+            tp  = t_rom-t_rom[0]
+            del t_rom
+            #print(type(tp))
+            tp.astype(np.float64)
+            tpmax = np.float64(PFM['forecast_days'])
+            itm = np.where( tp <= tpmax ) 
 
-            lat = lt[ ilt[0][0]:ilt[0][-1] ].data
-            lon = ln[ iln[0][0]:iln[0][-1] ].data
-            t   = time[:].data
-            pres = Pres[:,ilt[0][0]:ilt[0][-1] , iln[0][0]:iln[0][-1] ].data
-            # we will get the other data directly
-            temp = Temp[:,ilt[0][0]:ilt[0][-1],iln[0][0]:iln[0][-1]].data
-            hum = Hum[:,ilt[0][0]:ilt[0][-1],iln[0][0]:iln[0][-1]].data
-            u = U[:,ilt[0][0]:ilt[0][-1],iln[0][0]:iln[0][-1]].data
-            v = V[:,ilt[0][0]:ilt[0][-1],iln[0][0]:iln[0][-1]].data
-            rain = Rain[:,ilt[0][0]:ilt[0][-1],iln[0][0]:iln[0][-1]].data
-            swd = Swd[:,ilt[0][0]:ilt[0][-1],iln[0][0]:iln[0][-1]].data
-            swu = Swu[:,ilt[0][0]:ilt[0][-1],iln[0][0]:iln[0][-1]].data
-            lwd = Lwd[:,ilt[0][0]:ilt[0][-1],iln[0][0]:iln[0][-1]].data
-            lwu = Lwu[:,ilt[0][0]:ilt[0][-1],iln[0][0]:iln[0][-1]].data
+           # print('\n')
+           # print(tpmax)
+           # print(tp)
+           # print('\n')
+           # print(itm)
+           # print(itm[0][0],itm[0][-1])
+           # print(tp[itm[0][0]],tp[itm[0][-1]])
+            #print(tp[itm[0][:]])
+            itm = itm[0][:]
+
+            if atm_name == gfs or atm_name==gfs_1hr:
+                Ln0 = Ln0-360.0
+                iln    = np.where( (Ln0>=ln_min-0.75)*(Ln0<=ln_max+0.75) ) # the lon indices where we want data
+                ilt    = np.where( (Lt0>=lt_min-0.75)*(Lt0<=lt_max+0.75) ) # the lat indices where we want data
+            else:
+                iln    = np.where( (Ln0>=ln_min)*(Ln0<=ln_max) ) # the lon indices where we want data
+                ilt    = np.where( (Lt0>=lt_min)*(Lt0<=lt_max) ) # the lat indices where we want data
+
+            iln = iln[0][:]
+            ilt = ilt[0][:]
+            #print(iln)
+            #print(ilt)
+            #print(Ln0)
+
+            t   = time[ itm ].data 
+
+            t_ref = PFM['modtime0']
+            t_rom = get_roms_times(yyyymmdd,t,t_ref) # now we are in days
+
+            lat = lt[ ilt ].data
+            lon = ln[ iln ].data
+
+            if atm_name == gfs or atm_name == gfs_1hr:
+                lon = lon - 360.0
+
+            pres = Pres[itm,ilt,iln ].data
+            temp = Temp[itm,ilt,iln].data
+            hum  = Hum[itm,ilt,iln].data
+            u    = U[itm,ilt,iln].data
+            v    = V[itm,ilt,iln].data
+            rain = Rain[itm,ilt,iln].data
+            swd  = Swd[itm,ilt,iln].data
+            swu  = Swu[itm,ilt,iln].data
+            lwd  = Lwd[itm,ilt,iln].data
+            lwu  = Lwu[itm,ilt,iln].data
+
+            print('long wave down radiation [0:2,0:3,0:3]:')
+            print(lwd[0:2,0:3,0:3])
+            print('9e20 is bad!')
+            # for gfs, the 1st timestamp for radiation are all bad, so we replace
+            # DON'T KNOW WHY!!!????
+            if atm_name == gfs:
+                swd[0,:,:] = swd[1,:,:]
+                swu[0,:,:] = swd[1,:,:]
+                lwd[0,:,:] = lwd[1,:,:]
+                lwu[0,:,:] = lwu[1,:,:]
             # return the roms times past tref in days
             #t_ref = datetime(1970,1,1)
-            t_ref = PFM['modtime0']
-            t_rom = get_roms_times(yyyymmdd,t,t_ref)
 
             # I think everything is an np.ndarray ?
             dataset.close()
@@ -233,15 +293,32 @@ def get_atm_data_as_dict():
 
         ATM['ocean_time_ref'] = t_ref
         ATM['lwrad'] = lwd-lwu
-        ATM['lrf_time']
+        ATM['lrf_time'] = t_rom
         ATM['lwrad_down'] = lwd
         ATM['swrad'] = swd-swu
+
+#        print(np.max(ATM['swrad']))
+#        print(np.min(ATM['swrad']))
+#        print(np.max(ATM['lwrad']))
+#        print(np.min(ATM['lwrad']))
+#        print(np.max(ATM['lwrad_down']))
+#        print(np.min(ATM['lwrad_down']))
+#        print(np.unravel_index(np.argmax(ATM['lwrad_down'], axis=None), ATM['lwrad_down'].shape))
+
         ATM['rain'] = rain          # kg/m2/s
         ATM['Tair'] = temp - 273.15 # convert from K to C
         ATM['Pair'] = 0.01 * pres   # convert from Pa to db
         ATM['Qair'] = hum
         ATM['Uwind'] = u
         ATM['Vwind'] = v
+
+#        print(lwu[0,0:3,0:3])
+#        print(ATM['lwrad'][0,0:3,0:3])
+#        print(ATM['lwrad_down'][0,0:3,0:3])
+#        print(ATM['swrad'][0,0:3,0:3])
+#        print(ATM['Tair'][0,0:3,0:3])
+#        print(ATM['Uwind'][0,0:3,0:3])
+
 
         # put the units in atm...
         ATM['vinfo']['lon'] = {'long_name':'longitude',
@@ -319,6 +396,15 @@ def get_atm_data_as_dict():
     with open(fname_out,'wb') as fp:
         pickle.dump(ATM,fp)
         print('\nATM dict saved with pickle.')
+
+def load_atm():
+    PFM        = get_PFM_info()   
+    fname_atm  = PFM['lv1_forc_dir'] + '/' + PFM['atm_tmp_pckl_file']
+
+    with open(fname_atm,'rb') as fp:
+        ATM = pickle.load(fp)
+
+    return ATM
 
 
 def get_atm_data_on_roms_grid(lv):
