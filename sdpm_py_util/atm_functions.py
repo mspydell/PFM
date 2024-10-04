@@ -258,7 +258,8 @@ def get_atm_data_as_dict():
             print('9e20 is bad!')
             # for gfs, the 1st timestamp for radiation are all bad, so we replace
             # DON'T KNOW WHY!!!????
-            if atm_name == gfs:
+            if atm_name == gfs or atm_name == gfs_1hr:
+                print('replacing t=0 radiation w/ t=1')
                 swd[0,:,:] = swd[1,:,:]
                 swu[0,:,:] = swd[1,:,:]
                 lwd[0,:,:] = lwd[1,:,:]

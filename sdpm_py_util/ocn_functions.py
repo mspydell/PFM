@@ -2140,6 +2140,11 @@ def make_all_tmp_pckl_ocnR_files_1hrzeta(fname_in):
     os.chdir('../driver')
 
 
+def mk_pick_files(cmd_list):
+
+    ret1 = subprocess.run(cmd_list)
+    return ret1
+
 def make_all_tmp_pckl_ocnR_files_1hrzeta_para(fname_in):
     
     print('and saving 18 pickle files...')
@@ -2149,18 +2154,27 @@ def make_all_tmp_pckl_ocnR_files_1hrzeta_para(fname_in):
     os.chdir('../sdpm_py_util')
     rctot = 0
 
-    for aa in ork:
-        cmd_list = ['python','-W','ignore','ocn_functions.py','make_tmp_hy_on_rom_pckl_files_1hrzeta',fname_in,aa]
-        process = subprocess.Popen(cmd_list)
-        std_out, std_err = process.comminicate()     
-        #rctot = rctot + ret1.returncode
-        #if ret1.returncode != 0:
-        #    print('the ' + aa + ' pickle file was not made correctly')
-        print(std_out)
-    #if rctot == 0: 
-    #    print('...done. \nall 18 ocnR pickle files were made correctly')
-    #else:
-    #    print('...done. \nat least one of the ocnR pickle files were not made correctly')
+                
+    with ThreadPoolExecutor() as executor:
+        threads = []
+        for aa in ork:
+            cmd_list = ['python','-W','ignore','ocn_functions.py','make_tmp_hy_on_rom_pckl_files_1hrzeta',fname_in,aa]
+            fn = mk_pick_files #define function
+            #args = cmd_list
+            kwargs = {} #
+            # start thread by submitting it to the executor
+            threads.append(executor.submit(fn, cmd_list, **kwargs))
+
+            for future in as_completed(threads):
+                # retrieve the result
+                ret1 = future.result()
+                # report the result
+                rctot = rctot + ret1.returncode
+
+    if rctot == 0: 
+        print('...done. \nall 18 ocnR pickle files were made correctly')
+    else:
+        print('...done. \nat least one of the ocnR pickle files was not made correctly')
     
     os.chdir('../driver')
 
