@@ -5246,22 +5246,43 @@ def mk_LV2_BC_dict(lvl):
     OCN_BC['Cs_r'] = np.squeeze(zr2.Cs_r)
 
     # now loop through all 3d variables and vertically interpolate to the correct z levels.
-    for vn in v_list2:
-        if vn in ['temp','salt']:
-            zt = 'rho'
-        else:
-            zt = vn
-        for bnd in ['_north','_south','_west']:
-            v1 = OCN_BC[vn+bnd][:,:,:] # the horizontally interpolated field
-            nnt,nnz,nnp = np.shape(v1)
-            for cc in np.arange(nnt):
-                for aa in np.arange(nnp):
-                    vp = np.squeeze( v1[cc,:,aa]) # the vertical data
-                    zp = np.squeeze( ZZ[zt+bnd][cc,:,aa] ) # z locations data thinks it is at
-                    zf = np.squeeze( Z2[zt+bnd][cc,:,aa]) # z locations where the data should be
-                    Fz = interp1d(zp,vp,bounds_error=False,kind='linear',fill_value = 'extrapolate') 
-                    vf =  np.squeeze(Fz(zf))
-                    OCN_BC[vn+bnd][cc,:,aa] = vf                
+    pp = 0
+    if pp == 1:
+        futures = []
+        with ThreadPoolExecutor() as exe:
+            for vn in v_list2:
+                if vn in ['temp','salt']:
+                    zt = 'rho'
+                else:
+                    zt = vn
+                for bnd in ['_north','_south','_west']:
+                    v1 = OCN_BC[vn+bnd][:,:,:] # the horizontally interpolated field
+                    nnt,nnz,nnp = np.shape(v1)
+                    for cc in np.arange(nnt):
+                        for aa in np.arange(nnp):
+                            vp = np.squeeze( v1[cc,:,aa]) # the vertical data
+                            zp = np.squeeze( ZZ[zt+bnd][cc,:,aa] ) # z locations data thinks it is at
+                            zf = np.squeeze( Z2[zt+bnd][cc,:,aa]) # z locations where the data should be
+                            futures.append(exe.submit(zzinterp,vp,zp,zf))
+                            for future in as_completed(futures):                       
+                                OCN_BC[vn+bnd][cc,:,aa] = future.result()               
+    else:
+        for vn in v_list2:
+            if vn in ['temp','salt']:
+                zt = 'rho'
+            else:
+                zt = vn
+            for bnd in ['_north','_south','_west']:
+                v1 = OCN_BC[vn+bnd][:,:,:] # the horizontally interpolated field
+                nnt,nnz,nnp = np.shape(v1)
+                for cc in np.arange(nnt):
+                    for aa in np.arange(nnp):
+                        vp = np.squeeze( v1[cc,:,aa]) # the vertical data
+                        zp = np.squeeze( ZZ[zt+bnd][cc,:,aa] ) # z locations data thinks it is at
+                        zf = np.squeeze( Z2[zt+bnd][cc,:,aa]) # z locations where the data should be
+                        Fz = interp1d(zp,vp,bounds_error=False,kind='linear',fill_value = 'extrapolate') 
+                        vf =  np.squeeze(Fz(zf))
+                        OCN_BC[vn+bnd][cc,:,aa] = vf                
 
     #fn_out = '/scratch/PFM_Simulations/LV3_Forecast/Forc/test_BC_LV3.pkl'
 
@@ -5272,6 +5293,10 @@ def mk_LV2_BC_dict(lvl):
     #return OCN_BC
     #return xi_r2, eta_r2, interp_r
 
+def zzinterp(vp, zp, zf):
+    Fz = interp1d(zp,vp,bounds_error=False,kind='linear',fill_value = 'extrapolate') 
+    vf =  np.squeeze(Fz(zf))
+    return vf
 
 def mk_LV2_BC_dict_1hrzeta(lvl):
 
