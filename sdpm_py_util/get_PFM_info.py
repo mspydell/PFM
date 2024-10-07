@@ -161,28 +161,28 @@ def get_PFM_info():
       #LLB['L4'] = get_llbox(lv4_grid_file)
 
 
-   # gridding info
+   # gridding info make sure ntilei * ntilej is a multiple of 36. that's how many cores per node on swell
       NN=dict() 
       NN['L1','Lm']  = 251     # Lm in input file
       NN['L1','Mm']  = 388     # Mm in input file
-      NN['L1','ntilei'] = 6    # number of tiles in I-direction
-      NN['L1','ntilej'] = 18   # number of tiles in J-direction
+      NN['L1','ntilei'] = 6    # 6 number of tiles in I-direction
+      NN['L1','ntilej'] = 30   # 18 number of tiles in J-direction
       NN['L1','np'] = NN['L1','ntilei'] * NN['L1','ntilej'] # total number of processors
-      NN['L1','nnodes'] = 3    # number of nodes to be used.  not for .in file but for slurm!
+      NN['L1','nnodes'] =  NN['L1','np'] / 36   # 3 number of nodes to be used.  not for .in file but for slurm!
 
       NN['L2','Lm']  = 264     # Lm in input file
       NN['L2','Mm']  = 396     # Mm in input file
-      NN['L2','ntilei'] = 6    # number of tiles in I-direction
-      NN['L2','ntilej'] = 18   # number of tiles in J-direction
+      NN['L2','ntilei'] = 6    # 6 number of tiles in I-direction
+      NN['L2','ntilej'] = 30   # 18 number of tiles in J-direction
       NN['L2','np'] = NN['L2','ntilei'] * NN['L2','ntilej'] # total number of processors
-      NN['L2','nnodes'] = 3    # number of nodes to be used.  not for .in file but for slurm!
+      NN['L2','nnodes'] = NN['L2','np'] / 36    # 3 number of nodes to be used.  not for .in file but for slurm!
 
       NN['L3','Lm']  = 249     # Lm in input file
       NN['L3','Mm']  = 411     # Mm in input file
-      NN['L3','ntilei'] = 6    # number of tiles in I-direction
-      NN['L3','ntilej'] = 18   # number of tiles in J-direction
+      NN['L3','ntilei'] = 6    # 6 number of tiles in I-direction
+      NN['L3','ntilej'] = 30    # 18 number of tiles in J-direction
       NN['L3','np'] = NN['L2','ntilei'] * NN['L2','ntilej'] # total number of processors
-      NN['L3','nnodes'] = 3    # number of nodes to be used.  not for .infile but for slurm!
+      NN['L3','nnodes'] = NN['L3','np'] / 36    # 3 number of nodes to be used.  not for .infile but for slurm!
 
    # timing info
       tt=dict()

@@ -2,3 +2,5 @@
 __pychache__/
 *.py[cod]
 *$py.class
+# weird files from hycom
+FMRC_*
