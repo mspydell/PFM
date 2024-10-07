@@ -351,7 +351,10 @@ make_LV1_dotin_and_SLURM( PFM , yyyymmdd + hhmm )
 print('...done.\n')
 
 # run command will be
-print('now running roms with slurm...')
+print('now running roms LV1 with slurm.')
+print('using ' + str(PFM['gridinfo']['L1','nnodes']) + ' nodes.')
+print('Ni = ' + str(PFM['gridinfo']['L1','ntilei']) + ', NJ = ' + str(PFM['gridinfo']['L1','ntilej']))
+print('working...')
 t01 = datetime.now()
 run_slurm_LV1(PFM)
 print('...done.')

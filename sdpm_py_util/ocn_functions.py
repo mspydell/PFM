@@ -2154,9 +2154,9 @@ def make_all_tmp_pckl_ocnR_files_1hrzeta_para(fname_in):
     os.chdir('../sdpm_py_util')
     rctot = 0
 
+    threads = []
                 
     with ThreadPoolExecutor() as executor:
-        threads = []
         for aa in ork:
             cmd_list = ['python','-W','ignore','ocn_functions.py','make_tmp_hy_on_rom_pckl_files_1hrzeta',fname_in,aa]
             fn = mk_pick_files #define function
@@ -5247,26 +5247,29 @@ def mk_LV2_BC_dict(lvl):
 
     # now loop through all 3d variables and vertically interpolate to the correct z levels.
     pp = 0
-    if pp == 1:
-        futures = []
-        with ThreadPoolExecutor() as exe:
-            for vn in v_list2:
-                if vn in ['temp','salt']:
-                    zt = 'rho'
-                else:
-                    zt = vn
-                for bnd in ['_north','_south','_west']:
-                    v1 = OCN_BC[vn+bnd][:,:,:] # the horizontally interpolated field
-                    nnt,nnz,nnp = np.shape(v1)
-                    for cc in np.arange(nnt):
+    if pp == 1: # this didn't work. and this isn't the slow part anyway...
+        print('going to interpolate BC z with ThreadPoolExecutor...')
+        for vn in v_list2:
+            if vn in ['temp','salt']:
+                zt = 'rho'
+            else:
+                zt = vn
+            for bnd in ['_north','_south','_west']:
+                v1 = OCN_BC[vn+bnd][:,:,:] # the horizontally interpolated field
+                nnt,nnz,nnp = np.shape(v1)
+                for cc in np.arange(nnt):
+                    futures = []
+                    with ThreadPoolExecutor() as exe:
                         for aa in np.arange(nnp):
                             vp = np.squeeze( v1[cc,:,aa]) # the vertical data
                             zp = np.squeeze( ZZ[zt+bnd][cc,:,aa] ) # z locations data thinks it is at
                             zf = np.squeeze( Z2[zt+bnd][cc,:,aa]) # z locations where the data should be
                             futures.append(exe.submit(zzinterp,vp,zp,zf))
                             for future in as_completed(futures):                       
-                                OCN_BC[vn+bnd][cc,:,aa] = future.result()               
+                                OCN_BC[vn+bnd][cc,:,aa] = future.result()   
+        print('...done')            
     else:
+        print('interpolating z with normal loops.')
         for vn in v_list2:
             if vn in ['temp','salt']:
                 zt = 'rho'

@@ -165,22 +165,22 @@ def get_PFM_info():
       NN=dict() 
       NN['L1','Lm']  = 251     # Lm in input file
       NN['L1','Mm']  = 388     # Mm in input file
-      NN['L1','ntilei'] = 6    # 6 number of tiles in I-direction
-      NN['L1','ntilej'] = 18   # 18 number of tiles in J-direction
+      NN['L1','ntilei'] = 9    # 6 number of tiles in I-direction
+      NN['L1','ntilej'] = 24   # 18 number of tiles in J-direction
       NN['L1','np'] = NN['L1','ntilei'] * NN['L1','ntilej'] # total number of processors
       NN['L1','nnodes'] =  int( NN['L1','np'] / 36 )  # 3 number of nodes to be used.  not for .in file but for slurm!
 
       NN['L2','Lm']  = 264     # Lm in input file
       NN['L2','Mm']  = 396     # Mm in input file
-      NN['L2','ntilei'] = 6    # 6 number of tiles in I-direction
-      NN['L2','ntilej'] = 18   # 18 number of tiles in J-direction
+      NN['L2','ntilei'] = 9    # 6 number of tiles in I-direction
+      NN['L2','ntilej'] = 24   # 18 number of tiles in J-direction
       NN['L2','np'] = NN['L2','ntilei'] * NN['L2','ntilej'] # total number of processors
       NN['L2','nnodes'] = int( NN['L2','np'] / 36 )  # 3 number of nodes to be used.  not for .in file but for slurm!
 
       NN['L3','Lm']  = 249     # Lm in input file
       NN['L3','Mm']  = 411     # Mm in input file
-      NN['L3','ntilei'] = 6    # 6 number of tiles in I-direction
-      NN['L3','ntilej'] = 18    # 18 number of tiles in J-direction
+      NN['L3','ntilei'] = 9    # 6 number of tiles in I-direction
+      NN['L3','ntilej'] = 28    # 18 number of tiles in J-direction
       NN['L3','np'] = NN['L3','ntilei'] * NN['L3','ntilej'] # total number of processors
       NN['L3','nnodes'] = int( NN['L3','np'] / 36  )  # 3 number of nodes to be used.  not for .infile but for slurm!
 
@@ -350,24 +350,30 @@ def get_PFM_info():
       PFM['fetch_time'] = fetch_time2 # this is the start time of the PFM forecast
       PFM['start_time'] = start_time  # this is when we started running PFM
       PFM['utc_time']   = utc_time    # this is when we started PFM in UTC
+
+      end_time = fetch_time2 + PFM['forecast_days'] * timedelta(days=1)
+      end_str = end_time.strftime("%Y%m%d%H%M")
+      PFM['fore_end_time'] = end_time # the end time of the forecast
       
       PFM['lv1_his_name'] = 'LV1_ocean_his_' + yyyymmdd + hhmm + '.nc'
-      PFM['lv1_rst_name'] = 'LV1_ocean_rst_' + yyyymmdd + hhmm + '.nc' 
+      PFM['lv1_rst_name'] = 'LV1_ocean_rst_' + yyyymmdd + hhmm + '_' + end_str + '.nc' 
+      # for a restart file to work, the end_str of a restart file must match the 
+      # fetch_time of the PFM simulation...
       PFM['lv1_his_name_full'] = PFM['lv1_his_dir'] + '/' + PFM['lv1_his_name']
       PFM['lv1_rst_name_full'] = PFM['lv1_forc_dir'] + '/' + PFM['lv1_rst_name']
 
       PFM['lv2_his_name'] = 'LV2_ocean_his_' + yyyymmdd + hhmm + '.nc'
-      PFM['lv2_rst_name'] = 'LV2_ocean_rst_' + yyyymmdd + hhmm + '.nc' 
+      PFM['lv2_rst_name'] = 'LV2_ocean_rst_' + yyyymmdd + hhmm + '_' + end_str + '.nc' 
       PFM['lv2_his_name_full'] = PFM['lv2_his_dir'] + '/' + PFM['lv2_his_name']
       PFM['lv2_rst_name_full'] = PFM['lv2_forc_dir'] + '/' + PFM['lv2_rst_name']
 
       PFM['lv3_his_name'] = 'LV3_ocean_his_' + yyyymmdd + hhmm + '.nc'
-      PFM['lv3_rst_name'] = 'LV3_ocean_rst_' + yyyymmdd + hhmm + '.nc' 
+      PFM['lv3_rst_name'] = 'LV3_ocean_rst_' + yyyymmdd + hhmm + '_' + end_str + '.nc' 
       PFM['lv3_his_name_full'] = PFM['lv3_his_dir'] + '/'  + PFM['lv3_his_name']
       PFM['lv3_rst_name_full'] = PFM['lv3_forc_dir'] + '/' + PFM['lv3_rst_name']
 
       PFM['lv4_his_name'] = 'LV4_ocean_his_' + yyyymmdd + hhmm + '.nc'
-      PFM['lv4_rst_name'] = 'LV4_ocean_rst_' + yyyymmdd + hhmm + '.nc' 
+      PFM['lv4_rst_name'] = 'LV4_ocean_rst_' + yyyymmdd + hhmm + '_' + end_str + '.nc' 
       PFM['lv4_his_name_full'] = PFM['lv4_his_dir'] + '/'  + PFM['lv4_his_name']
       PFM['lv4_rst_name_full'] = PFM['lv4_forc_dir'] + '/' + PFM['lv4_rst_name']
    

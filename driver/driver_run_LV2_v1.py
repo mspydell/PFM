@@ -132,13 +132,17 @@ print(t2-t1)
 print('\n')
 
 # now make .in and .sb for roms, and run roms...
+print('making .in and .sb...')
 yyyymmdd = PFM['yyyymmdd']
 hhmm = PFM['hhmm']
 os.chdir('../sdpm_py_util')
 make_LV2_dotin_and_SLURM( PFM , yyyymmdd + hhmm ) # we could remove the arguments?
 print('...done')
 # run command will be
-print('now running roms with slurm')
+print('now running roms LV2 with slurm.')
+print('using ' + str(PFM['gridinfo']['L2','nnodes']) + ' nodes.')
+print('Ni = ' + str(PFM['gridinfo']['L2','ntilei']) + ', NJ = ' + str(PFM['gridinfo']['L2','ntilej']))
+print('working...')
 t1=datetime.now()
 run_slurm_LV2(PFM)
 os.chdir('../driver')

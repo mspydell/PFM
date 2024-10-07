@@ -142,22 +142,27 @@ yyyymmdd = PFM['yyyymmdd']
 hhmm = PFM['hhmm']
 
 t1=datetime.now()
+print('making LV3 .in and .sb...')
 os.chdir('../sdpm_py_util')
 make_LV3_dotin_and_SLURM( PFM , yyyymmdd + hhmm )
 print('...done')
 # run command will be
-print('now running roms with slurm')
+print('now running roms LV3 with slurm.')
+print('using ' + str(PFM['gridinfo']['L3','nnodes']) + ' nodes.')
+print('Ni = ' + str(PFM['gridinfo']['L3','ntilei']) + ', NJ = ' + str(PFM['gridinfo']['L3','ntilej']))
+print('working...')
 run_slurm_LV3(PFM)
 
 os.chdir('../driver')
+print('...done.')
 print('this took:')
 t2 = datetime.now()
 print(t2-t1)
 print('\n')
 #print(t2-t00)
 
-print('now making LV3 history file plots')
+print('now making LV3 history file plots...')
 pltfuns.make_all_his_figures('LV3')
-t2 = datetime.now()
+print('...done.')
 
 
