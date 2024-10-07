@@ -168,21 +168,21 @@ def get_PFM_info():
       NN['L1','ntilei'] = 6    # 6 number of tiles in I-direction
       NN['L1','ntilej'] = 30   # 18 number of tiles in J-direction
       NN['L1','np'] = NN['L1','ntilei'] * NN['L1','ntilej'] # total number of processors
-      NN['L1','nnodes'] =  NN['L1','np'] / 36   # 3 number of nodes to be used.  not for .in file but for slurm!
+      NN['L1','nnodes'] =  int( NN['L1','np'] / 36 )  # 3 number of nodes to be used.  not for .in file but for slurm!
 
       NN['L2','Lm']  = 264     # Lm in input file
       NN['L2','Mm']  = 396     # Mm in input file
       NN['L2','ntilei'] = 6    # 6 number of tiles in I-direction
       NN['L2','ntilej'] = 30   # 18 number of tiles in J-direction
       NN['L2','np'] = NN['L2','ntilei'] * NN['L2','ntilej'] # total number of processors
-      NN['L2','nnodes'] = NN['L2','np'] / 36    # 3 number of nodes to be used.  not for .in file but for slurm!
+      NN['L2','nnodes'] = int( NN['L2','np'] / 36 )  # 3 number of nodes to be used.  not for .in file but for slurm!
 
       NN['L3','Lm']  = 249     # Lm in input file
       NN['L3','Mm']  = 411     # Mm in input file
       NN['L3','ntilei'] = 6    # 6 number of tiles in I-direction
       NN['L3','ntilej'] = 30    # 18 number of tiles in J-direction
       NN['L3','np'] = NN['L2','ntilei'] * NN['L2','ntilej'] # total number of processors
-      NN['L3','nnodes'] = NN['L3','np'] / 36    # 3 number of nodes to be used.  not for .infile but for slurm!
+      NN['L3','nnodes'] = int( NN['L3','np'] / 36  )  # 3 number of nodes to be used.  not for .infile but for slurm!
 
    # timing info
       tt=dict()
