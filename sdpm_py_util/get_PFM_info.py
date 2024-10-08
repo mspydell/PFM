@@ -179,8 +179,8 @@ def get_PFM_info():
 
       NN['L3','Lm']  = 249     # Lm in input file
       NN['L3','Mm']  = 411     # Mm in input file
-      NN['L3','ntilei'] = 9    # 6 number of tiles in I-direction
-      NN['L3','ntilej'] = 28    # 18 number of tiles in J-direction
+      NN['L3','ntilei'] = 12    # 6 number of tiles in I-direction
+      NN['L3','ntilej'] = 30    # 18 number of tiles in J-direction
       NN['L3','np'] = NN['L3','ntilei'] * NN['L3','ntilej'] # total number of processors
       NN['L3','nnodes'] = int( NN['L3','np'] / 36  )  # 3 number of nodes to be used.  not for .infile but for slurm!
 
