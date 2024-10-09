@@ -5,6 +5,7 @@ import sys
 import os
 from datetime import datetime
 import subprocess
+import pickle
 
 ##############
 
@@ -38,7 +39,8 @@ t2 = datetime.now()
 print('this took:')
 print(t2-t1)
 print('\n')
-
+dt_atm = []
+dt_atm.append(t2-t1)
 
 # plot both raw and LV2 atm fields
 t1 = datetime.now()
@@ -56,6 +58,8 @@ t2 = datetime.now()
 print('this took:')
 print(t2-t1)
 print('\n')
+dt_plotting = []
+dt_plotting.append(t2-t1)
 
 # save the atm data into LV2_atm.nc
 t1 = datetime.now()
@@ -70,9 +74,11 @@ print('this took:')
 t2 = datetime.now()
 print(t2-t1)
 print('\n')
+dt_atm.append(t2-t1)
 
 # make the LV2_OCN_BC.pkl file
 t1 = datetime.now()
+t01 = datetime.now()
 print('driver_run_forcast_LV2: saving LV2_OCN_BC pickle file')
 os.chdir('../sdpm_py_util')
 cmd_list = ['python','-W','ignore','ocn_functions.py','mk_LV2_BC_dict',str(level)]
@@ -100,9 +106,13 @@ print('this took:')
 t2 = datetime.now()
 print(t2-t1)
 print('\n')
+dt_bc = []
+dt_bc.append(t2-t01)
+
 
 # make and save the LV2_IC.pkl file
 t1=datetime.now()
+t01 = datetime.now()
 print('driver_run_forcast_LV2: making and saving LV2_OCN_IC pickle file')
 os.chdir('../sdpm_py_util')
 cmd_list = ['python','-W','ignore','ocn_functions.py','mk_LV2_IC_dict',str(level)]
@@ -131,8 +141,12 @@ t2 = datetime.now()
 print(t2-t1)
 print('\n')
 
+dt_ic = []
+dt_ic.append(t2-t01)
+
 # now make .in and .sb for roms, and run roms...
 print('making .in and .sb...')
+t1=datetime.now()
 yyyymmdd = PFM['yyyymmdd']
 hhmm = PFM['hhmm']
 os.chdir('../sdpm_py_util')
@@ -143,15 +157,34 @@ print('now running roms LV2 with slurm.')
 print('using ' + str(PFM['gridinfo']['L2','nnodes']) + ' nodes.')
 print('Ni = ' + str(PFM['gridinfo']['L2','ntilei']) + ', NJ = ' + str(PFM['gridinfo']['L2','ntilej']))
 print('working...')
-t1=datetime.now()
 run_slurm_LV2(PFM)
 os.chdir('../driver')
 print('running ROMS took:')
 t2 = datetime.now()
 print(t2-t1)
 print('\n')
+dt_roms = []
+dt_roms.append(t2-t1)
 
 # plot his.nc from LV2 
+t01=datetime.now()
 print('now making LV2 history file plots')
 pltfuns.make_all_his_figures('LV2')
-print('done with all of LV2.')
+dt_plotting.append(datetime.now()-t01)
+
+dt_LV2 = {}
+dt_LV2['roms'] = dt_roms
+dt_LV2['ic'] = dt_ic
+dt_LV2['bc'] = dt_bc
+dt_LV2['atm'] = dt_atm
+dt_LV2['plotting'] = dt_plotting
+
+fn_timing = PFM['lv2_run_dir'] + '/LV2_timing_info.pkl'
+with open(fn_timing,'wb') as fout:
+    pickle.dump(dt_LV2,fout)
+    print('OCN_LV2 timing info dict saved with pickle to: ',fn_timing)
+
+print('\n\n----------------------')
+print('Finished the LV2 simulation\n')
+
+

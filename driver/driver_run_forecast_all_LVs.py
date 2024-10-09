@@ -8,7 +8,7 @@ import subprocess
 
 ##############
 sys.path.append('../sdpm_py_util')
-
+from util_functions import display_timing_info
 
 ##############
 # Run LV1...
@@ -63,4 +63,5 @@ print('total time to do LV1, LV2, and LV3:')
 print(t2-t00)
 print('=======================================================')
 
+display_timing_info()
 

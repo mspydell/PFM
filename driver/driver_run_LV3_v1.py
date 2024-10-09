@@ -5,6 +5,7 @@ import sys
 import os
 from datetime import datetime
 import subprocess
+import pickle
 
 ##############
 
@@ -42,6 +43,8 @@ t2 = datetime.now()
 print('this took:')
 print(t2-t1)
 print('\n')
+dt_atm = []
+dt_atm.append(t2-t1)
 
 ##############
 # plot both raw and LV3 atm fields
@@ -54,11 +57,13 @@ if plot_all_atm == 1:
     ret5 = subprocess.run(cmd_list)   
     print('return code: ' + str(ret5.returncode) + ' (0=good)')  
     print('...done with: pltfuns.plot_all_fields_in_one')
+    t2 = datetime.now()
+    print('this took:')
+    print(t2-t1)
+    print('\n')
+    dt_plotting = []
+    dt_plotting.append(t2-t1)
 
-t2 = datetime.now()
-print('this took:')
-print(t2-t1)
-print('\n')
 
 
 ##############
@@ -75,10 +80,11 @@ print('this took:')
 t2 = datetime.now()
 print(t2-t1)
 print('\n')
-
+dt_atm.append(t2-t1)
 
 ##############
 t1 = datetime.now()
+t01 = datetime.now()
 print('driver_run_forcast_LV3: saving LV'+str(level)+'_OCN_BC pickle file')
 os.chdir('../sdpm_py_util')
 cmd_list = ['python','-W','ignore','ocn_functions.py','mk_LV2_BC_dict',str(level)]
@@ -106,9 +112,12 @@ print('this took:')
 t2 = datetime.now()
 print(t2-t1)
 print('\n')
+dt_bc = []
+dt_bc.append(t2-t01)
 
 ##############
 t1=datetime.now()
+t01 = datetime.now()
 print('driver_run_forcast_LV3: saving LV'+str(level)+'_OCN_IC pickle file')
 os.chdir('../sdpm_py_util')
 cmd_list = ['python','-W','ignore','ocn_functions.py','mk_LV2_IC_dict',str(level)]
@@ -136,6 +145,8 @@ print('this took:')
 t2 = datetime.now()
 print(t2-t1)
 print('\n')
+dt_ic = []
+dt_ic.append(t2-t01)
 
 ##############
 yyyymmdd = PFM['yyyymmdd']
@@ -160,9 +171,29 @@ t2 = datetime.now()
 print(t2-t1)
 print('\n')
 #print(t2-t00)
+dt_roms = []
+dt_roms.append(t2-t1)
 
 print('now making LV3 history file plots...')
+t01=datetime.now()
 pltfuns.make_all_his_figures('LV3')
 print('...done.')
+dt_plotting.append(datetime.now()-t01)
+
+dt_LV3 = {}
+dt_LV3['roms'] = dt_roms
+dt_LV3['ic'] = dt_ic
+dt_LV3['bc'] = dt_bc
+dt_LV3['atm'] = dt_atm
+dt_LV3['plotting'] = dt_plotting
+
+fn_timing = PFM['lv3_run_dir'] + '/LV3_timing_info.pkl'
+with open(fn_timing,'wb') as fout:
+    pickle.dump(dt_LV3,fout)
+    print('OCN_LV3 timing info dict saved with pickle to: ',fn_timing)
+
+print('\n\n----------------------')
+print('Finished the LV3 simulation\n')
+
 
 

@@ -5,6 +5,7 @@ import sys
 import os
 from datetime import datetime, timedelta
 import subprocess
+import pickle
 
 ##############
 
@@ -61,6 +62,9 @@ print('this took:')
 print(t02-t01)
 print('\n')
 
+dt_download_ocn = []
+dt_download_ocn.append(t02-t00)
+
 """ print('catting the hycom.nc files into two (1hr and 3hr) nc files ...')
 t01 = datetime.now() # for keeping track of timing of the simulation
 os.chdir('../sdpm_py_util')
@@ -103,6 +107,8 @@ t02 = datetime.now()
 print('this took:')
 print(t02-t01)
 print('\n')
+dt_process =[]
+dt_process.append(t02-t01)
 
 
 # now we are back to the previous code...
@@ -132,6 +138,8 @@ fn_atm_out = PFM['lv1_forc_dir'] + '/' + PFM['lv1_atm_file'] # LV1 atm forcing f
 
 
 t01 = datetime.now()
+dt_plotting = []
+
 if plot_ocn ==1:
     print('making some plots from: ' + fn_pckl)
     cmd_list = ['python','-W','ignore','plotting_functions.py','plot_ocn_fields_from_dict_pckl',fn_pckl]
@@ -141,12 +149,11 @@ if plot_ocn ==1:
     print('subprocess return code? ' + str(ret1.returncode) +  ' (0=good)')
     print('...done')
     os.chdir('../driver')
-
-t02= datetime.now()
-print('this took:')
-print(t02-t01)
-print('\n')
-
+    t02= datetime.now()
+    print('this took:')
+    print(t02-t01)
+    print('\n')
+    dt_plotting.append(t02-t01)
 
 
 # put the ocn data on the roms grid
@@ -168,6 +175,8 @@ os.chdir('../sdpm_py_util')
 ret1 = subprocess.run(cmd_list)     
 os.chdir('../driver')
 print('driver_run_forecast_LV1: done with hycom_to_roms_latlon')
+t02 = datetime.now()
+dt_process.append(t02-t01)
 
 if plot_ocnr == 1:
     print('plotting LV1 ocn_R_fields...')
@@ -176,14 +185,14 @@ if plot_ocnr == 1:
     ret1 = subprocess.run(cmd_list)     
     os.chdir('../driver')
     print('subprocess return code? ' + str(ret1.returncode) +  ' (0=good)')
-
-t02 = datetime.now()
+    t03 = datetime.now()
+    dt_plotting.append(t03-t02)
+    
 print('...done with LV1 ocn_R')
 print('this took:')
-print(t02-t01)
+print(t03-t01)
 print('\n')
-
-
+t04 = datetime.now()
 
 # make the depth pickle file
 print('making the depth pickle file...')
@@ -194,6 +203,7 @@ ret6 = subprocess.run(cmd_list)
 os.chdir('../driver')
 print('subprocess return code? ' + str(ret6.returncode) +  ' (0=good)')
 print('\n')
+dt_process.append(datetime.now()-t04)
 
 
 print('going to save OCN_IC to a pickle file: ' + ocnIC_pckl)
@@ -210,9 +220,8 @@ print('this took:')
 print(t02-t01)
 print('\n')
 
-
 print('making IC file from pickled IC: '+ ic_file_out)
-t01 = datetime.now()
+t03 = datetime.now()
 cmd_list = ['python','-W','ignore','ocn_functions.py','ocn_roms_IC_dict_to_netcdf_pckl',ocnIC_pckl,ic_file_out]
 os.chdir('../sdpm_py_util')
 ret4 = subprocess.run(cmd_list)     
@@ -220,18 +229,23 @@ os.chdir('../driver')
 print('OCN IC nc data saved, correctly? ' + str(ret4.returncode) + ' (0=yes)')
 
 print('done makeing IC file.')
+dt_ic = []
+t05 = datetime.now()
+dt_ic.append(t05-t01)
 
 if plot_ocn_icnc == 1:
+    print('plotting...')
     pltfuns.plot_ocn_ic_fields(ic_file_out)
-
-t02 = datetime.now()
-print('this took:')
-print(t02-t01)
-print('\n')
+    t04 = datetime.now()
+    print('...done. this took:')
+    print(t04-t03)
+    print('\n')
+    dt_plotting.append(t04-t05)
 
 # get the OCN_BC dictionary
 print('going to save OCN_BC to a pickle file to:')
 t01 = datetime.now()
+t04 = datetime.now()
 ocnBC_pckl = PFM['lv1_forc_dir'] + '/' + PFM['lv1_ocnBC_tmp_pckl_file']
 print(ocnBC_pckl) 
 os.chdir('../sdpm_py_util')
@@ -259,7 +273,8 @@ t02 = datetime.now()
 print('this took:')
 print(t02-t01)
 print('\n')
-
+dt_bc = []
+dt_bc.append(t02-t04)
 
 # now for the atm part...
 print('we are now getting the atm data and saving as a dict...')
@@ -275,17 +290,20 @@ print('this took:')
 print(t02-t01)
 print('\n')
 
+dt_download_atm = []
+dt_download_atm.append(t02-t01)
+
 # plot some stuff
 if plot_atm == 1:
     print('we are now plotting the atm data...')
     t01 = datetime.now()
     pltfuns.plot_atm_fields()
     print('...done with plotting ATM fields')
-
-t02 = datetime.now()
-print('this took:')
-print(t02-t01)
-print('\n')
+    t02 = datetime.now()
+    print('this took:')
+    print(t02-t01)
+    print('\n')
+    dt_plotting.append(t02-t01)
 
 level = 1
 # put the atm data on the roms grid, and rotate the velocities
@@ -303,17 +321,19 @@ t02 = datetime.now()
 print('this took:')
 print(t02-t01)
 print('\n')
+dt_atm = []
+dt_atm.append(t02-t01)
 
 if plot_all_atm == 1:
     t01 = datetime.now()
     print('we are now plotting the atm data on roms grid...')
     pltfuns.plot_all_fields_in_one(str(level))
     print('...done.')
-
-t02 = datetime.now()
-print('this took:')
-print(t02-t01)
-print('\n')
+    t02 = datetime.now()
+    print('this took:')
+    print(t02-t01)
+    print('\n')
+    dt_plotting.append(t02-t01)
 
 # fn_out is the name of the atm.nc file used by roms
 print('we are now saving ATM LV1 to ' + fn_atm_out + ' ...')
@@ -329,20 +349,23 @@ t02 = datetime.now()
 print('this took:')
 print(t02-t01)
 print('\n')
+dt_atm.append(t02-t01)
+
 
 if load_plot_atm == 1:
     t01 = datetime.now()
     print('we are now plotting the atm data...')
     pltfuns.load_and_plot_atm(str(level))
     print('...done.')
-
-t02 = datetime.now()
-print('this took:')
-print(t02-t01)
-print('\n')
+    t02 = datetime.now()
+    print('this took:')
+    print(t02-t01)
+    print('\n')
+    dt_plotting.append(t02-t01)
 
 
 print('driver_run_forecast_LV1:  now make .in and .sb files...')
+t01 = datetime.now()
 pfm_driver_src_dir = os.getcwd()
 yyyymmdd = PFM['yyyymmdd']
 hhmm = PFM['hhmm']
@@ -355,7 +378,6 @@ print('now running roms LV1 with slurm.')
 print('using ' + str(PFM['gridinfo']['L1','nnodes']) + ' nodes.')
 print('Ni = ' + str(PFM['gridinfo']['L1','ntilei']) + ', NJ = ' + str(PFM['gridinfo']['L1','ntilej']))
 print('working...')
-t01 = datetime.now()
 run_slurm_LV1(PFM)
 print('...done.')
 os.chdir('../driver')
@@ -363,6 +385,8 @@ t02 = datetime.now()
 print('this took:')
 print(t02-t01)
 print('\n')
+dt_roms = []
+dt_roms.append(t02-t01)
 
 # now making history file plots
 print('now making LV1 history file plots...')
@@ -373,8 +397,25 @@ t02 = datetime.now()
 print('this took:')
 print(t02-t01)
 print('\n')
+dt_plotting.append(t02-t01)
 
-print('\nFinished the LV1 simulation')
+dt_LV1 = {}
+dt_LV1['roms'] = dt_roms
+dt_LV1['ic'] = dt_ic
+dt_LV1['bc'] = dt_bc
+dt_LV1['atm'] = dt_atm
+dt_LV1['plotting'] = dt_plotting
+dt_LV1['process'] = dt_process
+dt_LV1['download_atm'] = dt_download_atm
+dt_LV1['download_ocn'] = dt_download_ocn
+
+fn_timing = PFM['lv1_run_dir'] + '/LV1_timing_info.pkl'
+with open(fn_timing,'wb') as fout:
+    pickle.dump(dt_LV1,fout)
+    print('OCN_LV1 timing info dict saved with pickle to: ',fn_timing)
+
+print('\n\n----------------------')
+print('Finished the LV1 simulation')
 print('this took:')
 print(t02-t00)
 print('\n')

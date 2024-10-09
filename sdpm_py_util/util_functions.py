@@ -1,6 +1,147 @@
 import numpy as np
 import warnings
+import pickle
+from get_PFM_info import get_PFM_info
 
+
+def display_timing_info():
+    PFM = get_PFM_info()
+    fn_timing = PFM['lv1_run_dir'] + '/LV1_timing_info.pkl'
+    with open(fn_timing,'rb') as fout:
+        T1 = pickle.load(fout)
+    fn_timing = PFM['lv2_run_dir'] + '/LV2_timing_info.pkl'
+    with open(fn_timing,'rb') as fout:
+        T2 = pickle.load(fout)
+    fn_timing = PFM['lv3_run_dir'] + '/LV3_timing_info.pkl'
+    with open(fn_timing,'rb') as fout:
+        T3 = pickle.load(fout)
+
+    GI = PFM['gridinfo']
+    SS = PFM['stretching']
+
+    #print(T1['roms'])
+
+    tp1 = np.sum(T1['process'][:])
+    tp1 = np.round( tp1.total_seconds()/60,decimals=2 )
+    tatm1 = np.sum(T1['atm'][:])
+    tatm1 = np.round( tatm1.total_seconds()/60,decimals=2 )
+    tatm2 = np.sum(T2['atm'][:])
+    tatm2 = np.round( tatm2.total_seconds()/60,decimals=2 )
+    tatm3 = np.sum(T3['atm'][:])
+    tatm3 = np.round( tatm3.total_seconds()/60,decimals=2 )
+    
+    to1 = np.sum(T1['ic'][:])
+    to1 = np.round( to1.total_seconds()/60,decimals=2 )
+    to2 = np.sum(T2['ic'][:])
+    to2 = np.round( to2.total_seconds()/60,decimals=2 )
+    to3 = np.sum(T3['ic'][:])
+    to3 = np.round( to3.total_seconds()/60,decimals=2 )
+    
+    tb1 = np.sum(T1['bc'][:])
+    tb1 = np.round( tb1.total_seconds()/60,decimals=2 )
+    tb2 = np.sum(T2['bc'][:])
+    tb2 = np.round( tb2.total_seconds()/60,decimals=2 )
+    tb3 = np.sum(T3['bc'][:])
+    tb3 = np.round( tb3.total_seconds()/60,decimals=2 )
+
+    tp1 = np.sum(T1['plotting'][:])
+    tp1 = np.round( tp1.total_seconds()/60,decimals=2 )
+    tp2 = np.sum(T2['plotting'][:])
+    tp2 = np.round( tp2.total_seconds()/60,decimals=2 )
+    tp3 = np.sum(T3['plotting'][:])
+    tp3 = np.round( tp3.total_seconds()/60,decimals=2 )
+
+    tr1 = np.sum(T1['roms'][:])
+    #print(tr1)
+    #print(str(tr1))
+    tr1 = np.round( tr1.total_seconds()/60,decimals=2 )
+    #print(tr1)
+    tr2 = np.sum(T2['roms'][:])
+    tr2 = np.round( tr2.total_seconds()/60,decimals=2 )
+    tr3 = np.sum(T3['roms'][:])
+    tr3 = np.round( tr3.total_seconds()/60,decimals=2 )
+
+    t_atm = np.round(T1['download_atm'][0].total_seconds()/60,decimals=2)
+    t_ocn = np.round(T1['download_ocn'][0].total_seconds()/60,decimals=2)
+
+    tot1 = t_atm + t_ocn + tp1 + tatm1 + to1 + tb1 + tr1 + tp1
+    tot2 = tatm2 + to2 + tb2 + tr2 + tp2
+    tot3 = tatm3 + to3 + tb3 + tr3 + tp3
+    tot_tot = tot1+tot2+tot3
+
+    ttt = PFM['tinfo']
+    stp1 = int( PFM['forecast_days'] * 24 * 3600 / ttt['L1','dtsec'] )
+    stp2 = int( PFM['forecast_days'] * 24 * 3600 / ttt['L2','dtsec'] )
+    stp3 = int( PFM['forecast_days'] * 24 * 3600 / ttt['L3','dtsec'] )
+
+    #PFM['lv1_use_restart'] = 0
+    if PFM['lv1_use_restart'] == 1:
+        ocn_ic = 'restart file'
+    else:
+        ocn_ic = PFM['ocn_model']
+
+    print('\n')
+    print(f'--------------------------------------------------------')
+    print(f'{''}{'PFM general information' : ^54}{''}')
+    print(f'--------------------------------------------------------')
+    print(PFM['start_time'].strftime("%Y-%m-%d %H:%M"), ' : simulation started [local time]')
+    print(PFM['fetch_time'].strftime("%Y-%m-%d %H:%M"), ' : forecast start time [UTC]')
+    print(PFM['fore_end_time'].strftime("%Y-%m-%d %H:%M"), ' : forecast end time [UTC]')
+    print(PFM['forecast_days'], '              : forecast length [days]')
+    print(f'{PFM['ocn_model'] : <18}{':' : <2}{'ocean boundary conditions' : <30}')
+    print(f'{ocn_ic : <18}{':' : <2}{'ocean initial condition' : <30}')
+    print(f'{PFM['atm_model'] : <18}{':' : <2}{'atmospheric forcing model' : <30}')
+    print(f'--------------------------------------------------------')
+    print(f'             |             |             |             |')
+    print(f'             |     LV1     |     LV2     |     LV3     |')
+    print(f'             |             |             |             |')
+    print(f'--------------------------------------------------------')
+    print(f'{''}{'grid points' : ^54}{''}')
+    print(f'{'nx =' : >8}{'|' : >6}{GI['L1','Lm'] : >8}{'|' : >6} {GI['L2','Lm'] : >7}{'|' : >6}{GI['L3','Lm'] : >8}{'|' : >6}')
+    print(f'{'ny =' : >8}{'|' : >6}{GI['L1','Mm'] : >8}{'|' : >6} {GI['L2','Mm'] : >7}{'|' : >6}{GI['L3','Mm'] : >8}{'|' : >6}')
+    print(f'{'nz =' : >8}{'|' : >6}{SS['L1','Nz'] : >8}{'|' : >6} {SS['L2','Nz'] : >7}{'|' : >6}{SS['L3','Nz'] : >8}{'|' : >6}')
+    print(f'--------------------------------------------------------')
+    print(f'{''}{'time steps' : ^54}{''}')
+    print(f'{'' : <7}{'|' : >7}{stp1 : >8}{'|' : >6} {stp2 : >7}{'|' : >6}{stp3 : >8}{'|' : >6}')
+    print(f'--------------------------------------------------------')
+    print(f'{''}{'parallelization' : ^54}{''}')
+    print(f'{'nodes =' : >11}{'|' : >3}{GI['L1','nnodes'] : >8}{'|' : >6} {GI['L2','nnodes'] : >7}{'|' : >6}{GI['L3','nnodes'] : >8}{'|' : >6}')
+    print(f'{'Ntilei =' : >11}{'|' : >3}{GI['L1','ntilei'] : >8}{'|' : >6} {GI['L2','ntilei'] : >7}{'|' : >6}{GI['L3','ntilei'] : >8}{'|' : >6}')
+    print(f'{'Ntilej =' : >11}{'|' : >3}{GI['L1','ntilej'] : >8}{'|' : >6} {GI['L2','ntilej'] : >7}{'|' : >6}{GI['L3','ntilej'] : >8}{'|' : >6}')
+    print(f'--------------------------------------------------------')
+    print(f'--------------------------------------------------------')
+    print(f'{''}{'timing information for PFM' : ^54}{''}')
+    print(f'{''}{'[in minutes]' : ^54}{''}')
+    print(f'--------------------------------------------------------')
+    print(f'--------------------------------------------------------')
+    print(f'{'downloading' : >8}{'|' : >3}{'': >8}{'|' : >6} {'' : >7}{'|' : >6}{'' : >8}{'|' : >6}')
+    print(f'{'atm' : >7}{'|' : >7}{t_atm : >8}{'|' : >6} {'' : >7}{'|' : >6}{'' : >8}{'|' : >6}')
+    print(f'{'ocn' : >7}{'|' : >7}{t_ocn : >8}{'|' : >6} {'' : >7}{'|' : >6}{'' : >8}{'|' : >6}')
+    print(f'--------------------------------------------------------')
+    print(f'{'processing' : >7}{'|' : >4}{tp1 : >8}{'|' : >6} {'' : >7}{'|' : >6}{'' : >8}{'|' : >6}')
+    print(f'--------------------------------------------------------')
+    print(f'{'atm' : <7}{'|' : >7}{tatm1 : >8}{'|' : >6} {tatm2 : >7}{'|' : >6}{tatm3 : >8}{'|' : >6}')
+    print(f'--------------------------------------------------------')
+    print(f'{'ocn ic' : <7}{'|' : >7}{to1 : >8}{'|' : >6} {to2 : >7}{'|' : >6}{to3 : >8}{'|' : >6}')
+    print(f'--------------------------------------------------------')
+    print(f'{'ocn bc' : <7}{'|' : >7}{tb1 : >8}{'|' : >6} {tb2 : >7}{'|' : >6}{tb3 : >8}{'|' : >6}')
+    print(f'--------------------------------------------------------')
+    print(f'{'plotting' : <7}{'|' : >6}{tp1 : >8}{'|' : >6} {tp2 : >7}{'|' : >6}{tp3 : >8}{'|' : >6}')
+    print(f'--------------------------------------------------------')
+    print(f'{'ROMS' : <7}{'|' : >7}{tr1 : >8}{'|' : >6} {tr2 : >7}{'|' : >6}{tr3 : >8}{'|' : >6}')
+    print(f'--------------------------------------------------------')
+    print(f'{'totals' : <7}{'|' : >7}{tot1 : >8}{'|' : >6} {tot2 : >7}{'|' : >6}{tot3 : >8}{'|' : >6}')
+    print(f'--------------------------------------------------------')
+    print(f'{'TOTAL [min]' : <11}{'|' : >3}{tot_tot : ^39}{'|' : >3}')
+    print(f'--------------------------------------------------------')
+    print('\n')
+
+
+#print(f'max {vnm:6} = {mxx:6.3f} {ulist2[vnm]:5}      at  ( it, ilat, ilon)     =  ({ind_mx[0]:3},{ind_mx[1]:4},{ind_mx[2]:4})')
+
+
+
+   
 class s_coordinate(object):
     def __init__(self, h, theta_b, theta_s, Tcline, N, hraw=None, zeta=None):
         self.hraw = hraw

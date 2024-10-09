@@ -257,6 +257,7 @@ def get_PFM_info():
       PFM['lv1_ini_file']            = 'LV1_OCEAN_IC.nc'
       PFM['lv1_bc_file']             = 'LV1_OCEAN_BC.nc'   
       PFM['lv1_executable']          = 'LV1_oceanM'
+   
       add_tides=0
       if add_tides==1:
          print('we are using the ROMS with LV1 tidal forcing')
@@ -308,6 +309,12 @@ def get_PFM_info():
       PFM['gridinfo']       = NN
       PFM['tinfo']          = tt
       PFM['outputinfo']     = OP
+
+      use_restart = 0
+      PFM['lv1_use_restart']         = use_restart
+      PFM['lv2_use_restart']         = use_restart
+      PFM['lv3_use_restart']         = use_restart
+      PFM['lv4_use_restart']         = use_restart
 
       # now do the timing information
       start_time = datetime.now()
