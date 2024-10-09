@@ -1455,13 +1455,15 @@ def plot_his_temps_wuv(fn,It,Iz,sv_fig,lvl):
     ax.set_xticks(np.round(np.linspace(np.min(ln), np.max(ln), num=5), 2))
     ax.set_yticks(np.round(np.linspace(np.min(lt), np.max(lt), num=5), 2))
 
+    it_str = str(It).zfill(3)
+
     if sv_fig == 1:
         if lvl == 'LV1':
-            fn_out = PFM['lv1_plot_dir'] + '/his_tempuv_LV1_' + PFM['yyyymmdd'] + PFM['hhmm'] + '_' + str(It) + 'hr.png'
+            fn_out = PFM['lv1_plot_dir'] + '/his_tempuv_LV1_' + PFM['yyyymmdd'] + PFM['hhmm'] + '_' + it_str + 'hr.png'
         elif lvl == 'LV2':            
-            fn_out = PFM['lv2_plot_dir'] + '/his_tempuv_LV2_' + PFM['yyyymmdd'] + PFM['hhmm'] + '_' + str(It) + 'hr.png'
+            fn_out = PFM['lv2_plot_dir'] + '/his_tempuv_LV2_' + PFM['yyyymmdd'] + PFM['hhmm'] + '_' + it_str + 'hr.png'
         elif lvl == 'LV3':            
-            fn_out = PFM['lv3_plot_dir'] + '/his_tempuv_LV3_' + PFM['yyyymmdd'] + PFM['hhmm'] + '_' + str(It) + 'hr.png'
+            fn_out = PFM['lv3_plot_dir'] + '/his_tempuv_LV3_' + PFM['yyyymmdd'] + PFM['hhmm'] + '_' + it_str + 'hr.png'
         
         plt.savefig(fn_out, dpi=300)
     else:
