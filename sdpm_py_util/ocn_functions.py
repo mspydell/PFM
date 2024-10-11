@@ -65,10 +65,10 @@ def para_loop(url,dtff,aa,PFM,dstr_ft):
         '-d', 'lat,'+str(south)+','+str(north),
         '-v', vstr,
         url ,
-                '-4', '-O', full_fn_out, '&>/dev/null']
+                '-4', '-O', full_fn_out]
 
     # run ncks
-    ret1 = subprocess.call(cmd_list)
+    ret1 = subprocess.call(cmd_list, stderr=subprocess.DEVNULL)
     return ret1
 
 def para_loop_new(url,dtff,aa,bb,PFM,dstr_ft):
@@ -111,7 +111,7 @@ def para_loop_new(url,dtff,aa,bb,PFM,dstr_ft):
         '-d', 'lat,'+str(south)+','+str(north),
         '-v', vstr,
         url ,
-                '-4', '-O', full_fn_out, '&>/dev/null']
+                '-4', '-O', full_fn_out]
 
     # run ncks
     hide_out = 1
@@ -119,7 +119,7 @@ def para_loop_new(url,dtff,aa,bb,PFM,dstr_ft):
         print('trying to hide output... does not work')
         ret1 = subprocess.call(cmd_list, stdout=subprocess.STDOUT, stderr=subprocess.DEVNULL)
     else:
-        ret1 = subprocess.call(cmd_list)
+        ret1 = subprocess.call(cmd_list, stderr=subprocess.DEVNULL)
     return ret1
 
 def hycom_grabber(url,dtff,vnm,dstr_ft):
@@ -170,7 +170,7 @@ def hycom_grabber(url,dtff,vnm,dstr_ft):
             '-d', 'lat,'+str(south)+','+str(north),
             '-v', vstr,
             url ,
-                    '-4', '-O', full_fn_out, '&>/dev/null']
+                    '-4', '-O', full_fn_out]
     else:
         cmd_list = ['ncks',
             '-d', 'time,'+dstr0+','+dstr1,
@@ -178,10 +178,10 @@ def hycom_grabber(url,dtff,vnm,dstr_ft):
             '-d', 'lat,'+str(south)+','+str(north),
             '-v', vstr,
             url ,
-            '-4', '-O', full_fn_out , '&>/dev/null']
+            '-4', '-O', full_fn_out ]
 
     # run ncks
-    ret1 = subprocess.call(cmd_list)
+    ret1 = subprocess.call(cmd_list, stderr=subprocess.DEVNULL)
     return ret1
 
 def check_hycom_data(yyyymmdd,times):
@@ -1157,7 +1157,7 @@ def get_ocn_data_as_dict_pckl(yyyymmdd,run_type,ocn_mod,get_method):
                 '-d', 'lat,'+str(south)+','+str(north),
                 '-v', vstr,
                 url3 ,
-                        '-4', '-O', full_fn_out, '&>/dev/null'x]
+                        '-4', '-O', full_fn_out]
     
             # run ncks
             tt0 = time.time()
@@ -2127,7 +2127,7 @@ def make_all_tmp_pckl_ocnR_files_1hrzeta(fname_in):
 
     for aa in ork:
         cmd_list = ['python','-W','ignore','ocn_functions.py','make_tmp_hy_on_rom_pckl_files_1hrzeta',fname_in,aa]
-        ret1 = subprocess.run(cmd_list)     
+        ret1 = subprocess.run(cmd_list )     
         rctot = rctot + ret1.returncode
         if ret1.returncode != 0:
             print('the ' + aa + ' pickle file was not made correctly')
