@@ -65,7 +65,7 @@ def para_loop(url,dtff,aa,PFM,dstr_ft):
         '-d', 'lat,'+str(south)+','+str(north),
         '-v', vstr,
         url ,
-        '-4', '-O', full_fn_out]
+                '-4', '-O', full_fn_out, '&>/dev/null']
 
     # run ncks
     ret1 = subprocess.call(cmd_list)
@@ -111,7 +111,7 @@ def para_loop_new(url,dtff,aa,bb,PFM,dstr_ft):
         '-d', 'lat,'+str(south)+','+str(north),
         '-v', vstr,
         url ,
-        '-4', '-O', full_fn_out]
+                '-4', '-O', full_fn_out, '&>/dev/null']
 
     # run ncks
     hide_out = 1
@@ -170,7 +170,7 @@ def hycom_grabber(url,dtff,vnm,dstr_ft):
             '-d', 'lat,'+str(south)+','+str(north),
             '-v', vstr,
             url ,
-            '-4', '-O', full_fn_out]
+                    '-4', '-O', full_fn_out, '&>/dev/null']
     else:
         cmd_list = ['ncks',
             '-d', 'time,'+dstr0+','+dstr1,
@@ -178,7 +178,7 @@ def hycom_grabber(url,dtff,vnm,dstr_ft):
             '-d', 'lat,'+str(south)+','+str(north),
             '-v', vstr,
             url ,
-            '-4', '-O', full_fn_out]
+            '-4', '-O', full_fn_out , '&>/dev/null']
 
     # run ncks
     ret1 = subprocess.call(cmd_list)
@@ -1157,7 +1157,7 @@ def get_ocn_data_as_dict_pckl(yyyymmdd,run_type,ocn_mod,get_method):
                 '-d', 'lat,'+str(south)+','+str(north),
                 '-v', vstr,
                 url3 ,
-                '-4', '-O', full_fn_out]
+                        '-4', '-O', full_fn_out, '&>/dev/null'x]
     
             # run ncks
             tt0 = time.time()
