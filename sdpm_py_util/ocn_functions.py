@@ -68,7 +68,7 @@ def para_loop(url,dtff,aa,PFM,dstr_ft):
                 '-4', '-O', full_fn_out]
 
     # run ncks
-    ret1 = subprocess.call(cmd_list, stderr=subprocess.DEVNULL)
+    ret1 = subprocess.call(cmd_list, stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
     return ret1
 
 def para_loop_new(url,dtff,aa,bb,PFM,dstr_ft):
