@@ -69,6 +69,11 @@ def display_timing_info():
     tot3 = tatm3 + to3 + tb3 + tr3 + tp3
     tot_tot = tot1+tot2+tot3
 
+    tot1 = np.round(tot1,decimals=2)
+    tot2 = np.round(tot2,decimals=2)
+    tot3 = np.round(tot3,decimals=2)
+    tot_tot = np.round(tot_tot,decimals=2)
+
     ttt = PFM['tinfo']
     stp1 = int( PFM['forecast_days'] * 24 * 3600 / ttt['L1','dtsec'] )
     stp2 = int( PFM['forecast_days'] * 24 * 3600 / ttt['L2','dtsec'] )

@@ -184,6 +184,64 @@ def hycom_grabber(url,dtff,vnm,dstr_ft):
     ret1 = subprocess.call(cmd_list, stderr=subprocess.DEVNULL)
     return ret1
 
+def hycom_grabber_v2(url,dtff,vnm,fn_out):
+    # this is the function that is parallelized
+    # the input is url: the hycom url to get data from
+    # dtff: the time stamp of the forecast, ie, the file we want
+    # aa: a box that defines the region of interest
+    # PFM: used to set the path of where the .nc files go
+    # dstr_ft: the date string of the forecast model run. ie. the first
+    #          time stamp of the forecast
+    
+    PFM = get_PFM_info()
+
+    south = PFM['latlonbox']['L1'][0]
+    north = PFM['latlonbox']['L1'][1]
+    west = PFM['latlonbox']['L1'][2]+360.0
+    east = PFM['latlonbox']['L1'][3]+360.0
+
+    # time limits
+    dtff_adv = dtff+timedelta(hours=0.5) # hours=2 makes it only get 1 time.
+    dstr0 = dtff.strftime('%Y-%m-%dT%H:%M')
+    dstr1 = dtff_adv.strftime('%Y-%m-%dT%H:%M')
+    # use subprocess.call() to execute the ncks command
+    if vnm == '_ssh':
+        vstr = 'surf_el' 
+    if vnm == '_t3z':
+        vstr = 'water_temp'
+    if vnm == '_s3z':
+        vstr = 'salinity'
+    if vnm == '_u3z':
+        vstr = 'water_u'
+    if vnm == '_v3z':
+        vstr = 'water_v'
+    
+
+    tst_err = 1
+    if tst_err == 1: # this didn't do it. got an error. should fix so that ncks doesn't make a ton of errors...
+        cmd_list = ['ncks',
+            '-q',
+            '-D', '0',
+            '-d', 'time,'+dstr0+','+dstr1,
+            '-d', 'lon,'+str(west)+','+str(east),
+            '-d', 'lat,'+str(south)+','+str(north),
+            '-v', vstr,
+            url ,
+            '-4', '-O', fn_out]
+    else:
+        cmd_list = ['ncks',
+            '-d', 'time,'+dstr0+','+dstr1,
+            '-d', 'lon,'+str(west)+','+str(east),
+            '-d', 'lat,'+str(south)+','+str(north),
+            '-v', vstr,
+            url ,
+            '-4', '-O', fn_out]
+
+    # run ncks
+    ret1 = subprocess.call(cmd_list,stderr=subprocess.DEVNULL,stdout=subprocess.DEVNULL)
+    return ret1
+
+
 def check_hycom_data(yyyymmdd,times):
     yyyy = yyyymmdd[0:4]
     mm = yyyymmdd[4:6]
@@ -201,6 +259,7 @@ def check_hycom_data(yyyymmdd,times):
     num_missing = 0
     num_files = 0
     zeta_1hr = 1
+    miss_list = []
 
     for vnm in var_names:
         dhr = 3
@@ -215,9 +274,10 @@ def check_hycom_data(yyyymmdd,times):
             dtff = dtff + dhr * timedelta(hours=1)
             if os.path.isfile(full_fn_out) == False:
                 #print(full_fn_out)
+                miss_list.append(ffname)
                 num_missing = num_missing + 1
 
-    return num_files, num_missing
+    return num_files, num_missing, miss_list
 
 def stored_hycom_dates():
     # this function returns the list 'yyyy-mm-dd' of the hycom data we have downloaded and stored
@@ -250,7 +310,8 @@ def get_missing_file_num_list(hy_dates):
 
 def clean_hycom_dir():
 
-    hycom_dir = '/scratch/PFM_Simulations/hycom_data/'
+    #hycom_dir = '/scratch/PFM_Simulations/hycom_data/'
+    hycom_dir = PFM['hycom_data_dir']
     hy_dates = stored_hycom_dates()
     if len(hy_dates) == 1:
         print('there is only one hycom date in the directoy')
@@ -328,6 +389,106 @@ def get_hycom_foretime(t1str,t2str):
     return yyyymmdd
 
 
+def get_hycom_foretime_v2(t1str,t2str):
+
+    PFM = get_PFM_info()
+    hycom_dir = PFM['hycom_data_dir'] # this has the trailing /
+    t0s = stored_hycom_dates()
+    tnow = datetime.now()
+    tend = t0s[-1]
+    t0 =  datetime.strptime(tend,"%Y-%m-%d")
+    t0 = t0 + timedelta(days=1)
+    while t0 < tnow - timedelta(days = 2):
+        t0str = t0.strftime('%Y%m%d')
+        print('we are trying ll of the hycom ', t0str, ' forecast')
+        get_hycom_data_1hr(t0str)
+        t0 = t0 + timedelta(days=1)
+
+    t0s = stored_hycom_dates()
+    miss_dict = {}
+    nms_dict = {}
+    print('how many total files are we currently missing in the hycom directory?')
+    for dts in t0s:
+        yyyymmdd = dts[0:4] + dts[5:7] + dts[8:10]
+        yyyymmddhhmm = yyyymmdd + '1200'
+        t1 = datetime.strptime(yyyymmddhhmm,'%Y%m%d%H%M')
+        t2 = t1+8.0*timedelta(days=1)
+        times = [t1,t2]
+        n0, num_missing, miss_dict[yyyymmdd] = check_hycom_data(yyyymmdd,times)
+        nms_dict[yyyymmdd] = num_missing
+        print('the ', yyyymmdd, ' hycom forecast is missing')
+        print(str(num_missing), ' files out of ', str(n0))
+
+    print('\nwe will try and get these missing files...')
+
+    for dts in t0s:
+        yyyymmdd = dts[0:4] + dts[5:7] + dts[8:10]
+        if nms_dict[yyyymmdd] > 0:
+            print('getting hycom ', yyyymmdd, ' files...')
+            get_hycom_data_fnames(yyyymmdd,miss_dict[yyyymmdd])
+            print('...done')
+
+    print('now how many total files are we missing?')
+    t0s = stored_hycom_dates()
+    nms = []
+    for dts in t0s:
+        yyyymmdd = dts[0:4] + dts[5:7] + dts[8:10]
+        yyyymmddhhmm = yyyymmdd + '1200'
+        t1 = datetime.strptime(yyyymmddhhmm,'%Y%m%d%H%M')
+        t2 = t1+8.0*timedelta(days=1)
+        times = [t1,t2]
+        n0, num_missing, miss_dict[yyyymmdd] = check_hycom_data(yyyymmdd,times)
+        nms.append(num_missing)
+        print('the ', yyyymmdd, ' hycom forecast is missing')
+        print(str(num_missing), ' files out of ', str(n0))
+
+    fn2 = np.array(nms)
+    ind0 = np.where(fn2 == 0)[0]
+    keeper_i = np.max(ind0)
+    if keeper_i>0:
+        print('removing old unneeded full forecasts...')
+        ii = 0
+        while ii < keeper_i:
+            dt = t0s[ii]
+            print('the date ' + dt + ' will be deleted')
+            fnsd = hycom_dir + '*' + dt + 'T12:00_2*.nc'
+            fls2d = glob.glob(fnsd)
+            for ff in fls2d:
+                os.remove(ff)
+            ii+=1
+        print('...done')
+    else:
+        print('the oldest forecast is the only full forecast!')
+   
+    print('which hycom forecast has the times we need for the PFM simulation?')
+
+    t0s = stored_hycom_dates()
+    t1 =  datetime.strptime(t1str,"%Y%m%d%H%M")
+    t2 =  datetime.strptime(t2str,"%Y%m%d%H%M")
+    times = [t1,t2]
+
+    missing = []
+    print('for the PFM simulation starting from ', t1)
+    print('and ending at ', t2)
+    for dts in t0s:
+        yyyymmdd = dts[0:4] + dts[5:7] + dts[8:10]
+        n0, num_missing, dum = check_hycom_data(yyyymmdd,times)
+        missing.append(num_missing)
+        print('for the ', yyyymmdd, ' hycom simulation, we are missing')
+        print(num_missing, ' files.')
+
+    fn2 = np.array(missing)
+    ind0 = np.where(fn2 == 0)[0]
+    keeper = np.max(ind0)
+    tkeep = t0s[keeper]
+    print('so we will use the')
+    yyyymmdd = tkeep[0:4] + tkeep[5:7] + tkeep[8:10]
+    print(yyyymmdd, ' hycom simulation for this PFM forecast\n')
+    return yyyymmdd
+
+
+
+
 def get_hycom_data(yyyymmdd):
     # this function gets all of the new hycom data as separate files for each field (ssh,temp,salt,u,v) and each time
     # and puts each .nc file in the directory for hycom data
@@ -371,7 +532,7 @@ def get_hycom_data(yyyymmdd):
     with ThreadPoolExecutor() as executor:
         threads = []
         for bb in var_names:
-            for dtff in dt_list_full:
+            for dtff in dt_list_full: # datetimes of forecast time
                 fn = hycom_grabber #define function
                 hycom = ocn_name[0]+bb+ocn_name[1]+bb+ocn_name[2]
                 args = [hycom,dtff,bb,dstr0] #define args to function
@@ -387,6 +548,38 @@ def get_hycom_data(yyyymmdd):
     #result = tt0
     #print('Time to get all files using parallel ncks = %0.2f sec' % (time.time()-tt0))
     #print('Return code = ' + str(result) + ' (0=success, 1=skipped ncks)')
+
+
+def get_hycom_data_fnames(yyyymmdd,fnames):
+    # this function gets all of the new hycom data as separate files for each field (ssh,temp,salt,u,v) and each time
+    # and puts each .nc file in the directory for hycom data
+    yyyy = yyyymmdd[0:4]
+    mm = yyyymmdd[4:6]
+    dd = yyyymmdd[6:8]
+
+    PFM=get_PFM_info()
+    ocn_name = ['https://tds.hycom.org/thredds/dodsC/FMRC_ESPC-D-V02','runs/FMRC_ESPC-D-V02','_RUN_'+ yyyy + '-' + mm + '-' + dd + 'T12:00:00Z']
+ 
+    with ThreadPoolExecutor() as executor:
+        threads = []
+        for file_name in fnames:
+            #print('getting: ', file_name)
+            fn = hycom_grabber_v2
+            ffn = PFM['hycom_data_dir'] + '/'+ file_name
+            #print('putting here: ',ffn)
+            bb = file_name[2:6]
+            hycom = ocn_name[0] + bb + ocn_name[1] + bb + ocn_name[2]
+            dtff = datetime.strptime(file_name[24:40],'%Y-%m-%dT%H:%M')
+            args = [hycom,dtff,bb,ffn]
+            kwargs = {} #
+            # start thread by submitting it to the executor
+            threads.append(executor.submit(fn, *args, **kwargs))
+            
+        for future in as_completed(threads):
+                # retrieve the result
+            result = future.result()
+            #print(result)
+                # report the result        
 
 
 def get_hycom_data_1hr(yyyymmdd):
@@ -4908,7 +5101,7 @@ def get_child_xi_eta_interp(ln1,lt1,ln2,lt2):
     xi_2  = scat_interp_xi(lt2,ln2)
     eta_2 = scat_interp_eta(lt2,ln2)
 
-    interper = RegularGridInterpolator( (np.arange(M), np.arange(L)), lt1 )
+    interper = RegularGridInterpolator( (np.arange(M), np.arange(L)), lt1 , bounds_error=False, fill_value=None)
 
     return xi_2, eta_2, interper
 
@@ -4949,6 +5142,7 @@ def mk_LV2_BC_dict(lvl):
         LV1_BC_pckl = PFM['lv3_forc_dir'] + '/' + PFM['lv3_ocnBC_tmp_pckl_file']
         lv1 = 'L3'
         lv2 = 'L4'
+        fn_out = PFM['lv4_forc_dir'] + '/' + PFM['lv4_ocnBC_tmp_pckl_file']
      
     # parent vertical stretching info 
     Nz1   = PFM['stretching'][lv1,'Nz']                              # number of vertical levels: 40
@@ -4987,7 +5181,10 @@ def mk_LV2_BC_dict(lvl):
         BC1=pickle.load(fout)
         print('OCN_LV' + str(int(lvl)-1) + '_BC dict loaded with pickle')
 
-    OCN_BC = dict()
+    
+    OCN_BC_0 = dict() # dict of data with the origian Nz for 3d vars
+
+    OCN_BC = dict() # dict of data with final Nz
     OCN_BC['vinfo'] = dict()
     OCN_BC['vinfo'] = BC1['vinfo']
 
@@ -5034,6 +5231,22 @@ def mk_LV2_BC_dict(lvl):
     OCN_BC['vbar_west'] = np.zeros((Nt,nlt-1))
     OCN_BC['zeta_west'] = np.zeros((Nt,nlt))
 
+    OCN_BC_0['temp_south'] = np.zeros((Nt,Nz1,nln))
+    OCN_BC_0['salt_south'] = np.zeros((Nt,Nz1,nln))
+    OCN_BC_0['u_south']    = np.zeros((Nt,Nz1,nln-1))
+    OCN_BC_0['v_south']    = np.zeros((Nt,Nz1,nln))
+
+    OCN_BC_0['temp_north'] = np.zeros((Nt,Nz1,nln))
+    OCN_BC_0['salt_north'] = np.zeros((Nt,Nz1,nln))
+    OCN_BC_0['u_north']    = np.zeros((Nt,Nz1,nln-1))
+    OCN_BC_0['v_north']    = np.zeros((Nt,Nz1,nln))
+ 
+    OCN_BC_0['temp_west'] = np.zeros((Nt,Nz1,nlt))
+    OCN_BC_0['salt_west'] = np.zeros((Nt,Nz1,nlt))
+    OCN_BC_0['u_west']    = np.zeros((Nt,Nz1,nlt))
+    OCN_BC_0['v_west']    = np.zeros((Nt,Nz1,nlt-1))
+    
+
     ZZ = dict() # this is a dict of the depths based on horizontal interpolation
     ZZ['rho_west'] = np.zeros((Nt,Nz1,nlt))
     ZZ['rho_north'] = np.zeros((Nt,Nz1,nln))
@@ -5066,6 +5279,7 @@ def mk_LV2_BC_dict(lvl):
     Z2['rho_north'] = np.zeros((Nt,Nz2,nln))
     Z2['rho_south'] = np.zeros((Nt,Nz2,nln))
     Z2['rho_west'] = np.zeros((Nt,Nz2,nlt))
+
 
 
     # get x,y on LV1 grid.
@@ -5189,9 +5403,9 @@ def mk_LV2_BC_dict(lvl):
                 setattr(interpfun,'values',z0)
                 z2 = interpfun((yy2,xx2))
                 z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the mask
-                OCN_BC[vn+'_south'][tind,zind,:] = z2[0,:]
-                OCN_BC[vn+'_north'][tind,zind,:] = z2[-1,:]
-                OCN_BC[vn+'_west'][tind,zind,:]  = z2[:,0]
+                OCN_BC_0[vn+'_south'][tind,zind,:] = z2[0,:]
+                OCN_BC_0[vn+'_north'][tind,zind,:] = z2[-1,:]
+                OCN_BC_0[vn+'_west'][tind,zind,:]  = z2[:,0]
 
                 if vn == 'temp':
                     z0 = np.squeeze( zrom1.z_r[tind,zind,:,:])
@@ -5276,7 +5490,7 @@ def mk_LV2_BC_dict(lvl):
             else:
                 zt = vn
             for bnd in ['_north','_south','_west']:
-                v1 = OCN_BC[vn+bnd][:,:,:] # the horizontally interpolated field
+                v1 = OCN_BC_0[vn+bnd][:,:,:] # the horizontally interpolated field
                 nnt,nnz,nnp = np.shape(v1)
                 for cc in np.arange(nnt):
                     for aa in np.arange(nnp):
@@ -5295,6 +5509,544 @@ def mk_LV2_BC_dict(lvl):
 
     #return OCN_BC
     #return xi_r2, eta_r2, interp_r
+
+def mk_LV2_BC_dict_edges(lvl):
+
+    PFM=get_PFM_info()  
+    if lvl == '2':
+        G1 = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
+        G2 = grdfuns.roms_grid_to_dict(PFM['lv2_grid_file'])
+        fn = PFM['lv1_his_name_full']
+        LV1_BC_pckl = PFM['lv1_forc_dir'] + '/' + PFM['lv1_ocnBC_tmp_pckl_file']
+        lv1 = 'L1'
+        lv2 = 'L2'
+        fn_out = PFM['lv2_forc_dir'] + '/' + PFM['lv2_ocnBC_tmp_pckl_file']
+    elif lvl == '3':
+        G1 = grdfuns.roms_grid_to_dict(PFM['lv2_grid_file'])
+        G2 = grdfuns.roms_grid_to_dict(PFM['lv3_grid_file'])
+        fn = PFM['lv2_his_name_full']
+        LV1_BC_pckl = PFM['lv2_forc_dir'] + '/' + PFM['lv2_ocnBC_tmp_pckl_file']
+        lv1 = 'L2'
+        lv2 = 'L3'
+        fn_out = PFM['lv3_forc_dir'] + '/' + PFM['lv3_ocnBC_tmp_pckl_file']
+    elif lvl == '4':
+        G1 = grdfuns.roms_grid_to_dict(PFM['lv3_grid_file'])
+        G2 = grdfuns.roms_grid_to_dict(PFM['lv4_grid_file'])
+        fn = PFM['lv3_his_name_full']
+        LV1_BC_pckl = PFM['lv3_forc_dir'] + '/' + PFM['lv3_ocnBC_tmp_pckl_file']
+        lv1 = 'L3'
+        lv2 = 'L4'
+        fn_out = PFM['lv4_forc_dir'] + '/' + PFM['lv4_ocnBC_tmp_pckl_file']
+     
+    # parent vertical stretching info 
+    Nz1   = PFM['stretching'][lv1,'Nz']                              # number of vertical levels: 40
+    Vtr1  = PFM['stretching'][lv1,'Vtransform']                       # transformation equation: 2
+    Vst1  = PFM['stretching'][lv1,'Vstretching']                    # stretching function: 4 
+    th_s1 = PFM['stretching'][lv1,'THETA_S']                      # surface stretching parameter: 8
+    th_b1 = PFM['stretching'][lv1,'THETA_B']                      # bottom  stretching parameter: 3
+    Tcl1  = PFM['stretching'][lv1,'TCLINE']                      # critical depth (m): 50
+    hc1   = PFM['stretching'][lv1,'hc']
+    
+    # child vertical stretching info
+    Nz2   = PFM['stretching'][lv2,'Nz']                              # number of vertical levels: 40
+    Vtr2  = PFM['stretching'][lv2,'Vtransform']                       # transformation equation: 2
+    Vst2  = PFM['stretching'][lv2,'Vstretching']                    # stretching function: 4 
+    th_s2 = PFM['stretching'][lv2,'THETA_S']                      # surface stretching parameter: 8
+    th_b2 = PFM['stretching'][lv2,'THETA_B']                      # bottom  stretching parameter: 3
+    Tcl2  = PFM['stretching'][lv2,'TCLINE']                      # critical depth (m): 50
+    hc2   = PFM['stretching'][lv2,'hc']
+
+    ltr1 = G1['lat_rho']
+    lnr1 = G1['lon_rho']
+    ltr2 = G2['lat_rho']
+    lnr2 = G2['lon_rho']
+    ltu1 = G1['lat_u']
+    lnu1 = G1['lon_u']
+    ang1 = G1['angle']
+    
+    ltu2 = G2['lat_u']
+    lnu2 = G2['lon_u']
+    ltv1 = G1['lat_v']
+    lnv1 = G1['lon_v']
+    ltv2 = G2['lat_v']
+    lnv2 = G2['lon_v']
+    ang2 = G2['angle']
+
+    his_ds = nc.Dataset(fn)
+    
+    with open(LV1_BC_pckl,'rb') as fout:
+        BC1=pickle.load(fout)
+        print('OCN_LV' + str(int(lvl)-1) + '_BC dict loaded with pickle')
+
+    
+    OCN_BC_0 = dict() # dict of data with the origian Nz for 3d vars
+
+    OCN_BC = dict() # dict of data with final Nz
+    OCN_BC['vinfo'] = dict()
+    OCN_BC['vinfo'] = BC1['vinfo']
+
+    OCN_BC['Nz'] = np.squeeze(Nz2)
+    OCN_BC['Vtr'] = np.squeeze(Vtr2)
+    OCN_BC['Vst'] = np.squeeze(Vst2)
+    OCN_BC['th_s'] = np.squeeze(th_s2)
+    OCN_BC['th_b'] = np.squeeze(th_b2)
+    OCN_BC['Tcl'] = np.squeeze(Tcl2)
+    OCN_BC['hc'] = np.squeeze(hc2)
+
+    hraw = None
+    if Vst1 == 4:
+        zrom1 = s_coordinate_4(G1['h'], th_b1 , th_s1 , Tcl1 , Nz1, hraw=hraw, zeta=np.squeeze(his_ds.variables['zeta'][:,:,:]))
+        
+
+    OCN_BC['ocean_time'] = his_ds.variables['ocean_time'][:] / (3600.0 * 24) # his.nc has time in sec past reference time.
+    Nt = len( OCN_BC['ocean_time'] )                                           # need in days past.
+    OCN_BC['ocean_time_ref'] = BC1['ocean_time_ref']
+
+    nlt, nln = np.shape(ltr2)
+
+    OCN_BC['temp_south'] = np.zeros((Nt,Nz2,nln))
+    OCN_BC['salt_south'] = np.zeros((Nt,Nz2,nln))
+    OCN_BC['u_south']    = np.zeros((Nt,Nz2,nln-1))
+    OCN_BC['v_south']    = np.zeros((Nt,Nz2,nln))
+    OCN_BC['ubar_south'] = np.zeros((Nt,nln-1))
+    OCN_BC['vbar_south'] = np.zeros((Nt,nln))
+    OCN_BC['zeta_south'] = np.zeros((Nt,nln))
+
+    OCN_BC['temp_north'] = np.zeros((Nt,Nz2,nln))
+    OCN_BC['salt_north'] = np.zeros((Nt,Nz2,nln))
+    OCN_BC['u_north']    = np.zeros((Nt,Nz2,nln-1))
+    OCN_BC['v_north']    = np.zeros((Nt,Nz2,nln))
+    OCN_BC['ubar_north'] = np.zeros((Nt,nln-1))
+    OCN_BC['vbar_north'] = np.zeros((Nt,nln))
+    OCN_BC['zeta_north'] = np.zeros((Nt,nln))
+
+    OCN_BC['temp_west'] = np.zeros((Nt,Nz2,nlt))
+    OCN_BC['salt_west'] = np.zeros((Nt,Nz2,nlt))
+    OCN_BC['u_west']    = np.zeros((Nt,Nz2,nlt))
+    OCN_BC['v_west']    = np.zeros((Nt,Nz2,nlt-1))
+    OCN_BC['ubar_west'] = np.zeros((Nt,nlt))
+    OCN_BC['vbar_west'] = np.zeros((Nt,nlt-1))
+    OCN_BC['zeta_west'] = np.zeros((Nt,nlt))
+
+    OCN_BC_0['temp_south'] = np.zeros((Nt,Nz1,nln))
+    OCN_BC_0['salt_south'] = np.zeros((Nt,Nz1,nln))
+    OCN_BC_0['u_south']    = np.zeros((Nt,Nz1,nln-1))
+    OCN_BC_0['v_south']    = np.zeros((Nt,Nz1,nln))
+
+    OCN_BC_0['temp_north'] = np.zeros((Nt,Nz1,nln))
+    OCN_BC_0['salt_north'] = np.zeros((Nt,Nz1,nln))
+    OCN_BC_0['u_north']    = np.zeros((Nt,Nz1,nln-1))
+    OCN_BC_0['v_north']    = np.zeros((Nt,Nz1,nln))
+ 
+    OCN_BC_0['temp_west'] = np.zeros((Nt,Nz1,nlt))
+    OCN_BC_0['salt_west'] = np.zeros((Nt,Nz1,nlt))
+    OCN_BC_0['u_west']    = np.zeros((Nt,Nz1,nlt))
+    OCN_BC_0['v_west']    = np.zeros((Nt,Nz1,nlt-1))
+    
+
+    ZZ = dict() # this is a dict of the depths based on horizontal interpolation
+    ZZ['rho_west'] = np.zeros((Nt,Nz1,nlt))
+    ZZ['rho_north'] = np.zeros((Nt,Nz1,nln))
+    ZZ['rho_south'] = np.zeros((Nt,Nz1,nln))
+    ZZ['u_west'] = np.zeros((Nt,Nz1,nlt))
+    ZZ['u_north'] = np.zeros((Nt,Nz1,nln-1))
+    ZZ['u_south'] = np.zeros((Nt,Nz1,nln-1))
+    ZZ['v_west'] = np.zeros((Nt,Nz1,nlt-1))
+    ZZ['v_north'] = np.zeros((Nt,Nz1,nln))
+    ZZ['v_south'] = np.zeros((Nt,Nz1,nln))
+
+    ZTA = dict() # this is a dict of zeta along the edges of the child boundary for each variable
+    ZTA['v_north'] = np.zeros((Nt,nln))
+    ZTA['v_south'] = np.zeros((Nt,nln))
+    ZTA['v_west'] = np.zeros((Nt,nlt-1))
+    ZTA['u_north'] = np.zeros((Nt,nln-1))
+    ZTA['u_south'] = np.zeros((Nt,nln-1))
+    ZTA['u_west'] = np.zeros((Nt,nlt))
+    ZTA['rho_north'] = np.zeros((Nt,nln))
+    ZTA['rho_south'] = np.zeros((Nt,nln))
+    ZTA['rho_west'] = np.zeros((Nt,nlt))
+
+    Z2 = dict() # this is a dict of depths along the boundaries on the child grid
+    Z2['v_north'] = np.zeros((Nt,Nz2,nln))
+    Z2['v_south'] = np.zeros((Nt,Nz2,nln))
+    Z2['v_west'] = np.zeros((Nt,Nz2,nlt-1))
+    Z2['u_north'] = np.zeros((Nt,Nz2,nln-1))
+    Z2['u_south'] = np.zeros((Nt,Nz2,nln-1))
+    Z2['u_west'] = np.zeros((Nt,Nz2,nlt))
+    Z2['rho_north'] = np.zeros((Nt,Nz2,nln))
+    Z2['rho_south'] = np.zeros((Nt,Nz2,nln))
+    Z2['rho_west'] = np.zeros((Nt,Nz2,nlt))
+
+
+    bnds = ['_north','_south','_west']
+
+    # get x,y on LV1 grid.
+    # x1,y1 = ll2xy(lnr1, ltr1, np.mean(lnr1), np.mean(ltr1))
+
+    # get (x,y) grids, note zi = interp_r( (eta,xi) )
+    xi_r2, eta_r2, interp_r = get_child_xi_eta_interp(lnr1,ltr1,lnr2,ltr2)
+    xi_u2, eta_u2, interp_u = get_child_xi_eta_interp(lnu1,ltu1,lnu2,ltu2)
+    xi_v2, eta_v2, interp_v = get_child_xi_eta_interp(lnv1,ltv1,lnv2,ltv2)
+
+    
+
+    XX = dict()
+    YY = dict()
+    XX['u','_north'] = xi_u2[-1,:]
+    YY['u','_north'] = eta_u2[-1,:]
+    XX['u','_south'] = xi_u2[0,:]
+    YY['u','_south'] = eta_u2[0,:]
+    XX['u','_west']  = xi_u2[:,0]
+    YY['u','_west']  = eta_u2[:,0]
+
+    XX['v','_north'] = xi_v2[-1,:]
+    YY['v','_north'] = eta_v2[-1,:]
+    XX['v','_south'] = xi_v2[0,:]
+    YY['v','_south'] = eta_v2[0,:]
+    XX['v','_west']  = xi_v2[:,0]
+    YY['v','_west']  = eta_v2[:,0]
+
+    XX['rho','_north'] = xi_r2[-1,:]
+    YY['rho','_north'] = eta_r2[-1,:]
+    XX['rho','_south'] = xi_r2[0,:]
+    YY['rho','_south'] = eta_r2[0,:]
+    XX['rho','_west']  = xi_r2[:,0]
+    YY['rho','_west']  = eta_r2[:,0]
+
+    # get nearest indices, from bad indices, so that land can be filled
+    indr = get_indices_to_fill(G1['mask_rho'])
+    indu = get_indices_to_fill(G1['mask_u'])
+    indv = get_indices_to_fill(G1['mask_v'])
+
+    # bookkeeping so that everything needed for each variable is associated with that variable
+    v_list1 = ['zeta','ubar','vbar']
+    v1_2_g = dict()
+    v1_2_g['zeta'] = 'rho'
+    v1_2_g['ubar'] = 'u'
+    v1_2_g['vbar'] = 'v'
+
+    v_list2 = ['temp','salt','u','v']
+    v2_2_g = dict()
+    v2_2_g['temp'] = 'rho'
+    v2_2_g['salt'] = 'rho'
+    v2_2_g['u'] = 'u'
+    v2_2_g['v'] = 'v'
+
+    msk_d1 = dict()
+    msk_d1['zeta'] = G1['mask_rho']
+    msk_d1['ubar'] = G1['mask_u']
+    msk_d1['vbar'] = G1['mask_v']
+    msk_d2 = dict()
+    msk_d2['temp'] = G1['mask_rho']
+    msk_d2['salt'] = G1['mask_rho']
+    msk_d2['u']    = G1['mask_u']
+    msk_d2['v']    = G1['mask_v']
+
+    msk2_d1 = dict()
+    msk2_d1['zeta','_north'] = G2['mask_rho'][-1,:]
+    msk2_d1['zeta','_south'] = G2['mask_rho'][0,:]
+    msk2_d1['zeta','_west']  = G2['mask_rho'][:,0]
+    msk2_d1['ubar','_north'] = G2['mask_u'][-1,:]
+    msk2_d1['ubar','_south'] = G2['mask_u'][0,:]
+    msk2_d1['ubar','_west']  = G2['mask_u'][:,0]
+    msk2_d1['vbar','_north'] = G2['mask_v'][-1,:]
+    msk2_d1['vbar','_south'] = G2['mask_v'][0,:]
+    msk2_d1['vbar','_west']  = G2['mask_v'][:,0]
+
+    msk2_d2 = dict()
+    msk2_d2['temp','_north'] = msk2_d1['zeta','_north']
+    msk2_d2['salt','_north'] = msk2_d1['zeta','_north']
+    msk2_d2['u','_north']    = msk2_d1['ubar','_north']
+    msk2_d2['v','_north']    = msk2_d1['vbar','_north']
+    msk2_d2['temp','_south'] = msk2_d1['zeta','_south']
+    msk2_d2['salt','_south'] = msk2_d1['zeta','_south']
+    msk2_d2['u','_south']    = msk2_d1['ubar','_south']
+    msk2_d2['v','_south']    = msk2_d1['vbar','_south']
+    msk2_d2['temp','_west']  = msk2_d1['zeta','_west']
+    msk2_d2['salt','_west']  = msk2_d1['zeta','_west']
+    msk2_d2['u','_west']     = msk2_d1['ubar','_west']
+    msk2_d2['v','_west']     = msk2_d1['vbar','_west']
+ 
+ 
+    ind_d1 = dict()
+    ind_d1['zeta'] = indr
+    ind_d1['ubar'] = indu
+    ind_d1['vbar'] = indv
+    ind_d2 = dict()
+    ind_d2['temp'] = indr
+    ind_d2['salt'] = indr
+    ind_d2['u']    = indu
+    ind_d2['v']    = indv
+
+    lat_d1 = dict()
+    lat_d1['zeta'] = eta_r2
+    lat_d1['ubar'] = eta_u2
+    lat_d1['vbar'] = eta_v2
+    lat_d2 = dict()
+    lat_d2['temp'] = eta_r2
+    lat_d2['salt'] = eta_r2
+    lat_d2['u']    = eta_u2
+    lat_d2['v']    = eta_v2
+
+    lon_d1 = dict()
+    lon_d1['zeta'] = xi_r2
+    lon_d1['ubar'] = xi_u2
+    lon_d1['vbar'] = xi_v2
+    lon_d2 = dict()
+    lon_d2['temp'] = xi_r2
+    lon_d2['salt'] = xi_r2
+    lon_d2['u']    = xi_u2
+    lon_d2['v']    = xi_v2
+
+    intf_d1 = dict()
+    intf_d1['zeta'] = interp_r
+    intf_d1['ubar'] = interp_u
+    intf_d1['vbar'] = interp_v
+    intf_d2 = dict()
+    intf_d2['temp'] = interp_r
+    intf_d2['salt'] = interp_r
+    intf_d2['u']    = interp_u
+    intf_d2['v']    = interp_v
+
+    angle_on_2 = dict()
+    ang2u = 0.5 * ( ang2[:,1:] + ang2[:,0:-1] )
+    ang2v = 0.5 * ( ang2[0:-1,:] + ang2[1:,:] )
+    angle_on_2['ubar','_north'] = ang2u[-1,:]
+    angle_on_2['ubar','_south'] = ang2u[0,:]
+    angle_on_2['ubar','_west']  = ang2u[:,0]
+    angle_on_2['vbar','_north'] = ang2v[-1,:]
+    angle_on_2['vbar','_south'] = ang2v[0,:]
+    angle_on_2['vbar','_west'] =  ang2v[:,0]
+
+    angle_on_1 = dict()
+    ang_2m1 = dict()
+    setattr(interp_r,'values',ang1) # change the interpolator z values
+    for vn in ['ubar','vbar']:
+        for bb in bnds:
+            xx2 = XX[v1_2_g[vn],bb]
+            yy2 = YY[v1_2_g[vn],bb]
+            z2 = interp_r((yy2,xx2))    
+            angle_on_1[vn,bb] = z2
+            ang_2m1[vn,bb] = angle_on_2[vn,bb] - angle_on_1[vn,bb]
+
+    for vn in v_list1: # loop through all 2d variables
+        msk = msk_d1[vn] # get mask on LV1
+        ind = ind_d1[vn] # get indices so that land can be filled with nearest neighbor
+        interpfun = intf_d1[vn]
+        for tind in np.arange(Nt): # loop through times
+            z0 = np.squeeze( his_ds.variables[vn][tind,:,:] )
+            z0[msk==0] = z0[msk==1][ind] # fill the mask with nearest neighbor
+            setattr(interpfun,'values',z0) # change the interpolator z values
+            for bb in bnds:
+                xx2 = XX[v1_2_g[vn],bb]
+                yy2 = YY[v1_2_g[vn],bb]
+                z2 = interpfun((yy2,xx2)) # perhaps change here to directly interpolate to (xi,eta) on the edges?
+                msk2 = msk2_d1[vn,bb]
+                #print(vn)
+                #print(tind)
+                #print(bb)
+                #print(np.shape(msk2))
+                #print(np.shape(z2))
+                
+                z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the mask
+                OCN_BC[vn+bb][tind,:] = z2 # fill correctly
+                if vn == 'zeta': # this is zeta at child grid edges, for interpolating in z later
+                    ZTA['rho'+bb][tind,:] = z2
+                    xx2 = XX['u',bb]
+                    yy2 = YY['u',bb]
+                    z2 = interpfun((yy2,xx2)) 
+                    ZTA['u'+bb][tind,:] = z2
+                    xx2 = XX['v',bb]
+                    yy2 = YY['v',bb]
+                    z2 = interpfun((yy2,xx2)) 
+                    ZTA['v'+bb][tind,:] = z2
+
+
+    for vn in v_list2:
+        msk = msk_d2[vn]
+        ind = ind_d2[vn]
+        interpfun = intf_d2[vn]
+        for tind in np.arange(Nt):
+            for zind in np.arange(Nz1):
+                z0 = np.squeeze( his_ds.variables[vn][tind,zind,:,:] )
+                z0[msk==0] = z0[msk==1][ind]
+                setattr(interpfun,'values',z0)
+                for bb in bnds:
+                    xx2 = XX[v2_2_g[vn],bb]
+                    yy2 = YY[v2_2_g[vn],bb]
+                    z2 = interpfun((yy2,xx2)) # perhaps change here to directly interpolate to (xi,eta) on the edges?
+                    msk2 = msk2_d2[vn,bb]
+                    z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the mask
+                    OCN_BC_0[vn+bb][tind,zind,:] = z2 # fill correctly
+                    if vn == 'temp':
+                        z0 = np.squeeze( zrom1.z_r[tind,zind,:,:])
+                        z0[msk==0] = z0[msk==1][ind] # fill in masked areas with nearest neighbor
+                        setattr(interpfun,'values',z0)
+                        z2 = interpfun((yy2,xx2))
+                        ZZ['rho'+bb][tind,zind,:] = z2 # we need the depths that the horizontal interpolation thinks it is
+                    if vn == 'u':
+                        z0 = np.squeeze( zrom1.z_r[tind,zind,:,:])
+                        z0 = 0.5 * ( z0[:,0:-1] + z0[:,1:] )
+                        z0[msk==0] = z0[msk==1][ind] # fill in masked areas with nearest neighbor
+                        setattr(interpfun,'values',z0)
+                        z2 = interpfun((yy2,xx2))
+                        ZZ['u'+bb][tind,zind,:] = z2 # we need the depths that the horizontal interpolation thinks it is
+                    if vn == 'v':
+                        z0 = np.squeeze( zrom1.z_r[tind,zind,:,:])
+                        z0 = 0.5 * ( z0[0:-1,:] + z0[1:,:] )
+                        z0[msk==0] = z0[msk==1][ind] # fill in masked areas with nearest neighbor
+                        setattr(interpfun,'values',z0)
+                        z2 = interpfun((yy2,xx2))
+                        ZZ['v'+bb][tind,zind,:] = z2 # we need the depths that the horizontal interpolation thinks it is
+ 
+    if lvl == '4': # need to rotate the velocities!
+        msk = msk_d1['vbar'] # get mask on LV1
+        ind = ind_d1['vbar'] # get indices so that land can be filled with nearest neighbor
+        interpfun = intf_d1['vbar']
+        for tind in np.arange(Nt): # loop through times
+            z0 = np.squeeze( his_ds.variables['vbar'][tind,:,:] )
+            z0[msk==0] = z0[msk==1][ind] # fill the mask with nearest neighbor
+            setattr(interpfun,'values',z0) # change the interpolator z values
+            for bb in bnds:
+                xx2 = XX[v1_2_g['ubar'],bb]
+                yy2 = YY[v1_2_g['ubar'],bb]
+                z2 = interpfun((yy2,xx2)) 
+                msk2 = msk2_d1['ubar',bb]
+                z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the mask, this is vbar on u
+                cosa = np.cos(ang_2m1['ubar',bb])
+                sina = np.sin(ang_2m1['ubar',bb])
+                OCN_BC['ubar'+bb][tind,:] = cosa * OCN_BC['ubar'+bb][tind,:] + sina * z2
+                
+                    
+        msk = msk_d1['ubar'] # get mask on LV1
+        ind = ind_d1['ubar'] # get indices so that land can be filled with nearest neighbor
+        interpfun = intf_d1['ubar']
+        for tind in np.arange(Nt): # loop through times
+            z0 = np.squeeze( his_ds.variables['ubar'][tind,:,:] )
+            z0[msk==0] = z0[msk==1][ind] # fill the mask with nearest neighbor
+            setattr(interpfun,'values',z0) # change the interpolator z values
+            for bb in bnds:
+                xx2 = XX[v1_2_g['vbar'],bb]
+                yy2 = YY[v1_2_g['vbar'],bb]
+                z2 = interpfun((yy2,xx2)) # perhaps change here to directly interpolate to (xi,eta) on the edges?
+                msk2 = msk2_d1['vbar',bb]
+                z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the mask
+                cosa = np.cos(ang_2m1['vbar',bb])
+                sina = np.sin(ang_2m1['vbar',bb])
+                OCN_BC['vbar'+bb][tind,:] = cosa * OCN_BC['vbar'+bb][tind,:] - sina * z2
+
+        msk = msk_d1['ubar'] # get mask on LV1
+        ind = ind_d1['ubar'] # get indices so that land can be filled with nearest neighbor
+        interpfun = intf_d1['ubar']
+        for tind in np.arange(Nt): # loop through times
+            for zind in np.arange(Nz1):
+                z0 = np.squeeze( his_ds.variables['u'][tind,zind,:,:] )
+                z0[msk==0] = z0[msk==1][ind] # fill the mask with nearest neighbor
+                setattr(interpfun,'values',z0) # change the interpolator z values
+                for bb in bnds:
+                    xx2 = XX[v1_2_g['vbar'],bb]
+                    yy2 = YY[v1_2_g['vbar'],bb]
+                    z2 = interpfun((yy2,xx2)) 
+                    msk2 = msk2_d1['vbar',bb]
+                    z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the mask, this is vbar on u
+                    cosa = np.cos(ang_2m1['vbar',bb])
+                    sina = np.sin(ang_2m1['vbar',bb])
+                    OCN_BC_0['v'+bb][tind,zind,:] = cosa * OCN_BC_0['v'+bb][tind,zind,:] - sina * z2
+
+        msk = msk_d1['vbar'] # get mask on LV1
+        ind = ind_d1['vbar'] # get indices so that land can be filled with nearest neighbor
+        interpfun = intf_d1['vbar']
+        for tind in np.arange(Nt): # loop through times
+            for zind in np.arange(Nz1):
+                z0 = np.squeeze( his_ds.variables['v'][tind,zind,:,:] )
+                z0[msk==0] = z0[msk==1][ind] # fill the mask with nearest neighbor
+                setattr(interpfun,'values',z0) # change the interpolator z values
+                for bb in bnds:
+                    xx2 = XX[v1_2_g['ubar'],bb]
+                    yy2 = YY[v1_2_g['ubar'],bb]
+                    z2 = interpfun((yy2,xx2)) 
+                    msk2 = msk2_d1['ubar',bb]
+                    z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the mask, this is vbar on u
+                    cosa = np.cos(ang_2m1['ubar',bb])
+                    sina = np.sin(ang_2m1['ubar',bb])
+                    OCN_BC_0['u'+bb][tind,zind,:] = cosa * OCN_BC_0['u'+bb][tind,zind,:] + sina * z2
+
+    h = G2['h']
+    hu = .5*( h[:,0:-1] + h[:,1:] )
+    hv = .5*( h[0:-1,:] + h[1:,:] )
+
+    zr2 = s_coordinate_4(h[-1,:], th_b2 , th_s2 , Tcl2 , Nz2, hraw=hraw, zeta = ZTA['rho_north'][:,:])
+    Z2['rho_north'][:,:,:] = zr2.z_r[:,:,:]
+    zr2 = s_coordinate_4(h[0,:], th_b2 , th_s2 , Tcl2 , Nz2, hraw=hraw, zeta = ZTA['rho_south'][:,:])
+    Z2['rho_south'][:,:,:] = zr2.z_r[:,:,:]
+    zr2 = s_coordinate_4(h[:,0], th_b2 , th_s2 , Tcl2 , Nz2, hraw=hraw, zeta = ZTA['rho_west'][:,:])
+    Z2['rho_west'][:,:,:] = zr2.z_r[:,:,:]
+    zr2 = s_coordinate_4(hu[-1,:], th_b2 , th_s2 , Tcl2 , Nz2, hraw=hraw, zeta = ZTA['u_north'][:,:])
+    Z2['u_north'][:,:,:] = zr2.z_r[:,:,:]
+    zr2 = s_coordinate_4(hu[0,:], th_b2 , th_s2 , Tcl2 , Nz2, hraw=hraw, zeta = ZTA['u_south'][:,:])
+    Z2['u_south'][:,:,:] = zr2.z_r[:,:,:]
+    zr2 = s_coordinate_4(hu[:,0], th_b2 , th_s2 , Tcl2 , Nz2, hraw=hraw, zeta = ZTA['u_west'][:,:])
+    Z2['u_west'][:,:,:] = zr2.z_r[:,:,:]
+    zr2 = s_coordinate_4(hv[-1,:], th_b2 , th_s2 , Tcl2 , Nz2, hraw=hraw, zeta = ZTA['v_north'][:,:])
+    Z2['v_north'][:,:,:] = zr2.z_r[:,:,:]
+    zr2 = s_coordinate_4(hv[0,:], th_b2 , th_s2 , Tcl2 , Nz2, hraw=hraw, zeta = ZTA['v_south'][:,:])
+    Z2['v_south'][:,:,:] = zr2.z_r[:,:,:]
+    zr2 = s_coordinate_4(hv[:,0], th_b2 , th_s2 , Tcl2 , Nz2, hraw=hraw, zeta = ZTA['v_west'][:,:])
+    Z2['v_west'][:,:,:] = zr2.z_r[:,:,:]
+
+    OCN_BC['Cs_r'] = np.squeeze(zr2.Cs_r)
+
+    # now loop through all 3d variables and vertically interpolate to the correct z levels.
+    pp = 0
+    if pp == 1: # this didn't work. and this isn't the slow part anyway...
+        print('going to interpolate BC z with ThreadPoolExecutor...')
+        for vn in v_list2:
+            if vn in ['temp','salt']:
+                zt = 'rho'
+            else:
+                zt = vn
+            for bnd in ['_north','_south','_west']:
+                v1 = OCN_BC[vn+bnd][:,:,:] # the horizontally interpolated field
+                nnt,nnz,nnp = np.shape(v1)
+                for cc in np.arange(nnt):
+                    futures = []
+                    with ThreadPoolExecutor() as exe:
+                        for aa in np.arange(nnp):
+                            vp = np.squeeze( v1[cc,:,aa]) # the vertical data
+                            zp = np.squeeze( ZZ[zt+bnd][cc,:,aa] ) # z locations data thinks it is at
+                            zf = np.squeeze( Z2[zt+bnd][cc,:,aa]) # z locations where the data should be
+                            futures.append(exe.submit(zzinterp,vp,zp,zf))
+                            for future in as_completed(futures):                       
+                                OCN_BC[vn+bnd][cc,:,aa] = future.result()   
+        print('...done')            
+    else:
+        print('interpolating z with normal loops.')
+        for vn in v_list2:
+            if vn in ['temp','salt']:
+                zt = 'rho'
+            else:
+                zt = vn
+            for bnd in ['_north','_south','_west']:
+                v1 = OCN_BC_0[vn+bnd][:,:,:] # the horizontally interpolated field
+                nnt,nnz,nnp = np.shape(v1)
+                for cc in np.arange(nnt):
+                    for aa in np.arange(nnp):
+                        vp = np.squeeze( v1[cc,:,aa]) # the vertical data
+                        zp = np.squeeze( ZZ[zt+bnd][cc,:,aa] ) # z locations data thinks it is at
+                        zf = np.squeeze( Z2[zt+bnd][cc,:,aa]) # z locations where the data should be
+                        Fz = interp1d(zp,vp,bounds_error=False,kind='linear',fill_value = 'extrapolate') 
+                        vf =  np.squeeze(Fz(zf))
+                        OCN_BC[vn+bnd][cc,:,aa] = vf                
+
+    #fn_out = '/scratch/PFM_Simulations/LV3_Forecast/Forc/test_BC_LV3.pkl'
+
+    with open(fn_out,'wb') as fout:
+        pickle.dump(OCN_BC,fout)
+        print('OCN_LV',lvl,'_BC dict saved with pickle to: ',fn_out)
+
+    #return OCN_BC
+    #return xi_r2, eta_r2, interp_r
+
 
 def zzinterp(vp, zp, zf):
     Fz = interp1d(zp,vp,bounds_error=False,kind='linear',fill_value = 'extrapolate') 
