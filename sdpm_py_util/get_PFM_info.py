@@ -91,7 +91,7 @@ def get_PFM_info():
       lv1_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV1_rx020_hmask.nc'
       lv2_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV2_rx020.nc'
       lv3_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV3_rx020.nc'
-      lv4_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV4_rx020.nc'
+      lv4_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV4_ROTATE_rx020_hplus020_DK_4river_otaymk.nc'
    #   if str(HOSTNAME) == 'swell':
    #       lv1_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV1_rx020_hmask.nc'
    #   else:
@@ -154,6 +154,14 @@ def get_PFM_info():
       SS['L3','TCLINE']      = 50.0                    # critical depth (m)
       SS['L3','hc']          = 50.0 
 
+      SS['L4','Nz']          = 10
+      SS['L4','Vtransform']  = 2                       # transformation equation
+      SS['L4','Vstretching'] = 4                       # stretching function
+      SS['L4','THETA_S']     = 4.5                     # surface stretching parameter
+      SS['L4','THETA_B']     = 3.0                     # bottom  stretching parameter
+      SS['L4','TCLINE']      = 3.5                    # critical depth (m)
+      SS['L4','hc']          = 3.5 
+
       LLB = dict()
       LLB['L1'] = get_llbox(lv1_grid_file)
       LLB['L2'] = get_llbox(lv2_grid_file)
@@ -184,6 +192,14 @@ def get_PFM_info():
       NN['L3','np'] = NN['L3','ntilei'] * NN['L3','ntilej'] # total number of processors
       NN['L3','nnodes'] = int( NN['L3','np'] / 36  )  # 3 number of nodes to be used.  not for .infile but for slurm!
 
+      NN['L4','Lm']  = 484     # Lm in input file
+      NN['L4','Mm']  = 1140     # Mm in input file
+      NN['L4','ntilei'] = 12    # 6 number of tiles in I-direction
+      NN['L4','ntilej'] = 30    # 18 number of tiles in J-direction
+      NN['L4','np'] = NN['L3','ntilei'] * NN['L3','ntilej'] # total number of processors
+      NN['L4','nnodes'] = int( NN['L3','np'] / 36  )  # 3 number of nodes to be used.  not for .infile but for slurm!
+
+
    # timing info
       tt=dict()
       tt['L1','dtsec'] = 60
@@ -198,6 +214,10 @@ def get_PFM_info():
       tt['L3','ndtfast'] = 15
       tt['L3','forecast_days'] = PFM['forecast_days']
 
+      tt['L4','dtsec'] = 2
+      tt['L4','ndtfast'] = 8
+      tt['L4','forecast_days'] = PFM['forecast_days']
+
    # output info
       OP = dict()
       OP['L1','his_interval'] = 3600 # how often in sec outut is written to his.nc   
@@ -206,6 +226,8 @@ def get_PFM_info():
       OP['L2','rst_interval'] = 0.5  # how often in days, a restart file is made. 
       OP['L3','his_interval'] = 3600 # how often in sec outut is written to his.nc
       OP['L3','rst_interval'] = 0.5  # how often in days, a restart file is made. 
+      OP['L4','his_interval'] = 3600 # how often in sec outut is written to his.nc
+      OP['L4','rst_interval'] = 0.5  # how often in days, a restart file is made. 
 
       PFM['run_type'] = run_type
 

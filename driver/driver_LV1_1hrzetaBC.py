@@ -49,7 +49,7 @@ t2str = "%d%02d%02d%02d%02d" % (t2.year, t2.month, t2.day, t2.hour, t2.minute)
 print('getting the hycom forecast time...')
 print('this will clean, download new hycom files, then find the forecast date covering the PFM times.')
 t01 = datetime.now()
-yyyymmdd_hy = ocnfuns.get_hycom_foretime(yyyymmddhhmm_pfm,t2str)
+yyyymmdd_hy = ocnfuns.get_hycom_foretime_v2(yyyymmddhhmm_pfm,t2str)
 
 # now make the catted hycom data .nc file
 #ocnfuns.cat_hycom_to_onenc(yyyymmdd_hy,[t1,t2])
