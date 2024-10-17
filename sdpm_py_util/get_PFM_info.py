@@ -91,7 +91,8 @@ def get_PFM_info():
       lv1_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV1_rx020_hmask.nc'
       lv2_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV2_rx020.nc'
       lv3_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV3_rx020.nc'
-      lv4_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV4_ROTATE_rx020_hplus020_DK_4river_otaymk.nc'
+   #   lv4_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV4_ROTATE_rx020_hplus020_DK_4river_otaymk.nc'
+      lv4_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV4_mss_oct2024.nc'
    #   if str(HOSTNAME) == 'swell':
    #       lv1_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV1_rx020_hmask.nc'
    #   else:
@@ -193,7 +194,7 @@ def get_PFM_info():
       NN['L3','nnodes'] = int( NN['L3','np'] / 36  )  # 3 number of nodes to be used.  not for .infile but for slurm!
 
       NN['L4','Lm']  = 484     # Lm in input file
-      NN['L4','Mm']  = 1140     # Mm in input file
+      NN['L4','Mm']  = 1139     # Mm in input file
       NN['L4','ntilei'] = 12    # 6 number of tiles in I-direction
       NN['L4','ntilej'] = 30    # 18 number of tiles in J-direction
       NN['L4','np'] = NN['L3','ntilei'] * NN['L3','ntilej'] # total number of processors

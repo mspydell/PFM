@@ -19,6 +19,8 @@ from get_PFM_info import get_PFM_info
 import numpy as np
 import xarray as xr
 import netCDF4 as nc
+from netCDF4 import Dataset
+
 from scipy.interpolate import RegularGridInterpolator, LinearNDInterpolator
 from scipy.interpolate import interp1d
 
@@ -5811,23 +5813,44 @@ def mk_LV2_BC_dict_edges(lvl):
     angle_on_2 = dict()
     ang2u = 0.5 * ( ang2[:,1:] + ang2[:,0:-1] )
     ang2v = 0.5 * ( ang2[0:-1,:] + ang2[1:,:] )
-    angle_on_2['ubar','_north'] = ang2u[-1,:]
-    angle_on_2['ubar','_south'] = ang2u[0,:]
-    angle_on_2['ubar','_west']  = ang2u[:,0]
-    angle_on_2['vbar','_north'] = ang2v[-1,:]
-    angle_on_2['vbar','_south'] = ang2v[0,:]
-    angle_on_2['vbar','_west'] =  ang2v[:,0]
+   
+    angle_on_2['ubar','_north'] = np.zeros((1,nln-1))
+    angle_on_2['ubar','_south'] = np.zeros((1,nln-1))
+    angle_on_2['ubar','_west']  = np.zeros((1,nlt))
+    angle_on_2['vbar','_north'] = np.zeros((1,nln))
+    angle_on_2['vbar','_south'] = np.zeros((1,nln))
+    angle_on_2['vbar','_west'] =  np.zeros((1,nlt-1))
+    angle_on_2['ubar','_north'][0,:] = ang2u[-1,:]
+    angle_on_2['ubar','_south'][0,:] = ang2u[0,:]
+    angle_on_2['ubar','_west'][0,:]  = ang2u[:,0]
+    angle_on_2['vbar','_north'][0,:] = ang2v[-1,:]
+    angle_on_2['vbar','_south'][0,:] = ang2v[0,:]
+    angle_on_2['vbar','_west'][0,:] =  ang2v[:,0]
 
     angle_on_1 = dict()
+    angle_on_1['ubar','_north'] = np.zeros((1,nln-1))
+    angle_on_1['ubar','_south'] = np.zeros((1,nln-1))
+    angle_on_1['ubar','_west']  = np.zeros((1,nlt))
+    angle_on_1['vbar','_north'] = np.zeros((1,nln))
+    angle_on_1['vbar','_south'] = np.zeros((1,nln))
+    angle_on_1['vbar','_west'] =  np.zeros((1,nlt-1))
+
     ang_2m1 = dict()
+    ang_2m1['ubar','_north'] = np.zeros((1,nln-1))
+    ang_2m1['ubar','_south'] = np.zeros((1,nln-1))
+    ang_2m1['ubar','_west']  = np.zeros((1,nlt))
+    ang_2m1['vbar','_north'] = np.zeros((1,nln))
+    ang_2m1['vbar','_south'] = np.zeros((1,nln))
+    ang_2m1['vbar','_west'] =  np.zeros((1,nlt-1))
     setattr(interp_r,'values',ang1) # change the interpolator z values
     for vn in ['ubar','vbar']:
         for bb in bnds:
             xx2 = XX[v1_2_g[vn],bb]
             yy2 = YY[v1_2_g[vn],bb]
             z2 = interp_r((yy2,xx2))    
-            angle_on_1[vn,bb] = z2
-            ang_2m1[vn,bb] = angle_on_2[vn,bb] - angle_on_1[vn,bb]
+            angle_on_1[vn,bb][0,:] = z2
+            ang_2m1[vn,bb][0,:] = angle_on_2[vn,bb][0,:] - angle_on_1[vn,bb][0,:]
+
 
     for vn in v_list1: # loop through all 2d variables
         msk = msk_d1[vn] # get mask on LV1
@@ -5841,13 +5864,7 @@ def mk_LV2_BC_dict_edges(lvl):
                 xx2 = XX[v1_2_g[vn],bb]
                 yy2 = YY[v1_2_g[vn],bb]
                 z2 = interpfun((yy2,xx2)) # perhaps change here to directly interpolate to (xi,eta) on the edges?
-                msk2 = msk2_d1[vn,bb]
-                #print(vn)
-                #print(tind)
-                #print(bb)
-                #print(np.shape(msk2))
-                #print(np.shape(z2))
-                
+                msk2 = msk2_d1[vn,bb]                 
                 z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the mask
                 OCN_BC[vn+bb][tind,:] = z2 # fill correctly
                 if vn == 'zeta': # this is zeta at child grid edges, for interpolating in z later
@@ -5860,6 +5877,7 @@ def mk_LV2_BC_dict_edges(lvl):
                     yy2 = YY['v',bb]
                     z2 = interpfun((yy2,xx2)) 
                     ZTA['v'+bb][tind,:] = z2
+
 
 
     for vn in v_list2:
@@ -5878,28 +5896,38 @@ def mk_LV2_BC_dict_edges(lvl):
                     msk2 = msk2_d2[vn,bb]
                     z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the mask
                     OCN_BC_0[vn+bb][tind,zind,:] = z2 # fill correctly
-                    if vn == 'temp':
-                        z0 = np.squeeze( zrom1.z_r[tind,zind,:,:])
-                        z0[msk==0] = z0[msk==1][ind] # fill in masked areas with nearest neighbor
-                        setattr(interpfun,'values',z0)
-                        z2 = interpfun((yy2,xx2))
-                        ZZ['rho'+bb][tind,zind,:] = z2 # we need the depths that the horizontal interpolation thinks it is
-                    if vn == 'u':
-                        z0 = np.squeeze( zrom1.z_r[tind,zind,:,:])
-                        z0 = 0.5 * ( z0[:,0:-1] + z0[:,1:] )
-                        z0[msk==0] = z0[msk==1][ind] # fill in masked areas with nearest neighbor
-                        setattr(interpfun,'values',z0)
-                        z2 = interpfun((yy2,xx2))
-                        ZZ['u'+bb][tind,zind,:] = z2 # we need the depths that the horizontal interpolation thinks it is
-                    if vn == 'v':
-                        z0 = np.squeeze( zrom1.z_r[tind,zind,:,:])
-                        z0 = 0.5 * ( z0[0:-1,:] + z0[1:,:] )
-                        z0[msk==0] = z0[msk==1][ind] # fill in masked areas with nearest neighbor
-                        setattr(interpfun,'values',z0)
-                        z2 = interpfun((yy2,xx2))
-                        ZZ['v'+bb][tind,zind,:] = z2 # we need the depths that the horizontal interpolation thinks it is
- 
+
+
+    for vn in ['temp','u','v']:
+        vnn = vn
+        if vnn == 'temp':
+            vnn = 'rho'
+        msk = msk_d2[vn]
+        ind = ind_d2[vn]
+        interpfun = intf_d2[vn]
+        for tind in np.arange(Nt):
+            for zind in np.arange(Nz1):
+                z0 = np.squeeze( zrom1.z_r[tind,zind,:,:])
+                if vn == 'u':    
+                    z0 = 0.5 * ( z0[:,0:-1] + z0[:,1:] )
+                if vn == 'v':
+                    z0 = 0.5 * ( z0[0:-1,:] + z0[1:,:] )
+                z0[msk==0] = z0[msk==1][ind]
+                setattr(interpfun,'values',z0)
+                for bb in bnds:
+                    xx2 = XX[v2_2_g[vn],bb]
+                    yy2 = YY[v2_2_g[vn],bb]
+                    z2 = interpfun((yy2,xx2)) # perhaps change here to directly interpolate to (xi,eta) on the edges?
+                    msk2 = msk2_d2[vn,bb]
+                    z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the mask
+                    ZZ[vnn+bb][tind,zind,:] = z2 # we need the depths that the horizontal interpolation thinks it is
+
+
     if lvl == '4': # need to rotate the velocities!
+        OCN_BC_2 = dict()
+        OCN_BC_2['vbar_on_u_south'] = np.zeros((Nt,nln-1))
+        OCN_BC_2['vbar_on_u_north'] = np.zeros((Nt,nln-1))
+        OCN_BC_2['vbar_on_u_west'] = np.zeros((Nt,nlt))
         msk = msk_d1['vbar'] # get mask on LV1
         ind = ind_d1['vbar'] # get indices so that land can be filled with nearest neighbor
         interpfun = intf_d1['vbar']
@@ -5913,11 +5941,17 @@ def mk_LV2_BC_dict_edges(lvl):
                 z2 = interpfun((yy2,xx2)) 
                 msk2 = msk2_d1['ubar',bb]
                 z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the mask, this is vbar on u
-                cosa = np.cos(ang_2m1['ubar',bb])
-                sina = np.sin(ang_2m1['ubar',bb])
-                OCN_BC['ubar'+bb][tind,:] = cosa * OCN_BC['ubar'+bb][tind,:] + sina * z2
+                OCN_BC_2['vbar_on_u'+bb][tind,:] = z2
                 
-                    
+        for bb in bnds:
+            cosa = np.cos(ang_2m1['ubar',bb])
+            sina = np.sin(ang_2m1['ubar',bb])
+            OCN_BC['ubar'+bb][:,:] = cosa[0,:] * OCN_BC['ubar'+bb] + 0 * sina[0,:] * OCN_BC_2['vbar_on_u'+bb]
+
+
+        OCN_BC_2['ubar_on_v_south'] = np.zeros((Nt,nln))
+        OCN_BC_2['ubar_on_v_north'] = np.zeros((Nt,nln))
+        OCN_BC_2['ubar_on_v_west'] = np.zeros((Nt,nlt-1))
         msk = msk_d1['ubar'] # get mask on LV1
         ind = ind_d1['ubar'] # get indices so that land can be filled with nearest neighbor
         interpfun = intf_d1['ubar']
@@ -5931,10 +5965,16 @@ def mk_LV2_BC_dict_edges(lvl):
                 z2 = interpfun((yy2,xx2)) # perhaps change here to directly interpolate to (xi,eta) on the edges?
                 msk2 = msk2_d1['vbar',bb]
                 z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the mask
-                cosa = np.cos(ang_2m1['vbar',bb])
-                sina = np.sin(ang_2m1['vbar',bb])
-                OCN_BC['vbar'+bb][tind,:] = cosa * OCN_BC['vbar'+bb][tind,:] - sina * z2
-
+                OCN_BC_2['ubar_on_v'+bb][tind,:] = z2
+                
+        for bb in bnds:
+            cosa = np.cos(ang_2m1['vbar',bb])
+            sina = np.sin(ang_2m1['vbar',bb])
+            OCN_BC['vbar'+bb][:,:] = cosa[0,:] * OCN_BC['vbar'+bb] - sina[0,:] * OCN_BC_2['ubar_on_v'+bb]
+        
+        OCN_BC_2['u_on_v_south'] = np.zeros((Nt,Nz1,nln))
+        OCN_BC_2['u_on_v_north'] = np.zeros((Nt,Nz1,nln))
+        OCN_BC_2['u_on_v_west'] = np.zeros((Nt,Nz1,nlt-1))
         msk = msk_d1['ubar'] # get mask on LV1
         ind = ind_d1['ubar'] # get indices so that land can be filled with nearest neighbor
         interpfun = intf_d1['ubar']
@@ -5949,10 +5989,16 @@ def mk_LV2_BC_dict_edges(lvl):
                     z2 = interpfun((yy2,xx2)) 
                     msk2 = msk2_d1['vbar',bb]
                     z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the mask, this is vbar on u
-                    cosa = np.cos(ang_2m1['vbar',bb])
-                    sina = np.sin(ang_2m1['vbar',bb])
-                    OCN_BC_0['v'+bb][tind,zind,:] = cosa * OCN_BC_0['v'+bb][tind,zind,:] - sina * z2
+                    OCN_BC_2['u_on_v'+bb][tind,zind,:] = z2
+            
+        for bb in bnds:
+            cosa = np.cos(ang_2m1['vbar',bb])
+            sina = np.sin(ang_2m1['vbar',bb])
+            OCN_BC_0['v'+bb][:,:,:] = cosa[None,0,:] * OCN_BC_0['v'+bb] - sina[None,0,:] * OCN_BC_2['u_on_v'+bb]
 
+        OCN_BC_2['v_on_u_south'] = np.zeros((Nt,Nz1,nln-1))
+        OCN_BC_2['v_on_u_north'] = np.zeros((Nt,Nz1,nln-1))
+        OCN_BC_2['v_on_u_west'] = np.zeros((Nt,Nz1,nlt))
         msk = msk_d1['vbar'] # get mask on LV1
         ind = ind_d1['vbar'] # get indices so that land can be filled with nearest neighbor
         interpfun = intf_d1['vbar']
@@ -5967,9 +6013,12 @@ def mk_LV2_BC_dict_edges(lvl):
                     z2 = interpfun((yy2,xx2)) 
                     msk2 = msk2_d1['ubar',bb]
                     z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the mask, this is vbar on u
-                    cosa = np.cos(ang_2m1['ubar',bb])
-                    sina = np.sin(ang_2m1['ubar',bb])
-                    OCN_BC_0['u'+bb][tind,zind,:] = cosa * OCN_BC_0['u'+bb][tind,zind,:] + sina * z2
+                    OCN_BC_2['v_on_u'+bb][tind,zind,:] = z2
+                    
+        for bb in bnds: 
+            cosa = np.cos(ang_2m1['ubar',bb])
+            sina = np.sin(ang_2m1['ubar',bb])
+            OCN_BC_0['u'+bb][:,:,:] = cosa[None,0,:] * OCN_BC_0['u'+bb] + sina[None,0,:] * OCN_BC_2['v_on_u'+bb]
 
     h = G2['h']
     hu = .5*( h[:,0:-1] + h[:,1:] )
@@ -6038,7 +6087,50 @@ def mk_LV2_BC_dict_edges(lvl):
                         vf =  np.squeeze(Fz(zf))
                         OCN_BC[vn+bnd][cc,:,aa] = vf                
 
-    #fn_out = '/scratch/PFM_Simulations/LV3_Forecast/Forc/test_BC_LV3.pkl'
+
+    # need to add dye_01 and dye_02 BC.
+    # dye BC is zero. And we only need 1st and last times.
+    if lvl == '4':
+        OCN_BC['dye_north_01'] = np.zeros((2,Nz2,nln))
+        OCN_BC['dye_south_01'] = np.zeros((2,Nz2,nln))
+        OCN_BC['dye_west_01']  = np.zeros((2,Nz2,nlt))
+        OCN_BC['dye_north_02'] = np.zeros((2,Nz2,nln))
+        OCN_BC['dye_south_02'] = np.zeros((2,Nz2,nln))
+        OCN_BC['dye_west_02']  = np.zeros((2,Nz2,nlt))
+        OCN_BC['dye_time'] = np.zeros((2,1))
+        OCN_BC['dye_time'] = OCN_BC['ocean_time'][::len(OCN_BC['ocean_time'])-1] 
+        OCN_BC['dye_time_ref'] = BC1['ocean_time_ref']
+        OCN_BC['vinfo']['dye_south_01'] = {'long_name':'dye 01 southern boundary',
+                        'units':'pcent',
+                        'coordinates':'time,s,xi_rho',
+                        'time':'dye_time'}
+        OCN_BC['vinfo']['dye_north_01'] = {'long_name':'dye 01 northern boundary',
+                        'units':'pcent',
+                        'coordinates':'time,s,xi_rho',
+                        'time':'dye_time'}
+        OCN_BC['vinfo']['dye_west_01'] = {'long_name':'dye 01 western boundary',
+                        'units':'pcent',
+                        'coordinates':'time,s,eta_rho',
+                        'time':'dye_time'}
+        OCN_BC['vinfo']['dye_south_02'] = {'long_name':'dye 02 southern boundary',
+                        'units':'pcent',
+                        'coordinates':'time,s,xi_rho',
+                        'time':'dye_time'}
+        OCN_BC['vinfo']['dye_north_02'] = {'long_name':'dye 02 northern boundary',
+                        'units':'pcent',
+                        'coordinates':'time,s,xi_rho',
+                        'time':'dye_time'}
+        OCN_BC['vinfo']['dye_west_02'] = {'long_name':'dye 02 western boundary',
+                        'units':'pcent',
+                        'coordinates':'time,s,eta_rho',
+                        'time':'dye_time'}
+        OCN_BC['vinfo']['dye_time'] = {'long_name':'time since initialization for dye',
+                    'units':'days',
+                    'coordinates':'dye_time',
+                    'field':'dye_time, scalar, series'}
+
+
+#    fn_out = '/scratch/PFM_Simulations/LV3_Forecast/Forc/test_BC_LV4.pkl'
 
     with open(fn_out,'wb') as fout:
         pickle.dump(OCN_BC,fout)
@@ -6748,13 +6840,21 @@ def ocn_roms_IC_dict_to_netcdf_pckl(fname_in,fn_out):
 
 def ocn_roms_BC_dict_to_netcdf_pckl(fname_in,fn_out):
 
+    if fname_in[-14:-13] == '4': 
+        lv4 = True
+    else:
+        lv4 = False
+
     with open(fname_in,'rb') as fout:
         ATM_R=pickle.load(fout)
         print('OCN_BC dict loaded with pickle')
 
     # lets replace NaNs if there are any
-    vns = ['temp','salt','u','v','ubar','vbar','zeta']
     sds = ['_north','_south','_west']
+    vns = ['temp','salt','u','v','ubar','vbar','zeta']
+
+    # we assume dye doesn't have problems
+
     for vn in vns:
         for sd in sds:
             #print('doing ' + vn)
@@ -6762,9 +6862,10 @@ def ocn_roms_BC_dict_to_netcdf_pckl(fname_in,fn_out):
             ff = np.nan_to_num(ff,nan=np.nanmean(ff))
             #ff = ff.filled(ff.mean())
             ATM_R[vn+sd] = ff
-    
+
     vlist = ['zeta','ubar','vbar','u','v','temp','salt']
     ulist = ['m','m/s','m/s','m/s','m/s','C','psu']
+
     ulist2 = dict(zip(vlist,ulist))
     
     print('\nmax and min of data in ROMS BC file (iz is bottom [0] to top [39]):')
@@ -6791,49 +6892,100 @@ def ocn_roms_BC_dict_to_netcdf_pckl(fname_in,fn_out):
                     print(f'max {var_name+sd:10} = {mxx:6.3f} {uvnm:5}      at  ( it, iz, ilat) =  ({ind_mx[0]:3},{ind_mx[1]:4},{ind_mx[2]:4})')
                     print(f'min {var_name+sd:10} = {mnn:6.3f} {uvnm:5}      at  ( it, iz, ilat) =  ({ind_mn[0]:3},{ind_mn[1]:4},{ind_mn[2]:4})')
 
+    if lv4 == False:
+        ds = xr.Dataset(
+            data_vars = dict(
+                temp_south       = (["temp_time","s_rho","xr"],ATM_R['temp_south'],ATM_R['vinfo']['temp_south']),
+                salt_south       = (["salt_time","s_rho","xr"],ATM_R['salt_south'],ATM_R['vinfo']['salt_south']),
+                u_south          = (["v3d_time","s_rho","xu"],ATM_R['u_south'],ATM_R['vinfo']['u_south']),
+                v_south          = (["v3d_time","s_rho","xv"],ATM_R['v_south'],ATM_R['vinfo']['v_south']),
+                ubar_south       = (["v2d_time","xu"],ATM_R['ubar_south'],ATM_R['vinfo']['ubar_south']),
+                vbar_south       = (["v2d_time","xv"],ATM_R['vbar_south'],ATM_R['vinfo']['vbar_south']),
+                zeta_south       = (["zeta_time","xr"],ATM_R['zeta_south'],ATM_R['vinfo']['zeta_south']),
+                temp_north       = (["temp_time","s_rho","xr"],ATM_R['temp_north'],ATM_R['vinfo']['temp_north']),
+                salt_north       = (["salt_time","s_rho","xr"],ATM_R['salt_north'],ATM_R['vinfo']['salt_north']),
+                u_north          = (["v3d_time","s_rho","xu"],ATM_R['u_north'],ATM_R['vinfo']['u_north']),
+                v_north          = (["v3d_time","s_rho","xv"],ATM_R['v_north'],ATM_R['vinfo']['v_north']),
+                ubar_north       = (["v2d_time","xu"],ATM_R['ubar_north'],ATM_R['vinfo']['ubar_north']),
+                vbar_north       = (["v2d_time","xv"],ATM_R['vbar_north'],ATM_R['vinfo']['vbar_north']),
+                zeta_north       = (["zeta_time","xr"],ATM_R['zeta_north'],ATM_R['vinfo']['zeta_north']),
+                temp_west        = (["temp_time","s_rho","er"],ATM_R['temp_west'],ATM_R['vinfo']['temp_west']),
+                salt_west        = (["salt_time","s_rho","er"],ATM_R['salt_west'],ATM_R['vinfo']['salt_west']),
+                u_west           = (["v3d_time","s_rho","eu"],ATM_R['u_west'],ATM_R['vinfo']['u_west']),
+                v_west           = (["v3d_time","s_rho","ev"],ATM_R['v_west'],ATM_R['vinfo']['v_west']),
+                ubar_west        = (["v2d_time","eu"],ATM_R['ubar_west'],ATM_R['vinfo']['ubar_west']),
+                vbar_west        = (["v2d_time","ev"],ATM_R['vbar_west'],ATM_R['vinfo']['vbar_west']),
+                zeta_west        = (["zeta_time","er"],ATM_R['zeta_west'],ATM_R['vinfo']['zeta_west']),
+                Vtransform       = ([],ATM_R['Vtr'],ATM_R['vinfo']['Vtr']),
+                Vstretching      = ([],ATM_R['Vst'],ATM_R['vinfo']['Vst']),
+                theta_s          = ([],ATM_R['th_s'],ATM_R['vinfo']['th_s']),
+                theta_b          = ([],ATM_R['th_b'],ATM_R['vinfo']['th_b']),
+                Tcline           = ([],ATM_R['Tcl'],ATM_R['vinfo']['Tcl']),
+                hc               = ([],ATM_R['hc'],ATM_R['vinfo']['hc']),
+            ),
+            coords=dict(
+                ocean_time = (["time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
+                zeta_time  = (["zeta_time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
+                v2d_time   = (["v2d_time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
+                v3d_time   = (["v3d_time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
+                salt_time  = (["salt_time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
+                temp_time  = (["temp_time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
+                Cs_r       = (["s_rho"],ATM_R['Cs_r'],ATM_R['vinfo']['Cs_r']),
+            ),
+            attrs={'type':'ocean boundary condition file fields for starting roms',
+                'time info':'ocean time is from '+ ATM_R['ocean_time_ref'].strftime("%Y/%m/%d %H:%M:%S") },
+            )
+    else:
+        ds = xr.Dataset(
+            data_vars = dict(
+                temp_south       = (["temp_time","s_rho","xr"],ATM_R['temp_south'],ATM_R['vinfo']['temp_south']),
+                salt_south       = (["salt_time","s_rho","xr"],ATM_R['salt_south'],ATM_R['vinfo']['salt_south']),
+                u_south          = (["v3d_time","s_rho","xu"],ATM_R['u_south'],ATM_R['vinfo']['u_south']),
+                v_south          = (["v3d_time","s_rho","xv"],ATM_R['v_south'],ATM_R['vinfo']['v_south']),
+                ubar_south       = (["v2d_time","xu"],ATM_R['ubar_south'],ATM_R['vinfo']['ubar_south']),
+                vbar_south       = (["v2d_time","xv"],ATM_R['vbar_south'],ATM_R['vinfo']['vbar_south']),
+                zeta_south       = (["zeta_time","xr"],ATM_R['zeta_south'],ATM_R['vinfo']['zeta_south']),
+                temp_north       = (["temp_time","s_rho","xr"],ATM_R['temp_north'],ATM_R['vinfo']['temp_north']),
+                salt_north       = (["salt_time","s_rho","xr"],ATM_R['salt_north'],ATM_R['vinfo']['salt_north']),
+                u_north          = (["v3d_time","s_rho","xu"],ATM_R['u_north'],ATM_R['vinfo']['u_north']),
+                v_north          = (["v3d_time","s_rho","xv"],ATM_R['v_north'],ATM_R['vinfo']['v_north']),
+                ubar_north       = (["v2d_time","xu"],ATM_R['ubar_north'],ATM_R['vinfo']['ubar_north']),
+                vbar_north       = (["v2d_time","xv"],ATM_R['vbar_north'],ATM_R['vinfo']['vbar_north']),
+                zeta_north       = (["zeta_time","xr"],ATM_R['zeta_north'],ATM_R['vinfo']['zeta_north']),
+                temp_west        = (["temp_time","s_rho","er"],ATM_R['temp_west'],ATM_R['vinfo']['temp_west']),
+                salt_west        = (["salt_time","s_rho","er"],ATM_R['salt_west'],ATM_R['vinfo']['salt_west']),
+                u_west           = (["v3d_time","s_rho","eu"],ATM_R['u_west'],ATM_R['vinfo']['u_west']),
+                v_west           = (["v3d_time","s_rho","ev"],ATM_R['v_west'],ATM_R['vinfo']['v_west']),
+                ubar_west        = (["v2d_time","eu"],ATM_R['ubar_west'],ATM_R['vinfo']['ubar_west']),
+                vbar_west        = (["v2d_time","ev"],ATM_R['vbar_west'],ATM_R['vinfo']['vbar_west']),
+                zeta_west        = (["zeta_time","er"],ATM_R['zeta_west'],ATM_R['vinfo']['zeta_west']),
+                dye_south_01     = (["dye_time","s_rho","xr"],ATM_R['dye_south_01'],ATM_R['vinfo']['dye_south_01']),
+                dye_north_01     = (["dye_time","s_rho","xr"],ATM_R['dye_north_01'],ATM_R['vinfo']['dye_north_01']),
+                dye_west_01      = (["dye_time","s_rho","er"],ATM_R['dye_west_01'],ATM_R['vinfo']['dye_west_01']),
+                dye_south_02     = (["dye_time","s_rho","xr"],ATM_R['dye_south_02'],ATM_R['vinfo']['dye_south_02']),
+                dye_north_02     = (["dye_time","s_rho","xr"],ATM_R['dye_north_02'],ATM_R['vinfo']['dye_north_02']),
+                dye_west_02      = (["dye_time","s_rho","er"],ATM_R['dye_west_02'],ATM_R['vinfo']['dye_west_02']),
+                Vtransform       = ([],ATM_R['Vtr'],ATM_R['vinfo']['Vtr']),
+                Vstretching      = ([],ATM_R['Vst'],ATM_R['vinfo']['Vst']),
+                theta_s          = ([],ATM_R['th_s'],ATM_R['vinfo']['th_s']),
+                theta_b          = ([],ATM_R['th_b'],ATM_R['vinfo']['th_b']),
+                Tcline           = ([],ATM_R['Tcl'],ATM_R['vinfo']['Tcl']),
+                hc               = ([],ATM_R['hc'],ATM_R['vinfo']['hc']),
+            ),
+            coords=dict(
+                ocean_time = (["time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
+                zeta_time  = (["zeta_time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
+                v2d_time   = (["v2d_time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
+                v3d_time   = (["v3d_time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
+                salt_time  = (["salt_time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
+                temp_time  = (["temp_time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
+                dye_time   = (["dye_time"],ATM_R['dye_time'], ATM_R['vinfo']['dye_time']),
+                Cs_r       = (["s_rho"],ATM_R['Cs_r'],ATM_R['vinfo']['Cs_r']),
+            ),
+            attrs={'type':'ocean boundary condition file fields for starting roms',
+                'time info':'ocean time is from '+ ATM_R['ocean_time_ref'].strftime("%Y/%m/%d %H:%M:%S") },
+            )
 
-    ds = xr.Dataset(
-        data_vars = dict(
-            temp_south       = (["temp_time","s_rho","xr"],ATM_R['temp_south'],ATM_R['vinfo']['temp_south']),
-            salt_south       = (["salt_time","s_rho","xr"],ATM_R['salt_south'],ATM_R['vinfo']['salt_south']),
-            u_south          = (["v3d_time","s_rho","xu"],ATM_R['u_south'],ATM_R['vinfo']['u_south']),
-            v_south          = (["v3d_time","s_rho","xv"],ATM_R['v_south'],ATM_R['vinfo']['v_south']),
-            ubar_south       = (["v2d_time","xu"],ATM_R['ubar_south'],ATM_R['vinfo']['ubar_south']),
-            vbar_south       = (["v2d_time","xv"],ATM_R['vbar_south'],ATM_R['vinfo']['vbar_south']),
-            zeta_south       = (["zeta_time","xr"],ATM_R['zeta_south'],ATM_R['vinfo']['zeta_south']),
-            temp_north       = (["temp_time","s_rho","xr"],ATM_R['temp_north'],ATM_R['vinfo']['temp_north']),
-            salt_north       = (["salt_time","s_rho","xr"],ATM_R['salt_north'],ATM_R['vinfo']['salt_north']),
-            u_north          = (["v3d_time","s_rho","xu"],ATM_R['u_north'],ATM_R['vinfo']['u_north']),
-            v_north          = (["v3d_time","s_rho","xv"],ATM_R['v_north'],ATM_R['vinfo']['v_north']),
-            ubar_north       = (["v2d_time","xu"],ATM_R['ubar_north'],ATM_R['vinfo']['ubar_north']),
-            vbar_north       = (["v2d_time","xv"],ATM_R['vbar_north'],ATM_R['vinfo']['vbar_north']),
-            zeta_north       = (["zeta_time","xr"],ATM_R['zeta_north'],ATM_R['vinfo']['zeta_north']),
-            temp_west        = (["temp_time","s_rho","er"],ATM_R['temp_west'],ATM_R['vinfo']['temp_west']),
-            salt_west        = (["salt_time","s_rho","er"],ATM_R['salt_west'],ATM_R['vinfo']['salt_west']),
-            u_west           = (["v3d_time","s_rho","eu"],ATM_R['u_west'],ATM_R['vinfo']['u_west']),
-            v_west           = (["v3d_time","s_rho","ev"],ATM_R['v_west'],ATM_R['vinfo']['v_west']),
-            ubar_west        = (["v2d_time","eu"],ATM_R['ubar_west'],ATM_R['vinfo']['ubar_west']),
-            vbar_west        = (["v2d_time","ev"],ATM_R['vbar_west'],ATM_R['vinfo']['vbar_west']),
-            zeta_west        = (["zeta_time","er"],ATM_R['zeta_west'],ATM_R['vinfo']['zeta_west']),
-            Vtransform       = ([],ATM_R['Vtr'],ATM_R['vinfo']['Vtr']),
-            Vstretching      = ([],ATM_R['Vst'],ATM_R['vinfo']['Vst']),
-            theta_s          = ([],ATM_R['th_s'],ATM_R['vinfo']['th_s']),
-            theta_b          = ([],ATM_R['th_b'],ATM_R['vinfo']['th_b']),
-            Tcline           = ([],ATM_R['Tcl'],ATM_R['vinfo']['Tcl']),
-            hc               = ([],ATM_R['hc'],ATM_R['vinfo']['hc']),
-        ),
-        coords=dict(
-            ocean_time = (["time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
-            zeta_time  = (["zeta_time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
-            v2d_time   = (["v2d_time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
-            v3d_time   = (["v3d_time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
-            salt_time  = (["salt_time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
-            temp_time  = (["temp_time"],ATM_R['ocean_time'], ATM_R['vinfo']['ocean_time']),
-            Cs_r       = (["s_rho"],ATM_R['Cs_r'],ATM_R['vinfo']['Cs_r']),
-         ),
-        attrs={'type':'ocean boundary condition file fields for starting roms',
-            'time info':'ocean time is from '+ ATM_R['ocean_time_ref'].strftime("%Y/%m/%d %H:%M:%S") },
-        )
     # print(ds)
 
     ds.to_netcdf(fn_out)
@@ -6929,11 +7081,354 @@ def ocn_roms_BC_dict_to_netcdf_pckl_1hrzeta(fname_in,fn_out):
         )
     # print(ds)
 
+    ds.to_netcdf(fn_out)
+    ds.close()    
+
+def netcdf_to_dict(nc_file):
+    """Converts a NetCDF file to a dictionary."""
+
+    with nc.Dataset(nc_file, 'r') as ds:
+        data_dict = {}
+        for var_name in ds.variables:
+            var = ds.variables[var_name]
+            data_dict[var_name] = {
+                'data': np.array(var[:]),
+                'dims': var.dimensions,
+                'attrs': var.ncattrs()
+            }
+        return data_dict
+    
+def dict_to_netcdf(data_dict, output_file):
+    """Converts a dictionary to a NetCDF file."""
+
+    with nc.Dataset(output_file, 'w') as ds:
+        for var_name, var_data in data_dict.items():
+            # Create dimensions
+            for dim_name in var_data['dims']:
+                if dim_name not in ds.dimensions:
+                    ds.createDimension(dim_name, len(var_data['data'].shape))
+
+            # Create variable
+            var = ds.createVariable(var_name, var_data['data'].dtype, var_data['dims'])
+            var[:] = var_data['data']
+
+            # Add attributes
+            for attr_name in var_data['attrs']:
+                var.setncattr(attr_name, ds.variables[var_name].getncattr(attr_name))
+
+# Example usage
+def LV4grid_to_new_dotnc(fn_out):
+    fn_gr4 = '/scratch/PFM_Simulations/Grids/GRID_SDTJRE_LV4_ROTATE_rx020_hplus020_DK_4river_otaymk.nc'
+    #gr4d = netcdf_to_dict(fn_gr4)
+
+    gr4  = nc.Dataset(fn_gr4)
+
+    new = dict()
+    new['vinfo'] = dict()
+
+    # variables that don't need trimming
+    vns0=['xl', 'el', 'JPRJ', 'spherical', 'depthmin', 'depthmax']
+    for vn in vns0:
+        new[vn]=gr4[vn][:]
+        new['vinfo'][vn]=dict()
+    # the variables that need to be trimmed...
+
+    vns0=['xl', 'el', 'depthmin', 'depthmax']
+    for vn in vns0:
+        x2 = new[vn].data
+        new[vn] = x2[0].astype(float)
+
+
+    new['JPRJ'] = 'ME'
+    new['spherical'] = 'T'
+
+    # hraw has an extra dimension
+    d0 = gr4['hraw'][:]
+    d2 = np.squeeze(d0[0,0:-1,:])
+    new['hraw']=d2 
+    new['vinfo']['hraw'] = dict()
+
+    vns = ['h', 'f', 'pm', 'pn', 'dndx', 'dmde', 'x_rho', 'y_rho', 'x_psi', 'y_psi', 'x_u', 'y_u', 'x_v', 'y_v', 'lat_rho', 'lon_rho', 'lat_psi', 'lon_psi', 'lat_u', 'lon_u', 'lat_v', 'lon_v', 'mask_rho', 'mask_u', 'mask_v', 'mask_psi', 'angle']
+    for vn in vns:
+        d0 = gr4[vn][:]
+        d2 = d0[0:-1,:] # trim off the top layer
+        new[vn]=d2
+        new['vinfo'][vn]=dict()
+    
+    # there is 1 random spot of ocean along the top, make it land!
+    new['mask_rho'][-1,168] = 0
+    # 
+
+    new['vinfo']['xl'] = {'long_name':'domain length in the XI-direction',
+                          'units':'meter'} 
+    new['vinfo']['el'] = {'long_name':'domain length in the ETA-direction',
+                          'units':'meter'} 
+    new['vinfo']['JPRJ'] = {'long_name':'map projection type',
+                          'option_ME':'Mercator',
+                          'option_ST':'Stenographic',
+                          'option_LC':'Lambert conformal conic'}
+    new['vinfo']['spherical'] = {'long_name':'Grid type logical switch',
+                          'option_T':'spherical',
+                          'option_F':'Cartesian'}
+    new['vinfo']['depthmin'] = {'long_name':'minimum depth',
+                                'units':'meter'}
+    new['vinfo']['depthmax'] = {'long_name':'deep bathy clipping depth',
+                                'units':'meter'}
+    new['vinfo']['hraw'] = {'long_name':'working bathymetry at rho points',
+                                'units':'meter',
+                                'field':'scalar'}
+    new['vinfo']['h'] = {'long_name':'final bathymetry at rho points',
+                                'units':'meter',
+                                'field':'scalar'}
+    new['vinfo']['f'] = {'long_name':'Coriolis parameter at rho points',
+                                'units':'second-1',
+                                'field':'scalar'}
+    new['vinfo']['pm'] = {'long_name':'curvilinear coordinate metric in XI',
+                                'units':'meter-1',
+                                'field':'scalar'}
+    new['vinfo']['pn'] = {'long_name':'curvilinear coordinate metric in ETA',
+                                'units':'meter-1',
+                                'field':'scalar'}
+    new['vinfo']['dndx'] = {'long_name':'xi derivative of inverse metric factor pn',
+                                'units':'meter',
+                                'field':'scalar'}
+    new['vinfo']['dmde'] = {'long_name':'eta derivative of inverse metric factor pm',
+                                'units':'meter',
+                                'field':'scalar'}
+    new['vinfo']['x_rho'] = {'long_name':'x location of rho points',
+                                'units':'meter',
+                                'field':'scalar'}
+    new['vinfo']['y_rho'] = {'long_name':'y location of rho points',
+                                'units':'meter',
+                                'field':'scalar'}
+    new['vinfo']['x_psi'] = {'long_name':'x location of psi points',
+                                'units':'meter',
+                                'field':'scalar'}
+    new['vinfo']['y_psi'] = {'long_name':'y location of psi points',
+                                'units':'meter',
+                                'field':'scalar'}
+    new['vinfo']['x_u'] = {'long_name':'x location of u points',
+                                'units':'meter',
+                                'field':'scalar'}
+    new['vinfo']['y_u'] = {'long_name':'y location of u points',
+                                'units':'meter',
+                                'field':'scalar'}
+    new['vinfo']['x_v'] = {'long_name':'x location of v points',
+                                'units':'meter',
+                                'field':'scalar'}
+    new['vinfo']['y_v'] = {'long_name':'y location of v points',
+                                'units':'meter',
+                                'field':'scalar'}
+    new['vinfo']['lat_rho'] = {'long_name':'lat location of rho points',
+                                'units':'degrees',
+                                'field':'scalar'}
+    new['vinfo']['lon_rho'] = {'long_name':'lon location of rho points',
+                                'units':'degrees',
+                                'field':'scalar'}
+    new['vinfo']['lat_psi'] = {'long_name':'lat location of psi points',
+                                'units':'degrees',
+                                'field':'scalar'}
+    new['vinfo']['lon_psi'] = {'long_name':'lon location of psi points',
+                                'units':'degrees',
+                                'field':'scalar'}
+    new['vinfo']['lat_u'] = {'long_name':'lat location of u points',
+                                'units':'degrees',
+                                'field':'scalar'}
+    new['vinfo']['lon_u'] = {'long_name':'lon location of u points',
+                                'units':'degrees',
+                                'field':'scalar'}
+    new['vinfo']['lat_v'] = {'long_name':'lat location of v points',
+                                'units':'degrees',
+                                'field':'scalar'}
+    new['vinfo']['lon_v'] = {'long_name':'lon location of v points',
+                                'units':'degrees',
+                                'field':'scalar'}   
+    new['vinfo']['mask_rho'] = {'long_name':'mask on rho points',
+                                'option_0':'land',
+                                'option_1':'ocean'}   
+    new['vinfo']['mask_u'] = {'long_name':'mask on u points',
+                                'option_0':'land',
+                                'option_1':'ocean'}   
+    new['vinfo']['mask_v'] = {'long_name':'mask on v points',
+                                'option_0':'land',
+                                'option_1':'ocean'}   
+    new['vinfo']['mask_psi'] = {'long_name':'mask on psi points',
+                                'option_0':'land',
+                                'option_1':'ocean'}   
+    new['vinfo']['angle'] = {'long_name':'angle between xi axis and east',
+                                'units':'radians'}   
    
 
 
+    # print(ds)
+    vns = ['h', 'f', 'pm', 'pn', 'dndx', 'dmde', 'x_rho', 'y_rho', 'x_psi', 'y_psi', 'x_u', 'y_u', 'x_v', 'y_v', 'lat_rho', 'lon_rho', 'lat_psi', 'lon_psi', 'lat_u', 'lon_u', 'lat_v', 'lon_v', 'mask_rho', 'mask_u', 'mask_v', 'mask_psi', 'angle']
+
+    ds = xr.Dataset(
+        data_vars = dict(
+            xl        = ([],new['xl'], new['vinfo']['xl']),
+            el        = ([],new['el'], new['vinfo']['el']),
+            JPRJ      = ([],new['JPRJ'], new['vinfo']['JPRJ']),
+            spherical = ([],new['spherical'], new['vinfo']['spherical']),
+            depthmin  = ([],new['depthmin'], new['vinfo']['depthmin']),
+            depthmax  = ([],new['depthmax'], new['vinfo']['depthmax']),
+            hraw      = (["er","xr"],new['hraw'], new['vinfo']['hraw']),   
+            h         = (["er","xr"],new['h'], new['vinfo']['hraw']),   
+            f         = (["er","xr"],new['f'], new['vinfo']['h']),   
+            pm        = (["er","xr"],new['pm'], new['vinfo']['pm']),   
+            pn        = (["er","xr"],new['pn'], new['vinfo']['pn']),   
+            dndx      = (["er","xr"],new['dndx'], new['vinfo']['dndx']),   
+            dmde      = (["er","xr"],new['dmde'], new['vinfo']['dmde']),   
+            mask_rho  = (["er","xr"],new['mask_rho'], new['vinfo']['mask_rho']),   
+            mask_u    = (["eu","xu"],new['mask_u'], new['vinfo']['mask_u']),   
+            mask_v    = (["ev","xv"],new['mask_v'], new['vinfo']['mask_v']),   
+            mask_psi  = (["ep","xp"],new['mask_psi'], new['vinfo']['mask_psi']),   
+            angle     = (["er","xr"],new['angle'], new['vinfo']['angle']),   
+        ),
+        coords=dict(
+            lat_rho   = (["er","xr"],new['lat_rho'], new['vinfo']['lat_rho']),
+            lon_rho   = (["er","xr"],new['lon_rho'], new['vinfo']['lon_rho']),
+            lat_u     = (["eu","xu"],new['lat_u'], new['vinfo']['lat_u']),
+            lon_u     = (["eu","xu"],new['lon_u'], new['vinfo']['lon_u']),
+            lat_v     = (["ev","xv"],new['lat_v'], new['vinfo']['lat_v']),
+            lon_v     = (["ev","xv"],new['lon_v'], new['vinfo']['lon_v']),  
+            lat_psi   = (["ep","xp"],new['lat_psi'], new['vinfo']['lat_psi']),
+            lon_psi   = (["ep","xp"],new['lon_psi'], new['vinfo']['lon_psi']),  
+            x_rho     = (["er","xr"],new['x_rho'], new['vinfo']['x_rho']),
+            y_rho     = (["er","xr"],new['y_rho'], new['vinfo']['y_rho']),
+            x_u       = (["eu","xu"],new['x_u'], new['vinfo']['x_u']),
+            y_u       = (["eu","xu"],new['y_u'], new['vinfo']['y_u']),
+            x_v       = (["ev","xv"],new['x_v'], new['vinfo']['x_v']),
+            y_v       = (["ev","xv"],new['y_v'], new['vinfo']['y_v']),  
+            x_psi     = (["ep","xp"],new['x_psi'], new['vinfo']['x_psi']),
+            y_psi     = (["ep","xp"],new['y_psi'], new['vinfo']['y_psi']),  
+         ),
+        attrs={'type':'ocean grid file for roms',
+               'author':'matthew spydell',
+               'note':'same as XWu grid file, but without the last ETA line of points.'},
+        )
+    # print(ds)
+
     ds.to_netcdf(fn_out)
-    ds.close()    
+    ds.close()
+
+# Remi Salmon
+# salmon.remi@gmail.com
+
+
+def ncdisp(source):
+    """
+    Display contents of NetCDF data source.
+
+    Parameters
+    ----------
+    source : str
+        NetCDF data source.
+
+    Returns
+    -------
+    None.
+    """
+
+    data = Dataset(source)
+
+    print('Source:')
+    print('\t{}'.format(source))
+
+    print('Format:')
+    print('\t{}'.format(data.file_format.lower()))
+
+    ncdisp_group(data, level=0)
+
+    return
+
+def ncdisp_group(data, level):
+    if data.ncattrs():
+        print('{}{}Attributes:'.format('\t'*level*2,
+                                       'Global ' if level == 0 else ''))
+
+        l = max(len(a) for a in data.ncattrs())
+
+        for a in data.ncattrs():
+            attribute = getattr(data, a)
+
+            if type(attribute) is str:
+                attribute = '\'{}\''.format(attribute)
+
+            print('{}\t{}{}= {}'.format('\t'*level*2,
+                                        a,
+                                        ' '*(l-len(a)+1),
+                                        attribute))
+
+    if data.dimensions:
+        print('{}Dimensions:'.format('\t'*level*2))
+
+        l = max(len(d) for d in data.dimensions)
+
+        for d in data.dimensions:
+            print('{}\t{}{}= {}{}'.format('\t'*level*2,
+                                          d,
+                                          ' '*(l-len(d)+1),
+                                          data.dimensions[d].size,
+                                          '\t(UNLIMITED)' if data.dimensions[d].size == 0 else ''))
+
+    if data.variables:
+        print('{}Variables:'.format('\t'*level*2))
+
+        for v in data.variables:
+            print('{}\t{}'.format('\t'*level*2,
+                                  v))
+
+            if len(data.variables[v].shape) == 0:
+                size = '1x1'
+            elif len(data.variables[v].shape) == 1:
+                size = '{}x1'.format(data.variables[v].shape[0])
+            else:
+                size = 'x'.join(str(s) for s in data.variables[v].shape[::-1])
+
+            print('{}\t\tSize:       {}'.format('\t'*level*2,
+                                                size))
+
+            dimension = ','.join(str(d) for d in data.variables[v].dimensions[::-1])
+
+            print('{}\t\tDimensions: {}'.format('\t'*level*2,
+                                                dimension))
+
+            #print(type(data.variables[v][:]))
+            if isinstance(data.variables[v][0],str):
+               print('{}\t\tDatatype:   {}'.format('\t'*level*2,
+                                                data.variables[v].dtype))      
+            else:
+                print('{}\t\tDatatype:   {}'.format('\t'*level*2,
+                                                data.variables[v].dtype.name))
+
+            if data.variables[v].ncattrs():
+                print('{}\t\tAttributes:'.format('\t'*level*2))
+
+                l = max(len(a) for a in data.variables[v].ncattrs())
+
+                for a in data.variables[v].ncattrs():
+                    attribute = getattr(data.variables[v], a)
+
+                    if type(attribute) is str:
+                        attribute = '\'{}\''.format(attribute)
+
+                    print('{}\t\t            {}{}= {}'.format('\t'*level*2,
+                                                              a,
+                                                              ' '*(l-len(a)+1),
+                                                              attribute))
+
+    if data.groups:
+        print('{}Groups:'.format('\t'*level*2))
+
+        for g in data.groups:
+            print('{}\t{}/'.format('\t'*level*2,
+                                   data.groups[g].path))
+
+            ncdisp_group(data.groups[g], level=level+1)
+
+    else:
+        return
+
 
 if __name__ == "__main__":
     args = sys.argv
