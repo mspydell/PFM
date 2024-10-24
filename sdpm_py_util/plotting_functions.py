@@ -1222,6 +1222,16 @@ def plot_ocn_ic_fields(filepath, fields_to_plot=None, time_index=0, depth_index=
 
 def plot_ssh_his_tseries_v2(fn,Ix,Iy,sv_fig,lvl):
 
+    PFM=get_PFM_info()
+    if lvl == 'LV1':
+        RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
+    elif lvl == 'LV2':
+        RMG = grdfuns.roms_grid_to_dict(PFM['lv2_grid_file'])
+    elif lvl == 'LV3':
+        RMG = grdfuns.roms_grid_to_dict(PFM['lv3_grid_file'])
+    elif lvl == 'LV4':
+        RMG = grdfuns.roms_grid_to_dict(PFM['lv4_grid_file'])
+
     his_ds = nc.Dataset(fn)
 
     fig = plt.figure(figsize=(6.5,10))
@@ -1229,16 +1239,21 @@ def plot_ssh_his_tseries_v2(fn,Ix,Iy,sv_fig,lvl):
 
     ax1 = fig.add_subplot(gs[0:3, :], projection=ccrs.PlateCarree())
 
-    lt = his_ds.variables['lat_rho'][:]
-    ln = his_ds.variables['lon_rho'][:]
-    hb = his_ds.variables['h'][:]
+#    lt = his_ds.variables['lat_rho'][:]
+#    ln = his_ds.variables['lon_rho'][:]
+#    hb = his_ds.variables['h'][:]
+    lt = RMG['lat_rho'][:]
+    ln = RMG['lon_rho'][:]
+    hb = RMG['h'][:]
     if lvl == 'LV1':
         plevs = np.arange(-4800, 0, 20)
     elif lvl == 'LV2':
         plevs = np.arange(-2400, -9, 1)
     elif lvl == 'LV3':
         plevs = np.arange(-1500, -1, 1)
-    
+    elif lvl == 'LV4':
+        plevs = np.arange(-55, 0, .1)
+            
     cmap = plt.get_cmap('viridis')
     cset = ax1.contourf(ln, lt, -hb, plevs, cmap=cmap, transform=ccrs.PlateCarree())
     plt.set_cmap(cmap)
@@ -1254,10 +1269,13 @@ def plot_ssh_his_tseries_v2(fn,Ix,Iy,sv_fig,lvl):
         ax1.set_title('ROMS LV2 bathymetry')
     elif lvl == 'LV3':
         ax1.set_title('ROMS LV3 bathymetry')
+    elif lvl == 'LV4':
+        ax1.set_title('ROMS LV4 bathymetry')
 
     ax1.add_feature(cfeature.LAND)
     ax1.add_feature(cfeature.BORDERS)
-    ax1.add_feature(cfeature.COASTLINE, linewidth = 2.0)    
+    if lvl != 'LV4':
+        ax1.add_feature(cfeature.COASTLINE, linewidth = 2.0)    
    #ax1.grid(True)
     #ax1.set_aspect(aspect='auto')
     ax1.set_xticks(np.round(np.linspace(np.min(ln), np.max(ln), num=5), 2))
@@ -1309,6 +1327,8 @@ def plot_ssh_his_tseries_v2(fn,Ix,Iy,sv_fig,lvl):
             fn_out = PFM['lv2_plot_dir'] + '/his_ssh_tseries_LV2_' + PFM['yyyymmdd'] + PFM['hhmm'] + '.png'
         elif lvl == 'LV3':
             fn_out = PFM['lv3_plot_dir'] + '/his_ssh_tseries_LV3_' + PFM['yyyymmdd'] + PFM['hhmm'] + '.png'
+        elif lvl == 'LV4':
+            fn_out = PFM['lv4_plot_dir'] + '/his_ssh_tseries_LV4_' + PFM['yyyymmdd'] + PFM['hhmm'] + '.png'
 
         plt.savefig(fn_out, dpi=300)
     else:
@@ -1392,10 +1412,16 @@ def plot_his_temps_wuv(fn,It,Iz,sv_fig,lvl):
         RMG = grdfuns.roms_grid_to_dict(PFM['lv3_grid_file'])
         res = '10m'
         res2 = 'f'
+    elif lvl == 'LV4':
+        RMG = grdfuns.roms_grid_to_dict(PFM['lv4_grid_file'])
+        res = '10m'
+        res2 = 'f'
 
     his_ds = nc.Dataset(fn)
-    lt = his_ds.variables['lat_rho'][:]
-    ln = his_ds.variables['lon_rho'][:]
+    #lt = his_ds.variables['lat_rho'][:]
+    lt = RMG['lat_rho'][:]
+    #ln = his_ds.variables['lon_rho'][:]
+    ln = RMG['lon_rho'][:]
     temp = his_ds.variables['temp'][It,Iz,:,:]
     tempall = his_ds.variables['temp'][:,Iz,:,:]
 
@@ -1445,8 +1471,9 @@ def plot_his_temps_wuv(fn,It,Iz,sv_fig,lvl):
     ax.add_feature(cfeature.BORDERS)
     #coast = cfeature.GSHHSFeature(scale='full')
     #ax.add_feature(cfeature.COASTLINE, resolution=res, linewidth = 1.25)   
-    coast = cfeature.GSHHSFeature(scale=res2)
-    ax.add_feature(coast)
+    if lvl != 'LV4':
+        coast = cfeature.GSHHSFeature(scale=res2)
+        ax.add_feature(coast)
     #ax.coastlines(resolution=res)
     ax.set_xlabel('Longitude')
     ax.set_ylabel('Latitude')
@@ -1464,6 +1491,8 @@ def plot_his_temps_wuv(fn,It,Iz,sv_fig,lvl):
             fn_out = PFM['lv2_plot_dir'] + '/his_tempuv_LV2_' + PFM['yyyymmdd'] + PFM['hhmm'] + '_' + it_str + 'hr.png'
         elif lvl == 'LV3':            
             fn_out = PFM['lv3_plot_dir'] + '/his_tempuv_LV3_' + PFM['yyyymmdd'] + PFM['hhmm'] + '_' + it_str + 'hr.png'
+        elif lvl == 'LV4':            
+            fn_out = PFM['lv4_plot_dir'] + '/his_tempuv_LV4_' + PFM['yyyymmdd'] + PFM['hhmm'] + '_' + it_str + 'hr.png'
         
         plt.savefig(fn_out, dpi=300)
     else:
@@ -1485,6 +1514,11 @@ def make_all_his_figures(lvl):
         fn = PFM['lv3_his_name_full']
         Ix = np.array([210,227])
         Iy = np.array([325,200])
+    elif lvl == 'LV4': # 413 by 251
+        fn = PFM['lv4_his_name_full']
+        #print(fn)
+        Ix = np.array([275,400])
+        Iy = np.array([750,1000])
 
 
     #plot_roms_LV1_bathy_and_locs(fn,Ix,Iy,sv_fig)

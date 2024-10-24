@@ -56,10 +56,25 @@ print('return code for level 3:' + str(ret1.returncode) + ' (0=good)')
 print('LV3 took:')
 t2 = datetime.now()
 print(t2-t0)
+
+###############
+# Run LV4...
+print('=======================================================')
+print('driver_LV4.py is now running...')
+t0 = datetime.now()
+cmd_list = ['python','-u','-W','ignore','driver_run_LV4_v1.py'] # this is in the .../PFM/driver/ directory
+ret1 = subprocess.run(cmd_list)
+print('...done.')
+print('return code for level 4:' + str(ret1.returncode) + ' (0=good)')  
+print('LV4 took:')
+t2 = datetime.now()
+print(t2-t0)
+
+
 print('=======================================================')
 print('\n\n\n')
 print('=======================================================')
-print('total time to do LV1, LV2, and LV3:')
+print('total time to do LV1, LV2, LV3, and LV4:')
 print(t2-t00)
 print('=======================================================')
 

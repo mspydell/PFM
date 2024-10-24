@@ -93,6 +93,17 @@ def get_PFM_info():
       lv3_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV3_rx020.nc'
    #   lv4_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV4_ROTATE_rx020_hplus020_DK_4river_otaymk.nc'
       lv4_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV4_mss_oct2024.nc'
+
+      # this will be the files that are used, but for testing...
+      #PFM['lv4_blank_name'] = 'LV4_BLANK.in'
+      #PFM['lv4_exe_name'] = 'LV4_oceanM'
+
+      # we will first use no waves and rivers. The executable LV4_ocean_nowaves_noriversM 
+      # is the same as LV3_oceanM 
+      PFM['lv4_blank_name'] = 'LV4_BLANK_nowaves_norivers.in'
+      PFM['lv4_yaml_file'] = 'LV4_varinfo_nowaves_norivers.yaml'
+      PFM['lv4_exe_name'] = 'LV4_ocean_nowaves_noriversM'
+   
    #   if str(HOSTNAME) == 'swell':
    #       lv1_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV1_rx020_hmask.nc'
    #   else:
@@ -167,7 +178,7 @@ def get_PFM_info():
       LLB['L1'] = get_llbox(lv1_grid_file)
       LLB['L2'] = get_llbox(lv2_grid_file)
       LLB['L3'] = get_llbox(lv3_grid_file)
-      #LLB['L4'] = get_llbox(lv4_grid_file)
+      LLB['L4'] = get_llbox(lv4_grid_file)
 
 
    # gridding info make sure ntilei * ntilej is a multiple of 36. that's how many cores per node on swell
@@ -195,10 +206,10 @@ def get_PFM_info():
 
       NN['L4','Lm']  = 484     # Lm in input file
       NN['L4','Mm']  = 1139     # Mm in input file
-      NN['L4','ntilei'] = 12    # 6 number of tiles in I-direction
-      NN['L4','ntilej'] = 30    # 18 number of tiles in J-direction
-      NN['L4','np'] = NN['L3','ntilei'] * NN['L3','ntilej'] # total number of processors
-      NN['L4','nnodes'] = int( NN['L3','np'] / 36  )  # 3 number of nodes to be used.  not for .infile but for slurm!
+      NN['L4','ntilei'] = 14    # 6 number of tiles in I-direction
+      NN['L4','ntilej'] = 36    # 18 number of tiles in J-direction
+      NN['L4','np'] = NN['L4','ntilei'] * NN['L4','ntilej'] # total number of processors
+      NN['L4','nnodes'] = int( NN['L4','np'] / 36  )  # 3 number of nodes to be used.  not for .infile but for slurm!
 
 
    # timing info

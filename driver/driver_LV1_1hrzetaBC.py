@@ -408,6 +408,7 @@ dt_LV1['plotting'] = dt_plotting
 dt_LV1['process'] = dt_process
 dt_LV1['download_atm'] = dt_download_atm
 dt_LV1['download_ocn'] = dt_download_ocn
+dt_LV1['hycom_t0'] = yyyymmdd_hy
 
 fn_timing = PFM['lv1_run_dir'] + '/LV1_timing_info.pkl'
 with open(fn_timing,'wb') as fout:
