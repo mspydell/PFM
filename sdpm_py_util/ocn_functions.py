@@ -7656,8 +7656,397 @@ def LV4grid_to_new_dotnc(fn_out):
     ds.to_netcdf(fn_out)
     ds.close()
 
-# Remi Salmon
-# salmon.remi@gmail.com
+
+def mk_lv4_clm_nc():
+    PFM = get_PFM_info()
+    Grd = grdfuns.roms_grid_to_dict(PFM['lv4_grid_file'])
+    nlt,nln = np.shape( Grd['lat_rho'] )
+
+    #def ocn_roms_BC_dict_to_netcdf_pckl(fname_in,fn_out):
+    lv4_ocnBC_pckl = PFM['lv4_forc_dir'] + '/' + PFM['lv4_ocnBC_tmp_pckl_file']
+
+    with open(lv4_ocnBC_pckl,'rb') as fin:
+        BC=pickle.load(fin)
+        print('OCN_BC dict loaded with pickle')
+
+    lv = 'L4'
+    Nz   = PFM['stretching'][lv,'Nz']                              # number of vertical levels: 40
+    Vtr  = PFM['stretching'][lv,'Vtransform']                       # transformation equation: 2
+    Vst  = PFM['stretching'][lv,'Vstretching']                    # stretching function: 4 
+    th_s = PFM['stretching'][lv,'THETA_S']                      # surface stretching parameter: 8
+    th_b = PFM['stretching'][lv,'THETA_B']                      # bottom  stretching parameter: 3
+    Tcl  = PFM['stretching'][lv,'TCLINE']                      # critical depth (m): 50
+    hc   = PFM['stretching'][lv,'hc']
+    
+    D = dict()
+    D['vinfo'] = dict()
+    D['Nz'] = np.squeeze(Nz)
+    D['Vtr'] = np.squeeze(Vtr)
+    D['Vst'] = np.squeeze(Vst)
+    D['th_s'] = np.squeeze(th_s)
+    D['th_b'] = np.squeeze(th_b)
+    D['Tcl'] = np.squeeze(Tcl)
+    D['hc'] = np.squeeze(hc)
+
+    D['vinfo']['Nz'] = {'long_name':'number of vertical rho levels',
+                             'units':'none'}
+    D['vinfo']['Vtr'] = {'long_name':'vertical terrain-following transformation equation'}
+    D['vinfo']['Vst'] = {'long_name':'vertical terrain-following stretching function'}
+    D['vinfo']['th_s'] = {'long_name':'S-coordinate surface control parameter',
+                               'units':'nondimensional',
+                               'field': 'theta_s, scalar, series'}
+    D['vinfo']['th_b'] = {'long_name':'S-coordinate bottom control parameter',
+                               'units':'nondimensional',
+                               'field': 'theta_b, scalar, series'}
+    D['vinfo']['Tcl'] = {'long_name':'S-coordinate surface/bottom layer width',
+                               'units':'meter',
+                               'field': 'Tcline, scalar, series'}
+    D['vinfo']['hc'] = {'long_name':'S-coordinate parameter, critical depth',
+                               'units':'meter',
+                               'field': 'hc, scalar, series'}
+
+    D['spherical'] =  'T'
+    D['vinfo']['spherical'] = {'long_name':'Grid type logical switch',
+                          'option_T':'spherical',
+                          'option_F':'Cartesian'}
+
+
+    hb = Grd['h']
+    zrom = s_coordinate_4(hb, th_b , th_s , Tcl , Nz, hraw=None, zeta=0*hb)
+    D['Cs_r'] = np.squeeze(zrom.Cs_r)
+    D['vinfo']['Cs_r'] = {'long_name':'S-coordinate stretching curves at RHO-points',
+                        'units':'nondimensional',
+                        'valid min':'-1',
+                        'valid max':'0',
+                        'field':'Cs_r, scalar, series'}
+
+    # not including sc_r, Cs_w, sc_w
+
+    vnms = ['temp','salt','dye_01','dye_02']
+    for vn in vnms:
+        D[vn] = np.zeros((2,Nz,nlt,nln))
+        if vn in ['temp','salt']:
+            D[vn] = 9.9e36 + D[vn]
+
+    D['dye_time'] = np.squeeze(BC['dye_time'])
+    D['temp_time'] = D['dye_time']
+    D['salt_time'] = D['dye_time']
+    
+    D['vinfo']['dye_time'] = BC['vinfo']['dye_time']
+    D['vinfo']['salt_time'] = BC['vinfo']['dye_time']
+    D['vinfo']['temp_time'] = BC['vinfo']['dye_time']
+
+    D['vinfo']['dye_01'] = {'long_name':'dye 01 climatology',
+                        'units':'pcent',
+                        'coordinates':'time,s,eta_rho,xi_rho',
+                        'time':'dye_time'}
+    D['vinfo']['dye_02'] = {'long_name':'dye 02 climatology',
+                        'units':'pcent',
+                        'coordinates':'time,s,eta_rho,xi_rho',
+                        'time':'dye_time'}
+    D['vinfo']['temp'] = {'long_name':'potential temp climatology',
+                        'units':'C',
+                        'coordinates':'time,s,eta_rho,xi_rho',
+                        'time':'temp_time'}
+    D['vinfo']['salt'] = {'long_name':'salt climatology',
+                        'units':'psu',
+                        'coordinates':'time,s,eta_rho,xi_rho',
+                        'time':'salt_time'}
+
+    fn_out = PFM['lv4_forc_dir'] + '/' + PFM['lv4_clm_file']
+
+    ds = xr.Dataset(
+        data_vars = dict(
+            dye_01           = (["dye_time","s_rho","er","xr"],D['dye_01'],D['vinfo']['dye_01']),
+            dye_02           = (["dye_time","s_rho","er","xr"],D['dye_02'],D['vinfo']['dye_02']),
+            temp             = (["temp_time","s_rho","er","xr"],D['temp'],D['vinfo']['temp']),
+            salt             = (["salt_time","s_rho","er","xr"],D['salt'],D['vinfo']['salt']),
+            spherical        = ([],D['spherical'], D['vinfo']['spherical']),
+            Nz               = ([],D['Nz'],D['vinfo']['Nz']),
+            Vtransform       = ([],D['Vtr'],D['vinfo']['Vtr']),
+            Vstretching      = ([],D['Vst'],D['vinfo']['Vst']),
+            theta_s          = ([],D['th_s'],D['vinfo']['th_s']),
+            theta_b          = ([],D['th_b'],D['vinfo']['th_b']),
+            Tcline           = ([],D['Tcl'],D['vinfo']['Tcl']),
+            hc               = ([],D['hc'],D['vinfo']['hc']),
+        ),
+        coords=dict(
+                salt_time  = (["salt_time"],D['salt_time'], D['vinfo']['salt_time']),
+                temp_time  = (["temp_time"],D['temp_time'], D['vinfo']['temp_time']),
+                dye_time  =  (["dye_time"],D['dye_time'], D['vinfo']['dye_time']),
+                Cs_r       = (["s_rho"],D['Cs_r'],D['vinfo']['Cs_r']),
+        ),
+        attrs={'type':'climatology file for roms PFM',
+               'author':'matthew spydell',
+               'note':'similar to XWu clm.nc file.'},
+        )
+
+    ds.to_netcdf(fn_out)
+    ds.close()
+
+
+def mk_lv4_nud_nc():
+    PFM = get_PFM_info()
+    Grd = grdfuns.roms_grid_to_dict(PFM['lv4_grid_file'])
+    nlt,nln = np.shape( Grd['lat_rho'] )
+   
+    D = dict()
+    D['vinfo'] = dict()
+    D['lat_rho'] = Grd['lat_rho']
+    D['lon_rho'] = Grd['lon_rho']
+    D['vinfo']['lat_rho'] = {'long_name':'lat location of rho points',
+                                'units':'degrees',
+                                'field':'scalar'}
+    D['vinfo']['lon_rho'] = {'long_name':'lon location of rho points',
+                                'units':'degrees',
+                                'field':'scalar'}
+
+    D['spherical'] =  'T'
+    D['vinfo']['spherical'] = {'long_name':'Grid type logical switch',
+                          'option_T':'spherical',
+                          'option_F':'Cartesian'}
+
+    Nz   = PFM['stretching']['L4','Nz']                              
+    vnms = ['temp_NudgeCoef','salt_NudgeCoef','tracer_NudgeCoef']
+    for vn in vnms:
+        D[vn] = np.zeros((Nz,nlt,nln))
+        if vn in ['temp_NudgeCoef','salt_NudgeCoef']:
+            D[vn] = 9.9e36 + D[vn]
+        else:
+            D[vn] = 0.1 + D[vn]
+
+    D['vinfo']['temp_NudgeCoef'] = {'long_name':'temp inverse nudging coefficient',
+                        'units':'day-1',
+                        'coordinates':'s,eta_rho,xi_rho'}
+    D['vinfo']['salt_NudgeCoef'] = {'long_name':'salt inverse nudging coefficient',
+                        'units':'day-1',
+                        'coordinates':'s,eta_rho,xi_rho'}
+    D['vinfo']['tracer_NudgeCoef'] = {'long_name':'tracer inverse nudging coefficient',
+                        'units':'day-1',
+                        'coordinates':'s,eta_rho,xi_rho'}
+ 
+
+
+    ds = xr.Dataset(
+        data_vars = dict(
+            temp_NudgeCoef     = (["s_rho","er","xr"],D['temp_NudgeCoef'],D['vinfo']['temp_NudgeCoef']),
+            salt_NudgeCoef     = (["s_rho","er","xr"],D['salt_NudgeCoef'],D['vinfo']['salt_NudgeCoef']),
+            tracer_NudgeCoef   = (["s_rho","er","xr"],D['tracer_NudgeCoef'],D['vinfo']['tracer_NudgeCoef']),
+            spherical          = ([],D['spherical'], D['vinfo']['spherical']),
+        ),
+        coords=dict(
+                lat_rho  = (["er","xr"],D['lat_rho'], D['vinfo']['lat_rho']),
+                lon_rho  = (["er","xr"],D['lon_rho'], D['vinfo']['lon_rho']),
+        ),
+        attrs={'type':'nudging file for roms PFM',
+               'author':'matthew spydell',
+               'note':'similar to XWu nudge.nc file.'},
+        )
+
+    fn_out = PFM['lv4_forc_dir'] + '/' + PFM['lv4_nud_file']
+
+    ds.to_netcdf(fn_out)
+    ds.close()
+
+def mk_lv4_river_nc():
+    print('making river tracer dictionary')
+    PFM = get_PFM_info()
+    Grd = grdfuns.roms_grid_to_dict(PFM['lv4_grid_file'])
+#    vns = ( ['theta_s','theta_b','Tcline','hc','Cs_r','sc_r','Cs_w','sc_w','river','river_time',
+#           'river_Xposition','river_Eposition','river_direction','river_Vshape','river_transport',
+#           'river_flag','river_temp','river_salt','river_dye_01','river_dye_02'] )
+    
+    D = dict()
+    D['vinfo'] = dict()
+    lv = 'L4'
+    Nz   = PFM['stretching'][lv,'Nz']                              # number of vertical levels: 40
+    Vtr  = PFM['stretching'][lv,'Vtransform']                       # transformation equation: 2
+    Vst  = PFM['stretching'][lv,'Vstretching']                    # stretching function: 4 
+    th_s = PFM['stretching'][lv,'THETA_S']                      # surface stretching parameter: 8
+    th_b = PFM['stretching'][lv,'THETA_B']                      # bottom  stretching parameter: 3
+    Tcl  = PFM['stretching'][lv,'TCLINE']                      # critical depth (m): 50
+    hc   = PFM['stretching'][lv,'hc']
+    
+    D = dict()
+    D['vinfo'] = dict()
+    D['Nz'] = np.squeeze(Nz)
+    D['Vtr'] = np.squeeze(Vtr)
+    D['Vst'] = np.squeeze(Vst)
+    D['th_s'] = np.squeeze(th_s)
+    D['th_b'] = np.squeeze(th_b)
+    D['Tcl'] = np.squeeze(Tcl)
+    D['hc'] = np.squeeze(hc)
+
+    D['vinfo']['Nz'] = {'long_name':'number of vertical rho levels',
+                             'units':'none'}
+    D['vinfo']['Vtr'] = {'long_name':'vertical terrain-following transformation equation'}
+    D['vinfo']['Vst'] = {'long_name':'vertical terrain-following stretching function'}
+    D['vinfo']['th_s'] = {'long_name':'S-coordinate surface control parameter',
+                               'units':'nondimensional',
+                               'field': 'theta_s, scalar, series'}
+    D['vinfo']['th_b'] = {'long_name':'S-coordinate bottom control parameter',
+                               'units':'nondimensional',
+                               'field': 'theta_b, scalar, series'}
+    D['vinfo']['Tcl'] = {'long_name':'S-coordinate surface/bottom layer width',
+                               'units':'meter',
+                               'field': 'Tcline, scalar, series'}
+    D['vinfo']['hc'] = {'long_name':'S-coordinate parameter, critical depth',
+                               'units':'meter',
+                               'field': 'hc, scalar, series'}
+
+    D['spherical'] =  'T'
+    D['vinfo']['spherical'] = {'long_name':'Grid type logical switch',
+                          'option_T':'spherical',
+                          'option_F':'Cartesian'}
+
+    t0 = PFM['fetch_time']
+    t_ref = PFM['modtime0']
+    nday  = PFM['forecast_days']    
+    t0_days = (t0 - t_ref)  / timedelta(days = 1) # this gets time in days from t_ref
+    # make the river times be every 1 hr for now...
+    triv = np.arange(t0_days,t0_days+nday+2/24,1/24) # the .5/24 is required to end on the last time step.
+    nt = len(triv)
+    D['river_time'] = triv
+    D['vinfo']['river_time'] = {'long_name':'river time',
+                        'units':'days',
+                        'field':'river_time, scalar, series'}
+
+    # do I need to ramp up for nonzero Q? OR will this work?
+    D['river_transport'] = np.zeros((nt,9))
+    D['river_transport'][:,0:5] = -0.01 + D['river_transport'][:,0:5] # this is SDTJRE points
+    D['river_transport'][:,5] = -2.1906 + D['river_transport'][:,5] # this is PB. and is the right value
+    D['river_transport'][:,6:] = -0.01 + D['river_transport'][:,6:] # these are in SD Bay
+    D['vinfo']['river_transport'] = {'long_name':'river runoff mass transport',
+                        'units':'meter^3/s',
+                        'field':'river runoff mass transport, scalar, series'}
+
+    D['river_temp'] = np.zeros((nt,Nz,9))
+    D['river_temp'] = 20.0 + D['river_temp'] # how should this get set?
+    D['vinfo']['river_temp'] = {'long_name':'river runoff potential temperature',
+                        'units':'Celsius',
+                        'field':'river temp, scalar, series'}
+
+    D['river_salt'] = np.zeros((nt,Nz,9)) # this is always zero. 
+    D['vinfo']['river_salt'] = {'long_name':'river runoff salt',
+                        'units':'psu',
+                        'field':'river salt, scalar, series'}
+
+    D['river_dye_01'] = np.zeros((nt,Nz,9)) # this is always zero. 
+    D['river_dye_01'][:,:,5] = 0.7 + D['river_dye_01'][:,:,5]
+    D['vinfo']['river_dye_01'] = {'long_name':'river runoff dye, fraction raw sewage at PB',
+                        'units':'fraction',
+                        'field':'river dye 1, scalar, series'}
+
+    D['river_dye_02'] = np.zeros((nt,Nz,9)) # this is always zero. 
+    D['river_dye_02'][:,:,0:5] = 0.15 + D['river_dye_02'][:,:,0:5]
+    D['vinfo']['river_dye_02'] = {'long_name':'river runoff dye, fraction raw sweage at SDTJRE',
+                        'units':'fraction',
+                        'field':'river dye 2, scalar, series'}
+
+    D['river_Xposition'] = np.array( [433, 433, 433, 433, 433, 337, 464, 464, 439] )
+    D['river_Eposition'] = np.array( [614, 615, 613, 616, 612,  76, 961, 962, 779] )
+    D['river_direction'] = 0 * D['river_Xposition']
+    D['vinfo']['river_Xposition'] = {'long_name':'river runoff  XI-positions at RHO-points',
+                        'units':'scalar',
+                        'field':'river runoff XI position, scalar, series'}
+    D['vinfo']['river_Eposition'] = {'long_name':'river runoff  ETA-positions at RHO-points',
+                        'units':'scalar',
+                        'field':'river runoff ETA position, scalar, series'}
+    D['vinfo']['river_direction'] = {'long_name':'river runoff direction, XI=0, ETA>0',
+                        'units':'scalar',
+                        'field':'river runoff direction, scalar, series'}
+    D['river_Vshape'] = np.array( [[0.1068243,  0.1068243,  0.1068243,  0.1068243,  0.1068243,  0.1068243,
+                                    0.1068243,  0.1068243,  0.1068243 ],
+                                    [0.16414651, 0.16414651, 0.16414651, 0.16414651, 0.16414651, 0.16414651,
+                                    0.16414651, 0.16414651, 0.16414651],
+                                    [0.18450656, 0.18450656, 0.18450656, 0.18450656, 0.18450656, 0.18450656,
+                                    0.18450656, 0.18450656, 0.18450656],
+                                    [0.16907407, 0.16907407, 0.16907407, 0.16907407, 0.16907407, 0.16907407,
+                                    0.16907407, 0.16907407, 0.16907407],
+                                    [0.13549981, 0.13549981, 0.13549981, 0.13549981, 0.13549981, 0.13549981,
+                                    0.13549981, 0.13549981, 0.13549981],
+                                    [0.0991329,  0.0991329,  0.0991329,  0.0991329,  0.0991329,  0.0991329,
+                                    0.0991329,  0.0991329,  0.0991329 ],
+                                    [0.06757376, 0.06757376, 0.06757376, 0.06757376, 0.06757376, 0.06757376,
+                                    0.06757376, 0.06757376, 0.06757376],
+                                    [0.04263029, 0.04263029, 0.04263029, 0.04263029, 0.04263029, 0.04263029,
+                                    0.04263029, 0.04263029, 0.04263029],
+                                    [0.02325146, 0.02325146, 0.02325146, 0.02325146, 0.02325146, 0.02325146,
+                                    0.02325146, 0.02325146, 0.02325146],
+                                    [0.00736032, 0.00736032, 0.00736032, 0.00736032, 0.00736032, 0.00736032,
+                                    0.00736032, 0.00736032, 0.00736032]] )
+    D['vinfo']['river_Vshape'] = {'long_name':'river runoff mass transport vertical profile',
+                        'units':'scalar',
+                        'field':'river runoff vertical profile, scalar, series'}
+    D['river_flag'] = np.array( [3., 3., 3., 3., 3., 3., 3., 3., 3.] )
+    D['vinfo']['river_flag'] = {'long_name':'river flag, 1=temp, 2=salt, 3=temp+salt, 4=temp+salt+sed, 5=temp+salt+sed+bio',
+                        'units':'nondimensional',
+                        'field':'river flag, scalar, series'}
+
+
+    hb = Grd['h']
+    zrom = s_coordinate_4(hb, th_b , th_s , Tcl , Nz, hraw=None, zeta=0*hb)
+    D['Cs_r'] = np.squeeze(zrom.Cs_r)
+    D['vinfo']['Cs_r'] = {'long_name':'S-coordinate stretching curves at RHO-points',
+                        'units':'nondimensional',
+                        'valid min':'-1',
+                        'valid max':'0',
+                        'field':'Cs_r, scalar, series'}
+
+    #D['river'] =np.zeros(9)
+    D['river']= np.array([1., 2., 3., 4., 5., 6., 7., 8., 9.])
+    D['vinfo']['river'] = {'long_name':'river_runoff identification number',
+                           'units':'nondimensional',
+		                   'field':'num_rivers, scalar'}    
+    
+    D['vinfo']['river_time'] = {'long_name':'river_time',
+		                        'units':'days',
+		                        'field':'river_time, scalar, series'}		            
+
+
+    fout = PFM['lv4_forc_dir'] + '/' + PFM['lv4_river_file']
+    
+    river_dict_to_nc(D,fout)
+    #print(fout)
+
+def river_dict_to_nc(D,fout):
+    #    vns = ( ['theta_s','theta_b','Tcline','hc','Cs_r','sc_r','Cs_w','sc_w','river','river_time',
+#           'river_Xposition','river_Eposition','river_direction','river_Vshape','river_transport',
+#           'river_flag','river_temp','river_salt','river_dye_01','river_dye_02'] )
+
+
+    ds = xr.Dataset(
+        data_vars = dict(
+            theta_s         = ([],D['th_s'],D['vinfo']['th_s']),
+            theta_b         = ([],D['th_b'],D['vinfo']['th_b']),
+            Tcline          = ([],D['Tcl'],D['vinfo']['Tcl']),
+            hc              = ([],D['hc'],D['vinfo']['hc']),
+            river           = (["river"],D['river'],D['vinfo']['river']),
+            river_Xposition = (["river"],D['river_Xposition'],D['vinfo']['river_Xposition']),
+            river_Eposition = (["river"],D['river_Eposition'],D['vinfo']['river_Eposition']),
+            river_direction = (["river"],D['river_direction'],D['vinfo']['river_direction']),
+            river_flag      = (["river"],D['river_flag'],D['vinfo']['river_flag']),
+            river_Vshape    = (["s_rho","river"],D['river_Vshape'],D['vinfo']['river_Vshape']),
+            river_transport = (["river_time","river"],D['river_transport'],D['vinfo']['river_transport']),
+            river_temp      = (["river_time","s_rho","river"],D['river_temp'],D['vinfo']['river_temp']),
+            river_salt      = (["river_time","s_rho","river"],D['river_salt'],D['vinfo']['river_salt']),
+            river_dye_01      = (["river_time","s_rho","river"],D['river_dye_01'],D['vinfo']['river_dye_01']),
+            river_dye_02      = (["river_time","s_rho","river"],D['river_dye_02'],D['vinfo']['river_dye_02']),
+        ),
+        coords=dict(
+            Cs_r             = (["s_rho"],D['Cs_r'],D['vinfo']['Cs_r']),
+            river_time       = (["river_time"],D['river_time'],D['vinfo']['river_time']),
+        ),
+        attrs={'type':'river and tracer file for roms PFM',
+               'author':'matthew spydell',
+               'note':'similar to XWu river_tracer.nc file.'},
+        )
+
+
+    #ds.to_netcdf(fout, encoding={'river_Xposition':{'dtype':'int64'},'river_Eposition':{'dtype':'int64'},
+    #                             'river_direction':{'dtype':'int64'},'river_flag':{'dtype':'int64'}})
+    ds.to_netcdf(fout)
+    ds.close()
 
 
 def ncdisp(source):

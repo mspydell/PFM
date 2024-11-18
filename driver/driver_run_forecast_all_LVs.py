@@ -9,6 +9,7 @@ import subprocess
 ##############
 sys.path.append('../sdpm_py_util')
 from util_functions import display_timing_info
+from get_PFM_info import get_PFM_info
 
 ##############
 # Run LV1...
@@ -59,17 +60,29 @@ print(t2-t0)
 
 ###############
 # Run LV4...
-print('=======================================================')
-print('driver_LV4.py is now running...')
-t0 = datetime.now()
-cmd_list = ['python','-u','-W','ignore','driver_run_LV4_v1.py'] # this is in the .../PFM/driver/ directory
-ret1 = subprocess.run(cmd_list)
-print('...done.')
-print('return code for level 4:' + str(ret1.returncode) + ' (0=good)')  
-print('LV4 took:')
-t2 = datetime.now()
-print(t2-t0)
-
+PFM=get_PFM_info()
+if PFM['lv4_model'] == 'ROMS':
+    print('=======================================================')
+    print('LV4 is ROMS only. driver_LV4.py is now running...')
+    t0 = datetime.now()
+    cmd_list = ['python','-u','-W','ignore','driver_run_LV4_v1.py'] # this is in the .../PFM/driver/ directory
+    ret1 = subprocess.run(cmd_list)
+    print('...done.')
+    print('return code for level 4:' + str(ret1.returncode) + ' (0=good)')  
+    print('LV4 took:')
+    t2 = datetime.now()
+    print(t2-t0)
+if PFM['lv4_model'] == 'COAWST':
+    print('=======================================================')
+    print('Using COAWST for LV4. driver_LV4.py is now running...')
+    t0 = datetime.now()
+    cmd_list = ['python','-u','-W','ignore','driver_run_LV4_coawst_v1.py'] # this is in the .../PFM/driver/ directory
+    ret1 = subprocess.run(cmd_list)
+    print('...done.')
+    print('return code for level 4:' + str(ret1.returncode) + ' (0=good)')  
+    print('LV4 took:')
+    t2 = datetime.now()
+    print(t2-t0)
 
 print('=======================================================')
 print('\n\n\n')

@@ -74,6 +74,7 @@ def display_timing_info():
     tr4 = np.sum(T4['roms'][:])
     tr4 = np.round( tr4.total_seconds()/60,decimals=2 )
 
+
     t_atm = np.round(T1['download_atm'][0].total_seconds()/60,decimals=2)
     t_ocn = np.round(T1['download_ocn'][0].total_seconds()/60,decimals=2)
 
@@ -81,6 +82,11 @@ def display_timing_info():
     tot2 = tatm2 + to2 + tb2 + tr2 + tp2
     tot3 = tatm3 + to3 + tb3 + tr3 + tp3
     tot4 = tatm4 + to4 + tb4 + tr4 + tp4
+    if "swan" in T4:
+        #print( T4['swan'][0].total_seconds() )
+        tsw = np.round( T4['swan'][0].total_seconds()/60,decimals=2 )
+        tot4 = tot4 + tsw
+
     tot_tot = tot1+tot2+tot3+tot4
 
     tot1 = np.round(tot1,decimals=2)
@@ -109,6 +115,7 @@ def display_timing_info():
     print(PFM['fetch_time'].strftime("%Y-%m-%d %H:%M"), '    :    forecast start time [UTC]')
     print(PFM['fore_end_time'].strftime("%Y-%m-%d %H:%M"), '    :    forecast end time [UTC]')
     print(PFM['forecast_days'], '                 :    forecast length [days]')
+    print(f'{PFM['lv4_model'] : <21}{':' : <5}{'LV4 ocean model' : <30}')
     print(f'{PFM['ocn_model'] : <21}{':' : <5}{'ocean boundary conditions' : <30}')
     print(f'{T1['hycom_t0'][0:4] + '-' + T1['hycom_t0'][4:6] + '-' + T1['hycom_t0'][6::] + ' 12:00'   : <21}{':' : <5}{'hycom forecast start time [UTC]' : <30}')
 #    print(f'{'20241022' + ' 12:00'   : <21}{':' : <5}{'hycom forecast time' : <30}')
@@ -128,9 +135,11 @@ def display_timing_info():
     print(f'{'' : <7}{'|' : >7}{stp1 : >8}{'|' : >6} {stp2 : >7}{'|' : >6}{stp3 : >8}{'|' : >6}{stp4 : >8}{'|' : >6}')
     print(f'----------------------------------------------------------------------')
     print(f'{''}{'parallelization' : ^70}{''}')
-    print(f'{'nodes =' : >11}{'|' : >3}{GI['L1','nnodes'] : >8}{'|' : >6} {GI['L2','nnodes'] : >7}{'|' : >6}{GI['L3','nnodes'] : >8}{'|' : >6}{GI['L4','nnodes'] : >8}{'|' : >6}')
-    print(f'{'Ntilei =' : >11}{'|' : >3}{GI['L1','ntilei'] : >8}{'|' : >6} {GI['L2','ntilei'] : >7}{'|' : >6}{GI['L3','ntilei'] : >8}{'|' : >6}{GI['L4','ntilei'] : >8}{'|' : >6}')
-    print(f'{'Ntilej =' : >11}{'|' : >3}{GI['L1','ntilej'] : >8}{'|' : >6} {GI['L2','ntilej'] : >7}{'|' : >6}{GI['L3','ntilej'] : >8}{'|' : >6}{GI['L4','ntilej'] : >8}{'|' : >6}')
+    print(f'{'nodes' : >11}{'|' : >3}{GI['L1','nnodes'] : >8}{'|' : >6} {GI['L2','nnodes'] : >7}{'|' : >6}{GI['L3','nnodes'] : >8}{'|' : >6}{GI['L4','nnodes'] : >8}{'|' : >6}')
+    print(f'{'Ntilei' : >11}{'|' : >3}{GI['L1','ntilei'] : >8}{'|' : >6} {GI['L2','ntilei'] : >7}{'|' : >6}{GI['L3','ntilei'] : >8}{'|' : >6}{GI['L4','ntilei'] : >8}{'|' : >6}')
+    print(f'{'Ntilej' : >11}{'|' : >3}{GI['L1','ntilej'] : >8}{'|' : >6} {GI['L2','ntilej'] : >7}{'|' : >6}{GI['L3','ntilej'] : >8}{'|' : >6}{GI['L4','ntilej'] : >8}{'|' : >6}')
+    if "swan" in T4:
+        print(f'{'  swan CPUs' : >11}{'|' : >3}{'' : >8}{'|' : >6} {'' : >7}{'|' : >6}{'' : >8}{'|' : >6}{GI['L4','np_swan'] : >8}{'|' : >6}')
     print(f'----------------------------------------------------------------------')
     print(f'----------------------------------------------------------------------')
     print(f'{''}{'timing information for PFM' : ^70}{''}')
@@ -149,6 +158,9 @@ def display_timing_info():
     print(f'----------------------------------------------------------------------')
     print(f'{'ocn bc' : <7}{'|' : >7}{tb1 : >8}{'|' : >6} {tb2 : >7}{'|' : >6}{tb3 : >8}{'|' : >6}{tb4 : >8}{'|' : >6}')
     print(f'----------------------------------------------------------------------')
+    if "swan" in T4:
+        print(f'{'swan files' : <7}{'|' : >4}{'' : >8}{'|' : >6} {'' : >7}{'|' : >6}{'' : >8}{'|' : >6}{tsw : >8}{'|' : >6}')
+        print(f'----------------------------------------------------------------------')
     print(f'{'plotting' : <7}{'|' : >6}{tp1 : >8}{'|' : >6} {tp2 : >7}{'|' : >6}{tp3 : >8}{'|' : >6}{tp4 : >8}{'|' : >6}')
     print(f'----------------------------------------------------------------------')
     print(f'{'ROMS' : <7}{'|' : >7}{tr1 : >8}{'|' : >6} {tr2 : >7}{'|' : >6}{tr3 : >8}{'|' : >6}{tr4 : >8}{'|' : >6}')

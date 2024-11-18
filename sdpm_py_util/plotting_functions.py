@@ -15,7 +15,8 @@ import matplotlib.dates as mdates
 from matplotlib.gridspec import GridSpec
 import pandas as pd
 import requests
-
+import subprocess
+import os
 
 
 def plot_roms_box(axx, RMG):
@@ -1422,6 +1423,8 @@ def plot_his_temps_wuv(fn,It,Iz,sv_fig,lvl):
     lt = RMG['lat_rho'][:]
     #ln = his_ds.variables['lon_rho'][:]
     ln = RMG['lon_rho'][:]
+    It = int(It)
+    Iz = int(Iz)
     temp = his_ds.variables['temp'][It,Iz,:,:]
     tempall = his_ds.variables['temp'][:,Iz,:,:]
 
@@ -1484,7 +1487,7 @@ def plot_his_temps_wuv(fn,It,Iz,sv_fig,lvl):
 
     it_str = str(It).zfill(3)
 
-    if sv_fig == 1:
+    if sv_fig == '1':
         if lvl == 'LV1':
             fn_out = PFM['lv1_plot_dir'] + '/his_tempuv_LV1_' + PFM['yyyymmdd'] + PFM['hhmm'] + '_' + it_str + 'hr.png'
         elif lvl == 'LV2':            
@@ -1498,8 +1501,91 @@ def plot_his_temps_wuv(fn,It,Iz,sv_fig,lvl):
     else:
         plt.show()
 
+def plot_lv4_coawst_his(fn,It,Iz,sv_fig,lvl,var_name):
+
+    PFM=get_PFM_info()
+    RMG = grdfuns.roms_grid_to_dict(PFM['lv4_grid_file'])
+    #lt = his_ds.variables['lat_rho'][:]
+    lt = RMG['lat_rho'][:]
+    #ln = his_ds.variables['lon_rho'][:]
+    ln = RMG['lon_rho'][:]
+    #Dall = his_ds.variables[var_name][:,Iz,:,:]
+    res = '10m'
+    res2 = 'f'
+
+    It = int(It)
+    Iz = int(Iz)
+    #his_ds = nc.Dataset(fn)
+    with nc.Dataset(fn, 'r') as his_ds:
+        times = his_ds.variables['ocean_time']
+        times2 = num2date(times[:], times.units)
+        times2 = np.array([datetime(year=date.year, month=date.month, day=date.day, 
+                              hour=date.hour, minute=date.minute, second=date.second) for date in times2])
+        if var_name in ['dye_01','dye_02']:
+            D = his_ds.variables[var_name][It,Iz,:,:]
+            D = np.log10(D)
+        if var_name == 'Hwave':
+            D = his_ds.variables[var_name][It,:,:]
+
+
+    #Dp5  = np.empty(1)
+    #Dp95 = np.empty(1)
+
+    #np.percentile(Dall,5,out=Dp5)
+    #np.percentile(Dall,95,out=Dp95)
+
+    if var_name == 'Hwave':
+        units = 'm'
+    if var_name == 'dye_01' or var_name == 'dye_02':
+        units = 'log10 fraction'
+
+    fig, ax = plt.subplots(figsize=(8, 12), subplot_kw={'projection': ccrs.PlateCarree()})
+    #plevs = np.linspace(Dp5, Dp95, 25)
+    if var_name in ['dye_01','dye_02']:
+        cmap = plt.get_cmap('turbo',12)
+        cset = ax.pcolor(ln, lt, D, cmap=cmap, vmin = -6, vmax = 0, transform=ccrs.PlateCarree())
+    else:
+        cmap = plt.get_cmap('turbo')
+        cset = ax.pcolor(ln, lt, D, cmap=cmap, transform=ccrs.PlateCarree())
+    plt.set_cmap(cmap)
+    cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad = 0.05)
+
+
+    start_time = times2[0]
+    forecast_hours = It
+    tzone = datetime.now().astimezone().tzinfo
+    if str(tzone) == 'PDT':
+        toff = -7
+    elif str(tzone) == 'PST':
+        toff = -8
+    tfore = times2[It] + toff * timedelta(hours=1)    
+    annotation = (f'{lvl} {var_name} [{units}] | Forecast: {start_time.strftime("%Y-%m-%d %H:%M:%S")}\n' 
+                   f'Forecast Hour: {forecast_hours:.1f} ({tfore.strftime("%Y-%m-%d %H:%M:%S")} {str(tzone)})')
+
+    ax.text(0.5, 1.05, annotation, transform=ax.transAxes, ha='center', fontsize=12)
+    ax.add_feature(cfeature.LAND)
+    ax.add_feature(cfeature.BORDERS)
+    #coast = cfeature.GSHHSFeature(scale='full')
+    #ax.add_feature(cfeature.COASTLINE, resolution=res, linewidth = 1.25)   
+    ax.set_xlabel('Longitude')
+    ax.set_ylabel('Latitude')
+    ax.grid(True)
+    ax.set_aspect(aspect='auto')
+    ax.set_xticks(np.round(np.linspace(np.min(ln), np.max(ln), num=5), 2))
+    ax.set_yticks(np.round(np.linspace(np.min(lt), np.max(lt), num=5), 2))
+
+    it_str = str(It).zfill(3)
+
+    if sv_fig == '1':
+        fn_out = PFM['lv4_plot_dir'] + '/his_' + var_name + '_LV4_' + PFM['yyyymmdd'] + PFM['hhmm'] + '_' + it_str + 'hr.png'        
+        plt.savefig(fn_out, dpi=300)
+    else:
+        plt.show()
+
+
 def make_all_his_figures(lvl):
     PFM=get_PFM_info()
+    #PFM['lv4_model']='COAWST' # for testing
     sv_fig = 1
     iz = -1
     if lvl == 'LV1':
@@ -1514,9 +1600,14 @@ def make_all_his_figures(lvl):
         fn = PFM['lv3_his_name_full']
         Ix = np.array([210,227])
         Iy = np.array([325,200])
-    elif lvl == 'LV4': # 413 by 251
+    elif lvl == 'LV4' and PFM['lv4_model'] == 'ROMS': # 413 by 251
         fn = PFM['lv4_his_name_full']
         #print(fn)
+        Ix = np.array([275,400])
+        Iy = np.array([750,1000])
+    elif lvl == 'LV4' and PFM['lv4_model'] == 'COAWST': # 413 by 251
+        #fn = '/scratch/PFM_Simulations/LV4_Forecast/His/LV4_ocean_his_202411141800.nc' # for testing!
+        fn = PFM['lv4_his_name_full']        
         Ix = np.array([275,400])
         Iy = np.array([750,1000])
 
@@ -1524,11 +1615,36 @@ def make_all_his_figures(lvl):
     #plot_roms_LV1_bathy_and_locs(fn,Ix,Iy,sv_fig)
     #plot_ssh_his_tseries(fn,Ix,Iy,sv_fig)
     plot_ssh_his_tseries_v2(fn,Ix,Iy,sv_fig,lvl)
+    
+    os.chdir('../sdpm_py_util')
+
     pfm_hrs = int(24*PFM['forecast_days']) # this should be an integer
     It=0
     while It<=pfm_hrs:
-        plot_his_temps_wuv(fn,It,iz,sv_fig,lvl)
+        cmd_list = ['python','-W','ignore','plotting_functions.py','plot_his_temps_wuv',fn,str(It),str(iz),str(sv_fig),lvl] 
+        if lvl == 'LV4':
+            ret1 = subprocess.Popen(cmd_list)  
+        else:
+            ret1 = subprocess.run(cmd_list)   
+        #plot_his_temps_wuv(fn,It,iz,sv_fig,lvl)
+        if PFM['lv4_model'] == 'COAWST' and lvl == 'LV4':
+            print(It)
+            cmd_list = ['python','-W','ignore','plotting_functions.py','plot_lv4_coawst_his',fn,str(It),str(iz),str(sv_fig),lvl,'dye_01'] 
+            ret1 = subprocess.Popen(cmd_list)     
+            cmd_list = ['python','-W','ignore','plotting_functions.py','plot_lv4_coawst_his',fn,str(It),str(iz),str(sv_fig),lvl,'dye_02'] 
+            ret1 = subprocess.Popen(cmd_list)     
+            cmd_list = ['python','-W','ignore','plotting_functions.py','plot_lv4_coawst_his',fn,str(It),str(iz),str(sv_fig),lvl,'Hwave'] 
+            if It<pfm_hrs:
+                ret1 = subprocess.run(cmd_list)     
+            else:
+                ret1 = subprocess.run(cmd_list)
+            #plot_lv4_coawst_his(fn,It,iz,sv_fig,lvl,'dye_01')
+            #plot_lv4_coawst_his(fn,It,iz,sv_fig,lvl,'dye_02')
+            #plot_lv4_coawst_his(fn,It,iz,sv_fig,lvl,'Hwave')
         It += 6
+
+    os.chdir('../driver')
+
 
 def get_noaa_predicted_ssh(tbeg,tend):
     

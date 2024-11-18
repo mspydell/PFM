@@ -62,7 +62,7 @@ def get_PFM_info():
       lv2_root_dir =  pfm_root_dir +  'LV2_Forecast/'
       lv3_root_dir =  pfm_root_dir +  'LV3_Forecast/'
       lv4_root_dir =  pfm_root_dir +  'LV4_Forecast/'
- 
+
       lv1_run_dir  = lv1_root_dir + 'Run'
       lv1_his_dir  = lv1_root_dir + 'His'
       lv1_forc_dir = lv1_root_dir + 'Forc'
@@ -79,37 +79,42 @@ def get_PFM_info():
       lv3_forc_dir = lv3_root_dir + 'Forc'
       lv3_plot_dir = lv3_root_dir + 'Plots'          
 
-      lv4_run_dir  = lv4_root_dir + 'Run'
-      lv4_his_dir  = lv4_root_dir + 'His'
-      lv4_forc_dir = lv4_root_dir + 'Forc'
-      lv4_plot_dir = lv4_root_dir + 'Plots'          
 
-      
+      lv4_run_dir  = lv4_root_dir + 'Run'
+      lv4_forc_dir = lv4_root_dir + 'Forc'
+
+      #lv4_model = 'ROMS'
+      lv4_model = 'COAWST'
+      if lv4_model == 'ROMS':
+         PFM['lv4_blank_name'] = 'LV4_BLANK_nowaves_norivers.in'
+         PFM['lv4_yaml_file'] = 'LV4_varinfo_nowaves_norivers.yaml'
+         PFM['lv4_exe_name'] = 'LV4_ocean_nowaves_noriversM'
+      if lv4_model == 'COAWST':
+         PFM['lv4_blank_name'] = 'LV4_BLANK.in'
+         PFM['lv4_yaml_file'] = 'LV4_varinfo.yaml'
+         PFM['lv4_exe_name'] = 'LV4_coawstM'
+         PFM['lv4_blank_swan_name'] = 'LV4_SWAN_BLANK.in'
+         PFM['lv4_coupling_name'] = 'LV4_COUPLING_BLANK.in'
+
+      lv4_his_dir  = lv4_root_dir + 'His'
+      lv4_plot_dir = lv4_root_dir + 'Plots'          
+      lv4_coawst_varinfo_full = lv4_run_dir + '/LV4_coawst_varinfo.dat'
+      PFM['lv4_coawst_varinfo_full'] = lv4_coawst_varinfo_full
+      PFM['lv4_nwave_dirs'] = '11' # used in the ocean.in file. it does NOT match swan
+      PFM['lv4_clm_file'] = 'LV4_clm.nc'    
+      PFM['lv4_nud_file'] = 'LV4_nud.nc'    
+      PFM['lv4_river_file'] = 'LV4_river.nc'    
+
+
    # defaults that should work on all machines
       parent = Path(__file__).absolute().parent.parent
 
       lv1_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV1_rx020_hmask.nc'
       lv2_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV2_rx020.nc'
       lv3_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV3_rx020.nc'
-   #   lv4_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV4_ROTATE_rx020_hplus020_DK_4river_otaymk.nc'
       lv4_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV4_mss_oct2024.nc'
 
-      # this will be the files that are used, but for testing...
-      #PFM['lv4_blank_name'] = 'LV4_BLANK.in'
-      #PFM['lv4_exe_name'] = 'LV4_oceanM'
 
-      # we will first use no waves and rivers. The executable LV4_ocean_nowaves_noriversM 
-      # is the same as LV3_oceanM 
-      PFM['lv4_blank_name'] = 'LV4_BLANK_nowaves_norivers.in'
-      PFM['lv4_yaml_file'] = 'LV4_varinfo_nowaves_norivers.yaml'
-      PFM['lv4_exe_name'] = 'LV4_ocean_nowaves_noriversM'
-   
-   #   if str(HOSTNAME) == 'swell':
-   #       lv1_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV1_rx020_hmask.nc'
-   #   else:
-   #       lv1_grid_file = '/Users/mspydell/research/FF2024/models/SDPM_mss/PFM_user/grids/GRID_SDTJRE_LV1.nc'
-
-  
       run_type = 'forecast'
 
    # what is the ocean / atm model used to force?
@@ -123,9 +128,14 @@ def get_PFM_info():
    # we now set the forecast duration depending on atm_model
       if atm_model == 'nam_nest':
           PFM['forecast_days'] = 2.5
+          PFM['atm_dt_hr'] = 3
       if atm_model == 'gfs' or atm_model == 'gfs_1hr':
           PFM['forecast_days'] = 5.0 # this should be 5, but might be out of bounds?
-   
+      if atm_model == 'gfs':
+          PFM['atm_dt_hr'] = 3
+      if atm_model == 'gfs_1hr':
+          PFM['atm_dt_hr'] = 1
+
    # what is the time resolution of the models (in days), (used? 9/4/24 MSS)
       daystep_ocn = 3/24
       daystep_atm = 3/24
@@ -206,11 +216,20 @@ def get_PFM_info():
 
       NN['L4','Lm']  = 484     # Lm in input file
       NN['L4','Mm']  = 1139     # Mm in input file
-      NN['L4','ntilei'] = 14    # 6 number of tiles in I-direction
-      NN['L4','ntilej'] = 36    # 18 number of tiles in J-direction
-      NN['L4','np'] = NN['L4','ntilei'] * NN['L4','ntilej'] # total number of processors
-      NN['L4','nnodes'] = int( NN['L4','np'] / 36  )  # 3 number of nodes to be used.  not for .infile but for slurm!
-
+      if lv4_model == 'ROMS':
+         NN['L4','ntilei'] = 14    # 6 number of tiles in I-direction
+         NN['L4','ntilej'] = 36    # 18 number of tiles in J-direction
+         NN['L4','np'] = NN['L4','ntilei'] * NN['L4','ntilej'] # total number of processors
+         NN['L4','nnodes'] = int( NN['L4','np'] / 36  )  # 3 number of nodes to be used.  not for .infile but for slurm!
+      if lv4_model == 'COAWST':
+         # swan = 60, ni=12, nj=37. swan too slow.
+         NN['L4','np_swan']   = 72    # 60 number of CPUs for swan,
+         NN['L4','ntilei'] = 12    # 12 number of tiles in I-direction
+         NN['L4','ntilej'] = 36    # 37 number of tiles in J-direction
+         NN['L4','np_roms'] = NN['L4','ntilei'] * NN['L4','ntilej'] # total number of processors
+         NN['L4','np_tot'] = NN['L4','np_swan'] + NN['L4','np_roms']
+         NN['L4','nnodes'] = int( NN['L4','np_tot'] / 36  )  # 3 number of nodes to be used.  not for .infile but for slurm!         
+         PFM['swan_to_roms'] = '720.0d0'
 
    # timing info
       tt=dict()
@@ -275,8 +294,10 @@ def get_PFM_info():
       PFM['lv2_grid_file'] = lv2_grid_file
       PFM['lv3_grid_file'] = lv3_grid_file
       PFM['lv4_grid_file'] = lv4_grid_file
+      PFM['lv4_model']     = lv4_model
 
       PFM['hycom_data_dir'] = '/scratch/PFM_Simulations/hycom_data/'
+      PFM['cdip_data_dir'] = '/scratch/PFM_Simulations/cdip_data'
 
       PFM['lv1_tides_file']          = 'ocean_tide.nc'
       PFM['atm_tmp_pckl_file']       = 'atm_tmp_pckl_file.pkl'
@@ -322,8 +343,15 @@ def get_PFM_info():
       PFM['atm_tmp_LV4_pckl_file']   = 'atm_tmp_LV4_pckl_file.pkl'
       PFM['lv4_atm_file']            = 'LV4_ATM_FORCING.nc'
       PFM['lv4_ini_file']            = 'LV4_OCEAN_IC.nc'
-      PFM['lv4_bc_file']             = 'LV4_OCEAN_BC.nc'   
-     
+      PFM['lv4_bc_file']             = 'LV4_OCEAN_BC.nc'
+      PFM['lv4_swan_pckl_file']      = 'LV4_swan_bnd.pkl'
+      PFM['lv4_swan_grd_file']       = 'swan_LV4.grd'
+      PFM['lv4_swan_bot_file']       = 'swan_LV4.bot' 
+      PFM['lv4_swan_bnd_file']       = 'LV4_swan.bnd'
+      PFM['lv4_swan_wnd_file']       = 'LV4_swan.wnd' 
+      PFM['lv4_swan_dt_sec']         = 240
+      PFM['lv4_swan_rst_int_hr']     = 6
+      
       PFM['modtime0']        = modtime0
       PFM['roms_time_units'] = roms_time_units
       PFM['ds_fmt']          = ds_fmt
@@ -415,9 +443,13 @@ def get_PFM_info():
 
       PFM['lv4_his_name'] = 'LV4_ocean_his_' + yyyymmdd + hhmm + '.nc'
       PFM['lv4_rst_name'] = 'LV4_ocean_rst_' + yyyymmdd + hhmm + '_' + end_str + '.nc' 
+      PFM['lv4_swan_rst_name']  = 'LV4_swan_rst_' + yyyymmdd + hhmm + '_' + end_str + '.dat' 
       PFM['lv4_his_name_full'] = PFM['lv4_his_dir'] + '/'  + PFM['lv4_his_name']
       PFM['lv4_rst_name_full'] = PFM['lv4_forc_dir'] + '/' + PFM['lv4_rst_name']
-   
+      PFM['lv4_swan_rst_name_full'] = PFM['lv4_forc_dir'] + '/' + PFM['lv4_swan_rst_name']
+  
+
+
 
       with open(PFM['info_file'],'wb') as fout:
          pickle.dump(PFM,fout)
