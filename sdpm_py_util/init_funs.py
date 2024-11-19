@@ -71,14 +71,14 @@ def initialize_simulation(args):
 
         dirs=[PFM['lv1_his_dir'],PFM['lv1_plot_dir'],PFM['lv1_forc_dir'],
               PFM['lv2_his_dir'],PFM['lv2_plot_dir'],PFM['lv2_forc_dir'],
-              PFM['lv3_his_dir'],PFM['lv3_plot_dir'],PFM['lv3_forc_dir']]
-              #PFM['lv4_his_dir'],PFM['lv4_plot_dir'],PFM['lv4_forc_dir']] 
+              PFM['lv3_his_dir'],PFM['lv3_plot_dir'],PFM['lv3_forc_dir'],
+              PFM['lv4_his_dir'],PFM['lv4_plot_dir'],PFM['lv4_forc_dir']] 
 
         runl = ['/*.out','/*.sb','/*.log','/*.in']
 
         print('removing PFM info file...')
         os.remove(PFM['info_file'])
-        print('now removing all input files...')
+        print('now removing all previous input and png files...')
 
         for dd in dirs: # for everything but run dir
             if 'Forc' in dd or 'His' in dd:
