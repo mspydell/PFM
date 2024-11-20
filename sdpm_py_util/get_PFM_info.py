@@ -108,17 +108,19 @@ def get_PFM_info():
 
    # defaults that should work on all machines
       parent = Path(__file__).absolute().parent.parent
-
       lv1_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV1_rx020_hmask.nc'
       lv2_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV2_rx020.nc'
       lv3_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV3_rx020.nc'
       lv4_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV4_mss_oct2024.nc'
 
-
       run_type = 'forecast'
 
    # what is the ocean / atm model used to force?
       ocn_model = 'hycom_new' # worked with 'hycom' but that is now (9/13/24) depricated
+      
+      if ocn_model == 'hycom_new':
+         add_tides=0 # the new version of hycom has tides, we don't need to add them
+
       atm_model = 'nam_nest'
       #atm_model = 'gfs'
       #atm_model = 'gfs_1hr'
@@ -252,13 +254,13 @@ def get_PFM_info():
    # output info
       OP = dict()
       OP['L1','his_interval'] = 3600 # how often in sec outut is written to his.nc   
-      OP['L1','rst_interval'] = 0.5  # how often in days, a restart file is made.
+      OP['L1','rst_interval'] = 0.25  # how often in days, a restart file is made.
       OP['L2','his_interval'] = 3600 # how often in sec outut is written to his.nc
-      OP['L2','rst_interval'] = 0.5  # how often in days, a restart file is made. 
+      OP['L2','rst_interval'] = 0.25  # how often in days, a restart file is made. 
       OP['L3','his_interval'] = 3600 # how often in sec outut is written to his.nc
-      OP['L3','rst_interval'] = 0.5  # how often in days, a restart file is made. 
+      OP['L3','rst_interval'] = 0.25  # how often in days, a restart file is made. 
       OP['L4','his_interval'] = 3600 # how often in sec outut is written to his.nc
-      OP['L4','rst_interval'] = 0.5  # how often in days, a restart file is made. 
+      OP['L4','rst_interval'] = 0.25  # how often in days, a restart file is made. 
 
       PFM['run_type'] = run_type
 
@@ -313,17 +315,15 @@ def get_PFM_info():
       PFM['lv1_bc_file']             = 'LV1_OCEAN_BC.nc'   
       PFM['lv1_executable']          = 'LV1_oceanM'
    
-      add_tides=0
       if add_tides==1:
          print('we are using the ROMS with LV1 tidal forcing')
          PFM['lv1_executable']          = 'LV1_oceanM_w_tide_forcing'
          PFM['lv1_tide_fname']          = 'roms_tide_adcirc_LV01.nc'
          PFM['lv1_tides_file']          = PFM['lv1_tide_dir'] + '/' + PFM['lv1_tide_fname']
       else:
-          print('we are not adding tidal forcing as Hycom includes tides.')
+         print('we are not adding tidal forcing as Hycom includes tides.')
        
-
-
+      
       PFM['lv2_ocnIC_tmp_pckl_file'] = 'ocnIC_LV2_tmp_pckl_file.pkl'   
       PFM['lv2_ocnBC_tmp_pckl_file'] = 'BC_LV2_tmp_file.pkl'
       PFM['atm_tmp_LV2_pckl_file']   = 'atm_tmp_LV2_pckl_file.pkl'
@@ -372,7 +372,10 @@ def get_PFM_info():
       PFM['tinfo']          = tt
       PFM['outputinfo']     = OP
 
+      # this is the switch to use restart files
       use_restart = 0
+      PFM['restart_files_dir'] =  pfm_root_dir + 'restart_data' 
+
       PFM['lv1_use_restart']         = use_restart
       PFM['lv2_use_restart']         = use_restart
       PFM['lv3_use_restart']         = use_restart

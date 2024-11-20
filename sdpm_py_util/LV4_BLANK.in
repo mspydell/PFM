@@ -282,7 +282,7 @@ ad_VolCons(north) ==  F                            ! northern boundary
 ! Input/Output parameters.
 
        NRREC == $nrrec$   ! -1 is most resent restart stamp, 0 is new solution
-   LcycleRST == T
+   LcycleRST == F
         NRST == $nrst$
         NSTA == 1
         NFLT == 1

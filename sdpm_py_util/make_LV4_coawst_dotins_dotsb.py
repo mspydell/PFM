@@ -105,17 +105,16 @@ def  make_LV4_coawst_dotins_dotsb():
     D['swan_dt_sec'] = PFM['lv4_swan_dt_sec']
     D['swan_rst_int_hr'] = PFM['lv4_swan_rst_int_hr']
     D['swan_rst_name_full'] = PFM['lv4_swan_rst_name_full']
-    start_type = 'new'
-
-    if start_type == 'perfect':
-        nrrec       = '-1' # '-1' for a perfect restart
-        ininame     = 'ocean_rst.nc' # start from restart file
-        lv4_ini_dir = PFM['lv4_run_dir']
+    
+    start_type = PFM['lv4_use_restart'] # 0=new solution. 1=from a restart file
+    if start_type == 1:
+        nrrec        = str(PFM['lv4_nrrec']) # 
+        lv4_ini_dir  = PFM['restart_files_dir']
     else: 
-        nrrec       = '0' # '0' for a history or ini file
-        ininame     = PFM['lv4_ini_file']  # start from ini file
-        lv4_ini_dir = PFM['lv4_forc_dir']
+        nrrec        = '0' # '0' for a new solution
+        lv4_ini_dir  = PFM['lv4_forc_dir']
 
+    ininame     = PFM['lv4_ini_file']  # start from ini file
     D['nrrec']        = nrrec
     D['lv4_ini_file'] = lv4_ini_dir + '/' + ininame
     D['lv4_bc_file']  = PFM['lv4_forc_dir'] + '/' + PFM['lv4_bc_file']    

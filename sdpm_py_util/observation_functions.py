@@ -123,3 +123,45 @@ def get_cdip_buoy_data_old(start_date_str, end_date_str, location_code, variable
     cdip_buoy['gpsLongitude'] = np.nanmean( cdip_buoy['gpsLongitude'] )
 
     return cdip_buoy
+
+def get_wind_data(metadata):
+    all_observed_times = []
+    all_observed_speeds = []
+    all_observed_directions = []
+    start_date = pd.to_datetime(metadata['start'])
+    end_date = pd.to_datetime(metadata['end'])
+    location = metadata['location']
+    time_zone = metadata['time_zone']
+    format = metadata['format']
+    
+    current_start_date = start_date
+    
+    while current_start_date <= end_date:
+        # Calculate the current end date for this iteration (cannot exceed 31 days)
+        current_end_date = min(current_start_date + timedelta(days=30), end_date)
+    
+        res = re.get(f'https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=wind&application=NOS.COOPS.TAC.MET&begin_date={current_start_date.strftime("%Y%m%d")}&end_date={current_end_date.strftime("%Y%m%d")}&station={location}&time_zone={time_zone}&units=metric&interval=6&format={format}')
+        obs_wind_data = res.json()['data'] if 'data' in res.json() else []
+        print(f'https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=wind&application=NOS.COOPS.TAC.MET&begin_date={current_start_date.strftime("%Y%m%d")}&end_date={current_end_date.strftime("%Y%m%d")}&station={location}&time_zone={time_zone}&units=metric&interval=6&format={format}')
+        
+        obs_times = []
+        obs_speeds = []
+        obs_dirs = []
+        for data in obs_wind_data:
+            if data['f'] == '0,0':
+                obs_times.append(datetime.strptime(data['t'], '%Y-%m-%d %H:%M'))
+                obs_speeds.append(data['s'])
+                obs_dirs.append(data['d'])
+        
+        all_observed_times.extend(obs_times)
+        all_observed_speeds.extend(obs_speeds)
+        all_observed_directions.extend(obs_dirs)
+        
+        current_start_date = current_end_date + timedelta(days=1)
+    
+    #print(all_observed_speeds[18115:18125])
+    return {
+        'times': np.array(all_observed_times), 
+        'speeds': np.array([float(x) for x in all_observed_speeds if x != '']), 
+        'directions': np.array([float(x) for x in all_observed_directions if x != ''])
+    }

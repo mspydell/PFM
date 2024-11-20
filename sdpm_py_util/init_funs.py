@@ -5,10 +5,12 @@ from pathlib import Path
 from datetime import datetime, timezone, timedelta, date
 from get_PFM_info import get_PFM_info
 import glob
+import shutil
+import netCDF4
+import cftime
 
 sys.path.append('../sdpm_py_util')
 import ocn_functions as ocnfuns
-
 
 def determine_hycom_foretime():
     PFM=get_PFM_info()
@@ -144,3 +146,97 @@ def remake_PFM_pkl_file(args):
             pickle.dump(PFM,fout)
             print('PFM info was resaved as ' + PFM['info_file'])
 
+def move_restart_ncs():
+    PFM = get_PFM_info()
+    PFM['restart_file_dir'] = '/scratch/PFM_Simulations/restart_data'
+    rst_dirs = [PFM['lv1_forc_dir'],PFM['lv2_forc_dir'],PFM['lv3_forc_dir'],PFM['lv4_forc_dir']]
+    for pp in rst_dirs:
+        ddd = pp + '/*rst*.nc'
+        fall = glob.glob(ddd)
+        if not fall:
+            print('there are no restart files in ' + pp + ' to move.')
+        else:
+            for f in fall:
+                head, tail = os.path.split(f)
+                fnew = PFM['restart_file_dir'] + '/' + tail
+                shutil.move(f,fnew)
+
+def remove_old_restart_ncs():
+    PFM = get_PFM_info()
+    PFM['restart_file_dir'] = '/scratch/PFM_Simulations/restart_data'
+    for lvl in ['LV1','LV2','LV3','LV4']:
+        rst_files = glob.glob(PFM['restart_file_dir'] + '/' + lvl + '*.nc')
+        for rf in rst_files:
+            head, tail = os.path.split(rf)
+            yyyymmddhh = tail[14:24]
+            tnow = datetime.now()
+            told = tnow - timedelta(days=7) # removing files older than 1 week from now
+            tf = datetime.strptime(yyyymmddhh,"%Y%m%d%H")
+            if tf<told:
+                print('removing old ' + rf)
+            else:
+                print('nothing to remove, keeping ' + rf)
+
+
+def convert_cftime_to_datetime(cftime_list):
+    return [datetime.datetime(t.year, t.month, t.day, t.hour, t.minute, t.second) for t in cftime_list]
+
+def find_restart_index(datetime_list, target_datetime):
+    ind = 0
+    for dt in datetime_list:
+        if dt == target_datetime:
+            return ind # note, the index returned here is python indexing from 0. need to add 1 to it for ROMS
+        ind = ind+1
+
+    ind = -99    
+    return ind
+
+def get_restart_file_and_index(lvl):
+    PFM = get_PFM_info()
+    PFM['restart_file_dir'] = '/scratch/PFM_Simulations/restart_data'
+    t_fore = PFM['fetch_time'] + 1 * timedelta(days = 1)
+    print('going to restart ' + lvl + ' from')
+    print(t_fore)
+    rst_files = glob.glob(PFM['restart_file_dir'] + '/' + lvl + '*.nc')
+    dts = []
+    for rf in rst_files:
+        head, tail = os.path.split(rf)
+        yyyymmddhh = tail[14:24]
+        tnc = datetime.strptime(yyyymmddhh,"%Y%m%d%H")
+        dts.append(t_fore - tnc)
+    
+    isort = np.argsort(dts)
+    cnt = 0
+    found = 0
+    while found != 1:
+        fname = rst_files[isort[cnt]]
+        print('looking in ' + fname + ' for the right restart time...')
+        ds = netCDF4.Dataset(fname)
+        t_var = ds['ocean_time']
+        t_units = t_var.units
+        t = netCDF4.num2date(t_var[:],t_units)
+        t = convert_cftime_to_datetime(t)
+        print(t)
+        index = find_restart_index(t, t_fore)
+        if index != -99:
+            found = 1
+            print('found the time!')
+            break
+
+        print('didnt find the right time in ' + fname)
+        print('going to look at a previous forecast restart file...')
+        cnt = cnt+1
+
+    print('going to restart using ' + fname + ' and index ' + str(index))    
+    return fname, index
+
+def edit_and_save_PFM(dict_in):
+    PFM = get_PFM_info()
+    kys = dict_in.keys()
+    for ky in kys:
+        PFM[ky] = dict_in[ky]
+    
+    with open(PFM['info_file'],'wb') as fout:
+        pickle.dump(PFM,fout)
+        print('PFM info was edited and resaved')
+    
