@@ -1,6 +1,7 @@
 import os
 import sys
 import pickle
+import numpy as np
 from pathlib import Path
 from datetime import datetime, timezone, timedelta, date
 from get_PFM_info import get_PFM_info
@@ -179,7 +180,7 @@ def remove_old_restart_ncs():
 
 
 def convert_cftime_to_datetime(cftime_list):
-    return [datetime.datetime(t.year, t.month, t.day, t.hour, t.minute, t.second) for t in cftime_list]
+    return [datetime(t.year, t.month, t.day, t.hour, t.minute, t.second) for t in cftime_list]
 
 def find_restart_index(datetime_list, target_datetime):
     ind = 0
@@ -194,7 +195,7 @@ def find_restart_index(datetime_list, target_datetime):
 def get_restart_file_and_index(lvl):
     PFM = get_PFM_info()
     PFM['restart_file_dir'] = '/scratch/PFM_Simulations/restart_data'
-    t_fore = PFM['fetch_time'] + 1 * timedelta(days = 1)
+    t_fore = PFM['fetch_time'] + 0 * timedelta(days = 1)
     print('going to restart ' + lvl + ' from')
     print(t_fore)
     rst_files = glob.glob(PFM['restart_file_dir'] + '/' + lvl + '*.nc')
@@ -208,7 +209,7 @@ def get_restart_file_and_index(lvl):
     isort = np.argsort(dts)
     cnt = 0
     found = 0
-    while found != 1:
+    while cnt < len(isort):
         fname = rst_files[isort[cnt]]
         print('looking in ' + fname + ' for the right restart time...')
         ds = netCDF4.Dataset(fname)
@@ -224,7 +225,12 @@ def get_restart_file_and_index(lvl):
             break
 
         print('didnt find the right time in ' + fname)
-        print('going to look at a previous forecast restart file...')
+        if cnt<len(isort)-1:
+            print('going to look at a previous forecast restart file...')
+        else:
+            print('the time stamp wasnt found in any restart file.')
+            fname = 'none'
+            index = -99
         cnt = cnt+1
 
     print('going to restart using ' + fname + ' and index ' + str(index))    

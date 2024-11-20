@@ -76,17 +76,15 @@ def  make_LV2_dotin_and_SLURM( PFM , yyyymmddhhmm):
     D['lv2_his_name_full'] = PFM['lv2_his_name_full']
     D['lv2_rst_name_full'] = PFM['lv2_rst_name_full'] 
     
-    start_type = 'new'
-
-    if start_type == 'perfect':
-        nrrec       = '-1' # '-1' for a perfect restart
-        ininame     = 'ocean_rst.nc' # start from restart file
-        lv2_ini_dir = PFM['lv2_run_dir']
+    start_type = PFM['lv2_use_restart'] # 0=new solution. 1=from a restart file
+    if start_type == 1:
+        nrrec        = str(PFM['lv2_nrrec']) # 
+        lv2_ini_dir  = PFM['restart_files_dir']
     else: 
-        nrrec       = '0' # '0' for a history or ini file
-        ininame     = PFM['lv2_ini_file']  # start from ini file
-        lv2_ini_dir = PFM['lv2_forc_dir']
+        nrrec        = '0' # '0' for a new solution
+        lv2_ini_dir  = PFM['lv2_forc_dir']
 
+    ininame     = PFM['lv2_ini_file']  # start from ini file
     D['nrrec']        = nrrec
     D['lv2_ini_file'] = lv2_ini_dir + '/' + ininame
     D['lv2_bc_file']  = PFM['lv2_forc_dir'] + '/' + PFM['lv2_bc_file']    
