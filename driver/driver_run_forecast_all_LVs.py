@@ -58,6 +58,11 @@ print('LV3 took:')
 t2 = datetime.now()
 print(t2-t0)
 
+testing = 0
+if testing == 1:
+    print('exiting the simulation for testing LV1-3.')
+    sys.exit()
+
 ###############
 # Run LV4...
 PFM=get_PFM_info()

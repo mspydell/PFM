@@ -10,6 +10,7 @@ import os.path
 import pickle
 from scipy.spatial import cKDTree
 import glob
+import shutil
 
 #sys.path.append('../sdpm_py_util')
 from get_PFM_info import get_PFM_info
@@ -300,6 +301,50 @@ def cdip_ncs_to_dict(refresh):
     with open(fn_out,'wb') as fp:
         pickle.dump(cdip,fp)
         print('\nCDIP data saved as pickle file')
+
+def check_and_move(fname):
+    PFM = get_PFM_info()
+    rst_dir = PFM['restart_files_dir'] + '/'
+    fname_full = rst_dir + fname
+
+    dtf  = PFM['lv4_swan_rst_int_hr']
+
+    """Watches the source file and copies it to the destination when it's written."""
+    last_modified_time = 0
+
+    while True:
+        try:
+            current_modified_time = os.path.getmtime(fname_full)
+            if current_modified_time > last_modified_time:
+                hrr = str(dtf).zfill(3)
+                fnew = fname_full[0:-7] + '_' + hrr + fname[-7:]
+                print(f"File '{fname_full}' modified. Copying to '{fnew}'...")
+                shutil.copy2(fname_full, fnew)  # Use shutil.copy2 to preserve metadata
+                last_modified_time = current_modified_time
+        except FileNotFoundError:
+            print(f"File '{fname_full}' not found. Waiting...")
+
+        time.sleep(1)  # Check every 1 second
+
+
+def manage_swan_restart_files():
+    PFM = get_PFM_info()
+    fn0 = PFM['lv4_swan_rst_name']
+    ncpu = PFM['gridinfo']['L4','np_swan']
+    fns = [] # this will be a list of the swan restart file names
+    for ii in np.arange(ncpu):
+        ist = str(ii+1).zfill(3)
+        fnew = fn0 + '-.' + ist
+        fns.append(fnew)    
+
+    # swan write the rst files at the beginning of the simulation... Do they get written over? 
+    #for fn in fns:
+    #    fout = rst_dir + fn
+    #    with open(fout, "w") as f:
+    #        pass  # Do nothing, just create the file
+
+    for fn in fns:
+        check_and_move(fn)
 
 
 if __name__ == "__main__":

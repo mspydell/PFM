@@ -373,13 +373,12 @@ def get_PFM_info():
       PFM['outputinfo']     = OP
 
       # this is the switch to use restart files
-      use_restart = 0
       PFM['restart_files_dir'] =  pfm_root_dir + 'restart_data' 
 
-      PFM['lv1_use_restart']         = use_restart
-      PFM['lv2_use_restart']         = use_restart
-      PFM['lv3_use_restart']         = use_restart
-      PFM['lv4_use_restart']         = use_restart
+      PFM['lv1_use_restart']         = 1 # use_restart
+      PFM['lv2_use_restart']         = 1
+      PFM['lv3_use_restart']         = 1
+      PFM['lv4_use_restart']         = 1
 
       # now do the timing information
       start_time = datetime.now()
@@ -432,24 +431,24 @@ def get_PFM_info():
       # for a restart file to work, the end_str of a restart file must match the 
       # fetch_time of the PFM simulation...
       PFM['lv1_his_name_full'] = PFM['lv1_his_dir'] + '/' + PFM['lv1_his_name']
-      PFM['lv1_rst_name_full'] = PFM['lv1_forc_dir'] + '/' + PFM['lv1_rst_name']
+      PFM['lv1_rst_name_full'] = PFM['restart_files_dir'] + '/' + PFM['lv1_rst_name']
 
       PFM['lv2_his_name'] = 'LV2_ocean_his_' + yyyymmdd + hhmm + '.nc'
       PFM['lv2_rst_name'] = 'LV2_ocean_rst_' + yyyymmdd + hhmm + '_' + end_str + '.nc' 
       PFM['lv2_his_name_full'] = PFM['lv2_his_dir'] + '/' + PFM['lv2_his_name']
-      PFM['lv2_rst_name_full'] = PFM['lv2_forc_dir'] + '/' + PFM['lv2_rst_name']
+      PFM['lv2_rst_name_full'] = PFM['restart_files_dir'] + '/' + PFM['lv2_rst_name']
 
       PFM['lv3_his_name'] = 'LV3_ocean_his_' + yyyymmdd + hhmm + '.nc'
       PFM['lv3_rst_name'] = 'LV3_ocean_rst_' + yyyymmdd + hhmm + '_' + end_str + '.nc' 
       PFM['lv3_his_name_full'] = PFM['lv3_his_dir'] + '/'  + PFM['lv3_his_name']
-      PFM['lv3_rst_name_full'] = PFM['lv3_forc_dir'] + '/' + PFM['lv3_rst_name']
+      PFM['lv3_rst_name_full'] = PFM['restart_files_dir'] + '/' + PFM['lv3_rst_name']
 
       PFM['lv4_his_name'] = 'LV4_ocean_his_' + yyyymmdd + hhmm + '.nc'
       PFM['lv4_rst_name'] = 'LV4_ocean_rst_' + yyyymmdd + hhmm + '_' + end_str + '.nc' 
-      PFM['lv4_swan_rst_name']  = 'LV4_swan_rst_' + yyyymmdd + hhmm + '_' + end_str + '.dat' 
+      PFM['lv4_swan_rst_name']  = 'LV4_swan_rst_' + yyyymmdd + hhmm + '.dat' 
       PFM['lv4_his_name_full'] = PFM['lv4_his_dir'] + '/'  + PFM['lv4_his_name']
-      PFM['lv4_rst_name_full'] = PFM['lv4_forc_dir'] + '/' + PFM['lv4_rst_name']
-      PFM['lv4_swan_rst_name_full'] = PFM['lv4_forc_dir'] + '/' + PFM['lv4_swan_rst_name']
+      PFM['lv4_rst_name_full'] = PFM['restart_files_dir'] + '/' + PFM['lv4_rst_name']
+      PFM['lv4_swan_rst_name_full'] = PFM['restart_files_dir'] + '/' + PFM['lv4_swan_rst_name']
   
 
 

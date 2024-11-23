@@ -116,37 +116,58 @@ dt_bc = []
 dt_bc.append(t2-t01)
 
 ##############
+dt_ic = []
 t1=datetime.now()
 t01 = datetime.now()
-print('driver_run_forcast_LV3: saving LV'+str(level)+'_OCN_IC pickle file')
-os.chdir('../sdpm_py_util')
-cmd_list = ['python','-W','ignore','ocn_functions.py','mk_LV2_IC_dict',str(level)]
-ret5 = subprocess.run(cmd_list)   
-print('return code: ' + str(ret5.returncode) + ' (0=good)')  
-os.chdir('../sdpm_py_util')
-print('driver_run_forecast_LV3:  done with writing LV3_OCN_IC.pkl file.') 
-print('this took:')
-t2 = datetime.now()
-print(t2-t1)
-print('\n')
+if PFM['lv3_use_restart']==0:
+    print('driver_run_forcast_LV3: saving LV'+str(level)+'_OCN_IC pickle file')
+    os.chdir('../sdpm_py_util')
+    cmd_list = ['python','-W','ignore','ocn_functions.py','mk_LV2_IC_dict',str(level)]
+    ret5 = subprocess.run(cmd_list)   
+    print('return code: ' + str(ret5.returncode) + ' (0=good)')  
+    os.chdir('../sdpm_py_util')
+    print('driver_run_forecast_LV3:  done with writing LV3_OCN_IC.pkl file.') 
+    print('this took:')
+    t2 = datetime.now()
+    print(t2-t1)
+    print('\n')
 
-##############
-t1=datetime.now()
-lv3_ocnIC_pckl = PFM['lv3_forc_dir'] + '/' + PFM['lv3_ocnIC_tmp_pckl_file']
-lv3_ic_file_out = PFM['lv3_forc_dir'] + '/' + PFM['lv3_ini_file']
-print('driver_run_forcast_LV3: saving LV3_OCN_IC netcdf file')
-os.chdir('../sdpm_py_util')
-cmd_list = ['python','-W','ignore','ocn_functions.py','ocn_roms_IC_dict_to_netcdf_pckl',lv3_ocnIC_pckl,lv3_ic_file_out]
-ret5 = subprocess.run(cmd_list)   
-print('return code: ' + str(ret5.returncode) + ' (0=good)')  
-os.chdir('../sdpm_py_util')
-print('driver_run_forecast_L3:  done with writing LV3_OCN_IC.nc file.') 
-print('this took:')
-t2 = datetime.now()
-print(t2-t1)
-print('\n')
-dt_ic = []
-dt_ic.append(t2-t01)
+    ##############
+    t1=datetime.now()
+    lv3_ocnIC_pckl = PFM['lv3_forc_dir'] + '/' + PFM['lv3_ocnIC_tmp_pckl_file']
+    lv3_ic_file_out = PFM['lv3_forc_dir'] + '/' + PFM['lv3_ini_file']
+    print('driver_run_forcast_LV3: saving LV3_OCN_IC netcdf file')
+    os.chdir('../sdpm_py_util')
+    cmd_list = ['python','-W','ignore','ocn_functions.py','ocn_roms_IC_dict_to_netcdf_pckl',lv3_ocnIC_pckl,lv3_ic_file_out]
+    ret5 = subprocess.run(cmd_list)   
+    print('return code: ' + str(ret5.returncode) + ' (0=good)')  
+    os.chdir('../sdpm_py_util')
+    print('driver_run_forecast_L3:  done with writing LV3_OCN_IC.nc file.') 
+    print('this took:')
+    t2 = datetime.now()
+    print(t2-t1)
+    print('\n')
+    dt_ic = []
+    dt_ic.append(t2-t01)
+else:
+    print('going to use a restart file for the LV3 IC. Setting this up...')
+    cmd_list = ['python','-W','ignore','init_funs.py','restart_setup','LV3']
+    os.chdir('../sdpm_py_util')
+    ret4 = subprocess.run(cmd_list)     
+    os.chdir('../driver')
+    print('...done setting up for restart.')
+    print('this took:')
+    dt_ic = []
+    t05 = datetime.now()
+    print(t05-t01)
+    dt_ic.append(t05-t01)
+    PFM = get_PFM_info()
+    print('\nGoing to use the file ' + PFM['lv3_ini_file'] + ' to restart the simulation')
+    print('with time index ' + str(PFM['lv3_nrrec']))
+    print('\n')
+    if PFM['lv3_nrrec'] < 0:
+        print('WARNING RESTARTING LV3 WILL NOT WORK!!!')
+
 
 ##############
 yyyymmdd = PFM['yyyymmdd']

@@ -174,9 +174,7 @@ def remove_old_restart_ncs():
             told = tnow - timedelta(days=7) # removing files older than 1 week from now
             tf = datetime.strptime(yyyymmddhh,"%Y%m%d%H")
             if tf<told:
-                print('removing old ' + rf)
-            else:
-                print('nothing to remove, keeping ' + rf)
+                print('removing old restart file:' + rf)
 
 
 def convert_cftime_to_datetime(cftime_list):
@@ -217,24 +215,25 @@ def get_restart_file_and_index(lvl):
         t_units = t_var.units
         t = netCDF4.num2date(t_var[:],t_units)
         t = convert_cftime_to_datetime(t)
-        print(t)
         index = find_restart_index(t, t_fore)
         if index != -99:
             found = 1
-            print('found the time!')
+            print('found the time index!')
             break
 
         print('didnt find the right time in ' + fname)
         if cnt<len(isort)-1:
             print('going to look at a previous forecast restart file...')
         else:
-            print('the time stamp wasnt found in any restart file.')
+            print('WARNIG the time stamp wasnt found in any restart file. CANT USE RESTART')
             fname = 'none'
             index = -99
         cnt = cnt+1
 
-    print('going to restart using ' + fname + ' and index ' + str(index))    
-    return fname, index
+    print('going to restart using ' + fname + ' and python-index ' + str(index))    
+        
+    head, fname0 = os.path.split(fname)
+    return fname0, index
 
 def edit_and_save_PFM(dict_in):
     PFM = get_PFM_info()
@@ -246,3 +245,42 @@ def edit_and_save_PFM(dict_in):
         pickle.dump(PFM,fout)
         print('PFM info was edited and resaved')
     
+def restart_setup(lvl):
+
+    PFM = get_PFM_info()
+    print('PFM is set to do a forecast from...')
+    print(PFM['fetch_time'])
+
+    PFM = get_PFM_info()
+
+    if lvl == 'LV1':
+        move_restart_ncs()
+        remove_old_restart_ncs()
+    
+    PFM_edit = dict()
+    fname1,tindex1 = get_restart_file_and_index(lvl)
+
+    if lvl == 'LV1':
+        key_rec = 'lv1_nrrec'
+        key_file = 'lv1_ini_file'
+    if lvl == 'LV2':
+        key_rec = 'lv2_nrrec'
+        key_file = 'lv2_ini_file'
+    if lvl == 'LV3':
+        key_rec = 'lv3_nrrec'
+        key_file = 'lv3_ini_file'
+    if lvl == 'LV4':
+        key_rec = 'lv4_nrrec'
+        key_file = 'lv4_ini_file'
+          
+    PFM_edit[key_rec] = tindex1+1 # need to add 1 to get non-python indexing    
+    PFM_edit[key_file] = fname1
+    edit_and_save_PFM(PFM_edit)
+
+if __name__ == "__main__":
+    args = sys.argv
+    # args[0] = current file
+    # args[1] = function name
+    # args[2:] = function args : (*unpacked)
+    globals()[args[1]](*args[2:])
+

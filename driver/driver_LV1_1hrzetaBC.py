@@ -204,43 +204,60 @@ os.chdir('../driver')
 print('subprocess return code? ' + str(ret6.returncode) +  ' (0=good)')
 print('\n')
 dt_process.append(datetime.now()-t04)
-
-
-print('going to save OCN_IC to a pickle file: ' + ocnIC_pckl)
+    
 t01 = datetime.now()
-os.chdir('../sdpm_py_util')
-cmd_list = ['python','-W','ignore','ocn_functions.py','ocnr_2_ICdict_from_tmppkls',ocnIC_pckl]
-ret3 = subprocess.run(cmd_list)     
-os.chdir('../driver')
-print('OCN IC data saved with pickle, correctly? ' + str(ret3.returncode) + ' (0=yes,1=no)')
+if PFM['lv1_use_restart']==0:
+    print('going to save OCN_IC to a pickle file: ' + ocnIC_pckl)
+    os.chdir('../sdpm_py_util')
+    cmd_list = ['python','-W','ignore','ocn_functions.py','ocnr_2_ICdict_from_tmppkls',ocnIC_pckl]
+    ret3 = subprocess.run(cmd_list)     
+    os.chdir('../driver')
+    print('OCN IC data saved with pickle, correctly? ' + str(ret3.returncode) + ' (0=yes,1=no)')
 
-print('driver_run_forecast_LV1: done with ocn_r_2_ICdict')
-t02 = datetime.now()
-print('this took:')
-print(t02-t01)
-print('\n')
-
-print('making IC file from pickled IC: '+ ic_file_out)
-t03 = datetime.now()
-cmd_list = ['python','-W','ignore','ocn_functions.py','ocn_roms_IC_dict_to_netcdf_pckl',ocnIC_pckl,ic_file_out]
-os.chdir('../sdpm_py_util')
-ret4 = subprocess.run(cmd_list)     
-os.chdir('../driver')
-print('OCN IC nc data saved, correctly? ' + str(ret4.returncode) + ' (0=yes)')
-
-print('done makeing IC file.')
-dt_ic = []
-t05 = datetime.now()
-dt_ic.append(t05-t01)
-
-if plot_ocn_icnc == 1:
-    print('plotting...')
-    pltfuns.plot_ocn_ic_fields(ic_file_out)
-    t04 = datetime.now()
-    print('...done. this took:')
-    print(t04-t03)
+    print('driver_run_forecast_LV1: done with ocn_r_2_ICdict')
+    t02 = datetime.now()
+    print('this took:')
+    print(t02-t01)
     print('\n')
-    dt_plotting.append(t04-t05)
+
+    print('making IC file from pickled IC: '+ ic_file_out)
+    t03 = datetime.now()
+    cmd_list = ['python','-W','ignore','ocn_functions.py','ocn_roms_IC_dict_to_netcdf_pckl',ocnIC_pckl,ic_file_out]
+    os.chdir('../sdpm_py_util')
+    ret4 = subprocess.run(cmd_list)     
+    os.chdir('../driver')
+    print('OCN IC nc data saved, correctly? ' + str(ret4.returncode) + ' (0=yes)')
+
+    print('done makeing IC file.')
+    dt_ic = []
+    t05 = datetime.now()
+    dt_ic.append(t05-t01)
+    if plot_ocn_icnc == 1:
+        print('plotting...')
+        pltfuns.plot_ocn_ic_fields(ic_file_out)
+        t04 = datetime.now()
+        print('...done. this took:')
+        print(t04-t03)
+        print('\n')
+        dt_plotting.append(t04-t05)
+else:
+    print('going to use a restart file for the LV1 IC. Setting this up...')
+    cmd_list = ['python','-W','ignore','init_funs.py','restart_setup','LV1']
+    os.chdir('../sdpm_py_util')
+    ret4 = subprocess.run(cmd_list)     
+    os.chdir('../driver')
+    print('...done setting up for restart.')
+    print('this took:')
+    dt_ic = []
+    t05 = datetime.now()
+    print(t05-t01)
+    dt_ic.append(t05-t01)
+    PFM = get_PFM_info()
+    print('\nGoing to use the file ' + PFM['lv1_ini_file'] + ' to restart the simulation')
+    print('with time index ' + str(PFM['lv1_nrrec']))
+    print('\n')
+    if PFM['lv1_nrrec'] < 0:
+        print('WARNING RESTARTING LV1 WILL NOT WORK!!!')
 
 # get the OCN_BC dictionary
 print('going to save OCN_BC to a pickle file to:')
