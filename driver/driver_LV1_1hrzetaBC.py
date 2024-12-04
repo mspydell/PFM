@@ -407,14 +407,24 @@ dt_roms.append(t02-t01)
 
 # now making history file plots
 print('now making LV1 history file plots...')
-t01 = datetime.now()
-pltfuns.make_all_his_figures('LV1')
-print('...done.')
-t02 = datetime.now()
+t01=datetime.now()
+cmd_list = ['python','-W','ignore','plotting_functions.py','make_all_his_figures','LV1']
+os.chdir('../sdpm_py_util')
+ret6 = subprocess.run(cmd_list)   
+print('...done plotting LV1: ' + str(ret6.returncode) + ' (0=good)')  
+os.chdir('../driver')
 print('this took:')
-print(t02-t01)
-print('\n')
-dt_plotting.append(t02-t01)
+print(datetime.now()-t01)
+
+#print('now making LV1 history file plots...')
+#t01 = datetime.now()
+#pltfuns.make_all_his_figures('LV1')
+#print('...done.')
+#t02 = datetime.now()
+#print('this took:')
+#print(t02-t01)
+#print('\n')
+dt_plotting.append(datetime.now()-t01)
 
 dt_LV1 = {}
 dt_LV1['roms'] = dt_roms

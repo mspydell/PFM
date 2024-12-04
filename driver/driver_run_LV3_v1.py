@@ -195,10 +195,18 @@ print('\n')
 dt_roms = []
 dt_roms.append(t2-t1)
 
-print('now making LV3 history file plots...')
 t01=datetime.now()
-pltfuns.make_all_his_figures('LV3')
-print('...done.')
+print('now making LV3 history file plots...')
+cmd_list = ['python','-W','ignore','plotting_functions.py','make_all_his_figures','LV3']
+os.chdir('../sdpm_py_util')
+ret6 = subprocess.run(cmd_list)   
+print('...done plotting LV3: ' + str(ret6.returncode) + ' (0=good)')  
+os.chdir('../driver')
+print('this took:')
+print(datetime.now()-t01)
+
+#pltfuns.make_all_his_figures('LV3')
+#print('...done.')
 dt_plotting.append(datetime.now()-t01)
 
 dt_LV3 = {}

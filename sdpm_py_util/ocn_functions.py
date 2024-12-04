@@ -7913,7 +7913,7 @@ def mk_lv4_river_nc():
 
     # do I need to ramp up for nonzero Q? OR will this work?
     D['river_transport'] = np.zeros((nt,9))
-    D['river_transport'][:,0:5] = -0.01 + D['river_transport'][:,0:5] # this is SDTJRE points
+    D['river_transport'][:,0:5] = -0.025 + D['river_transport'][:,0:5] # this is SDTJRE points
     D['river_transport'][:,5] = -2.1906 + D['river_transport'][:,5] # this is PB. and is the right value
     D['river_transport'][:,6:] = -0.01 + D['river_transport'][:,6:] # these are in SD Bay
     D['vinfo']['river_transport'] = {'long_name':'river runoff mass transport',
