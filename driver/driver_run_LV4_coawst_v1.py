@@ -74,7 +74,7 @@ cmd_list = ['python','-W','ignore','atm_functions.py','atm_roms_dict_to_netcdf',
 ret5 = subprocess.run(cmd_list)   
 print('return code: ' + str(ret5.returncode) + ' (0=good)')  
 os.chdir('../sdpm_py_util')
-print('driver_run_forecast_LV3:  done with writing LV4_ATM.nc file.') 
+print('driver_run_forecast_LV4:  done with writing LV4_ATM.nc file.') 
 print('this took:')
 t2 = datetime.now()
 print(t2-t1)

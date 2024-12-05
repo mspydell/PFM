@@ -351,6 +351,7 @@ def get_PFM_info():
       PFM['lv4_swan_wnd_file']       = 'LV4_swan.wnd' 
       PFM['lv4_swan_dt_sec']         = 240
       PFM['lv4_swan_rst_int_hr']     = 6
+      PFM['river_pckl_file_full']    = PFM['lv4_forc_dir'] + '/river_Q.pkl'
       
       PFM['modtime0']        = modtime0
       PFM['roms_time_units'] = roms_time_units

@@ -7,11 +7,13 @@ import gc
 import resource
 import pickle
 import grid_functions as grdfuns
+import river_functions as rivfuns
 import os
 import os.path
 import pickle
 from scipy.spatial import cKDTree
 import glob
+import requests
 
 #sys.path.append('../sdpm_py_util')
 from get_PFM_info import get_PFM_info
@@ -20,6 +22,7 @@ import numpy as np
 import xarray as xr
 import netCDF4 as nc
 from netCDF4 import Dataset
+
 
 from scipy.interpolate import RegularGridInterpolator, LinearNDInterpolator
 from scipy.interpolate import interp1d
@@ -7848,6 +7851,8 @@ def mk_lv4_nud_nc():
     ds.to_netcdf(fn_out)
     ds.close()
 
+
+
 def mk_lv4_river_nc():
     print('making river tracer dictionary')
     PFM = get_PFM_info()
@@ -7905,6 +7910,26 @@ def mk_lv4_river_nc():
     t0_days = (t0 - t_ref)  / timedelta(days = 1) # this gets time in days from t_ref
     # make the river times be every 1 hr for now...
     triv = np.arange(t0_days,t0_days+nday+2/24,1/24) # the .5/24 is required to end on the last time step.
+
+    print('making the river discharge pickle file')
+    tnwm = t0 - 6 * timedelta(hours = 1)
+    tnwm_str = tnwm.strftime('%Y%m%d%H')
+    tpfm_str = t0.strftime('%Y%m%d%H')
+    print('using the nwm river forecast from the start time:')
+    print(tnwm_str)
+    print('to ensure that the forecast can be found on their server')
+    #print(tpfm_str)
+    rivfuns.get_river_flow_nwm(tnwm_str,tpfm_str)
+
+    print('loading the river discharge pickle file...')
+    #file_in= PFM['river_pckl_file_full']
+    file_in = '/scratch/PFM_Simulations/LV4_Forecast/Forc/river_Q.pkl'
+    with open(file_in,'rb') as fp:
+        QQ = pickle.load(fp)
+
+    #print( QQ['time'] )
+    #print( PFM['modtime0'] + triv * timedelta(days = 1 ) )
+
     nt = len(triv)
     D['river_time'] = triv
     D['vinfo']['river_time'] = {'long_name':'river time',
@@ -7913,15 +7938,48 @@ def mk_lv4_river_nc():
 
     # do I need to ramp up for nonzero Q? OR will this work?
     D['river_transport'] = np.zeros((nt,9))
-    D['river_transport'][:,0:5] = -0.025 + D['river_transport'][:,0:5] # this is SDTJRE points
+    #D['river_transport'][:,0:5] = -0.025 + D['river_transport'][:,0:5] # this is SDTJRE points
+    D['river_transport'][:,0] = - 0.2 * QQ['discharge'][:,2] # TJR discharge
+    D['river_transport'][:,1] = D['river_transport'][:,0]
+    D['river_transport'][:,2] = D['river_transport'][:,0]
+    D['river_transport'][:,3] = D['river_transport'][:,0]
+    D['river_transport'][:,4] = D['river_transport'][:,0]
+    print('the time-mean discharge for TJR is ')
+    print(str( 5*np.mean(D['river_transport'][:,0]) ) + ' m3/s')
+
     D['river_transport'][:,5] = -2.1906 + D['river_transport'][:,5] # this is PB. and is the right value
-    D['river_transport'][:,6:] = -0.01 + D['river_transport'][:,6:] # these are in SD Bay
+
+    D['river_transport'][:,6] = - 0.5 * QQ['discharge'][:,0] # sweetwater discharge
+    D['river_transport'][:,7] = D['river_transport'][:,6]
+    print('the time-mean discharge for Sweetwater is ')
+    print(str( 2*np.mean(D['river_transport'][:,6]) ) + ' m3/s')
+
+    D['river_transport'][:,8] = - QQ['discharge'][:,1] # Otay discharge
+    #D['river_transport'][:,6:] = -0.01 + D['river_transport'][:,6:] # these are in SD Bay
+    print('the time-mean discharge for Otay Mesa is ')
+    print(str( np.mean(D['river_transport'][:,8]) ) + ' m3/s')
+
+    
     D['vinfo']['river_transport'] = {'long_name':'river runoff mass transport',
                         'units':'meter^3/s',
                         'field':'river runoff mass transport, scalar, series'}
+    #Temp_riv = 20.0
+    print('getting the river temperature. For each river, each time, and depth,')
+    print('      it is the mean air temp over the LV4 land domain...')
+    Temp_riv, temp_riv_time = rivfuns.get_river_temp()
+    #ntra = len(temp_riv_time)
+
+    #print('all 3 river temperatures are')
+    #print(Temp_riv)
+    #print('and do not depend on time or depth')
 
     D['river_temp'] = np.zeros((nt,Nz,9))
-    D['river_temp'] = 20.0 + D['river_temp'] # how should this get set?
+    for aa in np.arange(nt):
+        D['river_temp'][aa,:,:] = temp_riv_time[aa]
+        
+    #print(D['river_temp'][:,0,0])
+
+    #D['river_temp'] = Temp_riv + D['river_temp'] # how should this get set?
     D['vinfo']['river_temp'] = {'long_name':'river runoff potential temperature',
                         'units':'Celsius',
                         'field':'river temp, scalar, series'}
