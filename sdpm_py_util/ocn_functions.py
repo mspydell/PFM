@@ -7922,8 +7922,8 @@ def mk_lv4_river_nc():
     rivfuns.get_river_flow_nwm(tnwm_str,tpfm_str)
 
     print('loading the river discharge pickle file...')
-    #file_in= PFM['river_pckl_file_full']
-    file_in = '/scratch/PFM_Simulations/LV4_Forecast/Forc/river_Q.pkl'
+    file_in= PFM['river_pckl_file_full']
+    #file_in = '/scratch/PFM_Simulations/LV4_Forecast/Forc/river_Q.pkl'
     with open(file_in,'rb') as fp:
         QQ = pickle.load(fp)
 

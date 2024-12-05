@@ -23,8 +23,8 @@ def get_river_flow_nwm(yyyymmddhh,t_pfm_str):
     # we will typically use t_fore = yyyymmddhh + 6 hr. Using the previous river forecast ensures 
     # that the river forecast is posted to their server
     PFM = get_PFM_info()
-    #file_out = PFM['river_pckl_file_full']
-    file_out = '/scratch/PFM_Simulations/LV4_Forecast/Forc/river_Q.pkl'
+    file_out = PFM['river_pckl_file_full']
+    #file_out = '/scratch/PFM_Simulations/LV4_Forecast/Forc/river_Q.pkl'
     # this function gets the river discharge for Sweetwater, Otay, and TJR from 
     # the National Water Model. We use the reaches closest to the ocean.
 
