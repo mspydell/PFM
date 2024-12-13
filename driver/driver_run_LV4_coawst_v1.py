@@ -233,6 +233,7 @@ print('using ' + str( PFM['gridinfo']['L4','ntilei']*PFM['gridinfo']['L4','ntile
 print('Ni = ' + str(PFM['gridinfo']['L4','ntilei']) + ', NJ = ' + str(PFM['gridinfo']['L4','ntilej']))
 print('and using ' + str(PFM['gridinfo']['L4','np_swan']) + ' CPUs for SWAN.')
 print('working...')
+
 run_slurm_LV4(PFM)
 
 os.chdir('../driver')

@@ -338,7 +338,7 @@ def check_and_move(fname,dt_sec,nfiles):
                 if current_modified_time > last_modified_time[cnt] + 2.0: # and thr[cnt]<=thr_max:
                     hrr = str(int(thr[cnt])).zfill(3)
                     print(hrr)
-                    fnew = fname_full[0:-7] + '_' + hrr + fname[-7:]
+                    fnew = fname_full[0:-8] + '_' + hrr + fname[-8:]
                     print(f"File '{fname_full}' modified. Copying to '{fnew}'...")
                     shutil.copy2(fname_full, fnew)  # Use shutil.copy2 to preserve metadata
                     last_modified_time[cnt] = current_modified_time

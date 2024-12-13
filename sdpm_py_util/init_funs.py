@@ -245,6 +245,21 @@ def edit_and_save_PFM(dict_in):
         pickle.dump(PFM,fout)
         print('PFM info was edited and resaved')
     
+def remove_old_swan_rst():
+    PFM = get_PFM_info()
+    PFM['restart_file_dir'] = '/scratch/PFM_Simulations/restart_data'
+    rst_files = glob.glob(PFM['restart_file_dir'] + '/LV4*dat*')
+    if len(rst_files)>0:
+        for rf in rst_files:
+            head, tail = os.path.split(rf)
+            yyyymmddhh = tail[13:23]
+            tnow = datetime.now()
+            told = tnow - timedelta(days=7) # removing files older than 1 week from now
+            tf = datetime.strptime(yyyymmddhh,"%Y%m%d%H")
+            if tf<told:
+                print('removing old swan restart file:' + rf)
+
+
 def restart_setup(lvl):
 
     PFM = get_PFM_info()
@@ -256,6 +271,9 @@ def restart_setup(lvl):
     if lvl == 'LV1':
         move_restart_ncs()
         remove_old_restart_ncs()
+
+    if lvl == 'LV4':
+        remove_old_swan_rst()
     
     PFM_edit = dict()
     fname1,tindex1 = get_restart_file_and_index(lvl)

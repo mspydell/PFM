@@ -465,8 +465,10 @@ def get_PFM_info():
       PFM['lv4_rst_name_full'] = PFM['restart_files_dir'] + '/' + PFM['lv4_rst_name']
       PFM['lv4_swan_rst_name_full'] = PFM['restart_files_dir'] + '/' + PFM['lv4_swan_rst_name']
   
-
-
+      # get how often swan files are written. The 0.2 makes sure we check 5 times between 
+      # approximate writing times. based on CURRENT (12/13/24) coawst tiling!!! if 
+      # tiling changes this needs to change too!
+      PFM['lv4_swan_check_freq_sec'] = int( np.round( 0.2 * OP['L4','rst_interval'] * 2 * 3600 / 2.5 ) ) 
 
       with open(PFM['info_file'],'wb') as fout:
          pickle.dump(PFM,fout)
