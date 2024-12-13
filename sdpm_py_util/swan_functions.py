@@ -302,29 +302,58 @@ def cdip_ncs_to_dict(refresh):
         pickle.dump(cdip,fp)
         print('\nCDIP data saved as pickle file')
 
-def check_and_move(fname):
+def check_and_move(fname,dt_sec,nfiles):
     PFM = get_PFM_info()
     rst_dir = PFM['restart_files_dir'] + '/'
-    fname_full = rst_dir + fname
+    dt_sec = int(dt_sec)
+    nfiles = int(nfiles)
 
-    dtf  = PFM['lv4_swan_rst_int_hr']
+    #fname_full = rst_dir + fname
+    #dtf  = PFM['lv4_swan_rst_int_hr']
+    # fname = /home/mspydell/models/PFM_root/swan_rst_testing/swan_test_rs.txt
+    fnames = []
+    thr = []
+    last_modified_time = []
+    for ii in np.arange(nfiles):
+        txt = fname[0:-7] + '_cpu' + str(ii) + fname[-7:]
+        fnames.append(txt)
+        last_modified_time.append(0)
+        thr.append(0) # set the initial hour time to 0 for each file
+    
+    dtf = 6
+
+    #thr_max = PFM['fore_days'] * 24 
+    thr_max = 36
 
     """Watches the source file and copies it to the destination when it's written."""
-    last_modified_time = 0
+    
 
-    while True:
-        try:
-            current_modified_time = os.path.getmtime(fname_full)
-            if current_modified_time > last_modified_time:
-                hrr = str(dtf).zfill(3)
-                fnew = fname_full[0:-7] + '_' + hrr + fname[-7:]
-                print(f"File '{fname_full}' modified. Copying to '{fnew}'...")
-                shutil.copy2(fname_full, fnew)  # Use shutil.copy2 to preserve metadata
-                last_modified_time = current_modified_time
-        except FileNotFoundError:
-            print(f"File '{fname_full}' not found. Waiting...")
+    while True: # an endless while loop, be careful!
+    #while thr[-1] <=  thr_max:   
+        cnt = 0
+        t0 = datetime.now()
+        for fname_full in fnames:
+            try:
+                current_modified_time = os.path.getmtime(fname_full)
+                if current_modified_time > last_modified_time[cnt] + 2.0: # and thr[cnt]<=thr_max:
+                    hrr = str(int(thr[cnt])).zfill(3)
+                    print(hrr)
+                    fnew = fname_full[0:-7] + '_' + hrr + fname[-7:]
+                    print(f"File '{fname_full}' modified. Copying to '{fnew}'...")
+                    shutil.copy2(fname_full, fnew)  # Use shutil.copy2 to preserve metadata
+                    last_modified_time[cnt] = current_modified_time
+                    thr[cnt] = thr[cnt] + dtf
+                    cnt = cnt+1
+            except FileNotFoundError:
+                print(f"File '{fname_full}' not found. making it...")
+                with open(fname_full, 'w') as fid:
+                    a_str = 'original file'
+                    fid.write(a_str)
+                    fid.close()
 
-        time.sleep(1)  # Check every 1 second
+        print(datetime.now()-t0)
+        t0 = datetime.now()
+        time.sleep(dt_sec)  # Check every dt_sec second
 
 
 def manage_swan_restart_files():

@@ -108,7 +108,10 @@ def  make_LV4_coawst_dotins_dotsb():
     
     start_type = PFM['lv4_use_restart'] # 0=new solution. 1=from a restart file
     if start_type == 1:
-        nrrec        = str(PFM['lv4_nrrec']) # 
+        if "lv4_nrrec" in PFM:
+            nrrec        = str(PFM['lv4_nrrec']) # 
+        else:
+            nrrec        = '1'
         lv4_ini_dir  = PFM['restart_files_dir']
     else: 
         nrrec        = '0' # '0' for a new solution
@@ -124,7 +127,7 @@ def  make_LV4_coawst_dotins_dotsb():
     D['theta_s']     = str( PFM['stretching']['L4','THETA_S'] ) + 'd0' #'8.0d0'
     D['theta_b']     = str( PFM['stretching']['L4','THETA_B'] ) + 'd0' #'3.0d0'
     D['tcline']      = str( PFM['stretching']['L4','TCLINE'] ) + 'd0' #'50.0d0'
-
+    D['lv4_max_time'] = PFM['lv4_max_time_str']
 
     if PFM['lv4_model'] == 'ROMS':
         lv4_infile_local   = 'LV4_forecast_run.in'

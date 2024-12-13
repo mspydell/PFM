@@ -108,6 +108,7 @@ def get_river_flow_nwm(yyyymmddhh,t_pfm_str):
 
     QQ = dict()
     QQ['time'] = t3
+    # previous XWu LV4 simulations capped TJR Q at 150 m3/s. We might want to do that here?
     QQ['discharge'] = Q
     QQ['reach_ids'] = reach_ids
     QQ['readme'] = 'discharge is in m3/s. reach_ids correspond to Sweetwater, Otay, TJR. they are the columns of discharge'

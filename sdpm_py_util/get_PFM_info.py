@@ -15,7 +15,14 @@ from datetime import datetime, timezone, timedelta
 import grid_functions as grdfuns
 import numpy as np
 
+def slurm_format_minutes(mins):
+   days = mins // (24*60)
+   hours = (mins % (24*60)) // 60
+   rem_min = mins % 60
+   return f"{days}-{hours:02d}:{rem_min:02d}"
+
 ## FF what does this function do?  what is fname?  
+
 def get_llbox(fname):
     
    RMG = grdfuns.roms_grid_to_dict(fname)
@@ -30,7 +37,7 @@ def get_llbox(fname):
    ln_mx = ln_mx + dln
    ln_mn = ln_mn - dln
    llb = [lt_mn, lt_mx, ln_mn, ln_mx]
-#      latlonbox = [28.0, 37.0, -125.0, -115.0] # original hard coded numbers.
+#  latlonbox = [28.0, 37.0, -125.0, -115.0] # original hard coded numbers.
 
    return llb
 
@@ -251,6 +258,13 @@ def get_PFM_info():
       tt['L4','ndtfast'] = 8
       tt['L4','forecast_days'] = PFM['forecast_days']
 
+   #  max slurm time for level 4, in minutes
+      lv4_mins = int( np.round( 180.0 * 2.0 * PFM['forecast_days'] / (2.5 * tt['L4','dtsec']) ) )
+   #  this 180 minutes is more than it takes for current (12/12/24) tiling and dt=2sec, Tf=2.5 days (135 min).
+   #  we add a buffer and we scale linearly with forecast days and dt.   
+   # SBATCH -t 0-2:00              # time limit: (D-HH:MM) 
+      PFM['lv4_max_time_str'] = slurm_format_minutes(lv4_mins)
+
    # output info
       OP = dict()
       OP['L1','his_interval'] = 3600 # how often in sec outut is written to his.nc   
@@ -414,7 +428,7 @@ def get_PFM_info():
       #   fetch_time = datetime(fetch_time.year,fetch_time.month, fetch_time.day, 12) - timedelta(days=4)
       #else:
       #   fetch_time = datetime(fetch_time.year,fetch_time.month, fetch_time.day, 12) - timedelta(days=3)
-      hhmm = fetch_time2.strftime("%H%M")
+      hhmm = fetch_time2.strftime('%H%M')
 
       yyyymmdd = "%d%02d%02d" % (fetch_time2.year, fetch_time2.month, fetch_time2.day)
       PFM['yyyymmdd']   = yyyymmdd
