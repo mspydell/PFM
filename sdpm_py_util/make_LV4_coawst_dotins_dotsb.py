@@ -154,6 +154,8 @@ def  make_LV4_coawst_dotins_dotsb():
     D['lv4_roms_infile'] = lv4_infile
     D['lv4_swan_infile'] = lv4_swan_infile
 
+    D['swan_init_txt'] = PFM['swan_init_txt_full'] # 'ZERO'
+                                                    # or 'HOTSTART PFM['restart_files_dir']+swan_file_name
 
    # need to get wave spectra information for swan.in 
     fn_in = PFM['lv4_forc_dir'] + '/' + PFM['lv4_swan_pckl_file']

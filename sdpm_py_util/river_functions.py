@@ -19,7 +19,7 @@ import grid_functions as grdfuns
 def get_river_flow_nwm(yyyymmddhh,t_pfm_str):
     # yyyymmddhh is the start time of the river forecast
     # t_pfm_str [in yyyymmddhh] is the start time of the PFM forecast
-    # this is coded to work only if t_fore is larger than yyyymmddhh, the river forecast start time
+    # this is coded to work only if t_pfm is larger than yyyymmddhh, the river forecast start time
     # we will typically use t_fore = yyyymmddhh + 6 hr. Using the previous river forecast ensures 
     # that the river forecast is posted to their server
     PFM = get_PFM_info()
@@ -105,6 +105,9 @@ def get_river_flow_nwm(yyyymmddhh,t_pfm_str):
         plt.legend()
         plt.setp(plt.xticks()[1], rotation=30, ha='right') # ha is the same as horizontalalignment
         plt.ylabel('discharge [m3/s]')
+        plt.title('PFM forecast time is: ' + t_pfm_str + '| river forecast time is: ' + yyyymmddhh )
+        fn_out = PFM['lv4_plot_dir'] + '/river_discharge_' + PFM['yyyymmdd'] + PFM['hhmm'] + '.png'
+        plt.savefig(fn_out, dpi=300)
 
     QQ = dict()
     QQ['time'] = t3
@@ -147,7 +150,11 @@ def get_river_temp():
     if plot_it == 1:
         fig, ax = plt.subplots()
         p1=ax.plot(t_riv,temp_river_time)
-        plt.ylabel('river_temperature')
+        plt.setp(plt.xticks()[1], rotation=30, ha='right') # ha is the same as horizontalalignment
+        plt.ylabel('river_temperature [C]')
+        plt.title('all 3 rivers have this temperature for forecast: ' + PFM['yyyymmdd'] + PFM['hhmm'] )
+        fn_out = PFM['lv4_plot_dir'] + '/river_temperature_' + PFM['yyyymmdd'] + PFM['hhmm'] + '.png'
+        plt.savefig(fn_out, dpi=300)
 
 
     return temp_river, temp_river_time

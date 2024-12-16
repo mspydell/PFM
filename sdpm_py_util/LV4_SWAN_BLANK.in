@@ -27,7 +27,8 @@ READINP WIND 1 $swan_wnd_full$ 4 0 FREE
 BOUNDNEST1 NEST  $swan_bnd_full$  OPEN
 
 && Initial Condition
- INITIAL ZERO
+%% INITIAL ZERO
+INITIAL $swan_init_txt$
 
 && Restart name **********************************
 && INIT HOTSTART 'swan_rst_LV4_3river.dat'

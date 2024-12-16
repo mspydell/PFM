@@ -393,7 +393,6 @@ def get_hycom_foretime(t1str,t2str):
 
     return yyyymmdd
 
-
 def get_hycom_foretime_v2(t1str,t2str):
 
     PFM = get_PFM_info()

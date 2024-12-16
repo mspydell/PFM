@@ -364,7 +364,9 @@ def get_PFM_info():
       PFM['lv4_swan_bnd_file']       = 'LV4_swan.bnd'
       PFM['lv4_swan_wnd_file']       = 'LV4_swan.wnd' 
       PFM['lv4_swan_dt_sec']         = 240
-      PFM['lv4_swan_rst_int_hr']     = 6
+      PFM['swan_init_txt_full']      = 'ZERO'
+      
+      PFM['lv4_swan_rst_int_hr']     = int( 24 * OP['L4','rst_interval'] )
       PFM['river_pckl_file_full']    = PFM['lv4_forc_dir'] + '/river_Q.pkl'
       
       PFM['modtime0']        = modtime0
@@ -394,6 +396,7 @@ def get_PFM_info():
       PFM['lv2_use_restart']         = 1
       PFM['lv3_use_restart']         = 1
       PFM['lv4_use_restart']         = 1
+      PFM['lv4_swan_use_rst']        = 0
 
       # now do the timing information
       start_time = datetime.now()
@@ -465,6 +468,7 @@ def get_PFM_info():
       PFM['lv4_rst_name_full'] = PFM['restart_files_dir'] + '/' + PFM['lv4_rst_name']
       PFM['lv4_swan_rst_name_full'] = PFM['restart_files_dir'] + '/' + PFM['lv4_swan_rst_name']
   
+
       # get how often swan files are written. The 0.2 makes sure we check 5 times between 
       # approximate writing times. based on CURRENT (12/13/24) coawst tiling!!! if 
       # tiling changes this needs to change too!

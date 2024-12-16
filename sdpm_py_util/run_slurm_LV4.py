@@ -3,6 +3,7 @@ import sys
 #import numpy as np
 import os
 import subprocess
+import time
 
 ##############
 
@@ -33,6 +34,8 @@ def run_slurm_LV4( PFM ):
     cmd_list = ['sbatch', '--wait' ,'LV4_SLURM.sb']
     proc = subprocess.run(cmd_list, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     
+    time.sleep(int(swan_check_freq))  # Check every dt_sec second
+
     checking.terminate() # turn off the function that moves swan rst files
     print('terminated the swan restart file check and move subprocess.')
 

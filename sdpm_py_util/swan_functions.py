@@ -304,26 +304,30 @@ def cdip_ncs_to_dict(refresh):
 
 def check_and_move(fname,dt_sec,nfiles):
     PFM = get_PFM_info()
+    #PFM['lv4_swan_rst_name']  = 'LV4_swan_rst_' + yyyymmdd + hhmm + '.dat' 
+                    # becomes: LV4_swan_rst_202412010600.dat-001 etc
+
     rst_dir = PFM['restart_files_dir'] + '/'
     dt_sec = int(dt_sec)
     nfiles = int(nfiles)
 
-    #fname_full = rst_dir + fname
+    fname_full = rst_dir + PFM['lv4_swan_rst_name']
     #dtf  = PFM['lv4_swan_rst_int_hr']
     # fname = /home/mspydell/models/PFM_root/swan_rst_testing/swan_test_rs.txt
     fnames = []
     thr = []
     last_modified_time = []
     for ii in np.arange(nfiles):
-        txt = fname[0:-7] + '_cpu' + str(ii) + fname[-7:]
+        txt = fname_full + '-' + str(ii+1).zfill(3)
         fnames.append(txt)
         last_modified_time.append(0)
         thr.append(0) # set the initial hour time to 0 for each file
     
-    dtf = 6
+    dtf = int( PFM['lv4_swan_rst_int_hr'] )
 
+    print('restarts are made every dtf: ' + str(dtf))
     #thr_max = PFM['fore_days'] * 24 
-    thr_max = 36
+    #thr_max = 36
 
     """Watches the source file and copies it to the destination when it's written."""
     
@@ -335,11 +339,12 @@ def check_and_move(fname,dt_sec,nfiles):
         for fname_full in fnames:
             try:
                 current_modified_time = os.path.getmtime(fname_full)
-                if current_modified_time > last_modified_time[cnt] + 2.0: # and thr[cnt]<=thr_max:
+                if current_modified_time > last_modified_time[cnt] + 10.0: # and thr[cnt]<=thr_max:
                     hrr = str(int(thr[cnt])).zfill(3)
-                    print(hrr)
-                    fnew = fname_full[0:-8] + '_' + hrr + fname[-8:]
-                    print(f"File '{fname_full}' modified. Copying to '{fnew}'...")
+                    fnew = fname_full[0:-8] + '_' + hrr + fname_full[-8:]
+                    #print('the new file name is:')
+                    #print(fnew)
+                    print(f"File '{fname_full}' modified. Copying to '{fnew}'")
                     shutil.copy2(fname_full, fnew)  # Use shutil.copy2 to preserve metadata
                     last_modified_time[cnt] = current_modified_time
                     thr[cnt] = thr[cnt] + dtf
@@ -351,7 +356,7 @@ def check_and_move(fname,dt_sec,nfiles):
                     fid.write(a_str)
                     fid.close()
 
-        print(datetime.now()-t0)
+        #print(datetime.now()-t0)
         t0 = datetime.now()
         time.sleep(dt_sec)  # Check every dt_sec second
 

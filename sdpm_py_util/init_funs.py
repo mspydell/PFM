@@ -164,12 +164,13 @@ def move_restart_ncs():
 
 def remove_old_restart_ncs():
     PFM = get_PFM_info()
-    PFM['restart_file_dir'] = '/scratch/PFM_Simulations/restart_data'
+    #PFM['restart_files_dir'] = '/scratch/PFM_Simulations/restart_data'
     for lvl in ['LV1','LV2','LV3','LV4']:
-        rst_files = glob.glob(PFM['restart_file_dir'] + '/' + lvl + '*.nc')
+        rst_files = glob.glob(PFM['restart_files_dir'] + '/' + lvl + '*.nc')
         for rf in rst_files:
             head, tail = os.path.split(rf)
             yyyymmddhh = tail[14:24]
+            #print(yyyymmddhh)
             tnow = datetime.now()
             told = tnow - timedelta(days=7) # removing files older than 1 week from now
             tf = datetime.strptime(yyyymmddhh,"%Y%m%d%H")
@@ -190,13 +191,52 @@ def find_restart_index(datetime_list, target_datetime):
     ind = -99    
     return ind
 
+def get_swan_restart_file_name():
+
+    fnm_swan = None
+    PFM = get_PFM_info()
+    t_fore = PFM['fetch_time'] 
+    print('going to restart swan, forecast start time is')
+    print(t_fore)
+    rst_files = glob.glob(PFM['restart_files_dir'] + '/*_???.dat-001') # only examine cpu 1 files for timing
+ 
+    #print(rst_files)
+
+    dtfor = []
+    for rf in rst_files:
+        head, tail = os.path.split(rf)
+        yyyymmddhh = tail[13:23]
+        tnc = datetime.strptime(yyyymmddhh,"%Y%m%d%H")
+        dtfor.append(t_fore - tnc)
+
+    isort = np.argsort(dtfor)
+    cnt = 0
+    while cnt < len(isort):
+        head,tail = os.path.split( rst_files[isort[cnt]] )
+        yyyymmddhh = tail[13:23]
+        tnc = datetime.strptime(yyyymmddhh,"%Y%m%d%H")
+        hr = int( tail[26:29] )
+        t_tot = tnc + hr*timedelta(hours = 1)
+        print(cnt)
+        print(t_fore)
+        print(tnc)
+        print(hr)
+        print(t_tot)
+        print(t_fore - t_tot)
+        dt = np.round( (t_fore - t_tot).total_seconds() )
+        if dt == 0: # if we get here we found the previous forecast time and hour 
+            fnm_swan = rst_files[isort[cnt]][0:-4]
+            break
+        cnt=cnt+1
+
+    return fnm_swan
+
 def get_restart_file_and_index(lvl):
     PFM = get_PFM_info()
-    PFM['restart_file_dir'] = '/scratch/PFM_Simulations/restart_data'
     t_fore = PFM['fetch_time'] + 0 * timedelta(days = 1)
     print('going to restart ' + lvl + ' from')
     print(t_fore)
-    rst_files = glob.glob(PFM['restart_file_dir'] + '/' + lvl + '*.nc')
+    rst_files = glob.glob(PFM['restart_files_dir'] + '/' + lvl + '*.nc')
     dts = []
     for rf in rst_files:
         head, tail = os.path.split(rf)
@@ -290,7 +330,18 @@ def restart_setup(lvl):
     if lvl == 'LV4':
         key_rec = 'lv4_nrrec'
         key_file = 'lv4_ini_file'
-          
+        if PFM['lv4_swan_use_rst'] == 1:
+            fn0 = PFM['lv4_swan_rst_name'][0:13]
+            fnm_swan = get_swan_restart_file_name()
+            #yyyymmdd_rm = fname1[14:26]
+            #t_sw = tindex1 * PFM['lv4_swan_rst_int_hr']
+            #t_sw_str = str(t_sw).zfill(3)
+            swan_txt = 'HOTSTART ' + fnm_swan 
+            #fn0 + yyyymmdd_rm + '_' + t_sw_str + '.dat'
+            PFM_edit['swan_init_txt_full'] = swan_txt
+            print('we are going to restart swan with the line ...')
+            print(PFM_edit['swan_init_txt_full'])
+
     PFM_edit[key_rec] = tindex1+1 # need to add 1 to get non-python indexing    
     PFM_edit[key_file] = fname1
     edit_and_save_PFM(PFM_edit)
