@@ -353,7 +353,10 @@ def check_and_move(fname,dt_sec,nfiles):
         t0 = datetime.now()
         for fname_full in fnames:
             current_modified_time = os.path.getmtime(fname_full)
-            if current_modified_time > last_modified_time[cnt] + 30.0: # and thr[cnt]<=thr_max:
+            # the magic time seems to be 10 s. 30 s was too long and the original files was not written
+            # over and the _000 hr file had no swan information in it. with 10 s the original file is made
+            # sufficiently before swant writes over it with the true t=0 hr rst data.
+            if current_modified_time > last_modified_time[cnt] + 10.0: # and thr[cnt]<=thr_max:
                 hrr = str(int(thr[cnt])).zfill(3)
                 fnew = fname_full[0:-8] + '_' + hrr + fname_full[-8:]
                 #print('the new file name is:')
