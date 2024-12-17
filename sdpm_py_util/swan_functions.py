@@ -329,32 +329,40 @@ def check_and_move(fname,dt_sec,nfiles):
     #thr_max = PFM['fore_days'] * 24 
     #thr_max = 36
 
-    """Watches the source file and copies it to the destination when it's written."""
-    
+    # make sure we are working with brand new files and time stamps.
+    for fname_full in fnames:
+        try:
+            current_modified_time = os.path.getmtime(fname_full)
+            os.remove(fname_full)        
+            with open(fname_full, 'w') as fid:
+                a_str = 'original file'
+                fid.write(a_str)
+                fid.close()
+        except FileNotFoundError:
+            print(f"File '{fname_full}' not found. making it...")
+            with open(fname_full, 'w') as fid:
+                a_str = 'original file'
+                fid.write(a_str)
+                fid.close()
 
+
+    """Watches the source file and copies it to the destination when it's written."""
     while True: # an endless while loop, be careful!
     #while thr[-1] <=  thr_max:   
-        cnt = 0
+        cnt = 0 # counter for the files
         t0 = datetime.now()
         for fname_full in fnames:
-            try:
-                current_modified_time = os.path.getmtime(fname_full)
-                if current_modified_time > last_modified_time[cnt] + 10.0: # and thr[cnt]<=thr_max:
-                    hrr = str(int(thr[cnt])).zfill(3)
-                    fnew = fname_full[0:-8] + '_' + hrr + fname_full[-8:]
-                    #print('the new file name is:')
-                    #print(fnew)
-                    print(f"File '{fname_full}' modified. Copying to '{fnew}'")
-                    shutil.copy2(fname_full, fnew)  # Use shutil.copy2 to preserve metadata
-                    last_modified_time[cnt] = current_modified_time
-                    thr[cnt] = thr[cnt] + dtf
-                    cnt = cnt+1
-            except FileNotFoundError:
-                print(f"File '{fname_full}' not found. making it...")
-                with open(fname_full, 'w') as fid:
-                    a_str = 'original file'
-                    fid.write(a_str)
-                    fid.close()
+            current_modified_time = os.path.getmtime(fname_full)
+            if current_modified_time > last_modified_time[cnt] + 30.0: # and thr[cnt]<=thr_max:
+                hrr = str(int(thr[cnt])).zfill(3)
+                fnew = fname_full[0:-8] + '_' + hrr + fname_full[-8:]
+                #print('the new file name is:')
+                #print(fnew)
+                print(f"File '{fname_full}' modified. Copying to '{fnew}'")
+                shutil.copy2(fname_full, fnew)  # Use shutil.copy2 to preserve metadata
+                last_modified_time[cnt] = current_modified_time
+                thr[cnt] = thr[cnt] + dtf
+            cnt = cnt+1
 
         #print(datetime.now()-t0)
         t0 = datetime.now()

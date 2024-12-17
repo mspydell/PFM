@@ -336,7 +336,7 @@ def restart_setup(lvl):
             #yyyymmdd_rm = fname1[14:26]
             #t_sw = tindex1 * PFM['lv4_swan_rst_int_hr']
             #t_sw_str = str(t_sw).zfill(3)
-            swan_txt = 'HOTSTART ' + fnm_swan 
+            swan_txt = 'HOTSTART ' + "'" + fnm_swan + "'"
             #fn0 + yyyymmdd_rm + '_' + t_sw_str + '.dat'
             PFM_edit['swan_init_txt_full'] = swan_txt
             print('we are going to restart swan with the line ...')
