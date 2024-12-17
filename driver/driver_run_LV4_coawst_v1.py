@@ -155,7 +155,7 @@ else:
     os.chdir('../sdpm_py_util')
     ret4 = subprocess.run(cmd_list)     
     os.chdir('../driver')
-    if PFM['lv4_swan_use_restart'] == 1:
+    if PFM['lv4_swan_use_rst'] == 1:
         print('going to use a restart file for LV4 swan. Setting this up...')
         cmd_list = ['python','-W','ignore','init_funs.py','swan_restart_setup']
         os.chdir('../sdpm_py_util')

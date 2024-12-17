@@ -396,7 +396,7 @@ def get_PFM_info():
       PFM['lv2_use_restart']         = 1
       PFM['lv3_use_restart']         = 1
       PFM['lv4_use_restart']         = 1
-      PFM['lv4_swan_use_rst']        = 0
+      PFM['lv4_swan_use_rst']        = 1
 
       # now do the timing information
       start_time = datetime.now()
