@@ -217,12 +217,12 @@ def get_swan_restart_file_name():
         tnc = datetime.strptime(yyyymmddhh,"%Y%m%d%H")
         hr = int( tail[26:29] )
         t_tot = tnc + hr*timedelta(hours = 1)
-        print(cnt)
-        print(t_fore)
-        print(tnc)
-        print(hr)
-        print(t_tot)
-        print(t_fore - t_tot)
+        #print(cnt)
+        #print(t_fore)
+        #print(tnc)
+        #print(hr)
+        #print(t_tot)
+        #print(t_fore - t_tot)
         dt = np.round( (t_fore - t_tot).total_seconds() )
         if dt == 0: # if we get here we found the previous forecast time and hour 
             fnm_swan = rst_files[isort[cnt]][0:-4]
@@ -299,6 +299,71 @@ def remove_old_swan_rst():
             if tf<told:
                 print('removing old swan restart file:' + rf)
 
+def get_old_restart_files_list(ftype,older_than_days):
+    # this function returns a list of files for ftype = 'ocean' or 'swan'
+    # that are older than now-older_than_days
+    PFM = get_PFM_info()
+    
+    dt_now = datetime.now()
+    dt_test = dt_now - older_than_days * timedelta(days=1)
+
+    if ftype == 'ocean':
+        rst_files = glob.glob(PFM['restart_files_dir'] + '/LV4*.nc')
+        #itail = np.arange(14,25)
+        #itail = list(range(14,25))
+        i1 = 14
+        i2 = 24
+    elif ftype == 'swan':
+        rst_files = glob.glob(PFM['restart_files_dir'] + '/LV4*dat*')
+        #itail = np.arange(13,24)
+        #itail = list(range(13,24))
+        i1 = 13
+        i2 = 23
+
+    file_list = []
+
+    if len(rst_files)>0:
+        for rf in rst_files:
+            head, tail = os.path.split(rf)
+            tstmp = datetime.strptime(tail[i1:i2],'%Y%m%d%H')
+            #print(tail[i1:i2])
+            if tstmp < dt_test:
+                file_list.append(rf) # this is the list of files
+
+    return file_list
+
+def remove_old_restart_files(ftype,older_than_days):
+    flist = get_old_restart_files_list(ftype,older_than_days)
+    if len(flist)>0:
+        print('there are ' + str(len(flist)) + ' ' + ftype + ' restart files to remove. Deleting them...')
+        for fn in flist:
+            os.remove(fn)            
+        print('...done')
+    else:
+        print('there were no ' + ftype + ' restart files older than now minus ' + str(older_than_days) + ' days old')
+
+def remove_swan_restarts_eq_foretime():
+    PFM = get_PFM_info()
+    t_fore = PFM['fetch_time']    
+    rst_files = glob.glob(PFM['restart_files_dir'] + '/LV4*dat*')
+    i1 = 13
+    i2 = 23
+    rmd = 0
+    if len(rst_files)>0:
+       for rf in rst_files:
+            head, tail = os.path.split(rf)
+            tstmp = datetime.strptime(tail[i1:i2],'%Y%m%d%H')
+            dt_test = np.abs ( np.round( (t_fore - tstmp).total_seconds() ) )
+            #print(tail[i1:i2])
+            if dt_test < 3600:
+                os.remove(rf)
+                rmd = 1            
+                
+    if rmd == 0:
+        print('there was not a previous forecast with this forecast time. No swan restart files were deleted.')
+    else:
+        print('a previous forecast was run from this start time. Swan restart files from this forecast were deleted.')
+
 
 def restart_setup(lvl):
 
@@ -306,19 +371,14 @@ def restart_setup(lvl):
     print('PFM is set to do a forecast from...')
     print(PFM['fetch_time'])
 
-    PFM = get_PFM_info()
+    older_than_days = 7.0
 
-    if lvl == 'LV1':
-        move_restart_ncs()
-        remove_old_restart_ncs()
-
-    if lvl == 'LV4':
-        remove_old_swan_rst()
-    
     PFM_edit = dict()
     fname1,tindex1 = get_restart_file_and_index(lvl)
 
     if lvl == 'LV1':
+        print('removing ocean restart files older than now - ' + str(older_than_days) + ' days old...')
+        remove_old_restart_files('ocean',older_than_days)
         key_rec = 'lv1_nrrec'
         key_file = 'lv1_ini_file'
     if lvl == 'LV2':
@@ -330,6 +390,9 @@ def restart_setup(lvl):
     if lvl == 'LV4':
         key_rec = 'lv4_nrrec'
         key_file = 'lv4_ini_file'
+        print('removing swan restart files older than now - ' + str(older_than_days) + ' days old...')
+        remove_old_restart_files('swan',older_than_days)
+        remove_swan_restarts_eq_foretime()
         if PFM['lv4_swan_use_rst'] == 1:
             fn0 = PFM['lv4_swan_rst_name'][0:13]
             fnm_swan = get_swan_restart_file_name()
