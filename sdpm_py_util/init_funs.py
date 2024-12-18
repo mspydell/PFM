@@ -95,6 +95,9 @@ def initialize_simulation(args):
                 ddd = PFM[pp] + dd
                 for f in glob.glob(ddd):
                     os.remove(f)
+        for f in glob.glob(PFM['lv4_run_dir'] + '/Err*'):
+            os.remove(f)
+            
         print('now making a new PFM.pkl file.')
         PFM = get_PFM_info()
         if isinstance(args,bool) == False:
