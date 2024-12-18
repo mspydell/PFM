@@ -348,7 +348,7 @@ def check_and_move(fname,dt_sec,nfiles):
                     fnew = fname_full[0:-8] + '_' + hrr + fname_full[-8:]
                     #print('the new file name is:')
                     #print(fnew)
-                    print(f"File '{fname_full}' modified. Copying to '{fnew}'")
+                    #print(f"File '{fname_full}' modified. Copying to '{fnew}'")
                     shutil.copy2(fname_full, fnew)  # Use shutil.copy2 to preserve metadata
                     last_modified_time[cnt] = current_modified_time
                     thr[cnt] = thr[cnt] + dtf

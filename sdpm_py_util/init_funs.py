@@ -392,6 +392,7 @@ def restart_setup(lvl):
         key_file = 'lv4_ini_file'
         print('removing swan restart files older than now - ' + str(older_than_days) + ' days old...')
         remove_old_restart_files('swan',older_than_days)
+        # below ensure that swan looks for a previous forecast to find the correct restart data!
         remove_swan_restarts_eq_foretime()
         if PFM['lv4_swan_use_rst'] == 1:
             fn0 = PFM['lv4_swan_rst_name'][0:13]
