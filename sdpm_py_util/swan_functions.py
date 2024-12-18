@@ -325,7 +325,7 @@ def check_and_move(fname,dt_sec,nfiles):
     
     dtf = int( PFM['lv4_swan_rst_int_hr'] )
 
-    print('restarts are made every dtf: ' + str(dtf))
+    #print('swan restart files are made every: ' + str(dtf) + ' hrs')
     #thr_max = PFM['fore_days'] * 24 
     #thr_max = 36
 
@@ -353,7 +353,7 @@ def check_and_move(fname,dt_sec,nfiles):
                     last_modified_time[cnt] = current_modified_time
                     thr[cnt] = thr[cnt] + dtf
             except FileNotFoundError:
-                print(f"File '{fname_full}' not found. making it...")
+                #print(f"File '{fname_full}' not found. making it...")
                 with open(fname_full, 'w') as fid:
                     a_str = 'original file'
                     fid.write(a_str)

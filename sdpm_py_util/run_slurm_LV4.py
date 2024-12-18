@@ -24,8 +24,8 @@ def run_slurm_LV4( PFM ):
     swan_check_freq = str( PFM['lv4_swan_check_freq_sec'] )
     cmd_list = ['python','-W','ignore','swan_functions.py','check_and_move',fname,swan_check_freq,nfiles]
     os.chdir('../sdpm_py_util')
-    print('starting the background process that looks for swan restart files every')
-    print(swan_check_freq + ' seconds...')
+    print('starting the background process that looks for modified swan restart files')
+    print('we check for modified files every '+ swan_check_freq + ' s (wall time)')
     checking = subprocess.Popen(cmd_list)   
     
     os.chdir(PFM['lv4_run_dir'])
