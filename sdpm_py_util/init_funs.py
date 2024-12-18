@@ -308,7 +308,7 @@ def get_old_restart_files_list(ftype,older_than_days):
     dt_test = dt_now - older_than_days * timedelta(days=1)
 
     if ftype == 'ocean':
-        rst_files = glob.glob(PFM['restart_files_dir'] + '/LV4*.nc')
+        rst_files = glob.glob(PFM['restart_files_dir'] + '/LV*.nc')
         #itail = np.arange(14,25)
         #itail = list(range(14,25))
         i1 = 14
