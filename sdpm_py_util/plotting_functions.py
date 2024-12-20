@@ -1641,7 +1641,7 @@ def make_all_his_figures(lvl):
             #plot_lv4_coawst_his(fn,It,iz,sv_fig,lvl,'dye_01')
             #plot_lv4_coawst_his(fn,It,iz,sv_fig,lvl,'dye_02')
             #plot_lv4_coawst_his(fn,It,iz,sv_fig,lvl,'Hwave')
-        It += 6
+        It += 2
 
     os.chdir('../driver')
 
