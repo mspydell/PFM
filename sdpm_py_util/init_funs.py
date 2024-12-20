@@ -97,7 +97,7 @@ def initialize_simulation(args):
                     os.remove(f)
         for f in glob.glob(PFM['lv4_run_dir'] + '/Err*'):
             os.remove(f)
-            
+
         print('now making a new PFM.pkl file.')
         PFM = get_PFM_info()
         if isinstance(args,bool) == False:
@@ -368,6 +368,47 @@ def remove_swan_restarts_eq_foretime():
         print('a previous forecast was run from this start time. Swan restart files from this forecast were deleted.')
 
 
+def remove_swan_rst_nohour():
+    # this removes the files swan writes to that do not have hr time stamps, just keeps the restart directory clean.
+    # we will call at the beginning of a PFM run.
+    PFM = get_PFM_info()
+    fns = glob.glob(PFM['restart_files_dir'] + '/LV4_swan_rst_????????????.dat-*')
+    print('going to deleting swan base rst files...')
+    if len(fns)>0:
+        for fn in fns:
+            print('...deleting: ' + fn)
+            os.remove(fn)
+    else:
+        print('...no swan base rst files to delete.')
+
+def remove_swan_rst_incomplete():
+    # this will delete swan restart files that were made if the simulation didn't complete 
+    PFM = get_PFM_info()
+    fns = glob.glob(PFM['restart_files_dir'] + '/LV4_swan_rst_????????????_000.dat-001')
+    fores = [] # a list with all of the forecast times
+    print('possibly deleting incomplete PFM simulation swan rst files...')
+    if len(fns)>0:
+        for fn in fns:
+            head, tail = os.path.split(fn)
+            yyyymmddhhmm = tail[13:23]
+            fores.append(yyyymmddhhmm)
+
+        unique_fores = list(set(fores))
+        #print(unique_fores)
+        for fn in unique_fores:
+            ftxt = PFM['restart_files_dir'] + '/LV4_swan_rst_' + fn + '00_*.dat-*'
+            all_files = glob.glob(ftxt)
+            num_files = PFM['gridinfo']['L4','np_swan'] * int( (PFM['forecast_days'] / PFM['outputinfo']['L4','rst_interval']) + 1 )
+            #print(num_files)
+            #print(len(all_files))
+            if len(all_files) != num_files:
+                print('...the simulation from ' + fn + ' wasnt finsished correctly, need to delete swan rst files.')
+                for rf in all_files:
+                    print('deleting ' + rf)
+                    os.remove(rf)
+            else:
+                print('...there were no incomplete sets of swan rst files from the ' + fn + ' PFM simulation.')
+
 def restart_setup(lvl):
 
     PFM = get_PFM_info()
@@ -393,6 +434,8 @@ def restart_setup(lvl):
     if lvl == 'LV4':
         key_rec = 'lv4_nrrec'
         key_file = 'lv4_ini_file'
+        remove_swan_rst_nohour()
+        remove_swan_rst_incomplete()
         print('removing swan restart files older than now - ' + str(older_than_days) + ' days old...')
         remove_old_restart_files('swan',older_than_days)
         # below ensure that swan looks for a previous forecast to find the correct restart data!

@@ -24,6 +24,10 @@ cmd_list = ['python','-u','-W','ignore','driver_LV1_1hrzetaBC.py'] # this is in 
 ret1 = subprocess.run(cmd_list)
 print('...done.')
 print('return code for level 1:' + str(ret1.returncode) + ' (0=good)')  
+if ret1.returncode != 0:
+    print('need to terminate driver_run_forecast_all_LVs.py as LV1 subprocess didnt run correctly...')
+    sys.exit("...exiting!")
+
 print('LV1 took:')
 t2 = datetime.now()
 print(t2-t00)
@@ -39,6 +43,10 @@ cmd_list = ['python','-u','-W','ignore','driver_run_LV2_v1.py'] # this is in the
 ret1 = subprocess.run(cmd_list)
 print('...done.')
 print('return code for level 2:' + str(ret1.returncode) + ' (0=good)')  
+if ret1.returncode != 0:
+    print('need to terminate driver_run_forecast_all_LVs.py as LV2 subprocess didnt run correctly...')
+    sys.exit("...exiting!")
+
 print('LV2 took:')
 t2 = datetime.now()
 print(t2-t0)
@@ -54,6 +62,10 @@ cmd_list = ['python','-u','-W','ignore','driver_run_LV3_v1.py'] # this is in the
 ret1 = subprocess.run(cmd_list)
 print('...done.')
 print('return code for level 3:' + str(ret1.returncode) + ' (0=good)')  
+if ret1.returncode != 0:
+    print('need to terminate driver_run_forecast_all_LVs.py as LV3 subprocess didnt run correctly...')
+    sys.exit("...exiting!")
+
 print('LV3 took:')
 t2 = datetime.now()
 print(t2-t0)
@@ -74,6 +86,10 @@ if PFM['lv4_model'] == 'ROMS':
     ret1 = subprocess.run(cmd_list)
     print('...done.')
     print('return code for level 4:' + str(ret1.returncode) + ' (0=good)')  
+    if ret1.returncode != 0:
+        print('need to terminate driver_run_forecast_all_LVs.py as LV4 subprocess didnt run correctly...')
+        sys.exit("...exiting!")
+
     print('LV4 took:')
     t2 = datetime.now()
     print(t2-t0)
@@ -85,6 +101,10 @@ if PFM['lv4_model'] == 'COAWST':
     ret1 = subprocess.run(cmd_list)
     print('...done.')
     print('return code for level 4:' + str(ret1.returncode) + ' (0=good)')  
+    if ret1.returncode != 0:
+        print('need to terminate driver_run_forecast_all_LVs.py as LV4 subprocess didnt run correctly...')
+        sys.exit("...exiting!")
+
     print('LV4 took:')
     t2 = datetime.now()
     print(t2-t0)
