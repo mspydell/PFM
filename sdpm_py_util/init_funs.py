@@ -77,7 +77,7 @@ def initialize_simulation(args):
               PFM['lv3_his_dir'],PFM['lv3_plot_dir'],PFM['lv3_forc_dir'],
               PFM['lv4_his_dir'],PFM['lv4_plot_dir'],PFM['lv4_forc_dir']] 
 
-        runl = ['/*.out','/*.sb','/*.log','/*.in']
+        runl = ['/*.out','/*.sb','/*.log','/*.in','*_timing_info.pkl']
 
         print('removing PFM info file...')
         os.remove(PFM['info_file'])
