@@ -174,7 +174,7 @@ else:
     print('with time index ' + str(PFM['lv4_nrrec']))
     print('\n')
     if PFM['lv4_nrrec'] < 0:
-        print('WARNING RESTARTING LV3 WILL NOT WORK!!!')
+        print('WARNING RESTARTING LV4 WILL NOT WORK!!!')
 
 
 

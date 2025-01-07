@@ -364,7 +364,9 @@ def get_PFM_info():
       PFM['lv4_swan_bnd_file']       = 'LV4_swan.bnd'
       PFM['lv4_swan_wnd_file']       = 'LV4_swan.wnd' 
       PFM['lv4_swan_dt_sec']         = 240
-      PFM['swan_init_txt_full']      = 'ZERO'
+      PFM['swan_init_txt_full']      = 'ZERO' # this is the default text needed to run swan with IC=0
+                                              # if using a swan restart file, this is changed to the correct
+                                              # string in init_funs.py
       
       PFM['lv4_swan_rst_int_hr']     = int( 24 * OP['L4','rst_interval'] )
       PFM['river_pckl_file_full']    = PFM['lv4_forc_dir'] + '/river_Q.pkl'
@@ -396,6 +398,7 @@ def get_PFM_info():
       PFM['lv2_use_restart']         = 1
       PFM['lv3_use_restart']         = 1
       PFM['lv4_use_restart']         = 1
+      #PFM['lv4_swan_use_rst']        = 0
       PFM['lv4_swan_use_rst']        = 1
 
       # now do the timing information
