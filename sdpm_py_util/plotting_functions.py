@@ -1628,7 +1628,7 @@ def make_all_his_figures(lvl):
             ret1 = subprocess.run(cmd_list)   
         #plot_his_temps_wuv(fn,It,iz,sv_fig,lvl)
         if PFM['lv4_model'] == 'COAWST' and lvl == 'LV4':
-            print(It)
+            #print(It)
             cmd_list = ['python','-W','ignore','plotting_functions.py','plot_lv4_coawst_his',fn,str(It),str(iz),str(sv_fig),lvl,'dye_01'] 
             ret1 = subprocess.Popen(cmd_list)     
             cmd_list = ['python','-W','ignore','plotting_functions.py','plot_lv4_coawst_his',fn,str(It),str(iz),str(sv_fig),lvl,'dye_02'] 

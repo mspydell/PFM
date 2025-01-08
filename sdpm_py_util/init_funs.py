@@ -206,11 +206,15 @@ def get_swan_restart_file_name():
     #print(rst_files)
 
     dtfor = []
-    for rf in rst_files:
-        head, tail = os.path.split(rf)
-        yyyymmddhh = tail[13:23]
-        tnc = datetime.strptime(yyyymmddhh,"%Y%m%d%H")
-        dtfor.append(t_fore - tnc)
+    if len(rst_files) > 0:
+        for rf in rst_files:
+            head, tail = os.path.split(rf)
+            yyyymmddhh = tail[13:23]
+            tnc = datetime.strptime(yyyymmddhh,"%Y%m%d%H")
+            dtfor.append(t_fore - tnc)
+    else:
+        print('there were no swan restart files to use. We must use IC=ZERO for swan. Going to force that')
+        return fnm_swan
 
     isort = np.argsort(dtfor)
     cnt = 0
@@ -448,11 +452,16 @@ def restart_setup(lvl):
             #yyyymmdd_rm = fname1[14:26]
             #t_sw = tindex1 * PFM['lv4_swan_rst_int_hr']
             #t_sw_str = str(t_sw).zfill(3)
-            swan_txt = 'HOTSTART ' + "'" + fnm_swan + "'"
-            #fn0 + yyyymmdd_rm + '_' + t_sw_str + '.dat'
-            PFM_edit['swan_init_txt_full'] = swan_txt
-            print('we are going to restart swan with the line ...')
-            print(PFM_edit['swan_init_txt_full'])
+            if fnm_swan == None:
+                print('although a swan restart was requested, a restart file could not be found')
+                print('and swan will start swan with IC=ZERO and with the line ...')
+                print(PFM['swan_init_txt_full'])
+            else:    
+                swan_txt = 'HOTSTART ' + "'" + fnm_swan + "'"
+                #fn0 + yyyymmdd_rm + '_' + t_sw_str + '.dat'
+                PFM_edit['swan_init_txt_full'] = swan_txt
+                print('we are going to restart swan with the line ...')
+                print(PFM_edit['swan_init_txt_full'])
 
     PFM_edit[key_rec] = tindex1+1 # need to add 1 to get non-python indexing    
     PFM_edit[key_file] = fname1
