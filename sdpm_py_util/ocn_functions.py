@@ -8014,6 +8014,12 @@ def mk_lv4_river_nc():
     D['river_dye_02'][:,:,3] = dye2
     D['river_dye_02'][:,:,4] = dye2
 
+    print('the time-mean river dye for Punta Bandera is ')
+    print(str( np.mean(D['river_dye_01'][:,0,5]) ))
+    print('the time-mean river dye for TJRE is ')
+    print(str( np.mean(D['river_dye_02'][:,0,0]) ))
+
+
     #D['river_dye_02'][:,:,0:5] = 0.15 + D['river_dye_02'][:,:,0:5]
     D['vinfo']['river_dye_02'] = {'long_name':'river runoff dye, fraction raw sweage at SDTJRE',
                         'units':'fraction',
