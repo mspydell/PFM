@@ -77,7 +77,9 @@ def  make_LV1_dotin_and_SLURM( PFM , yyyymmddhhmm):
     D['lv1_his_dir']       = PFM['lv1_his_dir']
     D['lv1_his_name_full'] = PFM['lv1_his_name_full']
     D['lv1_rst_name_full'] = PFM['lv1_rst_name_full'] 
-    
+    D['lv1_max_time'] = PFM['lv1_max_time_str']
+
+
     start_type = PFM['lv1_use_restart'] # 0=new solution. 1=from a restart file
     if start_type == 1:
         nrrec        = str(PFM['lv1_nrrec']) # 

@@ -143,7 +143,7 @@ if PFM['lv4_use_restart']==0:
     ret5 = subprocess.run(cmd_list)   
     print('return code: ' + str(ret5.returncode) + ' (0=good)')  
     os.chdir('../sdpm_py_util')
-    print('driver_run_forecast_L3:  done with writing LV4_OCN_IC.nc file.') 
+    print('driver_run_forecast_L4:  done with writing LV4_OCN_IC.nc file.') 
     print('this took:')
     t2 = datetime.now()
     print(t2-t1)

@@ -7957,6 +7957,8 @@ def mk_lv4_river_nc():
     #D['river_transport'][:,6:] = -0.01 + D['river_transport'][:,6:] # these are in SD Bay
     print('the time-mean discharge for Otay Mesa is ')
     print(str( np.mean(D['river_transport'][:,8]) ) + ' m3/s')
+    print('the time-constant discharge for Punta Bandera is ')
+    print(str( np.mean(D['river_transport'][:,5]) ) + ' m3/s')
 
     
     D['vinfo']['river_transport'] = {'long_name':'river runoff mass transport',
@@ -7994,8 +7996,25 @@ def mk_lv4_river_nc():
                         'units':'fraction',
                         'field':'river dye 1, scalar, series'}
 
-    D['river_dye_02'] = np.zeros((nt,Nz,9)) # this is always zero. 
-    D['river_dye_02'][:,:,0:5] = 0.15 + D['river_dye_02'][:,:,0:5]
+    D['river_dye_02'] = np.zeros((nt,Nz,9)) # this is always zero.
+    Q2 = - 5 * D['river_transport'][:,0] # - sign to insure positive
+    mgd2m3s = 1.01/23    # a conversion factor, from MGD to m3/s
+    Qd = 12.5 * mgd2m3s  # the amount of sewage discharge if Q > Qcrit
+    dye2 = Qd  / Q2      # the fraction of raw sewage for Q > Qcrit
+    dye0 = .3            # the fraction of raw sewage for Q < Qcrit 
+    Qcrit = Qd / dye0    # we calculate Qcrit so that dye2 is continuous as a function of Q
+    print('the TJRE critical Q is')
+    print(str(Qcrit) + ' m3/s or ' + str(Qcrit/mgd2m3s) + ' MGD')
+
+    ic = np.argwhere(Q2 < Qcrit) # where 
+    dye2[ic] = dye0 # is now the correct dye concentration for TJRE
+    D['river_dye_02'][:,:,0] = dye2
+    D['river_dye_02'][:,:,1] = dye2
+    D['river_dye_02'][:,:,2] = dye2
+    D['river_dye_02'][:,:,3] = dye2
+    D['river_dye_02'][:,:,4] = dye2
+
+    #D['river_dye_02'][:,:,0:5] = 0.15 + D['river_dye_02'][:,:,0:5]
     D['vinfo']['river_dye_02'] = {'long_name':'river runoff dye, fraction raw sweage at SDTJRE',
                         'units':'fraction',
                         'field':'river dye 2, scalar, series'}

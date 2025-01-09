@@ -128,8 +128,8 @@ def get_PFM_info():
       if ocn_model == 'hycom_new':
          add_tides=0 # the new version of hycom has tides, we don't need to add them
 
-      atm_model = 'nam_nest'
-      #atm_model = 'gfs'
+      #atm_model = 'nam_nest'
+      atm_model = 'gfs'
       #atm_model = 'gfs_1hr'
       atm_get_method = 'open_dap_nc'
       ocn_get_method = 'ncks_para'
@@ -259,10 +259,16 @@ def get_PFM_info():
       tt['L4','forecast_days'] = PFM['forecast_days']
 
    #  max slurm time for level 4, in minutes
+      lv1_mins = int( np.round( 8.0 * 60.0 * PFM['forecast_days'] / (2.5 * tt['L1','dtsec']) ) )
+      lv2_mins = int( np.round( 10.0 * 30.0 * PFM['forecast_days'] / (2.5 * tt['L2','dtsec']) ) )
+      lv3_mins = int( np.round( 15.0 * 15.0 * PFM['forecast_days'] / (2.5 * tt['L3','dtsec']) ) )
       lv4_mins = int( np.round( 180.0 * 2.0 * PFM['forecast_days'] / (2.5 * tt['L4','dtsec']) ) )
    #  this 180 minutes is more than it takes for current (12/12/24) tiling and dt=2sec, Tf=2.5 days (135 min).
    #  we add a buffer and we scale linearly with forecast days and dt.   
    # SBATCH -t 0-2:00              # time limit: (D-HH:MM) 
+      PFM['lv1_max_time_str'] = slurm_format_minutes(lv1_mins)
+      PFM['lv2_max_time_str'] = slurm_format_minutes(lv2_mins)
+      PFM['lv3_max_time_str'] = slurm_format_minutes(lv3_mins)
       PFM['lv4_max_time_str'] = slurm_format_minutes(lv4_mins)
 
    # output info

@@ -22,6 +22,11 @@
 # number of tasks per node
 #SBATCH --ntasks-per-node=36
 
+# max time for the simulation, D-HH:MM
+#SBATCH --time=$lv2_max_time$
+
+
+
 module purge
 
 module load gcc/11.2.0

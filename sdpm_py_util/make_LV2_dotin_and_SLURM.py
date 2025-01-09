@@ -72,6 +72,7 @@ def  make_LV2_dotin_and_SLURM( PFM , yyyymmddhhmm):
     D['lv2_run_dir']  = PFM['lv2_run_dir']     
     D['lv2_forc_dir'] = PFM['lv2_forc_dir']   
     D['lv2_his_dir']  = PFM['lv2_his_dir']
+    D['lv2_max_time'] = PFM['lv2_max_time_str']
 
     D['lv2_his_name_full'] = PFM['lv2_his_name_full']
     D['lv2_rst_name_full'] = PFM['lv2_rst_name_full'] 

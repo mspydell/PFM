@@ -72,6 +72,7 @@ def  make_LV3_dotin_and_SLURM( PFM , yyyymmddhhmm):
     D['lv3_run_dir']  = PFM['lv3_run_dir']     
     D['lv3_forc_dir'] = PFM['lv3_forc_dir']   
     D['lv3_his_dir']  = PFM['lv3_his_dir']
+    D['lv3_max_time'] = PFM['lv3_max_time_str']
 
     D['lv3_his_name_full'] = PFM['lv3_his_name_full']
     D['lv3_rst_name_full'] = PFM['lv3_rst_name_full'] 
