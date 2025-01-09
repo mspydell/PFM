@@ -128,8 +128,8 @@ def get_PFM_info():
       if ocn_model == 'hycom_new':
          add_tides=0 # the new version of hycom has tides, we don't need to add them
 
-      atm_model = 'nam_nest'
-      #atm_model = 'gfs'
+      #atm_model = 'nam_nest'
+      atm_model = 'gfs'
       #atm_model = 'gfs_1hr'
       atm_get_method = 'open_dap_nc'
       ocn_get_method = 'ncks_para'

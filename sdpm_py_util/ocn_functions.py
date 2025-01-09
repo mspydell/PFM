@@ -8008,12 +8008,10 @@ def mk_lv4_river_nc():
 
     ic = np.argwhere(Q2 < Qcrit) # where 
     dye2[ic] = dye0 # is now the correct dye concentration for TJRE
-    D['river_dye_02'][:,:,0] = dye2
-    D['river_dye_02'][:,:,1] = dye2
-    D['river_dye_02'][:,:,2] = dye2
-    D['river_dye_02'][:,:,3] = dye2
-    D['river_dye_02'][:,:,4] = dye2
 
+    for aa in np.arange(nt):
+        D['river_dye_02'][aa,:,0:4] = dye2[aa]
+ 
     print('the time-mean river dye for Punta Bandera is ')
     print(str( np.mean(D['river_dye_01'][:,0,5]) ))
     print('the time-mean river dye for TJRE is ')
