@@ -64,6 +64,7 @@ def get_PFM_info():
       PFM['info_file'] = pfm_info_full
 
       lo_env = 'mss_swell'
+      PFM['executable_dir'] = pfm_root_dir + 'executables/'
       pfm_grid_dir =  pfm_root_dir +  'Grids'       
       lv1_root_dir =  pfm_root_dir +  'LV1_Forecast/'
       lv2_root_dir =  pfm_root_dir +  'LV2_Forecast/'
@@ -95,11 +96,13 @@ def get_PFM_info():
       if lv4_model == 'ROMS':
          PFM['lv4_blank_name'] = 'LV4_BLANK_nowaves_norivers.in'
          PFM['lv4_yaml_file'] = 'LV4_varinfo_nowaves_norivers.yaml'
-         PFM['lv4_exe_name'] = 'LV4_ocean_nowaves_noriversM'
+         #PFM['lv4_exe_name'] = 'LV4_ocean_nowaves_noriversM'
+         PFM['lv4_executable'] = 'LV1_oceanM'        
       if lv4_model == 'COAWST':
          PFM['lv4_blank_name'] = 'LV4_BLANK.in'
          PFM['lv4_yaml_file'] = 'LV4_varinfo.yaml'
-         PFM['lv4_exe_name'] = 'LV4_coawstM'
+         #PFM['lv4_exe_name'] = 'LV4_coawstM'
+         PFM['lv4_executable'] = 'LV4_coawstM'
          PFM['lv4_blank_swan_name'] = 'LV4_SWAN_BLANK.in'
          PFM['lv4_coupling_name'] = 'LV4_COUPLING_BLANK.in'
 
@@ -128,8 +131,8 @@ def get_PFM_info():
       if ocn_model == 'hycom_new':
          add_tides=0 # the new version of hycom has tides, we don't need to add them
 
-      #atm_model = 'nam_nest'
-      atm_model = 'gfs'
+      atm_model = 'nam_nest'
+      #atm_model = 'gfs'
       #atm_model = 'gfs_1hr'
       atm_get_method = 'open_dap_nc'
       ocn_get_method = 'ncks_para'
@@ -333,8 +336,14 @@ def get_PFM_info():
       PFM['lv1_atm_file']            = 'LV1_ATM_FORCING.nc'
       PFM['lv1_ini_file']            = 'LV1_OCEAN_IC.nc'
       PFM['lv1_bc_file']             = 'LV1_OCEAN_BC.nc'   
-      PFM['lv1_executable']          = 'LV1_oceanM'
-   
+      
+      #PFM['lv1_executable']          = 'LV1_oceanM'
+      #PFM['lv2_executable']          = 'LV1_oceanM'
+      #PFM['lv3_executable']          = 'LV1_oceanM'
+      PFM['lv1_executable']          = 'LV3_romsM_INTEL'
+      PFM['lv2_executable']          = 'LV3_romsM_INTEL'
+      PFM['lv3_executable']          = 'LV3_romsM_INTEL'
+
       if add_tides==1:
          print('we are using the ROMS with LV1 tidal forcing')
          PFM['lv1_executable']          = 'LV1_oceanM_w_tide_forcing'

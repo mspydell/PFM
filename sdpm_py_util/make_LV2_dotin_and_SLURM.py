@@ -103,12 +103,22 @@ def  make_LV2_dotin_and_SLURM( PFM , yyyymmddhhmm):
     D['lv2_infile_local']  = lv2_infile_local
     D['lv2_logfile_local'] = lv2_logfile_local
 
-    lv2_executable      = 'LV2_oceanM'
-    D['lv2_executable'] = PFM['lv2_run_dir'] + '/' + lv2_executable
+    #lv2_executable      = 'LV2_oceanM'
+    #D['lv2_executable'] = PFM['lv2_run_dir'] + '/' + lv2_executable
+    D['lv2_executable'] = PFM['executable_dir']  + PFM['lv2_executable']
+    print('we are using')
+    print(D['lv2_executable'])
+    print('for LV2')
+
 
     dot_in_dir   = '.'
     blank_infile = dot_in_dir +'/' +  'LV2_BLANK.in'
-    blank_sbfile = dot_in_dir +'/' +  'LV2_SLURM_BLANK.sb'
+    if D['lv2_executable'] == '/scratch/PFM_Simulations/executables/LV3_romsM_INTEL':
+        blank_sbfile = dot_in_dir +'/' +  'LV2_SLURM_intel_BLANK.sb'
+    else:        
+        blank_sbfile = dot_in_dir +'/' +  'LV2_SLURM_BLANK.sb'
+
+
     lv2_infile   = D['lv2_run_dir'] + '/' + lv2_infile_local
     lv2_sbfile   = D['lv2_run_dir'] + '/' + lv2_sbfile_local
 

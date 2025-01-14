@@ -30,7 +30,7 @@ def get_river_flow_nwm(yyyymmddhh,t_pfm_str):
 
     reach_ids = [948070199, 20331702, 20324441]
     reach_ids = np.array(reach_ids)
-    #            SW         Otay      TJR
+    #            SW         Otay      TJR 20324441 is last segment near ocean.
 
     t_nwm = datetime.strptime(yyyymmddhh,'%Y%m%d%H')
     t_pfm = datetime.strptime(t_pfm_str,'%Y%m%d%H')

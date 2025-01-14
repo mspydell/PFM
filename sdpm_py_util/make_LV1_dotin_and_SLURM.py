@@ -106,15 +106,25 @@ def  make_LV1_dotin_and_SLURM( PFM , yyyymmddhhmm):
     D['lv1_logfile_local'] = lv1_logfile_local
     D['lv1_tides_file']    = PFM['lv1_tides_file']
 
-    D['lv1_executable'] = PFM['lv1_run_dir'] + '/' + PFM['lv1_executable']
+    #D['lv1_executable'] = PFM['lv1_run_dir'] + '/' + PFM['lv1_executable']
     #D['lv1_executable'] = PFM['lv1_run_dir'] + '/' + lv1_executable
+    D['lv1_executable'] = PFM['executable_dir'] + PFM['lv1_executable']
+    print('we are using')
+    print(D['lv1_executable'])
+    print('for LV1')
 
     # we assume that we are in the PFM/sdpm_py_util/ directory.
     # might want a check to see if you are here. If not, then
     # cd here?
     dot_in_dir   = '.'
     blank_infile = dot_in_dir +'/' +  'LV1_BLANK.in'
-    blank_sbfile = dot_in_dir +'/' +  'LV1_SLURM_BLANK.sb'
+    if D['lv1_executable'] == '/scratch/PFM_Simulations/executables/LV3_romsM_INTEL':
+        blank_sbfile = dot_in_dir +'/' +  'LV1_SLURM_intel_BLANK.sb'
+    else:        
+        blank_sbfile = dot_in_dir +'/' +  'LV1_SLURM_BLANK.sb'
+    
+    print('using ' + blank_sbfile)
+    
     lv1_infile   = D['lv1_run_dir'] + '/' + lv1_infile_local
     lv1_sbfile   = D['lv1_run_dir'] + '/' + lv1_sbfile_local
 

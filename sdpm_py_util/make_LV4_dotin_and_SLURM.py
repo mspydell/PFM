@@ -104,7 +104,11 @@ def  make_LV4_dotin_and_SLURM( PFM , yyyymmddhhmm):
     lv4_sbfile_local       = 'LV4_SLURM.sb'
     D['lv4_infile_local']  = lv4_infile_local
     D['lv4_logfile_local'] = lv4_logfile_local
-    D['lv4_executable']    = PFM['lv4_run_dir'] + '/' + PFM['lv4_exe_name']
+#    D['lv4_executable']    = PFM['lv4_run_dir'] + '/' + PFM['lv4_exe_name']
+    D['lv4_executable'] = PFM['executable_dir']  + PFM['lv4_executable']
+    print('we are using')
+    print(D['lv4_executable'])
+    print('for LV4')
 
     dot_in_dir   = '.'
     blank_infile = dot_in_dir +'/' +  PFM['lv4_blank_name']
