@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# job name
+#SBATCH --job-name=LV4_FORECAST
+
+# slurm job output file
+#SBATCH --output=%j.out
+
+# partition of nodes to use
+#SBATCH --partition=fast
+
+# number of cpus for a task
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=128G
+
+# number of tasks per node
+#SBATCH --ntasks-per-node=36
+
+# number of nodes to use
+#SBATCH --nodes=$nnodes$
+
+# max time for the simulation, D-HH:MM
+#SBATCH --time=$lv4_max_time$
+
+module purge
+module load slurm
+module load intel-oneapi/oclfpga
+module load intel-oneapi/compiler-rt
+module load intel-oneapi/tbb
+module load intel-oneapi/compiler
+module load hdf5/ifort/mvapich2/1.14.3
+module load netcdf-c/ifort/mvapich2
+module load netcdf-fortran/ifort/mvapich2/4.6.1
+module load mvapich2/ifort/2.3.7
+
+export MV2_HOMOGENEOUS_CLUSTER=1
+
+MYAPP=$lv4_executable$
+
+srun --mpi=pmi2 -v  $MYAPP $lv4_infile_local$  > $lv4_logfile_local$
+
+

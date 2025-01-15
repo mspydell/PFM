@@ -97,12 +97,14 @@ def get_PFM_info():
          PFM['lv4_blank_name'] = 'LV4_BLANK_nowaves_norivers.in'
          PFM['lv4_yaml_file'] = 'LV4_varinfo_nowaves_norivers.yaml'
          #PFM['lv4_exe_name'] = 'LV4_ocean_nowaves_noriversM'
-         PFM['lv4_executable'] = 'LV1_oceanM'        
+         PFM['lv4_executable'] = 'LV1_oceanM'
+                 
       if lv4_model == 'COAWST':
          PFM['lv4_blank_name'] = 'LV4_BLANK.in'
          PFM['lv4_yaml_file'] = 'LV4_varinfo.yaml'
          #PFM['lv4_exe_name'] = 'LV4_coawstM'
-         PFM['lv4_executable'] = 'LV4_coawstM'
+         #PFM['lv4_executable'] = 'LV4_coawstM'
+         PFM['lv4_executable'] = 'coawstM_intel'
          PFM['lv4_blank_swan_name'] = 'LV4_SWAN_BLANK.in'
          PFM['lv4_coupling_name'] = 'LV4_COUPLING_BLANK.in'
 

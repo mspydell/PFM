@@ -135,6 +135,7 @@ def  make_LV4_coawst_dotins_dotsb():
         lv4_infile_coupled   = 'LV4_forecast_coupled.in'
         lv4_infile_roms    = 'LV4_forecast_run.in'
         lv4_infile_swan    = 'LV4_forecast_swan.in'
+
     lv4_logfile_local      = 'LV4_forecast.log'
     lv4_sbfile_local       = 'LV4_SLURM.sb'
     D['lv4_infile_local']  = lv4_infile_coupled
@@ -148,7 +149,13 @@ def  make_LV4_coawst_dotins_dotsb():
 
     dot_in_dir   = '.'
     blank_infile = dot_in_dir +'/' +  PFM['lv4_blank_name'] 
-    blank_sbfile = dot_in_dir +'/' +  'LV4_SLURM_BLANK.sb'
+    #blank_sbfile = dot_in_dir +'/' +  'LV4_SLURM_BLANK.sb'
+    if D['lv4_executable'] == '/scratch/PFM_Simulations/executables/coawstM_intel':
+        blank_sbfile = dot_in_dir +'/' +  'LV4_SLURM_intel_BLANK.sb'
+    else:        
+        blank_sbfile = dot_in_dir +'/' +  'LV4_SLURM_BLANK.sb'
+    
+    
     blank_coupling = dot_in_dir + '/' + 'LV4_COUPLING_BLANK.in'
     blank_swan     = dot_in_dir + '/' + 'LV4_SWAN_BLANK.in'
     lv4_couple_infile   = D['lv4_run_dir'] + '/' + lv4_infile_coupled
