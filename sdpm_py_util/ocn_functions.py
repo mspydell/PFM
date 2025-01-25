@@ -91,7 +91,8 @@ def para_loop_new(url,dtff,aa,bb,PFM,dstr_ft):
 
     # time limits
     dtff_adv = dtff+timedelta(hours=0.5) # hours=2 makes it only get 1 time.
-    dstr0 = dtff.strftime('%Y-%m-%dT%H:%M')
+    dtff_m = dtff-timedelta(hours=0.5)
+    dstr0 = dtff_m.strftime('%Y-%m-%dT%H:%M')
     dstr1 = dtff_adv.strftime('%Y-%m-%dT%H:%M')
     # use subprocess.call() to execute the ncks command
     if bb == '_ssh':
@@ -145,7 +146,8 @@ def hycom_grabber(url,dtff,vnm,dstr_ft):
 
     # time limits
     dtff_adv = dtff+timedelta(hours=0.5) # hours=2 makes it only get 1 time.
-    dstr0 = dtff.strftime('%Y-%m-%dT%H:%M')
+    dtff_m = dtff-timedelta(hours=0.5)
+    dstr0 = dtff_m.strftime('%Y-%m-%dT%H:%M')
     dstr1 = dtff_adv.strftime('%Y-%m-%dT%H:%M')
     # use subprocess.call() to execute the ncks command
     if vnm == '_ssh':
@@ -217,7 +219,8 @@ def hycom_grabber_v2(url,dtff,vnm,fn_out):
 
     # time limits
     dtff_adv = dtff+timedelta(hours=0.5) # hours=2 makes it only get 1 time.
-    dstr0 = dtff.strftime('%Y-%m-%dT%H:%M')
+    dtff_m   = dtff-timedelta(hours=0.5)
+    dstr0 = dtff_m.strftime('%Y-%m-%dT%H:%M')
     dstr1 = dtff_adv.strftime('%Y-%m-%dT%H:%M')
     # use subprocess.call() to execute the ncks command
     if vnm == '_ssh':
