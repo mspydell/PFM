@@ -189,6 +189,16 @@ def hycom_grabber(url,dtff,vnm,dstr_ft):
     ret1 = subprocess.call(cmd_list, stderr=subprocess.DEVNULL)
     return ret1
 
+def hycom_grabber_hind(cmd):
+
+    # run ncks
+#    ret1 = subprocess.call(cmd,stderr=subprocess.DEVNULL,stdout=subprocess.DEVNULL)
+    ret1 = subprocess.call(cmd)
+    #print(cmd_list)
+    #ret1 = 1
+    return ret1
+
+
 def hycom_grabber_v2(url,dtff,vnm,fn_out):
     # this is the function that is parallelized
     # the input is url: the hycom url to get data from
@@ -248,6 +258,9 @@ def hycom_grabber_v2(url,dtff,vnm,fn_out):
 
 
 def check_hycom_data(yyyymmdd,times):
+
+    PFM = get_PFM_info()
+
     yyyy = yyyymmdd[0:4]
     mm = yyyymmdd[4:6]
     dd = yyyymmdd[6:8]
@@ -256,7 +269,8 @@ def check_hycom_data(yyyymmdd,times):
     var_names = ['_ssh','_s3z','_t3z','_u3z','_v3z']
     nc_out_names = [] # this will be the list of all of the hycom.nc files that we are checking to see if they are there
     
-    hycom_dir = '/scratch/PFM_Simulations/hycom_data/'
+    #hycom_dir = '/scratch/PFM_Simulations/hycom_data/'
+    hycom_dir = PFM['hycom_data_dir']
 
     dtff = times[0]
     t2 = times[1]
@@ -315,6 +329,7 @@ def get_missing_file_num_list(hy_dates):
 
 def clean_hycom_dir():
 
+    PFM = get_PFM_info()
     #hycom_dir = '/scratch/PFM_Simulations/hycom_data/'
     hycom_dir = PFM['hycom_data_dir']
     hy_dates = stored_hycom_dates()
@@ -504,7 +519,6 @@ def get_hycom_data(yyyymmdd):
     ocn_name = ['https://tds.hycom.org/thredds/dodsC/FMRC_ESPC-D-V02','runs/FMRC_ESPC-D-V02','_RUN_'+ yyyy + '-' + mm + '-' + dd + 'T12:00:00Z']
     var_names = ['_ssh','_s3z','_t3z','_u3z','_v3z']
 
- 
     # time limits
     Tfor = 8.0 # hycom should go out 8 days.
     # the first time to get
@@ -584,6 +598,143 @@ def get_hycom_data_fnames(yyyymmdd,fnames):
             result = future.result()
             #print(result)
                 # report the result        
+
+def get_hycom_hind_nc_names(yyyymmddhh):
+    # this gets the list of nc files on the hycom server that we need to get.
+    t1 = datetime.strptime(yyyymmddhh,'%Y%m%d%H')
+    t2 = t1 + timedelta(days=1)
+    yyyymmddhh_2 = t2.strftime("%Y%m%d%H")
+
+    yyyy = yyyymmddhh[0:4]
+    yyyy2 = yyyymmddhh_2[0:4]
+
+    # for the 1st day we use
+    ocn_name = 'https://tds.hycom.org/thredds/dodsC/ESPC-D-V02/'
+    #            https://tds.hycom.org/thredds/dodsC/ESPC-D-V02/ssh/2024
+    #https://tds.hycom.org/thredds/dodsC/FMRC_ESPC-D-V02_ssh/runs/FMRC_ESPC-D-V02_ssh_RUN_2025-01-08T12:00:00Z
+
+    # and we need the first time of the next day too for boundary conditions
+    
+    var_names = ['s3z','t3z','u3z','v3z','ssh']
+
+    ncfiles1 = [] # list of urls for the 1st day
+
+    # first do the 1st day
+    for bb in var_names:
+        ffn = ocn_name + bb + '/' + yyyy 
+        ncfiles1.append(ffn)
+
+    return ncfiles1
+
+def hycom_to_out(nc_in): 
+    # this translates this list to the names of the the files we will save here
+    
+    PFM = get_PFM_info()
+    ncdir = PFM['hycom_data_dir']
+    txt0 = ncdir + 'hycom_hind_'
+    nc_out = []
+    for fn in nc_in:
+        fn_out = txt0 + fn[122:]
+        nc_out.append(fn_out)
+
+    return nc_out
+
+def get_hind_nc_cmd_list(yyyymmddhh):
+    # this function makes a list of cmd lists to get hycom hind data
+    # and also return the list of nc files that will be made
+
+    PFM = get_PFM_info()
+    south = PFM['latlonbox']['L1'][0]
+    north = PFM['latlonbox']['L1'][1]
+    west = PFM['latlonbox']['L1'][2]+360.0
+    east = PFM['latlonbox']['L1'][3]+360.0
+
+
+    ncdir = PFM['hycom_data_dir']
+    txt0 = ncdir + 'hycom_hind_'
+
+    ocn_name = 'https://tds.hycom.org/thredds/dodsC/ESPC-D-V02/'
+    #           https://tds.hycom.org/thredds/dodsC/ESPC-D-V02/ssh/2024
+
+
+    var_names  = ['s3z','t3z','u3z','v3z','ssh']
+    var_names2 = ['salinity','water_temp','water_u','water_v','surf_el']
+
+    cmd_list = []
+    nc_out = []
+    cnt = 0
+
+    for vn in var_names:
+        t = datetime.strptime(yyyymmddhh,'%Y%m%d%H')
+        hr = 0
+        dhr = 3
+        if vn == 'ssh':
+            dhr = 1        
+        while hr <= 24:
+            t1 = t - 0.5 * timedelta(hours=1)
+            t2 = t + 0.5 * timedelta(hours=1)
+            yyyy = t.strftime("%Y") 
+            url = ocn_name + vn + '/' + yyyy
+            fn_out = txt0 + yyyymmddhh + '_' + str(hr).zfill(2) + '_' + vn + '.nc'
+            nc_out.append(fn_out)
+            dstr0 = t1.strftime('%Y-%m-%dT%H:%M')
+            dstr1 = t2.strftime('%Y-%m-%dT%H:%M')
+            cmd = ['ncks','-q','-D','0',
+                          '-d','time,'+dstr0+','+dstr1,
+                          '-d','lon,'+str(west)+','+str(east),
+                          '-d', 'lat,'+str(south)+','+str(north),
+                          '-v', var_names2[cnt],
+                           url ,
+                           '-4', '-O', fn_out]
+            cmd_list.append(cmd)
+            t = t + dhr * timedelta(hours=1)
+            hr=hr+dhr
+
+        cnt = cnt+1
+
+    return cmd_list, nc_out
+
+def get_hycom_hind_data(yyyymmddhh):
+    # this function gets all of the new hycom data as separate files for each field (ssh,temp,salt,u,v) and each time
+    # and puts each .nc file in the directory for hycom data
+
+    cmd_list, _ = get_hind_nc_cmd_list(yyyymmddhh)
+    #print(len(cmd_list))
+    print('we are getting ' + str(len(cmd_list)) + ' .nc files...')
+
+    # make a dictionary of cmd_lists and a list of output file names
+    # for day 1
+ 
+    # create parallel executor
+    with ThreadPoolExecutor() as executor:
+        threads = []
+        cnt = 0
+        for cmd in cmd_list:
+            #print(cnt)
+            fun = hycom_grabber_hind #define function
+            args = [cmd] #define args to function
+            kwargs = {} #
+            # start thread by submitting it to the executor
+            threads.append(executor.submit(fun, *args, **kwargs))
+            cnt=cnt+1
+
+        result2 = []
+        for future in as_completed(threads):
+            # retrieve the result
+            result = future.result()
+            result2.append(result)
+            # report the result
+
+    res3 = result2.copy()
+    res3 = [1 if x == 0 else x for x in res3]
+    nff = sum(res3)
+    if nff == len(cmd_list):
+        print('things are good, we got all ' + str(nff) + ' files')
+    else:
+        print('things arent so good.')
+        print('we got ' + str(nff) + ' files of ' + str(len(cmd_list)) + ' we tried to get.')
+
+    return result2
 
 
 def get_hycom_data_1hr(yyyymmdd):
@@ -951,8 +1102,6 @@ def hycom_cats_to_pickle(yyyymmdd):
         print('\nHycom OCN dict saved with pickle')
 
 def hycom_ncfiles_to_pickle(yyyymmdd):
-
-
     # set up dict and fill in
     OCN = dict()
     OCN['vinfo'] = dict()
@@ -961,7 +1110,6 @@ def hycom_ncfiles_to_pickle(yyyymmdd):
 
     for aa in vlist:
         OCN['vinfo'][aa] = dict()
-
 
     # yyyymmdd is the start day of the hycom forecast
     PFM=get_PFM_info()
@@ -1124,6 +1272,179 @@ def hycom_ncfiles_to_pickle(yyyymmdd):
     with open(fn_out,'wb') as fp:
         pickle.dump(OCN,fp)
         print('\nHycom OCN dict saved with pickle')
+
+
+def hycom_hind_ncfiles_to_pickle():
+    # set up dict and fill in
+    OCN = dict()
+    OCN['vinfo'] = dict()
+    # this is the complete list of variables that need to be in the netcdf file
+    vlist = ['lon','lat','ocean_time','surf_el','water_u','water_v','temp','sal','surf_el_time']
+
+    for aa in vlist:
+        OCN['vinfo'][aa] = dict()
+
+    # yyyymmdd is the start day of the hycom forecast
+    PFM=get_PFM_info()
+    t_ref = PFM['modtime0']
+    OCN['ocean_time_ref'] = t_ref
+
+    t1  = PFM['fetch_time']       # this is the start time of the PFM forecast
+    # now a string of the time to start ROMS (and the 1st atm time too)
+    t1str = "%d%02d%02d%02d%02d" % (t1.year, t1.month, t1.day, t1.hour, t1.minute)
+    t2  = t1 + PFM['forecast_days'] * timedelta(days=1)  # this is the last time of the PFM forecast
+
+    t2str = "%d%02d%02d%02d%02d" % (t2.year, t2.month, t2.day, t2.hour, t2.minute)
+
+    #nc_in_names = get_hycom_nc_file_names(yyyymmdd,t1str,t2str)
+    yyyymmddhh = t1.strftime("%Y%m%d%H")
+    _, nc_in_names = get_hind_nc_cmd_list(yyyymmddhh)
+    
+    
+#    var3d_1 = ['t3z','s3z','u3z','v3z']
+#    var3d_2 = ['water_temp','salinity','water_u','water_v']
+#    var2d_1 = ['ssh']
+#    var2d_2 = ['surf_el']
+    
+    # get lists of file names for each variable. I think they are sorted?
+    fn_ssh = [s for s in nc_in_names if "_ssh" in s]
+    fn_t3z = [s for s in nc_in_names if "_t3z" in s]
+    fn_s3z = [s for s in nc_in_names if "_s3z" in s]
+    fn_u3z = [s for s in nc_in_names if "_u3z" in s]
+    fn_v3z = [s for s in nc_in_names if "_v3z" in s]
+
+    ntz = len(fn_ssh) # how many times for ssh
+    nt  = len(fn_t3z) # how many times for 3d vars
+
+    dss = xr.open_dataset(fn_ssh[0])
+    lat = dss.lat.values
+    lon = dss.lon.values
+    dss.close()
+
+    OCN['lon']=lon - 360 # make the lons negative consistent with most 
+    OCN['lat']=lat
+
+    nln = len(lon)
+    nlt = len(lat)
+    eta = np.zeros((ntz,nlt,nln))
+    t_rom2 = np.zeros((ntz))
+    cnt=0
+    for fn in fn_ssh:
+        dss = xr.open_dataset(fn)
+        dt = (dss.time - np.datetime64(t_ref))  / np.timedelta64(1,'D') # this gets time in days from t_ref
+        t_rom2[cnt] = dt.values
+        eta[cnt,:,:] = dss.surf_el.values
+        dss.close()
+        cnt=cnt+1
+
+    OCN['zeta_time'] = t_rom2
+    OCN['zeta'] = eta
+    del eta
+   
+
+    dss = xr.open_dataset(fn_t3z[0])
+    z   = dss.depth.values
+    dss.close()
+    OCN['depth'] = z
+    nz = len(z)
+    temp = np.zeros((nt,nz,nlt,nln))
+    t_rom = np.zeros((nt))
+
+    cnt = 0
+    for fn in fn_t3z:
+        dss = xr.open_dataset(fn)
+        dt = (dss.time - np.datetime64(t_ref))  / np.timedelta64(1,'D') # this gets time in days from t_ref
+        t_rom[cnt] = dt.values
+        temp[cnt,:,:,:] = dss.water_temp.values
+        dss.close()
+        cnt = cnt + 1
+
+    OCN['ocean_time'] = t_rom
+    OCN['temp'] = temp
+    del temp
+
+    cnt = 0
+    sal = np.zeros((nt,nz,nlt,nln))
+    for fn in fn_s3z:
+        dss = xr.open_dataset(fn)
+        sal[cnt,:,:,:] = dss.salinity.values
+        dss.close()
+        cnt = cnt + 1
+
+    OCN['salt'] = sal
+    del sal
+
+    cnt = 0
+    u = np.zeros((nt,nz,nlt,nln))
+    for fn in fn_u3z:
+        dss = xr.open_dataset(fn)
+        u[cnt,:,:,:] = dss.water_u.values
+        dss.close()
+        cnt = cnt + 1
+
+    OCN['u'] = u
+    del u
+    v = np.zeros((nt,nz,nlt,nln))
+    cnt = 0
+    for fn in fn_v3z:
+        dss = xr.open_dataset(fn)
+        v[cnt,:,:,:] = dss.water_v.values
+        dss.close()
+        cnt = cnt + 1
+ 
+    OCN['v'] = v
+    del v
+
+    print('\nmax and min raw hycom data (iz is top [0] to bottom [39]):')
+    vlist = ['zeta','u','v','temp','salt']
+    ulist = ['m','m/s','m/s','C','psu']
+    ulist2 = dict(zip(vlist,ulist))
+    print_var_max_mins(OCN,vlist,ulist2)
+
+    # put the units in OCN...
+    OCN['vinfo']['lon'] = {'long_name':'longitude',
+                    'units':'degrees_east'}
+    OCN['vinfo']['lat'] = {'long_name':'latitude',
+                    'units':'degrees_north'}
+    OCN['vinfo']['ocean_time'] = {'long_name':'time since initialization',
+                    'units':'days',
+                    'coordinates':'temp_time',
+                    'field':'ocean_time, scalar, series'}
+    OCN['vinfo']['zeta_time'] = {'long_name':'time since initialization for zeta',
+                    'units':'days',
+                    'coordinates':'zeta_time',
+                    'field':'ocean_time, scalar, series'}
+    OCN['vinfo']['ocean_time_ref'] = {'long_name': 'the reference date tref (initialization time)'}
+    OCN['vinfo']['depth'] = {'long_name':'ocean depth',
+                        'units':'m'}
+    OCN['vinfo']['temp'] = {'long_name':'ocean temperature',
+                    'units':'degrees C',
+                    'coordinates':'z,lat,lon',
+                    'time':'ocean_time'}
+    OCN['vinfo']['salt'] = {'long_name':'ocean salinity',
+                    'units':'psu',
+                    'coordinates':'z,lat,lon',
+                    'time':'ocean_time'}
+    OCN['vinfo']['u'] = {'long_name':'ocean east west velocity',
+                    'units':'m/s',
+                    'coordinates':'z,lat,lon',
+                    'time':'ocean_time'}
+    OCN['vinfo']['v'] = {'long_name':'ocean north south velocity',
+                    'units':'m/s',
+                    'coordinates':'z,lat,lon',
+                    'time':'ocean_time'}
+    OCN['vinfo']['zeta'] = {'long_name':'ocean sea surface height',
+                    'units':'m',
+                    'coordinates':'lat,lon',
+                    'time':'ocean_time'}
+
+    gc.collect()
+    fn_out = PFM['lv1_forc_dir'] + '/' + PFM['lv1_ocn_tmp_pckl_file']
+    print('\ngoing to save a hycom pickle file to ' + fn_out)
+    with open(fn_out,'wb') as fp:
+        pickle.dump(OCN,fp)
+        print('Hycom OCN dict saved with pickle.')
+
 
 
 

@@ -1398,7 +1398,22 @@ def plot_roms_LV1_bathy_and_locs(fn,Ix,Iy,sv_fig):
         plt.show()
 
 
-def plot_his_temps_wuv(fn,It,Iz,sv_fig,lvl):
+def plot_his_temps_wuv(fn,It,Iz,sv_fig,lvl,cmn,cmx):
+
+    cmn = float(cmn) # these are the colorbar limits
+    cmx = float(cmx)
+
+    cmn = np.floor(10*cmn) / 10
+    cmx = np.ceil(10*cmx) / 10
+
+    if lvl == 'LV4':
+        dc = cmx - cmn
+        cmn2 = cmn + .5*dc
+        cmx = cmn + .75*dc
+        cmn = cmn2
+        cmn = np.floor(10*cmn) / 10
+        cmx = np.ceil(10*cmx) / 10
+
 
     PFM=get_PFM_info()
     if lvl == 'LV1':
@@ -1423,10 +1438,23 @@ def plot_his_temps_wuv(fn,It,Iz,sv_fig,lvl):
     lt = RMG['lat_rho'][:]
     #ln = his_ds.variables['lon_rho'][:]
     ln = RMG['lon_rho'][:]
+
+
+    #print(his_ds.variables.keys())
+
+    if lvl == 'LV4':
+        msk = his_ds.variables['wetdry_mask_rho'][It,:,:]
+        msk = np.squeeze(msk)
+
     It = int(It)
     Iz = int(Iz)
     temp = his_ds.variables['temp'][It,Iz,:,:]
-    tempall = his_ds.variables['temp'][:,Iz,:,:]
+    temp = temp.data
+    temp == np.squeeze(temp)
+    if lvl == 'LV4':
+        temp[msk==0] = np.nan 
+
+    #tempall = his_ds.variables['temp'][:,Iz,:,:]
 
     urm = np.squeeze( his_ds.variables['u'][It,Iz,:,:] )
     vrm = np.squeeze( his_ds.variables['v'][It,Iz,:,:] )
@@ -1441,17 +1469,23 @@ def plot_his_temps_wuv(fn,It,Iz,sv_fig,lvl):
     #print(np.shape(v))
 
     fig, ax = plt.subplots(figsize=(8, 12), subplot_kw={'projection': ccrs.PlateCarree()})
-    plevs = np.arange(np.floor(np.min(tempall))-0.125, np.ceil(np.max(tempall))+0.125, .125)
+    if lvl == 'LV4':
+        plevs = np.arange(cmn,cmx,.05)
+    else:
+        plevs = np.arange(cmn - .2, cmx + .2, .1)
     cmap = plt.get_cmap('turbo')
-    cset = ax.contourf(ln, lt, temp, plevs, cmap=cmap, transform=ccrs.PlateCarree())
+    if lvl == 'LV4':
+        cset = ax.contourf(ln, lt, temp, plevs, cmap=cmap, extend="both", vmin=cmn, vmax=cmx, transform=ccrs.PlateCarree())        
+    else:
+        cset = ax.contourf(ln, lt, temp, plevs, cmap=cmap, transform=ccrs.PlateCarree())
     plt.set_cmap(cmap)
     cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad = 0.05)
 
     ln2 = .5* (ln[0:-1,0:-1]+ln[1:,1:])
     lt2 = .5* (lt[0:-1,0:-1]+lt[1:,1:])
 
-
-    ax.quiver(ln2[0::8,0::8], lt2[0::8,0::8], u[0::8,0::8], v[0::8,0::8], transform=ccrs.PlateCarree())
+    if lvl == 'LV1' or lvl =='LV2' or lvl == 'LV3':
+        ax.quiver(ln2[0::8,0::8], lt2[0::8,0::8], u[0::8,0::8], v[0::8,0::8], transform=ccrs.PlateCarree())
 
     times = his_ds.variables['ocean_time']
     times2 = num2date(times[:], times.units)
@@ -1578,15 +1612,60 @@ def plot_lv4_coawst_his(fn,It,Iz,sv_fig,lvl,var_name):
 
     if sv_fig == '1':
         fn_out = PFM['lv4_plot_dir'] + '/his_' + var_name + '_LV4_' + PFM['yyyymmdd'] + PFM['hhmm'] + '_' + it_str + 'hr.png'        
+    #    print(fn_out)
         plt.savefig(fn_out, dpi=300)
     else:
         plt.show()
 
+def get_his_clims(fn,var_name,Iz,It):
+
+    his_ds = nc.Dataset(fn,'r')    
+    D = his_ds.variables[var_name]
+    if D.ndim == 3: # for example Hwave
+        DD = D[:,:,It]
+    elif D.ndim == 4: # for example temp, salt, etc
+        if Iz == 'all': 
+            if It == 'all':
+                DD = D[:,:,:,:]
+                rmn = .001
+                rmx = .999
+            else:
+                rmn = .01
+                rmx = .99
+                DD = D[It,:,:,:]
+        else:
+            if It == 'all':
+                rmn = .001
+                rmx = .999
+                DD = D[:,int(Iz),:,:]
+            else:
+                rmn = .01
+                rmx = .99
+                DD = D[int(It),int(Iz),:,:]
+                
+
+    #DD = DD.data
+    DD.flatten() # now data has only one dimension, DD is a masked array
+    DD = DD.compressed()  # get only the unmasked numbers
+    #DD = DD[~np.isnan(DD)] # remove NaNs
+    DD = np.sort(DD) # sort the numbers
+    ld = float(len(DD))
+    imn = int( np.round(rmn * ld ) )
+    imx = int( np.round(rmx * ld ) )
+    cmin = DD[imn]
+    cmax = DD[imx]
+
+    #fig, ax = plt.subplots()
+    #p1=ax.hist(DD,bins=100)
+
+    return cmin,cmax
+    #return data
 
 def make_all_his_figures(lvl):
     PFM=get_PFM_info()
     #PFM['lv4_model']='COAWST' # for testing
     sv_fig = 1
+    #sv_fig = 0
     iz = -1
     if lvl == 'LV1':
         fn = PFM['lv1_his_name_full']
@@ -1612,16 +1691,22 @@ def make_all_his_figures(lvl):
         Iy = np.array([750,1000])
 
 
+    #fn = '/scratch/PFM_Simulations/LV4_Forecast/His/LV4_ocean_his_202501240000.nc'
+
+    print('getting clims...')
+    cmn,cmx = get_his_clims(fn,'temp',-1,'all')
+    print('...done.')
+
     #plot_roms_LV1_bathy_and_locs(fn,Ix,Iy,sv_fig)
     #plot_ssh_his_tseries(fn,Ix,Iy,sv_fig)
-    plot_ssh_his_tseries_v2(fn,Ix,Iy,sv_fig,lvl)
+    #plot_ssh_his_tseries_v2(fn,Ix,Iy,sv_fig,lvl)
     
     os.chdir('../sdpm_py_util')
 
     pfm_hrs = int(24*PFM['forecast_days']) # this should be an integer
     It=0
     while It<=pfm_hrs:
-        cmd_list = ['python','-W','ignore','plotting_functions.py','plot_his_temps_wuv',fn,str(It),str(iz),str(sv_fig),lvl] 
+        cmd_list = ['python','-W','ignore','plotting_functions.py','plot_his_temps_wuv',fn,str(It),str(iz),str(sv_fig),lvl,str(cmn),str(cmx)] 
         if lvl == 'LV4':
             ret1 = subprocess.Popen(cmd_list)  
         else:

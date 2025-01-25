@@ -313,14 +313,6 @@ def get_atm_data_as_dict():
         ATM['Uwind'] = u
         ATM['Vwind'] = v
 
-#        print(lwu[0,0:3,0:3])
-#        print(ATM['lwrad'][0,0:3,0:3])
-#        print(ATM['lwrad_down'][0,0:3,0:3])
-#        print(ATM['swrad'][0,0:3,0:3])
-#        print(ATM['Tair'][0,0:3,0:3])
-#        print(ATM['Uwind'][0,0:3,0:3])
-
-
         # put the units in atm...
         ATM['vinfo']['lon'] = {'long_name':'longitude',
                         'units':'degrees_east'}

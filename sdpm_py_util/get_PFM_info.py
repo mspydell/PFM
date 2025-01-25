@@ -50,10 +50,19 @@ def get_PFM_info():
    except KeyError:
        HOSTNAME = 'BLANK'
 
-   
-   pfm_root_dir = '/scratch/PFM_Simulations/'       
+   run_type = 'forecast' # this is the switch to go from forecasting to hindcasting...
+   #run_type = 'hindcast'
+
+   pfm_dir = '/scratch/PFM_Simulations/' # this stays fixed for Grids and executables
+                                         # both forecasting and hindcasting use the same ones.
+   if run_type == 'forecast':
+      pfm_root_dir = '/scratch/PFM_Simulations/'       
+   else:
+      pfm_root_dir = '/scratch/PHM_Simulations/'       
+
    pfm_file_name = 'PFM_run_info.pkl'
    pfm_info_full = pfm_root_dir + pfm_file_name
+   
    if Path(pfm_info_full).is_file():
       with open(pfm_info_full,'rb') as fp:
          PFM = pickle.load(fp)
@@ -62,10 +71,26 @@ def get_PFM_info():
       # set up the dict that will be saved
       PFM = dict()
       PFM['info_file'] = pfm_info_full
+      if run_type == 'hindcast': # note hycom with tides starts on 2024-10-10 1200...
+         sim_start_time = '2024101100' # the simulation start time is in yyyymmddhh format
+         # set the simulation end time. An integer number of days past the start time
+         # We will loop over days until we get to this time.
+         sim_end_time   = '2024101200' # need 
+         PFM['sim_start_time'] = datetime.strptime(sim_start_time,'%Y%m%d%H')
+         PFM['sim_end_time'] = datetime.strptime(sim_end_time,'%Y%m%d%H') 
+         ocn_model = 'hycom_hind_wtide' # _wtide indicates using the new (>20241010) hycom
+         PFM['atm_hind_dir'] = '/scratch/PHM_Simulations/grb2_data'
+      else:
+         # hycom_new is the only forecast option
+         ocn_model = 'hycom_new' # worked with 'hycom' but that is now (9/13/24) depricated      
+      
+      if ocn_model == 'hycom_new' or ocn_model == 'hycom_hind_wtide':
+         add_tides=0 # the new version of hycom has tides, we don't need to add them
+
 
       lo_env = 'mss_swell'
-      PFM['executable_dir'] = pfm_root_dir + 'executables/'
-      pfm_grid_dir =  pfm_root_dir +  'Grids'       
+      PFM['executable_dir'] = pfm_dir + 'executables/'   # we will not make copies of executables and 
+      pfm_grid_dir =  pfm_dir +  'Grids'                 # grids. PHM will use the ones in pfm_dir
       lv1_root_dir =  pfm_root_dir +  'LV1_Forecast/'
       lv2_root_dir =  pfm_root_dir +  'LV2_Forecast/'
       lv3_root_dir =  pfm_root_dir +  'LV3_Forecast/'
@@ -87,10 +112,10 @@ def get_PFM_info():
       lv3_forc_dir = lv3_root_dir + 'Forc'
       lv3_plot_dir = lv3_root_dir + 'Plots'          
 
-
       lv4_run_dir  = lv4_root_dir + 'Run'
       lv4_forc_dir = lv4_root_dir + 'Forc'
 
+      # here is the switch to go from LV4 Roms only to LV4 coawst
       #lv4_model = 'ROMS'
       lv4_model = 'COAWST'
       if lv4_model == 'ROMS':
@@ -125,21 +150,16 @@ def get_PFM_info():
       lv3_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV3_rx020.nc'
       lv4_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV4_mss_oct2024.nc'
 
-      run_type = 'forecast'
-
-   # what is the ocean / atm model used to force?
-      ocn_model = 'hycom_new' # worked with 'hycom' but that is now (9/13/24) depricated
-      
-      if ocn_model == 'hycom_new':
-         add_tides=0 # the new version of hycom has tides, we don't need to add them
-
+ 
+      # atm options for run_type = 'forecast' are: nam_nest, gfs, gfs_1hr
       #atm_model = 'nam_nest'
       atm_model = 'gfs'
       #atm_model = 'gfs_1hr'
       atm_get_method = 'open_dap_nc'
       ocn_get_method = 'ncks_para'
+      # atm option for run_type = 'hindcast' are: 
 
-   # we now set the forecast duration depending on atm_model
+      # we now set the forecast duration depending on atm_model
       if atm_model == 'nam_nest':
           PFM['forecast_days'] = 2.5
           PFM['atm_dt_hr'] = 3
@@ -149,6 +169,10 @@ def get_PFM_info():
           PFM['atm_dt_hr'] = 3
       if atm_model == 'gfs_1hr':
           PFM['atm_dt_hr'] = 1
+      if run_type == 'hindcast':
+          PFM['forecast_days'] = 1.0 # we will always do 1 day at a time...
+          PFM['atm_dt_hr'] = 3
+
 
    # what is the time resolution of the models (in days), (used? 9/4/24 MSS)
       daystep_ocn = 3/24
@@ -263,7 +287,7 @@ def get_PFM_info():
       tt['L4','ndtfast'] = 8
       tt['L4','forecast_days'] = PFM['forecast_days']
 
-   #  max slurm time for level 4, in minutes
+   #  max slurm time for level 1,2,3,4, in minutes
       lv1_mins = int( np.round( 8.0 * 60.0 * PFM['forecast_days'] / (2.5 * tt['L1','dtsec']) ) )
       lv2_mins = int( np.round( 10.0 * 30.0 * PFM['forecast_days'] / (2.5 * tt['L2','dtsec']) ) )
       lv3_mins = int( np.round( 15.0 * 15.0 * PFM['forecast_days'] / (2.5 * tt['L3','dtsec']) ) )
@@ -323,8 +347,8 @@ def get_PFM_info():
       PFM['lv4_grid_file'] = lv4_grid_file
       PFM['lv4_model']     = lv4_model
 
-      PFM['hycom_data_dir'] = '/scratch/PFM_Simulations/hycom_data/'
-      PFM['cdip_data_dir'] = '/scratch/PFM_Simulations/cdip_data'
+      PFM['hycom_data_dir'] = pfm_root_dir + 'hycom_data/'
+      PFM['cdip_data_dir'] = pfm_root_dir + 'cdip_data'
 
       PFM['lv1_tides_file']          = 'ocean_tide.nc'
       PFM['atm_tmp_pckl_file']       = 'atm_tmp_pckl_file.pkl'
@@ -425,7 +449,6 @@ def get_PFM_info():
       # nam_nest is available 3 hrs after 0,6,12,18 Z
       # gfs is available 5.5 hrs after 0,6,12,18, Z
 
-
       fetch_time = datetime.now(timezone.utc) 
       utc_time = fetch_time
       hour_utc = utc_time.hour
@@ -433,36 +456,49 @@ def get_PFM_info():
       mon_utc  = utc_time.month
       day_utc  = utc_time.day
 
-      past_6 = hour_utc % 6 # this is the number of hours past 0,6,12,18...
-      if atm_model == 'nam_nest':
-         if past_6 > 3:
-            past_6 = past_6
-         else:
-            past_6 = past_6 + 6     
-      if atm_model == 'gfs' or atm_model == 'gfs_1hr':
-         past_6 = past_6 + 6     
- 
-      # fetch_time2 is now the start time of the PFM simulation based on the closest available
-      # nam data to now.
-      fetch_time2 = datetime(year_utc,mon_utc,day_utc,hour_utc,0,0,0)
-      fetch_time2 = fetch_time2 - timedelta(hours=past_6) 
-
-      #if hour_utc < 11:
-      #   fetch_time = datetime(fetch_time.year,fetch_time.month, fetch_time.day, 12) - timedelta(days=4)
-      #else:
-      #   fetch_time = datetime(fetch_time.year,fetch_time.month, fetch_time.day, 12) - timedelta(days=3)
-      hhmm = fetch_time2.strftime('%H%M')
-
-      yyyymmdd = "%d%02d%02d" % (fetch_time2.year, fetch_time2.month, fetch_time2.day)
-      PFM['yyyymmdd']   = yyyymmdd
-      PFM['hhmm']       = hhmm        # this is the HHMM of the forecast, aligns with NAM
-      PFM['fetch_time'] = fetch_time2 # this is the start time of the PFM forecast
       PFM['start_time'] = start_time  # this is when we started running PFM
       PFM['utc_time']   = utc_time    # this is when we started PFM in UTC
 
-      end_time = fetch_time2 + PFM['forecast_days'] * timedelta(days=1)
-      end_str = end_time.strftime("%Y%m%d%H%M")
-      PFM['fore_end_time'] = end_time # the end time of the forecast
+      if run_type == 'forecast':
+         past_6 = hour_utc % 6 # this is the number of hours past 0,6,12,18...
+         if atm_model == 'nam_nest':
+            if past_6 > 3:
+               past_6 = past_6
+            else:
+               past_6 = past_6 + 6     
+         if atm_model == 'gfs' or atm_model == 'gfs_1hr':
+            past_6 = past_6 + 6     
+   
+         # fetch_time2 is now the start time of the PFM simulation based on the closest available
+         # nam data to now.
+         fetch_time2 = datetime(year_utc,mon_utc,day_utc,hour_utc,0,0,0)
+         fetch_time2 = fetch_time2 - timedelta(hours=past_6) 
+
+         #if hour_utc < 11:
+         #   fetch_time = datetime(fetch_time.year,fetch_time.month, fetch_time.day, 12) - timedelta(days=4)
+         #else:
+         #   fetch_time = datetime(fetch_time.year,fetch_time.month, fetch_time.day, 12) - timedelta(days=3)
+         hhmm = fetch_time2.strftime('%H%M')
+
+         yyyymmdd = "%d%02d%02d" % (fetch_time2.year, fetch_time2.month, fetch_time2.day)
+         PFM['yyyymmdd']   = yyyymmdd
+         PFM['hhmm']       = hhmm        # this is the HHMM of the forecast, aligns with NAM
+         PFM['fetch_time'] = fetch_time2 # this is the start time of the PFM forecast
+         end_time = fetch_time2 + PFM['forecast_days'] * timedelta(days=1)
+         end_str = end_time.strftime("%Y%m%d%H%M")
+         PFM['fore_end_time'] = end_time # the end time of the forecast
+      else:
+         PFM['yyyymmdd']   = sim_start_time[0:8]    # simulation start date
+         PFM['hhmm']       = sim_start_time[8:]        # this is the HHMM of the forecast, aligns with NAM
+         fetch_time2 = datetime.strptime(sim_start_time,'%Y%m%d%H')
+         PFM['fetch_time'] =  fetch_time2 # this is the start time of the PFM hindcast as datetime object
+         end_time = fetch_time2 + PFM['forecast_days'] * timedelta(days=1)
+         end_str = end_time.strftime("%Y%m%d%H%M")
+         PFM['fore_end_time'] = end_time 
+         # the end time of the forecast as datetime object, for a hindcast, this is always one day more than fetch_time
+ 
+      yyyymmdd = PFM['fetch_time'].strftime("%Y%m%d")
+      hhmm = PFM['fetch_time'].strftime("%H%M")
       
       PFM['lv1_his_name'] = 'LV1_ocean_his_' + yyyymmdd + hhmm + '.nc'
       PFM['lv1_rst_name'] = 'LV1_ocean_rst_' + yyyymmdd + hhmm + '_' + end_str + '.nc' 
