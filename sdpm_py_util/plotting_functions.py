@@ -1408,12 +1408,14 @@ def plot_his_temps_wuv(fn,It,Iz,sv_fig,lvl,cmn,cmx):
 
     if lvl == 'LV4':
         dc = cmx - cmn
-        cmn2 = cmn + .5*dc
-        cmx = cmn + .75*dc
+        cmn2 = cmn + .25*dc
+        cmx = cmn + .95*dc
         cmn = cmn2
         cmn = np.floor(10*cmn) / 10
         cmx = np.ceil(10*cmx) / 10
 
+    cmn = cmn - .1
+    cmx = cmx + .1
 
     PFM=get_PFM_info()
     if lvl == 'LV1':
@@ -1445,14 +1447,16 @@ def plot_his_temps_wuv(fn,It,Iz,sv_fig,lvl,cmn,cmx):
     if lvl == 'LV4':
         msk = his_ds.variables['wetdry_mask_rho'][It,:,:]
         msk = np.squeeze(msk)
+    else:
+        msk = his_ds.variables['mask_rho'][:,:]
 
     It = int(It)
     Iz = int(Iz)
     temp = his_ds.variables['temp'][It,Iz,:,:]
     temp = temp.data
     temp == np.squeeze(temp)
-    if lvl == 'LV4':
-        temp[msk==0] = np.nan 
+    
+    temp[msk==0] = np.nan 
 
     #tempall = his_ds.variables['temp'][:,Iz,:,:]
 
@@ -1469,15 +1473,9 @@ def plot_his_temps_wuv(fn,It,Iz,sv_fig,lvl,cmn,cmx):
     #print(np.shape(v))
 
     fig, ax = plt.subplots(figsize=(8, 12), subplot_kw={'projection': ccrs.PlateCarree()})
-    if lvl == 'LV4':
-        plevs = np.arange(cmn,cmx,.05)
-    else:
-        plevs = np.arange(cmn - .2, cmx + .2, .1)
+    plevs = np.arange(cmn,cmx,.05)
     cmap = plt.get_cmap('turbo')
-    if lvl == 'LV4':
-        cset = ax.contourf(ln, lt, temp, plevs, cmap=cmap, extend="both", vmin=cmn, vmax=cmx, transform=ccrs.PlateCarree())        
-    else:
-        cset = ax.contourf(ln, lt, temp, plevs, cmap=cmap, transform=ccrs.PlateCarree())
+    cset = ax.contourf(ln, lt, temp, plevs, cmap=cmap, extend="both", vmin=cmn, vmax=cmx, transform=ccrs.PlateCarree())        
     plt.set_cmap(cmap)
     cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad = 0.05)
 
@@ -1535,8 +1533,10 @@ def plot_his_temps_wuv(fn,It,Iz,sv_fig,lvl,cmn,cmx):
     else:
         plt.show()
 
-def plot_lv4_coawst_his(fn,It,Iz,sv_fig,lvl,var_name):
+def plot_lv4_coawst_his(fn,It,Iz,sv_fig,lvl,var_name,cmn,cmx):
 
+    cmn = np.floor(10*float(cmn)) / 10 # get to the nearest .1
+    cmx = np.ceil(10*float(cmx)) / 10
     PFM=get_PFM_info()
     RMG = grdfuns.roms_grid_to_dict(PFM['lv4_grid_file'])
     #lt = his_ds.variables['lat_rho'][:]
@@ -1576,11 +1576,13 @@ def plot_lv4_coawst_his(fn,It,Iz,sv_fig,lvl,var_name):
     fig, ax = plt.subplots(figsize=(8, 12), subplot_kw={'projection': ccrs.PlateCarree()})
     #plevs = np.linspace(Dp5, Dp95, 25)
     if var_name in ['dye_01','dye_02']:
-        cmap = plt.get_cmap('turbo',12)
-        cset = ax.pcolor(ln, lt, D, cmap=cmap, vmin = -6, vmax = 0, transform=ccrs.PlateCarree())
-    else:
+        plevs = np.arange(-6.5,0.5,.5)
         cmap = plt.get_cmap('turbo')
-        cset = ax.pcolor(ln, lt, D, cmap=cmap, transform=ccrs.PlateCarree())
+        cset = ax.contourf(ln, lt, D, plevs, cmap=cmap, extend="both", vmin=-6, vmax=0, transform=ccrs.PlateCarree())        
+    else:
+        plevs = np.arange(cmn,cmx,.05)
+        cmap = plt.get_cmap('turbo')
+        cset = ax.contourf(ln, lt, D, plevs, cmap=cmap, extend="both", vmin=cmn, vmax=cmx, transform=ccrs.PlateCarree())        
     plt.set_cmap(cmap)
     cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad = 0.05)
 
@@ -1622,21 +1624,26 @@ def get_his_clims(fn,var_name,Iz,It):
     his_ds = nc.Dataset(fn,'r')    
     D = his_ds.variables[var_name]
     if D.ndim == 3: # for example Hwave
-        DD = D[:,:,It]
+        rmn = .01
+        rmx = .99
+        if It == 'all':
+            DD = D[:,:,:]
+        else:
+            DD = D[:,:,It]
     elif D.ndim == 4: # for example temp, salt, etc
         if Iz == 'all': 
             if It == 'all':
                 DD = D[:,:,:,:]
-                rmn = .001
-                rmx = .999
+                rmn = .01
+                rmx = .99
             else:
                 rmn = .01
                 rmx = .99
                 DD = D[It,:,:,:]
         else:
             if It == 'all':
-                rmn = .001
-                rmx = .999
+                rmn = .01
+                rmx = .99
                 DD = D[:,int(Iz),:,:]
             else:
                 rmn = .01
@@ -1689,6 +1696,7 @@ def make_all_his_figures(lvl):
         fn = PFM['lv4_his_name_full']        
         Ix = np.array([275,400])
         Iy = np.array([750,1000])
+        cmnH,cmxH = get_his_clims(fn,'Hwave',-1,'all')
 
 
     #fn = '/scratch/PFM_Simulations/LV4_Forecast/His/LV4_ocean_his_202501240000.nc'
@@ -1714,11 +1722,11 @@ def make_all_his_figures(lvl):
         #plot_his_temps_wuv(fn,It,iz,sv_fig,lvl)
         if PFM['lv4_model'] == 'COAWST' and lvl == 'LV4':
             #print(It)
-            cmd_list = ['python','-W','ignore','plotting_functions.py','plot_lv4_coawst_his',fn,str(It),str(iz),str(sv_fig),lvl,'dye_01'] 
+            cmd_list = ['python','-W','ignore','plotting_functions.py','plot_lv4_coawst_his',fn,str(It),str(iz),str(sv_fig),lvl,'dye_01','0','1'] 
             ret1 = subprocess.Popen(cmd_list)     
-            cmd_list = ['python','-W','ignore','plotting_functions.py','plot_lv4_coawst_his',fn,str(It),str(iz),str(sv_fig),lvl,'dye_02'] 
+            cmd_list = ['python','-W','ignore','plotting_functions.py','plot_lv4_coawst_his',fn,str(It),str(iz),str(sv_fig),lvl,'dye_02','0','1'] 
             ret1 = subprocess.Popen(cmd_list)     
-            cmd_list = ['python','-W','ignore','plotting_functions.py','plot_lv4_coawst_his',fn,str(It),str(iz),str(sv_fig),lvl,'Hwave'] 
+            cmd_list = ['python','-W','ignore','plotting_functions.py','plot_lv4_coawst_his',fn,str(It),str(iz),str(sv_fig),lvl,'Hwave',str(cmnH),str(cmxH)] 
             if It<pfm_hrs:
                 ret1 = subprocess.run(cmd_list)     
             else:
