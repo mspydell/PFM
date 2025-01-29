@@ -1834,6 +1834,297 @@ def get_tide_levels(metadata):
 
     return np.array(all_observed_v).astype(float), t_ob, np.array(all_predicted_v).astype(float), t_pr
 
+def nan_helper(y):
+    """Helper to handle indices and logical indices of NaNs.
+
+    Input:
+        - y, 1d numpy array with possible NaNs
+    Output:
+        - nans, logical indices of NaNs
+        - index, a function, with signature indices= index(logical_indices),
+          to convert logical indices of NaNs to 'equivalent' indices
+    Example:
+        >>> # linear interpolation of NaNs
+        >>> nans, x= nan_helper(y)
+        >>> y[nans]= np.interp(x(nans), x(~nans), y[~nans])
+    """
+
+    return np.isnan(y), lambda z: z.nonzero()[0]
+
+def get_depth_indices(hb,lats,depth):
+    # returns the x indices wherre hb crosses depth
+    # and returns the depth at that x index.
+    ny,nx = np.shape(hb)
+    #print(ny,nx)
+    ixs = np.zeros((ny,len(depth)),dtype=int)
+    hbs = np.zeros((ny,len(depth)))
+    lat2 = np.zeros((ny,len(depth)))
+    cnt = 0
+    for dd in depth:
+        for aa in np.arange(ny):
+            hofx = hb[aa,:] - dd # we want to know when this crosses zero
+            zero_cross = np.where(np.diff(np.sign(hofx))) # this is the index of zero crossing
+            ixs[aa,cnt] = int( np.min(zero_cross) )
+            hbs[aa,cnt] = hb[aa,ixs[aa,cnt]]
+            lat2[aa,cnt] = lats[aa,ixs[aa,cnt]]
+        cnt=cnt+1
+
+    lat2 = np.squeeze( lat2[:,0] )
+
+    # remove the estuary...
+    ltb_mn = 32.5536 # these are the latitudes where the estuary messes things up...
+    ltb_mx = 32.5546
+
+    ibad =  (lat2>ltb_mn) & (lat2<ltb_mx)  
+
+    for bb in np.arange(len(depth)):
+        yy = np.interp(lat2[ibad],lat2[~ibad],ixs[~ibad,bb])
+        yy = np.round(yy)
+        yy.astype(int)
+        ixs[ibad,bb] = yy
+        
+
+    ixs.astype(int)
+    #print(ixs[ibad,0])
+    return ixs, hbs
+
+def get_alonshore_distance_etc(ixs,iys,fn_grd):
+
+    DD = dict()
+    
+    DD['ixs'] = ixs
+    DD['iys'] = iys
+
+    ny, nd = np.shape(ixs)
+
+
+    with nc.Dataset(fn_grd) as ds:
+        lats = ds.variables['lat_rho'][:,:] # the data to extract depth from
+        lons = ds.variables['lon_rho'][:,:]
+        xx   = ds.variables['x_rho'][:,:]
+        yy   = ds.variables['y_rho'][:,:]
+        hh   = ds.variables['h'][:,:]
+    
+    lts = np.zeros((ny,nd))
+    lns = np.zeros((ny,nd))
+    hs  = np.zeros((ny,nd))
+    XX  = np.zeros((ny,nd))
+    YY  = np.zeros((ny,nd))
+
+    for aa in np.arange(nd):
+        for bb in np.arange(ny):
+            XX[bb,aa] = xx[iys[bb],ixs[bb]]
+            YY[bb,aa] = yy[iys[bb],ixs[bb]]
+            lts[bb,aa] = lats[iys[bb],ixs[bb]]
+            lns[bb,aa] = lons[iys[bb],ixs[bb]]
+            hs[bb,aa]  = hh[iys[bb],ixs[bb]]
+
+
+    dx = np.diff(XX,axis=0)
+    dy = np.diff(YY,axis=0)
+    l  = np.cumsum( np.sqrt( np.square(dx) + np.square(dy) ),axis=0 )
+    
+    l = np.insert(l,0,0,axis=0) # this is now the distance from the starting iy0.
+    DD['l'] = l
+    DD['lat'] = lts
+    DD['lon'] = lns
+    DD['hb'] = hs
+
+    return DD
+
+def make_dye_plots(fn_grd,fn_his):
+    # this function makes dye plots for a given history file, and associated grid file
+    PFM = get_PFM_info()
+    yyyymmddhh = PFM['fetch_time'].strftime('%Y%m%d%H')
+
+    fn1 = PFM['lv4_plot_dir'] + '/' + 'dye_01_hov_' + yyyymmddhh + '.png'
+    fn2 = PFM['lv4_plot_dir'] + '/' + 'dye_02_hov_' + yyyymmddhh + '.png'
+    fn3 = PFM['lv4_plot_dir'] + '/' + 'dye_01_ofl_' + yyyymmddhh + '.png'
+    fn4 = PFM['lv4_plot_dir'] + '/' + 'dye_02_ofl_' + yyyymmddhh + '.png'
+    fn5 = PFM['lv4_plot_dir'] + '/' + 'dye_01_oft_' + yyyymmddhh + '.png'
+
+    sv_fig = '1'
+
+    ix0 = 75 # this is the starting index to look to the right from 
+    iymn = 0
+    iymx = 1060
+    iys = np.arange(iymn,iymx,1)
+    hb0 = [1.25] # this is the depth to get the indices from
+    with nc.Dataset(fn_grd) as ds:
+        hb = ds.variables['h'][iys,ix0:] # the data to extract depth from
+        hb_og = ds.variables['h'][:,:]
+        lats = ds.variables['lat_rho'][iys,ix0:]
+        iy,ix = np.shape(hb_og)
+
+    ixs, _ = get_depth_indices(hb,lats,hb0)    
+    ixs = ixs + ix0 # must return the starting point
+
+    with nc.Dataset(fn_grd) as ds:
+        lat = ds.variables['lat_rho'][:,:] # the data to extract depth from
+
+    ny = len(ixs)
+    lat2 = np.zeros((ny))
+    for aa in np.arange(ny):
+        lat2[aa] = lat[iys[aa],ixs[aa]]
+
+    fig, ax = plt.subplots()
+    ax.contourf(np.arange(ix),np.arange(iy),hb_og,levels=10)
+    lvls = [1.25, 1.5]
+    ax.contour(np.arange(ix),np.arange(iy),hb_og, levels=lvls)
+    ax.plot(ixs,iys,'r')
+
+    DD = get_alonshore_distance_etc(ixs,iys,fn_grd)
+
+    with nc.Dataset(fn_his) as his:
+        times = his.variables['ocean_time']
+        times2 = num2date(times[:], times.units)
+        times2 = np.array([datetime(year=date.year, month=date.month, day=date.day, 
+                              hour=date.hour, minute=date.minute, second=date.second) for date in times2])
+
+    nt = len(times2) # these are the times for the history file
+    #nt = 60
+    dye_01 = np.zeros((nt,ny))
+    dye_02 = np.zeros((nt,ny))
+    for aa in np.arange(0,nt,1):
+        with nc.Dataset(fn_his) as his:
+            hh = his.variables['h'][iys,ix0:] + np.squeeze( his.variables['zeta'][aa,iys,ix0:] )
+            dye1 = his.variables['dye_01'][aa,-1,:,:] # get the surface
+            dye2 = his.variables['dye_02'][aa,-1,:,:]             
+            ixs,_ = get_depth_indices(hh,lats,hb0)
+            ixs = ixs + ix0
+            for bb in np.arange(ny):
+                dye_01[aa,bb] = np.squeeze(dye1[iys[bb],ixs[bb]])
+                dye_02[aa,bb] = np.squeeze(dye2[iys[bb],ixs[bb]])
+
+    # PTJ, border, TJRE, IB pier, Silver Strand, HdC
+    ln_lab = ['PTJ','border','TJRE','IB pier','Silver Strand','HdC']
+    lts0 = [32.52, 32.534, 32.552, 32.58, 32.625, 32.678]
+    ipts = np.zeros((len(lts0)),dtype=int)
+    for aa in np.arange(len(lts0)):
+        dlt = DD['lat']-lts0[aa]
+        ipts[aa] = np.argmin(np.square(dlt))
+
+    fig, ax = plt.subplots()
+    plevs = np.arange(-5.5,-0.5,.5)
+    cmap = plt.get_cmap('magma_r')
+    lD = np.log10(dye_01)
+    lD1 = lD[:,ipts[3:5]]
+    l = DD['l'][:,0]
+    loff = 3.32
+    cset = ax.contourf(l/1000 - loff,times2,lD, plevs, cmap=cmap, extend="both", vmin=-5, vmax=-1)        
+    cbar = fig.colorbar(cset, ax=ax, orientation='vertical', pad = 0.05)
+    #ax.contour( l/1000 - loff, times2, lD , levels = [-5, -4, -3], colors=['g','y','r'], linewidths=[3,3,3])        
+
+    cnt=0
+    for i0 in ipts:
+        ax.plot([l[i0]/1000-loff,l[i0]/1000-loff], [times2[0],times2[-1]],'--k')
+        ax.text(l[i0]/1000 - loff + .15, times2[0]+timedelta(hours=2),ln_lab[cnt],rotation=90,fontsize=10)
+        cnt=cnt+1
+
+    ax.set_xlabel('distance from PB [km]')
+    ax.set_title('log10( dye_01 )')
+
+    if sv_fig == '1':
+        plt.savefig(fn1, dpi=300)
+    else:
+        plt.show()
+
+
+    fig, ax = plt.subplots()
+    colors = iter(plt.cm.turbo(np.linspace(0, 1, len(np.arange(0,nt,24)))))
+    for it in np.arange(0,nt,24):
+        clr = next(colors)
+        ax.plot(l[1:]/1000 - loff,lD[it,1:], color=clr, label = str(times2[it]))
+
+    ax.legend(loc='lower left',fontsize = 8)
+
+    cnt=0
+    for i0 in ipts:
+        ax.plot([l[i0]/1000-loff,l[i0]/1000-loff], [-6,-1],'--k')
+        ax.text(l[i0]/1000 - loff + .15, -2.2 ,ln_lab[cnt],rotation=90,fontsize=10)
+        cnt=cnt+1
+
+    ax.set_ylim([-6,-1])
+    ax.set_xlabel('distance from PB [km]')
+    ax.set_ylabel('log10( dye_01 )')
+    t1str = times2[0].strftime("%Y-%m-%d %HZ")
+    t2str = times2[-1].strftime("%Y-%m-%d %HZ")
+    ax.set_title('dye from PB')
+
+    if sv_fig == '1':
+        plt.savefig(fn3, dpi=300)
+    else:
+        plt.show()
+
+
+    fig, ax = plt.subplots()
+    lD = np.log10(dye_02)
+    lD2 = lD[:,ipts[3:5]]
+    loff = 3.32 + 14.9
+    cset = ax.contourf(l/1000 - loff,times2,lD, plevs, cmap=cmap, extend="both", vmin=-5, vmax=-1)        
+    cbar = fig.colorbar(cset, ax=ax, orientation='vertical', pad = 0.05)
+    #ax.contour( l/1000 - loff, times2, lD , levels = [-5, -4, -3], colors=['g','y','r'], linewidths=[3,3,3])        
+
+    cnt=0
+    for i0 in ipts:
+        ax.plot([l[i0]/1000-loff,l[i0]/1000-loff], [times2[0],times2[-1]],'--k')
+        ax.text(l[i0]/1000 - loff + .15, times2[0]+timedelta(hours=2),ln_lab[cnt],rotation=90,fontsize=10)
+        cnt=cnt+1
+
+    ax.set_xlabel('distance from TJRE [km]')
+    ax.set_title('log10( dye_02 )')
+
+    if sv_fig == '1':
+        plt.savefig(fn2, dpi=300)
+    else:
+        plt.show()
+
+
+    fig, ax = plt.subplots()
+    colors = iter(plt.cm.turbo(np.linspace(0, 1, len(np.arange(0,nt,24)))))
+    for it in np.arange(0,nt,24):
+        clr = next(colors)
+        ax.plot(l[1:]/1000 - loff,lD[it,1:], color=clr, label = str(times2[it]))
+
+    ax.legend(loc='upper left',fontsize = 8)
+
+    cnt=0
+    for i0 in ipts:
+        ax.plot([l[i0]/1000-loff,l[i0]/1000-loff], [-6,-1],'--k')
+        ax.text(l[i0]/1000 - loff + .15, -2.2 ,ln_lab[cnt],rotation=90,fontsize=10)
+        cnt=cnt+1
+
+    ax.set_ylim([-6,-1])
+    ax.set_xlabel('distance from TJRE [km]')
+    ax.set_ylabel('log10( dye_02 )')
+    t1str = times2[0].strftime("%Y-%m-%d %HZ")
+    t2str = times2[-1].strftime("%Y-%m-%d %HZ")
+    ax.set_title('dye from TJRE')
+        
+    if sv_fig == '1':
+        plt.savefig(fn4, dpi=300)
+    else:
+        plt.show()
+
+
+    fig, ax = plt.subplots()
+    ax.plot(times2, lD1[:,0], '-b' ,label = 'dye_01 at IB')
+    ax.plot(times2, lD1[:,1], '--b', label = 'dye_01 at SS')
+    #ax.plot(times2, lD2[:,0], '-g', label = 'dye_02 at IB')
+    #ax.plot(times2, lD2[:,1], '--g', label = 'dye_02 at SS')
+
+    ax.legend(loc='upper left',fontsize = 8)
+
+    ax.set_ylim([-6,-1])
+    ax.set_ylabel('log10( dye )')
+    ax.set_xlabel('date [UTC]')
+    #ax.set_title('dye_01 (from PB), dye_02 (from TJRE)')
+
+    if sv_fig == '1':
+        plt.savefig(fn5, dpi=300)
+    else:
+        plt.show()
+
 
 if __name__ == "__main__":
     args = sys.argv

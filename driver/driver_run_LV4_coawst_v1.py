@@ -263,6 +263,19 @@ print('...done plotting LV4: ' + str(ret6.returncode) + ' (0=good)')
 os.chdir('../driver')
 print('this took:')
 print(datetime.now()-t01)
+dt_plotting.append(datetime.now()-t01)
+
+print('now making LV4 dye plots...')
+fn_gr = PFM['lv4_grid_file']
+fn_hs = PFM['lv4_his_name_full']
+t01=datetime.now()
+cmd_list = ['python','-W','ignore','plotting_functions.py','make_dye_plots',fn_gr,fn_hs]
+os.chdir('../sdpm_py_util')
+ret6 = subprocess.run(cmd_list)   
+print('...done plotting LV4: ' + str(ret6.returncode) + ' (0=good)')  
+os.chdir('../driver')
+print('this took:')
+print(datetime.now()-t01)
 
 #pltfuns.make_all_his_figures('LV4')
 dt_plotting.append(datetime.now()-t01)

@@ -501,7 +501,15 @@ def get_hycom_foretime_v2(t1str,t2str):
 
     fn2 = np.array(missing)
     ind0 = np.where(fn2 == 0)[0]
-    keeper = np.max(ind0)
+    if len(ind0) == 0: # ie ind0 is empty, then there are no hycom forecasts with data for PFM
+        print('No hycom forecasts had the necessary files for this')
+        print(str(PFM['forecast_days']) + ' day PFM forecast starting at')
+        print(PFM['fetch_time'])
+        print('exiting this PFM forecast...')
+        print('perhaps if this were a 5 day forecast we should restart PFM as a 2.5 day forecast here')
+        sys.exit("...exiting!")
+
+    keeper = np.max(ind0) # get the latest hycom forecast that has the files we need.
     tkeep = t0s[keeper]
     print('so we will use the')
     yyyymmdd = tkeep[0:4] + tkeep[5:7] + tkeep[8:10]
