@@ -144,7 +144,7 @@ def get_river_temp():
     Fz = interp1d(t_air,temp_river_time0,bounds_error=False,kind='linear',fill_value=(temp_river_time0[0],temp_river_time0[-1]))
                 
     temp_river_time = Fz(t_riv)
-    print(len(temp_river_time))
+    #print(len(temp_river_time))
 
     plot_it = 1
     if plot_it == 1:

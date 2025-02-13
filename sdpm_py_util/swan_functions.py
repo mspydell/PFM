@@ -65,18 +65,36 @@ def mk_swan_wnd_file(fout):
     ds  = nc.Dataset(fin)
     U   = ds['Uwind'][:]
     V   = ds['Vwind'][:]
+    tw =  ds['wind_time'][:]
+    dtw = np.round( 24.0 * np.diff(tw)) # this is the time between atm data in hours
+
     nt,nlt,nln = np.shape(U)
     with open(fout,'w') as f:
         for aa in np.arange(nt):
-            for bb in np.arange(nlt):
-                for cc in np.arange(nln):
-                    f.write(f'{U[aa,bb,cc] : >7.2f}')
-                f.write('\n')
+            if aa < nt-1 and int(dtw[aa])==3 and PFM['atm_model'] == 'ecmwf': # hard coded assuming that ecmwf goes from dt = 1 to dt=3 hrs 
+                                                                            # this happens 3.75 days after the start of the ecmwf simulation
+                for dd in np.arange(3):
+                    d1=(dd+3)/3.0  # these are the coefficents for linear interpolation from 3 hrs to 1 hr
+                    d2=dd/3.0
+                    for bb in np.arange(nlt):
+                        for cc in np.arange(nln):
+                            f.write(f'{d1*U[aa,bb,cc]+d2*U[aa+1,bb,cc] : >7.2f}')
+                        f.write('\n')
 
-            for bb in np.arange(nlt):
-                for cc in np.arange(nln):
-                    f.write(f'{V[aa,bb,cc] : >7.2f}')
-                f.write('\n')
+                    for bb in np.arange(nlt):
+                        for cc in np.arange(nln):
+                            f.write(f'{d1*V[aa,bb,cc]+d2*V[aa+1,bb,cc] : >7.2f}')
+                        f.write('\n')                    
+            else:
+                for bb in np.arange(nlt):
+                    for cc in np.arange(nln):
+                        f.write(f'{U[aa,bb,cc] : >7.2f}')
+                    f.write('\n')
+
+                for bb in np.arange(nlt):
+                    for cc in np.arange(nln):
+                        f.write(f'{V[aa,bb,cc] : >7.2f}')
+                    f.write('\n')
 
 
 def mk_swan_bnd_file(fout):

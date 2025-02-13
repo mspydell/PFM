@@ -150,8 +150,13 @@ def get_PFM_info():
       lv3_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV3_rx020.nc'
       lv4_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV4_mss_oct2024.nc'
 
+      PFM['lv1_grid_file_full'] = lv1_grid_file
+      PFM['lv2_grid_file_full'] = lv2_grid_file
+      PFM['lv3_grid_file_full'] = lv3_grid_file
+      PFM['lv4_grid_file_full'] = lv4_grid_file
  
-      # atm options for run_type = 'forecast' are: nam_nest, gfs, gfs_1hr
+      # atm options for run_type = 'forecast' are: nam_nest, gfs, gfs_1hr, ecmwf
+      #atm_model = 'ecmwf'
       #atm_model = 'nam_nest'
       atm_model = 'gfs'
       #atm_model = 'gfs_1hr'
@@ -161,18 +166,27 @@ def get_PFM_info():
 
       # we now set the forecast duration depending on atm_model
       if atm_model == 'nam_nest':
-          PFM['forecast_days'] = 2.5
-          PFM['atm_dt_hr'] = 3
+         PFM['forecast_days'] = 2.5
+         PFM['atm_dt_hr'] = 3
       if atm_model == 'gfs' or atm_model == 'gfs_1hr':
-          PFM['forecast_days'] = 5.0 # this should be 5, but might be out of bounds?
+         PFM['forecast_days'] = 5.0 # this should be 5, but might be out of bounds?
       if atm_model == 'gfs':
-          PFM['atm_dt_hr'] = 3
+         PFM['atm_dt_hr'] = 3
       if atm_model == 'gfs_1hr':
-          PFM['atm_dt_hr'] = 1
+         PFM['atm_dt_hr'] = 1
+      if atm_model == 'ecmwf':
+         PFM['forecast_days'] = 5.0 # 5.0 is the target 
+         PFM['atm_dt_hr'] = 1
+      
       if run_type == 'hindcast':
           PFM['forecast_days'] = 1.0 # we will always do 1 day at a time...
           PFM['atm_dt_hr'] = 3
 
+
+      PFM['ecmwf_dir'] = '/scratch/PFM_Simulations/ecmwf_data/'
+      PFM['ecmwf_all_pkl_name'] = 'ecmwf_all.pkl'
+      PFM['ecmwf_pkl_roms_vars'] = 'ecmwf_roms_vars.pkl'
+      PFM['ecmwf_pkl_on_roms_grid'] = 'ecmwf_on_romsgrid.pkl'
 
    # what is the time resolution of the models (in days), (used? 9/4/24 MSS)
       daystep_ocn = 3/24
@@ -467,8 +481,13 @@ def get_PFM_info():
             else:
                past_6 = past_6 + 6     
          if atm_model == 'gfs' or atm_model == 'gfs_1hr':
-            past_6 = past_6 + 6     
-   
+            past_6 = past_6 + 6
+         if atm_model == 'ecmwf': # right now (2/6/25, ecmwf lags by 8 hrs or so)
+            if past_6 > 1:
+               past_6 = past_6 + 6      
+            else:
+               past_6 = past_6 + 12
+
          # fetch_time2 is now the start time of the PFM simulation based on the closest available
          # nam data to now.
          fetch_time2 = datetime(year_utc,mon_utc,day_utc,hour_utc,0,0,0)

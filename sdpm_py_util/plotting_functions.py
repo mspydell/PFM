@@ -275,7 +275,7 @@ def plot_atm_r_fields(ATM_R, RMG, PFM, show=False, fields_to_plot=None, forecast
         ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f'{x:.2f}'))
         ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: f'{y:.2f}'))
 
-        annotation = f'Timestamp: {start_time.strftime("%Y-%m-%d %H:%M:%S")} | Model: nam_nest | Forecast Hour: {forecast_hours:.1f}'
+        annotation = f'Timestamp: {start_time.strftime("%Y-%m-%d %H:%M:%S")} | Model: {PFM['atm_model']} | Forecast Hour: {forecast_hours:.1f}'
         ax.text(0.5, 1.05, annotation, transform=ax.transAxes, ha='center', fontsize=12)
         
         output_dir = PFM['lv1_plot_dir']
@@ -490,18 +490,18 @@ def plot_all_fields_in_one(lv, show=False, fields_to_plot=None, forecast_hour=No
                 ax.set_yticks(np.round(np.linspace(np.min(lat), np.max(lat), num=5), 2))
                 ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f'{x:.2f}'))
                 ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: f'{y:.2f}'))
-                annotation = f'raw atm. {start_time.strftime("%Y-%m-%d %H:%M:%S")} | Model: nam_nest | Forecast Hour: {forecast_hours:.1f}'
+                annotation = f'raw atm. {start_time.strftime("%Y-%m-%d %H:%M:%S")} | Model: {PFM['atm_model']} | Forecast Hour: {forecast_hours:.1f}'
             else:
                 ax.set_xticks(np.round(np.linspace(np.min(lon_r), np.max(lon_r), num=5), 2))
                 ax.set_yticks(np.round(np.linspace(np.min(lat_r), np.max(lat_r), num=5), 2))
                 ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f'{x:.2f}'))
                 ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: f'{y:.2f}'))
-                annotation = f'LV{lv} atm. {start_time.strftime("%Y-%m-%d %H:%M:%S")} | Model: nam_nest | Forecast Hour: {forecast_hours:.1f}'
+                annotation = f'LV{lv} atm. {start_time.strftime("%Y-%m-%d %H:%M:%S")} | Model: {PFM['atm_model']} | Forecast Hour: {forecast_hours:.1f}'
 
             ax.text(0.5, 1.05, annotation, transform=ax.transAxes, ha='center', fontsize=12)
         
         # Save the plot for each field
-        filename = f'{output_dir}/{timestamp}_nam_nest_ATMandATMR_{field}_hour_{forecast_hours}.png'
+        filename = f'{output_dir}/{timestamp}_{PFM['atm_model']}_ATMandATMR_{field}_hour_{forecast_hours}.png'
         plt.savefig(filename, dpi=300, bbox_inches='tight')
         if show is True:
             plt.tight_layout()
@@ -1221,17 +1221,17 @@ def plot_ocn_ic_fields(filepath, fields_to_plot=None, time_index=0, depth_index=
             plt.close()
     nc.close()
 
-def plot_ssh_his_tseries_v2(fn,Ix,Iy,sv_fig,lvl):
+def plot_ssh_his_tseries_v2(fn,fn_grd,Ix,Iy,sv_fig,lvl,dir_out):
 
-    PFM=get_PFM_info()
-    if lvl == 'LV1':
-        RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
-    elif lvl == 'LV2':
-        RMG = grdfuns.roms_grid_to_dict(PFM['lv2_grid_file'])
-    elif lvl == 'LV3':
-        RMG = grdfuns.roms_grid_to_dict(PFM['lv3_grid_file'])
-    elif lvl == 'LV4':
-        RMG = grdfuns.roms_grid_to_dict(PFM['lv4_grid_file'])
+#    PFM=get_PFM_info()
+#    if lvl == 'LV1':
+    RMG = grdfuns.roms_grid_to_dict(fn_grd)
+#    elif lvl == 'LV2':
+#        RMG = grdfuns.roms_grid_to_dict(PFM['lv2_grid_file'])
+#    elif lvl == 'LV3':
+#        RMG = grdfuns.roms_grid_to_dict(PFM['lv3_grid_file'])
+#    elif lvl == 'LV4':
+#        RMG = grdfuns.roms_grid_to_dict(PFM['lv4_grid_file'])
 
     his_ds = nc.Dataset(fn)
 
@@ -1245,7 +1245,7 @@ def plot_ssh_his_tseries_v2(fn,Ix,Iy,sv_fig,lvl):
 #    hb = his_ds.variables['h'][:]
     lt = RMG['lat_rho'][:]
     ln = RMG['lon_rho'][:]
-    hb = RMG['h'][:]
+    hb = his_ds.variables['h'][:,:]
     if lvl == 'LV1':
         plevs = np.arange(-4800, 0, 20)
     elif lvl == 'LV2':
@@ -1321,15 +1321,26 @@ def plot_ssh_his_tseries_v2(fn,Ix,Iy,sv_fig,lvl):
     plt.setp(plt.xticks()[1], rotation=30, ha='right') # ha is the same as horizontalalignment
     ax2.set_ylabel('Sea Surface Height (m)')
     if sv_fig == 1:
-        PFM=get_PFM_info()
+        #PFM=get_PFM_info()
+        #if lvl == 'LV1':
+        #    fn_out = PFM['lv1_plot_dir'] + '/his_ssh_tseries_LV1_' + PFM['yyyymmdd'] + PFM['hhmm'] + '.png'
+        #elif lvl == 'LV2':
+        #    fn_out = PFM['lv2_plot_dir'] + '/his_ssh_tseries_LV2_' + PFM['yyyymmdd'] + PFM['hhmm'] + '.png'
+        #elif lvl == 'LV3':
+        #    fn_out = PFM['lv3_plot_dir'] + '/his_ssh_tseries_LV3_' + PFM['yyyymmdd'] + PFM['hhmm'] + '.png'
+        #elif lvl == 'LV4':
+        #    fn_out = PFM['lv4_plot_dir'] + '/his_ssh_tseries_LV4_' + PFM['yyyymmdd'] + PFM['hhmm'] + '.png'
+
+        yyyymmddhh = times2[0].strftime("%Y%m%d%H") # this is the start time of the simulation
         if lvl == 'LV1':
-            fn_out = PFM['lv1_plot_dir'] + '/his_ssh_tseries_LV1_' + PFM['yyyymmdd'] + PFM['hhmm'] + '.png'
+            fn_out = dir_out + '/his_ssh_tseries_LV1_' + yyyymmddhh + '.png'
         elif lvl == 'LV2':
-            fn_out = PFM['lv2_plot_dir'] + '/his_ssh_tseries_LV2_' + PFM['yyyymmdd'] + PFM['hhmm'] + '.png'
+            fn_out = dir_out + '/his_ssh_tseries_LV2_' + yyyymmddhh + '.png'
         elif lvl == 'LV3':
-            fn_out = PFM['lv3_plot_dir'] + '/his_ssh_tseries_LV3_' + PFM['yyyymmdd'] + PFM['hhmm'] + '.png'
+            fn_out = dir_out + '/his_ssh_tseries_LV3_' + yyyymmddhh + '.png'
         elif lvl == 'LV4':
-            fn_out = PFM['lv4_plot_dir'] + '/his_ssh_tseries_LV4_' + PFM['yyyymmdd'] + PFM['hhmm'] + '.png'
+            fn_out = dir_out + '/his_ssh_tseries_LV4_' + yyyymmddhh + '.png'
+
 
         plt.savefig(fn_out, dpi=300)
     else:
@@ -1533,6 +1544,229 @@ def plot_his_temps_wuv(fn,It,Iz,sv_fig,lvl,cmn,cmx):
     else:
         plt.show()
 
+def plot_his_temps_wuv_v2(fn,It,Iz,sv_fig,lvl,cmn,cmx,fn_grd,dir_out):
+
+    cmn = float(cmn) # these are the colorbar limits
+    cmx = float(cmx)
+
+    cmn = np.floor(10*cmn) / 10
+    cmx = np.ceil(10*cmx) / 10
+
+    if lvl == 'LV4':
+        dc = cmx - cmn
+        cmn2 = cmn + .25*dc
+        cmx = cmn + .95*dc
+        cmn = cmn2
+        cmn = np.floor(10*cmn) / 10
+        cmx = np.ceil(10*cmx) / 10
+
+    cmn = cmn - .1
+    cmx = cmx + .1
+
+    if lvl == 'LV1':
+        res = '110m'
+        res2 = 'i'
+    elif lvl == 'LV2':
+        res = '50m'
+        res2 = 'h'
+    elif lvl == 'LV3':
+        res = '10m'
+        res2 = 'f'
+    elif lvl == 'LV4':
+        res = '10m'
+        res2 = 'f'
+
+    RMG = grdfuns.roms_grid_to_dict(fn_grd)
+
+    
+    his_ds = nc.Dataset(fn)
+    #lt = his_ds.variables['lat_rho'][:]
+    lt = RMG['lat_rho'][:]
+    #ln = his_ds.variables['lon_rho'][:]
+    ln = RMG['lon_rho'][:]
+
+
+    #print(his_ds.variables.keys())
+
+    if lvl == 'LV4':
+        msk = his_ds.variables['wetdry_mask_rho'][It,:,:]
+        msk = np.squeeze(msk)
+    else:
+        msk = his_ds.variables['mask_rho'][:,:]
+
+    It = int(It)
+    Iz = int(Iz)
+    temp = his_ds.variables['temp'][It,Iz,:,:]
+    temp = temp.data
+    temp == np.squeeze(temp)
+    
+    temp[msk==0] = np.nan 
+
+    #tempall = his_ds.variables['temp'][:,Iz,:,:]
+
+    urm = np.squeeze( his_ds.variables['u'][It,Iz,:,:] )
+    vrm = np.squeeze( his_ds.variables['v'][It,Iz,:,:] )
+    urm2 = np.squeeze( .5 * (urm[0:-1,:]+urm[1:,:]) ) # now on rho points, but not 0 or -1
+    vrm2 = np.squeeze( .5 * (vrm[:,0:-1]+vrm[:,1:]) )
+    ang = RMG['angle'] # on rho points
+    ang2 = np.squeeze( .5* (ang[0:-1,0:-1] + ang[1:,1:]  ))
+    u = urm2 * np.cos(ang2) - vrm2 * np.sin(ang2)
+    v = vrm2 * np.cos(ang2) + urm2 * np.sin(ang2)
+
+    #print(np.shape(u))
+    #print(np.shape(v))
+
+    fig, ax = plt.subplots(figsize=(8, 12), subplot_kw={'projection': ccrs.PlateCarree()})
+    plevs = np.arange(cmn,cmx,.05)
+    cmap = plt.get_cmap('turbo')
+    cset = ax.contourf(ln, lt, temp, plevs, cmap=cmap, extend="both", vmin=cmn, vmax=cmx, transform=ccrs.PlateCarree())        
+    plt.set_cmap(cmap)
+    cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad = 0.05)
+
+    ln2 = .5* (ln[0:-1,0:-1]+ln[1:,1:])
+    lt2 = .5* (lt[0:-1,0:-1]+lt[1:,1:])
+
+    if lvl == 'LV1' or lvl =='LV2' or lvl == 'LV3':
+        ax.quiver(ln2[0::8,0::8], lt2[0::8,0::8], u[0::8,0::8], v[0::8,0::8], transform=ccrs.PlateCarree())
+
+    times = his_ds.variables['ocean_time']
+    times2 = num2date(times[:], times.units)
+    times2 = np.array([datetime(year=date.year, month=date.month, day=date.day, 
+                              hour=date.hour, minute=date.minute, second=date.second) for date in times2])
+
+    start_time = times2[0]
+    forecast_hours = It
+    tzone = datetime.now().astimezone().tzinfo
+    if str(tzone) == 'PDT':
+        toff = -7
+    elif str(tzone) == 'PST':
+        toff = -8
+    tfore = times2[It] + toff * timedelta(hours=1)    
+    annotation = (f'{lvl} Surface Temp [C] and currents | Forecast: {start_time.strftime("%Y-%m-%d %H:%M:%S")}\n' 
+                   f'Forecast Hour: {forecast_hours:.1f} ({tfore.strftime("%Y-%m-%d %H:%M:%S")} {str(tzone)})')
+
+    ax.text(0.5, 1.05, annotation, transform=ax.transAxes, ha='center', fontsize=12)
+    ax.add_feature(cfeature.LAND)
+    ax.add_feature(cfeature.BORDERS)
+    #coast = cfeature.GSHHSFeature(scale='full')
+    #ax.add_feature(cfeature.COASTLINE, resolution=res, linewidth = 1.25)   
+    if lvl != 'LV4':
+        coast = cfeature.GSHHSFeature(scale=res2)
+        ax.add_feature(coast)
+    #ax.coastlines(resolution=res)
+    ax.set_xlabel('Longitude')
+    ax.set_ylabel('Latitude')
+    ax.grid(True)
+    ax.set_aspect(aspect='auto')
+    ax.set_xticks(np.round(np.linspace(np.min(ln), np.max(ln), num=5), 2))
+    ax.set_yticks(np.round(np.linspace(np.min(lt), np.max(lt), num=5), 2))
+
+    it_str = str(It).zfill(3)
+
+    yyyymmddhh = times2[0].strftime('%Y%m%d%H')
+
+    if sv_fig == '1':
+        if lvl == 'LV1':
+            fn_out = dir_out + '/his_tempuv_LV1_' + yyyymmddhh + '_' + it_str + 'hr.png'
+        elif lvl == 'LV2':            
+            fn_out = dir_out + '/his_tempuv_LV2_' + yyyymmddhh + '_' + it_str + 'hr.png'
+        elif lvl == 'LV3':            
+            fn_out = dir_out + '/his_tempuv_LV3_' + yyyymmddhh + '_' + it_str + 'hr.png'
+        elif lvl == 'LV4':            
+            fn_out = dir_out + '/his_tempuv_LV4_' + yyyymmddhh + '_' + it_str + 'hr.png'
+        
+        plt.savefig(fn_out, dpi=300)
+    else:
+        plt.show()
+
+
+def plot_lv4_coawst_his_v2(fn,It,Iz,sv_fig,lvl,var_name,cmn,cmx,fn_grd,dir_out):
+
+    cmn = np.floor(10*float(cmn)) / 10 # get to the nearest .1
+    cmx = np.ceil(10*float(cmx)) / 10
+    RMG = grdfuns.roms_grid_to_dict(fn_grd)
+    #lt = his_ds.variables['lat_rho'][:]
+    lt = RMG['lat_rho'][:]
+    #ln = his_ds.variables['lon_rho'][:]
+    ln = RMG['lon_rho'][:]
+    #Dall = his_ds.variables[var_name][:,Iz,:,:]
+    res = '10m'
+    res2 = 'f'
+
+    It = int(It)
+    Iz = int(Iz)
+    #his_ds = nc.Dataset(fn)
+    with nc.Dataset(fn, 'r') as his_ds:
+        times = his_ds.variables['ocean_time']
+        times2 = num2date(times[:], times.units)
+        times2 = np.array([datetime(year=date.year, month=date.month, day=date.day, 
+                              hour=date.hour, minute=date.minute, second=date.second) for date in times2])
+        if var_name in ['dye_01','dye_02']:
+            D = his_ds.variables[var_name][It,Iz,:,:]
+            D = np.log10(D)
+        if var_name == 'Hwave':
+            D = his_ds.variables[var_name][It,:,:]
+
+
+    #Dp5  = np.empty(1)
+    #Dp95 = np.empty(1)
+
+    #np.percentile(Dall,5,out=Dp5)
+    #np.percentile(Dall,95,out=Dp95)
+
+    if var_name == 'Hwave':
+        units = 'm'
+    if var_name == 'dye_01' or var_name == 'dye_02':
+        units = 'log10 fraction'
+
+    fig, ax = plt.subplots(figsize=(8, 12), subplot_kw={'projection': ccrs.PlateCarree()})
+    #plevs = np.linspace(Dp5, Dp95, 25)
+    if var_name in ['dye_01','dye_02']:
+        plevs = np.arange(-6.5,0.5,.5)
+        cmap = plt.get_cmap('turbo')
+        cset = ax.contourf(ln, lt, D, plevs, cmap=cmap, extend="both", vmin=-6, vmax=0, transform=ccrs.PlateCarree())        
+    else:
+        plevs = np.arange(cmn,cmx,.05)
+        cmap = plt.get_cmap('turbo')
+        cset = ax.contourf(ln, lt, D, plevs, cmap=cmap, extend="both", vmin=cmn, vmax=cmx, transform=ccrs.PlateCarree())        
+    plt.set_cmap(cmap)
+    cbar = fig.colorbar(cset, ax=ax, orientation='horizontal', pad = 0.05)
+
+
+    start_time = times2[0]
+    forecast_hours = It
+    tzone = datetime.now().astimezone().tzinfo
+    if str(tzone) == 'PDT':
+        toff = -7
+    elif str(tzone) == 'PST':
+        toff = -8
+    tfore = times2[It] + toff * timedelta(hours=1)    
+    annotation = (f'{lvl} {var_name} [{units}] | Forecast: {start_time.strftime("%Y-%m-%d %H:%M:%S")}\n' 
+                   f'Forecast Hour: {forecast_hours:.1f} ({tfore.strftime("%Y-%m-%d %H:%M:%S")} {str(tzone)})')
+
+    ax.text(0.5, 1.05, annotation, transform=ax.transAxes, ha='center', fontsize=12)
+    ax.add_feature(cfeature.LAND)
+    ax.add_feature(cfeature.BORDERS)
+    #coast = cfeature.GSHHSFeature(scale='full')
+    #ax.add_feature(cfeature.COASTLINE, resolution=res, linewidth = 1.25)   
+    ax.set_xlabel('Longitude')
+    ax.set_ylabel('Latitude')
+    ax.grid(True)
+    ax.set_aspect(aspect='auto')
+    ax.set_xticks(np.round(np.linspace(np.min(ln), np.max(ln), num=5), 2))
+    ax.set_yticks(np.round(np.linspace(np.min(lt), np.max(lt), num=5), 2))
+
+    it_str = str(It).zfill(3)
+
+    yyyymmddhh = start_time.strftime('%Y%m%d%H')
+
+    if sv_fig == '1':
+        fn_out = dir_out + '/his_' + var_name + '_LV4_' + yyyymmddhh + '_' + it_str + 'hr.png'        
+    #    print(fn_out)
+        plt.savefig(fn_out, dpi=300)
+    else:
+        plt.show()
+
 def plot_lv4_coawst_his(fn,It,Iz,sv_fig,lvl,var_name,cmn,cmx):
 
     cmn = np.floor(10*float(cmn)) / 10 # get to the nearest .1
@@ -1618,6 +1852,7 @@ def plot_lv4_coawst_his(fn,It,Iz,sv_fig,lvl,var_name,cmn,cmx):
         plt.savefig(fn_out, dpi=300)
     else:
         plt.show()
+
 
 def get_his_clims(fn,var_name,Iz,It):
 
@@ -1707,8 +1942,13 @@ def make_all_his_figures(lvl):
 
     #plot_roms_LV1_bathy_and_locs(fn,Ix,Iy,sv_fig)
     #plot_ssh_his_tseries(fn,Ix,Iy,sv_fig)
-    #plot_ssh_his_tseries_v2(fn,Ix,Iy,sv_fig,lvl)
-    
+    key_txt = 'lv'+lvl[2]+'_plot_dir'
+    dir_out = PFM[key_txt]
+    key_txt = 'lv'+lvl[2]+'_grid_file_full'
+    fn_grd = PFM[key_txt]
+    plot_ssh_his_tseries_v2(fn,fn_grd,Ix,Iy,sv_fig,lvl,dir_out) # uncommented on 2/10/25, does this break things?
+                                                 # maybe need to turn this into a subprocess
+                                                 # or use "with" in the function?
     os.chdir('../sdpm_py_util')
 
     pfm_hrs = int(24*PFM['forecast_days']) # this should be an integer
@@ -1737,6 +1977,27 @@ def make_all_his_figures(lvl):
         It += 2
 
     os.chdir('../driver')
+
+def get_ocean_times_from_ncfile(fn):
+    # this function returns the times inside the the fn.nc file as a numpy array of datetimes
+
+    with Dataset(fn, 'r') as nc_file:
+        # Get the time variable
+        time_var = nc_file.variables['ocean_time']
+
+        # Get the time units and calendar attributes
+        time_units = time_var.units
+        time_calendar = time_var.calendar if hasattr(time_var, 'calendar') else 'standard'
+
+        # Convert the time values to datetime objects
+        datetime_values = num2date(time_var[:], units=time_units, calendar=time_calendar)
+
+        # If you need a NumPy array of datetime objects:
+        datetime_array = np.array(datetime_values)
+        
+    return datetime_array
+
+
 
 
 def get_noaa_predicted_ssh(tbeg,tend):
@@ -2124,6 +2385,201 @@ def make_dye_plots(fn_grd,fn_his):
         plt.savefig(fn5, dpi=300)
     else:
         plt.show()
+
+def make_dye_plots_v2(fn_grd,fn_his,dir_out):
+    # this function makes dye plots for a given history file, and associated grid file
+
+
+    sv_fig = '1'
+
+    ix0 = 75 # this is the starting index to look to the right from 
+    iymn = 0
+    iymx = 1060
+    iys = np.arange(iymn,iymx,1)
+    hb0 = [1.25] # this is the depth to get the indices from
+    with nc.Dataset(fn_grd) as ds:
+        hb = ds.variables['h'][iys,ix0:] # the data to extract depth from
+        hb_og = ds.variables['h'][:,:]
+        lats = ds.variables['lat_rho'][iys,ix0:]
+        iy,ix = np.shape(hb_og)
+
+    ixs, _ = get_depth_indices(hb,lats,hb0)    
+    ixs = ixs + ix0 # must return the starting point
+
+    with nc.Dataset(fn_grd) as ds:
+        lat = ds.variables['lat_rho'][:,:] # the data to extract depth from
+
+    ny = len(ixs)
+    lat2 = np.zeros((ny))
+    for aa in np.arange(ny):
+        lat2[aa] = lat[iys[aa],ixs[aa]]
+
+    fig, ax = plt.subplots()
+    ax.contourf(np.arange(ix),np.arange(iy),hb_og,levels=10)
+    lvls = [1.25, 1.5]
+    ax.contour(np.arange(ix),np.arange(iy),hb_og, levels=lvls)
+    ax.plot(ixs,iys,'r')
+
+    DD = get_alonshore_distance_etc(ixs,iys,fn_grd)
+
+    with nc.Dataset(fn_his) as his:
+        times = his.variables['ocean_time']
+        times2 = num2date(times[:], times.units)
+        times2 = np.array([datetime(year=date.year, month=date.month, day=date.day, 
+                              hour=date.hour, minute=date.minute, second=date.second) for date in times2])
+
+    yyyymmddhh = times2[0].strftime('%Y%m%d%H')
+    fn1 = dir_out + '/' + 'dye_01_hov_' + yyyymmddhh + '.png'
+    fn2 = dir_out + '/' + 'dye_02_hov_' + yyyymmddhh + '.png'
+    fn3 = dir_out + '/' + 'dye_01_ofl_' + yyyymmddhh + '.png'
+    fn4 = dir_out + '/' + 'dye_02_ofl_' + yyyymmddhh + '.png'
+    fn5 = dir_out + '/' + 'dye_01_oft_' + yyyymmddhh + '.png'
+
+
+    nt = len(times2) # these are the times for the history file
+    #nt = 60
+    dye_01 = np.zeros((nt,ny))
+    dye_02 = np.zeros((nt,ny))
+    for aa in np.arange(0,nt,1):
+        with nc.Dataset(fn_his) as his:
+            hh = his.variables['h'][iys,ix0:] + np.squeeze( his.variables['zeta'][aa,iys,ix0:] )
+            dye1 = his.variables['dye_01'][aa,-1,:,:] # get the surface
+            dye2 = his.variables['dye_02'][aa,-1,:,:]             
+            ixs,_ = get_depth_indices(hh,lats,hb0)
+            ixs = ixs + ix0
+            for bb in np.arange(ny):
+                dye_01[aa,bb] = np.squeeze(dye1[iys[bb],ixs[bb]])
+                dye_02[aa,bb] = np.squeeze(dye2[iys[bb],ixs[bb]])
+
+    # PTJ, border, TJRE, IB pier, Silver Strand, HdC
+    ln_lab = ['PTJ','border','TJRE','IB pier','Silver Strand','HdC']
+    lts0 = [32.52, 32.534, 32.552, 32.58, 32.625, 32.678]
+    ipts = np.zeros((len(lts0)),dtype=int)
+    for aa in np.arange(len(lts0)):
+        dlt = DD['lat']-lts0[aa]
+        ipts[aa] = np.argmin(np.square(dlt))
+
+    fig, ax = plt.subplots()
+    plevs = np.arange(-5.5,-0.5,.5)
+    cmap = plt.get_cmap('magma_r')
+    lD = np.log10(dye_01)
+    lD1 = lD[:,ipts[3:5]]
+    l = DD['l'][:,0]
+    loff = 3.32
+    cset = ax.contourf(l/1000 - loff,times2,lD, plevs, cmap=cmap, extend="both", vmin=-5, vmax=-1)        
+    cbar = fig.colorbar(cset, ax=ax, orientation='vertical', pad = 0.05)
+    #ax.contour( l/1000 - loff, times2, lD , levels = [-5, -4, -3], colors=['g','y','r'], linewidths=[3,3,3])        
+
+    cnt=0
+    for i0 in ipts:
+        ax.plot([l[i0]/1000-loff,l[i0]/1000-loff], [times2[0],times2[-1]],'--k')
+        ax.text(l[i0]/1000 - loff + .15, times2[0]+timedelta(hours=2),ln_lab[cnt],rotation=90,fontsize=10)
+        cnt=cnt+1
+
+    ax.set_xlabel('distance from PB [km]')
+    ax.set_title('log10( dye_01 )')
+
+    if sv_fig == '1':
+        plt.savefig(fn1, dpi=300)
+    else:
+        plt.show()
+
+
+    fig, ax = plt.subplots()
+    colors = iter(plt.cm.turbo(np.linspace(0, 1, len(np.arange(0,nt,24)))))
+    for it in np.arange(0,nt,24):
+        clr = next(colors)
+        ax.plot(l[1:]/1000 - loff,lD[it,1:], color=clr, label = str(times2[it]))
+
+    ax.legend(loc='lower left',fontsize = 8)
+
+    cnt=0
+    for i0 in ipts:
+        ax.plot([l[i0]/1000-loff,l[i0]/1000-loff], [-6,-1],'--k')
+        ax.text(l[i0]/1000 - loff + .15, -2.2 ,ln_lab[cnt],rotation=90,fontsize=10)
+        cnt=cnt+1
+
+    ax.set_ylim([-6,-1])
+    ax.set_xlabel('distance from PB [km]')
+    ax.set_ylabel('log10( dye_01 )')
+    t1str = times2[0].strftime("%Y-%m-%d %HZ")
+    t2str = times2[-1].strftime("%Y-%m-%d %HZ")
+    ax.set_title('dye from PB')
+
+    if sv_fig == '1':
+        plt.savefig(fn3, dpi=300)
+    else:
+        plt.show()
+
+
+    fig, ax = plt.subplots()
+    lD = np.log10(dye_02)
+    lD2 = lD[:,ipts[3:5]]
+    loff = 3.32 + 14.9
+    cset = ax.contourf(l/1000 - loff,times2,lD, plevs, cmap=cmap, extend="both", vmin=-5, vmax=-1)        
+    cbar = fig.colorbar(cset, ax=ax, orientation='vertical', pad = 0.05)
+    #ax.contour( l/1000 - loff, times2, lD , levels = [-5, -4, -3], colors=['g','y','r'], linewidths=[3,3,3])        
+
+    cnt=0
+    for i0 in ipts:
+        ax.plot([l[i0]/1000-loff,l[i0]/1000-loff], [times2[0],times2[-1]],'--k')
+        ax.text(l[i0]/1000 - loff + .15, times2[0]+timedelta(hours=2),ln_lab[cnt],rotation=90,fontsize=10)
+        cnt=cnt+1
+
+    ax.set_xlabel('distance from TJRE [km]')
+    ax.set_title('log10( dye_02 )')
+
+    if sv_fig == '1':
+        plt.savefig(fn2, dpi=300)
+    else:
+        plt.show()
+
+
+    fig, ax = plt.subplots()
+    colors = iter(plt.cm.turbo(np.linspace(0, 1, len(np.arange(0,nt,24)))))
+    for it in np.arange(0,nt,24):
+        clr = next(colors)
+        ax.plot(l[1:]/1000 - loff,lD[it,1:], color=clr, label = str(times2[it]))
+
+    ax.legend(loc='upper left',fontsize = 8)
+
+    cnt=0
+    for i0 in ipts:
+        ax.plot([l[i0]/1000-loff,l[i0]/1000-loff], [-6,-1],'--k')
+        ax.text(l[i0]/1000 - loff + .15, -2.2 ,ln_lab[cnt],rotation=90,fontsize=10)
+        cnt=cnt+1
+
+    ax.set_ylim([-6,-1])
+    ax.set_xlabel('distance from TJRE [km]')
+    ax.set_ylabel('log10( dye_02 )')
+    t1str = times2[0].strftime("%Y-%m-%d %HZ")
+    t2str = times2[-1].strftime("%Y-%m-%d %HZ")
+    ax.set_title('dye from TJRE')
+        
+    if sv_fig == '1':
+        plt.savefig(fn4, dpi=300)
+    else:
+        plt.show()
+
+
+    fig, ax = plt.subplots()
+    ax.plot(times2, lD1[:,0], '-b' ,label = 'dye_01 at IB')
+    ax.plot(times2, lD1[:,1], '--b', label = 'dye_01 at SS')
+    #ax.plot(times2, lD2[:,0], '-g', label = 'dye_02 at IB')
+    #ax.plot(times2, lD2[:,1], '--g', label = 'dye_02 at SS')
+
+    ax.legend(loc='upper left',fontsize = 8)
+
+    ax.set_ylim([-6,-1])
+    ax.set_ylabel('log10( dye )')
+    ax.set_xlabel('date [UTC]')
+    #ax.set_title('dye_01 (from PB), dye_02 (from TJRE)')
+
+    if sv_fig == '1':
+        plt.savefig(fn5, dpi=300)
+    else:
+        plt.show()
+
 
 
 if __name__ == "__main__":

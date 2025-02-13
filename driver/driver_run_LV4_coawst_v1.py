@@ -33,11 +33,11 @@ t1 = datetime.now()
 # everything in this dict turn into the atm.nc file
 print('in atmfuns.get_atm_data_on_roms_grid(ATM,RMG)')
 print('doing level: ' + str(level))
-cmd_list = ['python','-W','ignore','atm_functions.py','get_atm_data_on_roms_grid',str(level)]
+cmd_list = ['python','-W','ignore','atm_functions.py','get_atm_data_on_roms_grid_v2',str(level)]
 os.chdir('../sdpm_py_util')
 ret5 = subprocess.run(cmd_list)   
 print('return code: ' + str(ret5.returncode) + ' (0=good)')  
-os.chdir('../sdpm_py_util')
+os.chdir('../driver')
 print('done with: atmfuns.get_atm_data_on_roms_grid(ATM,RMG)')
 t2 = datetime.now()
 print('this took:')
