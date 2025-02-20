@@ -11,7 +11,7 @@ import netCDF4 as nc
 from get_PFM_info import get_PFM_info
 import grid_functions as grdfuns
 import subprocess
-import cfgrib
+#import cfgrib
 import os
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
