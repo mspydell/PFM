@@ -422,7 +422,7 @@ def get_hycom_foretime_v2(t1str,t2str):
     t0 = t0 + timedelta(days=1)
     while t0 < tnow - timedelta(days = 2):
         t0str = t0.strftime('%Y%m%d')
-        print('we are trying ll of the hycom ', t0str, ' forecast')
+        print('we are trying all of the hycom ', t0str, ' forecast')
         get_hycom_data_1hr(t0str)
         t0 = t0 + timedelta(days=1)
 
@@ -577,6 +577,35 @@ def get_hycom_data(yyyymmdd):
     #result = tt0
     #print('Time to get all files using parallel ncks = %0.2f sec' % (time.time()-tt0))
     #print('Return code = ' + str(result) + ' (0=success, 1=skipped ncks)')
+
+
+def get_hycom_data_fnames_v2(fnames):
+    # this function gets all of the new hycom data as separate files for each field (ssh,temp,salt,u,v) and each time
+    # and puts each .nc file in the directory for hycom data
+
+ 
+    with ThreadPoolExecutor() as executor:
+        threads = []
+        for file_name in fnames:
+            #ocn_name = ['https://tds.hycom.org/thredds/dodsC/FMRC_ESPC-D-V02','runs/FMRC_ESPC-D-V02','_RUN_'+ yyyy + '-' + mm + '-' + dd + 'T12:00:00Z']
+            ocn_name = ['https://tds.hycom.org/thredds/dodsC/FMRC_ESPC-D-V02','runs/FMRC_ESPC-D-V02','_RUN_'+ file_name[7:23] + ':00Z']
+            #print('getting: ', file_name)
+            fn = hycom_grabber_v2
+            ffn = '/scratch/PFM_Simulations/hycom_data/'+ file_name
+            #print('putting here: ',ffn)
+            bb = file_name[2:6]
+            hycom = ocn_name[0] + bb + ocn_name[1] + bb + ocn_name[2]
+            dtff = datetime.strptime(file_name[24:40],'%Y-%m-%dT%H:%M')
+            args = [hycom,dtff,bb,ffn]
+            kwargs = {} #
+            # start thread by submitting it to the executor
+            threads.append(executor.submit(fn, *args, **kwargs))
+            
+        for future in as_completed(threads):
+                # retrieve the result
+            result = future.result()
+            #print(result)
+                # report the result        
 
 
 def get_hycom_data_fnames(yyyymmdd,fnames):
@@ -3012,10 +3041,21 @@ def make_tmp_hy_on_rom_pckl_files(fname_in,var_name):
     elif var_name == 'ubar':
         HYrm[var_name] = np.zeros((NT,NR,NC-1))    
 
-    with open(fn_temp,'wb') as fp:
-        pickle.dump(HYrm[var_name],fp)
+    #with open(fn_temp,'wb') as fp:
+    #    pickle.dump(HYrm[var_name],fp)
 
-
+    try:
+        with open(fn_temp, 'wb') as file:
+            pickle.dump(HYrm[var_name], file)
+    except pickle.PicklingError as e:
+        print(f"Pickling error: {e}")
+    except RecursionError:
+        print("RecursionError: the object is too deeply nested")
+        sys.setrecursionlimit(10000) # Increase recursion limit if needed
+        with open(fn_temp, 'wb') as file:
+            pickle.dump(HYrm[var_name], file)
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
 
 
 def print_maxmin_HYrm_pickles():

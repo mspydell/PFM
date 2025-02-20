@@ -15,6 +15,7 @@ from get_PFM_info import get_PFM_info
 from make_LV3_dotin_and_SLURM import make_LV3_dotin_and_SLURM
 from run_slurm_LV3 import run_slurm_LV3
 import plotting_functions as pltfuns
+from util_functions import copy_mv_nc_file
 
 ##############
 
@@ -208,6 +209,11 @@ print(datetime.now()-t01)
 #pltfuns.make_all_his_figures('LV3')
 #print('...done.')
 dt_plotting.append(datetime.now()-t01)
+
+print('\nmoving LV3 atm file to Archive2.5...')
+copy_mv_nc_file('atm','lv3')
+print('...done')
+
 
 dt_LV3 = {}
 dt_LV3['roms'] = dt_roms

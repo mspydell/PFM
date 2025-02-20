@@ -1722,8 +1722,8 @@ def plot_lv4_coawst_his_v2(fn,It,Iz,sv_fig,lvl,var_name,cmn,cmx,fn_grd,dir_out):
     fig, ax = plt.subplots(figsize=(8, 12), subplot_kw={'projection': ccrs.PlateCarree()})
     #plevs = np.linspace(Dp5, Dp95, 25)
     if var_name in ['dye_01','dye_02']:
-        plevs = np.arange(-6.5,0.5,.5)
-        cmap = plt.get_cmap('turbo')
+        plevs = np.arange(-5.5,-0.5,.5)
+        cmap = plt.get_cmap('magma_r')
         cset = ax.contourf(ln, lt, D, plevs, cmap=cmap, extend="both", vmin=-6, vmax=0, transform=ccrs.PlateCarree())        
     else:
         plevs = np.arange(cmn,cmx,.05)
@@ -1745,7 +1745,7 @@ def plot_lv4_coawst_his_v2(fn,It,Iz,sv_fig,lvl,var_name,cmn,cmx,fn_grd,dir_out):
                    f'Forecast Hour: {forecast_hours:.1f} ({tfore.strftime("%Y-%m-%d %H:%M:%S")} {str(tzone)})')
 
     ax.text(0.5, 1.05, annotation, transform=ax.transAxes, ha='center', fontsize=12)
-    ax.add_feature(cfeature.LAND)
+    ax.add_feature(cfeature.LAND,facecolor = np.array([0.859375, 0.859375, 0.859375]))
     ax.add_feature(cfeature.BORDERS)
     #coast = cfeature.GSHHSFeature(scale='full')
     #ax.add_feature(cfeature.COASTLINE, resolution=res, linewidth = 1.25)   
@@ -1753,8 +1753,10 @@ def plot_lv4_coawst_his_v2(fn,It,Iz,sv_fig,lvl,var_name,cmn,cmx,fn_grd,dir_out):
     ax.set_ylabel('Latitude')
     ax.grid(True)
     ax.set_aspect(aspect='auto')
-    ax.set_xticks(np.round(np.linspace(np.min(ln), np.max(ln), num=5), 2))
-    ax.set_yticks(np.round(np.linspace(np.min(lt), np.max(lt), num=5), 2))
+    ax.set_xlim(-117.28, -117.06)
+    ax.set_ylim(32.4, 32.75)
+    ax.set_xticks(np.arange(-117.25, -117.1, .05))
+    ax.set_yticks(np.arange(32.4,32.75, .05))
 
     it_str = str(It).zfill(3)
 
@@ -1810,8 +1812,10 @@ def plot_lv4_coawst_his(fn,It,Iz,sv_fig,lvl,var_name,cmn,cmx):
     fig, ax = plt.subplots(figsize=(8, 12), subplot_kw={'projection': ccrs.PlateCarree()})
     #plevs = np.linspace(Dp5, Dp95, 25)
     if var_name in ['dye_01','dye_02']:
-        plevs = np.arange(-6.5,0.5,.5)
-        cmap = plt.get_cmap('turbo')
+        #plevs = np.arange(-6.5,0.5,.5)
+        #cmap = plt.get_cmap('turbo')
+        plevs = np.arange(-5.5,-0.5,.5)
+        cmap = plt.get_cmap('magma_r')
         cset = ax.contourf(ln, lt, D, plevs, cmap=cmap, extend="both", vmin=-6, vmax=0, transform=ccrs.PlateCarree())        
     else:
         plevs = np.arange(cmn,cmx,.05)
@@ -1833,7 +1837,7 @@ def plot_lv4_coawst_his(fn,It,Iz,sv_fig,lvl,var_name,cmn,cmx):
                    f'Forecast Hour: {forecast_hours:.1f} ({tfore.strftime("%Y-%m-%d %H:%M:%S")} {str(tzone)})')
 
     ax.text(0.5, 1.05, annotation, transform=ax.transAxes, ha='center', fontsize=12)
-    ax.add_feature(cfeature.LAND)
+    ax.add_feature(cfeature.LAND,facecolor = np.array([0.859375, 0.859375, 0.859375]))
     ax.add_feature(cfeature.BORDERS)
     #coast = cfeature.GSHHSFeature(scale='full')
     #ax.add_feature(cfeature.COASTLINE, resolution=res, linewidth = 1.25)   
@@ -1841,8 +1845,11 @@ def plot_lv4_coawst_his(fn,It,Iz,sv_fig,lvl,var_name,cmn,cmx):
     ax.set_ylabel('Latitude')
     ax.grid(True)
     ax.set_aspect(aspect='auto')
-    ax.set_xticks(np.round(np.linspace(np.min(ln), np.max(ln), num=5), 2))
-    ax.set_yticks(np.round(np.linspace(np.min(lt), np.max(lt), num=5), 2))
+    ax.set_xlim(-117.28, -117.06)
+    ax.set_ylim(32.4, 32.75)
+    ax.set_xticks(np.arange(-117.25, -117.1, .05))
+    ax.set_yticks(np.arange(32.4,32.75, .05))
+
 
     it_str = str(It).zfill(3)
 
