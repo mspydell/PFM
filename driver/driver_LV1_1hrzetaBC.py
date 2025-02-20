@@ -17,6 +17,8 @@ from get_PFM_info import get_PFM_info
 import init_funs as infuns
 from make_LV1_dotin_and_SLURM import make_LV1_dotin_and_SLURM
 from run_slurm_LV1 import run_slurm_LV1
+from util_functions import copy_mv_nc_file
+
 
 print('\nStarting the LV1 simulation, Current time ', datetime.now())
 
@@ -162,7 +164,7 @@ t01 = datetime.now()
 
 os.chdir('../sdpm_py_util')
 print('putting the hycom data in ' + fn_pckl + ' on the roms grid...')
-cmd_list = ['python','-W','ignore','ocn_functions.py','make_all_tmp_pckl_ocnR_files_1hrzeta',fn_pckl]
+cmd_list = ['python','ocn_functions.py','make_all_tmp_pckl_ocnR_files_1hrzeta',fn_pckl]
 os.chdir('../sdpm_py_util')
 ret1 = subprocess.run(cmd_list)     
 #ocnfuns.make_all_tmp_pckl_ocnR_files(fn_pckl)
@@ -424,6 +426,11 @@ print(datetime.now()-t01)
 #print('this took:')
 #print(t02-t01)
 #print('\n')
+print('\nmoving LV1 atm file to Archive2.5...')
+copy_mv_nc_file('atm','lv1')
+print('...done')
+
+
 dt_plotting.append(datetime.now()-t01)
 
 dt_LV1 = {}
@@ -441,6 +448,7 @@ fn_timing = PFM['lv1_run_dir'] + '/LV1_timing_info.pkl'
 with open(fn_timing,'wb') as fout:
     pickle.dump(dt_LV1,fout)
     print('OCN_LV1 timing info dict saved with pickle to: ',fn_timing)
+
 
 print('\n\n----------------------')
 print('Finished the LV1 simulation')

@@ -1,7 +1,30 @@
 import numpy as np
 import warnings
 import pickle
+import shutil
+import sys
+
 from get_PFM_info import get_PFM_info
+
+def copy_mv_nc_file(nc_type,lvl):
+    # this copies an atm.nc or river.nc file to the archive location
+    # nc_type can be ['atm','river']
+    # lvl can be ['lv1','lv2','lv3','lv4']
+
+    lvl_upper = lvl.upper()
+
+    PFM = get_PFM_info()
+    fcdate = PFM['fetch_time'].strftime("%Y%m%d%H")
+    dir_out = '/dataSIO/PFM_Simulations/Archive2.5/Forcing/'
+    if nc_type == 'atm':
+        fn_in_full = PFM[lvl+'_forc_dir'] + '/' + PFM[lvl+'_atm_file']
+        fn_out = 'atm_' + PFM['atm_model'] + '_' + lvl_upper + '_' + fcdate + '.nc'
+    if nc_type == 'river':
+        fn_in_full = PFM[lvl+'_forc_dir'] + '/' + PFM[lvl+'_river_file']
+        fn_out = 'river_' + lvl_upper + '_' + fcdate + '.nc'
+
+    fn_out_full = dir_out + fn_out
+    shutil.move(fn_in_full, fn_out_full)
 
 
 def display_timing_info():
@@ -373,3 +396,11 @@ class z_w(object):
                     z_w[n, k, :] = zeta[n, :] + (zeta[n, :] + self.h) * z0
 
         return np.squeeze(z_w[res_index])
+    
+if __name__ == "__main__":
+    args = sys.argv
+    # args[0] = current file
+    # args[1] = function name
+    # args[2:] = function args : (*unpacked)
+    globals()[args[1]](*args[2:])
+

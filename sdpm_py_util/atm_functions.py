@@ -11,8 +11,15 @@ import netCDF4 as nc
 from get_PFM_info import get_PFM_info
 import grid_functions as grdfuns
 import subprocess
+
 #import cfgrib
+
 import os
+
+import getpass
+usrnm = getpass.getuser()
+if usrnm == 'mspydell':
+    import cfgrib
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -644,6 +651,7 @@ def get_atm_data_on_roms_grid_v2(lv):
     os.chdir('../sdpm_py_util')
     for fld in field_names:
         # call the function that makes the individual pickle files...
+        # these pickle files are the atm data on the roms grid.
         #save_individual_dicts(lv,fld)
         cmd_list = ['python','-W','ignore','atm_functions.py','save_individual_dicts',lv,fld]
         print('saving individual '+fld+' pkl file...')
@@ -662,6 +670,7 @@ def get_atm_data_on_roms_grid_v2(lv):
     PFM=get_PFM_info()
     fname_atm  = PFM['lv1_forc_dir'] + '/' + PFM['atm_tmp_pckl_file']    
     # load the atm data on the original grid
+    # this has a ton of stuf in it that needs to go into the .nc
     with open(fname_atm,'rb') as fp:
         print('loading ' + fname_atm + ' ...')
         ATM = pickle.load(fp)
@@ -712,6 +721,258 @@ def get_atm_data_on_roms_grid_v2(lv):
         print(fname_out)
         pickle.dump(atm2,fp)
         print('\nATM on roms grid dict saved with pickle.')
+
+
+def get_atm_data_on_roms_grid_to_atmnc(lv):
+    # this function takes the ATM data, in a dict, and the roms grid, as a dict
+    # and save the ATM data dict on the roms grid. 
+    # winds are rotated to be in ROMS xi,eta directions.
+    
+
+    # save individual variable atm data to temparary dictionaries...
+    # these are the variables that will get individual pkl files
+    field_names = ['lwrad', 'lwrad_down', 'swrad', 'rain', 'Tair', 'Pair', 'Qair', 'Uwind', 'Vwind']
+
+    os.chdir('../sdpm_py_util')
+    for fld in field_names:
+        # call the function that makes the individual pickle files from ...
+        # these pickle files are the atm data on the roms lv grid. But velocities are not rotated.
+        #save_individual_dicts(lv,fld)
+        cmd_list = ['python','-W','ignore','atm_functions.py','save_individual_dicts',lv,fld]
+        print('saving individual '+fld+' pkl file...')
+        ret5 = subprocess.run(cmd_list)   
+        print('...return code: ' + str(ret5.returncode) + ' (0=good)')  
+
+    print('rotating the velocities...')
+    cmd_list = ['python','-W','ignore','atm_functions.py','rotate_dict_velocity',lv]
+    ret5 = subprocess.run(cmd_list)   
+    print('...return code: ' + str(ret5.returncode) + ' (0=good)')  
+
+    os.chdir('../driver')
+     
+    # these are the 2d fields that need to be interpreted onto the roms grid
+    # dimensions of all fields are [ntime,nlat,nlon]
+    PFM=get_PFM_info()
+    fname_atm  = PFM['lv1_forc_dir'] + '/' + PFM['atm_tmp_pckl_file']    
+    # load the atm data on the original grid
+    # this has a ton of stuf in it that needs to go into the .nc
+    with open(fname_atm,'rb') as fp:
+        print('loading ' + fname_atm + ' ...')
+        ATM = pickle.load(fp)
+
+    key_txt = 'lv' + lv + '_grid_file'
+    RMG = grdfuns.roms_grid_to_dict(PFM[key_txt])
+    
+    # this is the complete list of variables that need to be in the netcdf file
+    vlist = ['lon','lat','ocean_time','ocean_time_ref','lwrad','lwrad_down','swrad','rain','Tair','Pair','Qair','Uwind','Vwind','tair_time','pair_time','qair_time','wind_time','rain_time','srf_time','lrf_time']
+
+    # copy vinfo from ATM to atm2
+    atm2 = dict()
+    atm2['vinfo'] = dict()
+    for aa in vlist:
+        atm2['vinfo'][aa] = ATM['vinfo'][aa]
+
+    # copy the right coordinates too
+    vlist2 = ['ocean_time','tair_time','pair_time','qair_time','wind_time','rain_time','srf_time','lrf_time']
+    for aa in vlist2:
+        atm2[aa] = ATM[aa]
+
+    # the lat lons are from the roms grid
+    atm2['lat'] = RMG['lat_rho']
+    atm2['lon'] = RMG['lon_rho']
+    atm2['ocean_time_ref'] = ATM['ocean_time_ref']
+
+
+    # now time to load the individual pickle files and add them to atm2...
+    print('starting to make the atmospheric forcing .nc file...')
+    fld = 'lwrad'
+    fname_in = PFM['lv'+lv+'_forc_dir'] + '/' + 'tmp_LV'+lv+'_'+fld+'.pkl'
+    with open(fname_in,'rb') as fp:
+        print('loading ' + fname_in + ' ...')
+        atm3 = pickle.load(fp)
+
+    ds = xr.Dataset(
+    data_vars = dict(
+        lwrad      = (["lrf_time","er","xr"],atm3['lwrad'],atm2['vinfo']['lwrad']),
+    ),
+    coords=dict(
+        lat =(["er","xr"],atm2['lat'], atm2['vinfo']['lat']),
+        lon =(["er","xr"],atm2['lon'], atm2['vinfo']['lon']),
+        ocean_time = (["time"],atm2['ocean_time'], atm2['vinfo']['ocean_time']),
+        lrf_time = (["lrf_time"],atm2['lrf_time'], atm2['vinfo']['lrf_time']),
+    ),
+    attrs={'type':'atmospheric forcing file fields for surface fluxes',
+        'time info':'ocean time is from '+ atm2['ocean_time_ref'].strftime("%Y/%m/%d %H:%M:%S") },
+    )
+
+    # the .nc file name...
+    fname_out = PFM['lv'+lv+'_forc_dir'] + '/' + 'LV' + lv + '_ATM_FORCING.nc'
+    ds.to_netcdf(fname_out)
+    
+    os.chdir('../sdpm_py_util')
+    for fld in field_names[1:]:
+        print('appending to atm .nc '+ fld)
+        cmd_list = ['python','-W','ignore','atm_functions.py','append_to_atm_dotnc',fld,lv]
+        ret5 = subprocess.run(cmd_list)   
+        print('...return code: ' + str(ret5.returncode) + ' (0=good)')  
+ 
+    os.chdir('../driver')
+    print('... done making atm.nc.')
+
+
+def append_to_atm_dotnc(fld,lv):
+    PFM=get_PFM_info()
+    fname_atm  = PFM['lv1_forc_dir'] + '/' + PFM['atm_tmp_pckl_file']    
+    # load the atm data on the original grid
+    # this has a ton of stuf in it that needs to go into the .nc
+    with open(fname_atm,'rb') as fp:
+        print('loading ' + fname_atm + ' ...')
+        ATM = pickle.load(fp)
+
+    key_txt = 'lv' + lv + '_grid_file'
+    RMG = grdfuns.roms_grid_to_dict(PFM[key_txt])
+    
+    # this is the complete list of variables that need to be in the netcdf file
+    vlist = ['lon','lat','ocean_time','ocean_time_ref','lwrad','lwrad_down','swrad','rain','Tair','Pair','Qair','Uwind','Vwind','tair_time','pair_time','qair_time','wind_time','rain_time','srf_time','lrf_time']
+
+    # copy vinfo from ATM to atm2
+    atm2 = dict()
+    atm2['vinfo'] = dict()
+    for aa in vlist:
+        atm2['vinfo'][aa] = ATM['vinfo'][aa]
+
+    # copy the right coordinates too
+    vlist2 = ['ocean_time','tair_time','pair_time','qair_time','wind_time','rain_time','srf_time','lrf_time']
+    for aa in vlist2:
+        atm2[aa] = ATM[aa]
+
+    # the lat lons are from the roms grid
+    atm2['lat'] = RMG['lat_rho']
+    atm2['lon'] = RMG['lon_rho']
+    atm2['ocean_time_ref'] = ATM['ocean_time_ref']
+
+    # now time to load the individual pickle files and add them to atm2...
+    fname_in = PFM['lv'+lv+'_forc_dir'] + '/' + 'tmp_LV'+lv+'_'+fld+'.pkl'
+    with open(fname_in,'rb') as fp:
+        print('loading ' + fname_in + ' ...')
+        atm3 = pickle.load(fp)
+
+    if fld == 'lwrad_down':
+        ds = xr.Dataset(
+        data_vars = dict(
+            lwrad_down      = (["lrf_time","er","xr"],atm3[fld],atm2['vinfo'][fld]),
+        ),
+        coords=dict(
+            lat =(["er","xr"],atm2['lat'], atm2['vinfo']['lat']),
+            lon =(["er","xr"],atm2['lon'], atm2['vinfo']['lon']),
+            ocean_time = (["time"],atm2['ocean_time'], atm2['vinfo']['ocean_time']),
+            lrf_time = (["lrf_time"],atm2['lrf_time'], atm2['vinfo']['lrf_time']),
+        ),
+        attrs={'type':'atmospheric forcing file fields for surface fluxes',
+            'time info':'ocean time is from '+ atm2['ocean_time_ref'].strftime("%Y/%m/%d %H:%M:%S") },
+        )
+    if fld == 'swrad':
+        ds = xr.Dataset(
+        data_vars = dict(
+            swrad      = (["srf_time","er","xr"],atm3[fld],atm2['vinfo'][fld]),
+        ),
+        coords=dict(
+            lat =(["er","xr"],atm2['lat'], atm2['vinfo']['lat']),
+            lon =(["er","xr"],atm2['lon'], atm2['vinfo']['lon']),
+            ocean_time = (["timse"],atm2['ocean_time'], atm2['vinfo']['ocean_time']),
+            srf_time = (["srf_time"],atm2['srf_time'], atm2['vinfo']['srf_time']),
+        ),
+        attrs={'type':'atmospheric forcing file fields for surface fluxes',
+            'time info':'ocean time is from '+ atm2['ocean_time_ref'].strftime("%Y/%m/%d %H:%M:%S") },
+        )
+    if fld == 'rain':
+        ds = xr.Dataset(
+        data_vars = dict(
+            rain     = (["rain_time","er","xr"],atm3[fld],atm2['vinfo'][fld]),
+        ),
+        coords=dict(
+            lat =(["er","xr"],atm2['lat'], atm2['vinfo']['lat']),
+            lon =(["er","xr"],atm2['lon'], atm2['vinfo']['lon']),
+            ocean_time = (["time"],atm2['ocean_time'], atm2['vinfo']['ocean_time']),
+            rain_time = (["rain_time"],atm2['rain_time'], atm2['vinfo']['rain_time']),
+        ),
+        attrs={'type':'atmospheric forcing file fields for surface fluxes',
+            'time info':'ocean time is from '+ atm2['ocean_time_ref'].strftime("%Y/%m/%d %H:%M:%S") },
+        )
+    if fld == 'Tair':
+        ds = xr.Dataset(
+        data_vars = dict(
+            Tair      = (["tair_time","er","xr"],atm3[fld],atm2['vinfo'][fld]),
+        ),
+        coords=dict(
+            lat =(["er","xr"],atm2['lat'], atm2['vinfo']['lat']),
+            lon =(["er","xr"],atm2['lon'], atm2['vinfo']['lon']),
+            ocean_time = (["time"],atm2['ocean_time'], atm2['vinfo']['ocean_time']),
+            tair_time = (["tair_time"],atm2['tair_time'], atm2['vinfo']['tair_time']),
+        ),
+        attrs={'type':'atmospheric forcing file fields for surface fluxes',
+            'time info':'ocean time is from '+ atm2['ocean_time_ref'].strftime("%Y/%m/%d %H:%M:%S") },
+        )
+    if fld == 'Pair':
+        ds = xr.Dataset(
+        data_vars = dict(
+            Pair      = (["pair_time","er","xr"],atm3[fld],atm2['vinfo'][fld]),
+        ),
+        coords=dict(
+            lat =(["er","xr"],atm2['lat'], atm2['vinfo']['lat']),
+            lon =(["er","xr"],atm2['lon'], atm2['vinfo']['lon']),
+            ocean_time = (["time"],atm2['ocean_time'], atm2['vinfo']['ocean_time']),
+            pair_time = (["pair_time"],atm2['pair_time'], atm2['vinfo']['pair_time']),
+        ),
+        attrs={'type':'atmospheric forcing file fields for surface fluxes',
+            'time info':'ocean time is from '+ atm2['ocean_time_ref'].strftime("%Y/%m/%d %H:%M:%S") },
+        )
+    if fld == 'Qair':
+        ds = xr.Dataset(
+        data_vars = dict(
+            Qair      = (["qair_time","er","xr"],atm3[fld],atm2['vinfo'][fld]),
+        ),
+        coords=dict(
+            lat =(["er","xr"],atm2['lat'], atm2['vinfo']['lat']),
+            lon =(["er","xr"],atm2['lon'], atm2['vinfo']['lon']),
+            ocean_time = (["time"],atm2['ocean_time'], atm2['vinfo']['ocean_time']),
+            qair_time = (["qair_time"],atm2['qair_time'], atm2['vinfo']['qair_time']),
+        ),
+        attrs={'type':'atmospheric forcing file fields for surface fluxes',
+            'time info':'ocean time is from '+ atm2['ocean_time_ref'].strftime("%Y/%m/%d %H:%M:%S") },
+        )
+    if fld == 'Uwind':
+        ds = xr.Dataset(
+        data_vars = dict(
+            Uwind      = (["wind_time","er","xr"],atm3[fld],atm2['vinfo'][fld]),
+        ),
+        coords=dict(
+            lat =(["er","xr"],atm2['lat'], atm2['vinfo']['lat']),
+            lon =(["er","xr"],atm2['lon'], atm2['vinfo']['lon']),
+            ocean_time = (["time"],atm2['ocean_time'], atm2['vinfo']['ocean_time']),
+            wind_time = (["wind_time"],atm2['wind_time'], atm2['vinfo']['wind_time']),
+        ),
+        attrs={'type':'atmospheric forcing file fields for surface fluxes',
+            'time info':'ocean time is from '+ atm2['ocean_time_ref'].strftime("%Y/%m/%d %H:%M:%S") },
+        )
+    if fld == 'Vwind':
+        ds = xr.Dataset(
+        data_vars = dict(
+            Vwind      = (["wind_time","er","xr"],atm3[fld],atm2['vinfo'][fld]),
+        ),
+        coords=dict(
+            lat =(["er","xr"],atm2['lat'], atm2['vinfo']['lat']),
+            lon =(["er","xr"],atm2['lon'], atm2['vinfo']['lon']),
+            ocean_time = (["time"],atm2['ocean_time'], atm2['vinfo']['ocean_time']),
+            wind_time = (["wind_time"],atm2['wind_time'], atm2['vinfo']['wind_time']),
+        ),
+        attrs={'type':'atmospheric forcing file fields for surface fluxes',
+            'time info':'ocean time is from '+ atm2['ocean_time_ref'].strftime("%Y/%m/%d %H:%M:%S") },
+        )
+        
+    fname_out = PFM['lv'+lv+'_forc_dir'] + '/' + 'LV' + lv + '_ATM_FORCING.nc'
+    ds.to_netcdf(fname_out, mode='a')
+
 
 def atm_roms_dict_to_netcdf(lv):
 
@@ -940,9 +1201,12 @@ def ecmwf_grib_2_dict_all(yyyymmddhh0):
         ATM['time'].append(g['time'])
         ATM['valid_time'][cnt] = g['valid_time']
         for var in var_e:
-            ATM[var][cnt,:,:] = g[var][:,:]
+            dum = g[var][:,:]
+            dum = np.flip(dum,0)
+            ATM[var][cnt,:,:] = dum
         cnt = cnt+1
     
+    ATM['lat'] = np.flipud( ATM['lat'] )
     PFM = get_PFM_info()
     # stuff to be set with PFM structure.
 

@@ -14,7 +14,10 @@ from init_funs import remake_PFM_pkl_file
 from get_PFM_info import get_PFM_info
 from make_LV4_coawst_dotins_dotsb import make_LV4_coawst_dotins_dotsb
 from run_slurm_LV4 import run_slurm_LV4
+from util_functions import copy_mv_nc_file
 import plotting_functions as pltfuns
+
+
 
 ##############
 
@@ -33,7 +36,11 @@ t1 = datetime.now()
 # everything in this dict turn into the atm.nc file
 print('in atmfuns.get_atm_data_on_roms_grid(ATM,RMG)')
 print('doing level: ' + str(level))
-cmd_list = ['python','-W','ignore','atm_functions.py','get_atm_data_on_roms_grid_v2',str(level)]
+if PFM['atm_model'] == 'ecmwf':
+    cmd_list = ['python','-W','ignore','atm_functions.py','get_atm_data_on_roms_grid_to_atmnc',str(level)]
+else:
+    cmd_list = ['python','-W','ignore','atm_functions.py','get_atm_data_on_roms_grid',str(level)]
+
 os.chdir('../sdpm_py_util')
 ret5 = subprocess.run(cmd_list)   
 print('return code: ' + str(ret5.returncode) + ' (0=good)')  
@@ -49,7 +56,12 @@ dt_atm.append(t2-t1)
 ##############
 # plot both raw and LV4 atm fields
 t1 = datetime.now()
-plot_all_atm = 1
+if PFM['atm_model'] == 'ecmwf':
+    plot_all_atm = 0
+else:
+    plot_all_atm = 1
+
+dt_plotting = []
 if plot_all_atm == 1:
     cmd_list = ['python','-W','ignore','plotting_functions.py','plot_all_fields_in_one',str(level)]
     print('plotting atm and atm on roms grid...')
@@ -61,25 +73,25 @@ if plot_all_atm == 1:
     print('this took:')
     print(t2-t1)
     print('\n')
-    dt_plotting = []
     dt_plotting.append(t2-t1)
 
 
 ##############
 # save the atm data into LV4_atm.nc
-t1 = datetime.now()
-print('driver_run_forcast_LV4: saving LV4_ATM.nc file')
-os.chdir('../sdpm_py_util')
-cmd_list = ['python','-W','ignore','atm_functions.py','atm_roms_dict_to_netcdf',str(level)]
-ret5 = subprocess.run(cmd_list)   
-print('return code: ' + str(ret5.returncode) + ' (0=good)')  
-os.chdir('../sdpm_py_util')
-print('driver_run_forecast_LV4:  done with writing LV4_ATM.nc file.') 
-print('this took:')
-t2 = datetime.now()
-print(t2-t1)
-print('\n')
-dt_atm.append(t2-t1)
+if PFM['atm_model'] != 'ecmwf':
+    t1 = datetime.now()
+    print('driver_run_forcast_LV4: saving LV4_ATM.nc file')
+    os.chdir('../sdpm_py_util')
+    cmd_list = ['python','-W','ignore','atm_functions.py','atm_roms_dict_to_netcdf',str(level)]
+    ret5 = subprocess.run(cmd_list)   
+    print('return code: ' + str(ret5.returncode) + ' (0=good)')  
+    os.chdir('../sdpm_py_util')
+    print('driver_run_forecast_LV4:  done with writing LV4_ATM.nc file.') 
+    print('this took:')
+    t2 = datetime.now()
+    print(t2-t1)
+    print('\n')
+    dt_atm.append(t2-t1)
 
 
 ##############
@@ -254,6 +266,7 @@ print('\n')
 dt_roms = []
 dt_roms.append(t2-t1)
 
+
 print('now making LV4 history file plots...')
 t01=datetime.now()
 cmd_list = ['python','-W','ignore','plotting_functions.py','make_all_his_figures','LV4']
@@ -276,6 +289,12 @@ print('...done plotting LV4: ' + str(ret6.returncode) + ' (0=good)')
 os.chdir('../driver')
 print('this took:')
 print(datetime.now()-t01)
+
+print('\nmoving LV4 atm and river files to Archive2.5...')
+copy_mv_nc_file('atm','lv4')
+copy_mv_nc_file('river','lv4')
+print('...done')
+
 
 #pltfuns.make_all_his_figures('LV4')
 dt_plotting.append(datetime.now()-t01)
