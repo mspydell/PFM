@@ -14,6 +14,8 @@ import pickle
 from scipy.spatial import cKDTree
 import glob
 import requests
+import shutil
+
 
 #sys.path.append('../sdpm_py_util')
 from get_PFM_info import get_PFM_info
@@ -195,7 +197,7 @@ def hycom_grabber_hind(cmd):
 
     # run ncks
 #    ret1 = subprocess.call(cmd,stderr=subprocess.DEVNULL,stdout=subprocess.DEVNULL)
-    ret1 = subprocess.call(cmd)
+    ret1 = subprocess.call(cmd,stderr=subprocess.DEVNULL,stdout=subprocess.DEVNULL)
     #print(cmd_list)
     #ret1 = 1
     return ret1
@@ -234,18 +236,26 @@ def hycom_grabber_v2(url,dtff,vnm,fn_out):
     if vnm == '_v3z':
         vstr = 'water_v'
     
-
+    og_url = 1
     tst_err = 1
     if tst_err == 1: # this didn't do it. got an error. should fix so that ncks doesn't make a ton of errors...
-        cmd_list = ['ncks',
-            '-q',
-            '-D', '0',
-            '-d', 'time,'+dstr0+','+dstr1,
-            '-d', 'lon,'+str(west)+','+str(east),
-            '-d', 'lat,'+str(south)+','+str(north),
-            '-v', vstr,
-            url ,
-            '-4', '-O', fn_out]
+        if og_url == 1:
+            cmd_list = ['ncks',
+                '-q',
+                '-D', '0',
+                '-d', 'time,'+dstr0+','+dstr1,
+                '-d', 'lon,'+str(west)+','+str(east),
+                '-d', 'lat,'+str(south)+','+str(north),
+                '-v', vstr,
+                url ,
+                '-4', '-O', fn_out]
+        else:
+            cmd_list = ['ncks',
+                '-d', 'lon,'+str(west)+','+str(east),
+                '-d', 'lat,'+str(south)+','+str(north),
+                url ,
+                '-4', '-O', fn_out]
+
     else:
         cmd_list = ['ncks',
             '-d', 'time,'+dstr0+','+dstr1,
@@ -255,6 +265,74 @@ def hycom_grabber_v2(url,dtff,vnm,fn_out):
             url ,
             '-4', '-O', fn_out]
 
+    #print(cmd_list)
+    # run ncks
+    ret1 = subprocess.call(cmd_list,stderr=subprocess.DEVNULL,stdout=subprocess.DEVNULL)
+    return ret1
+
+def hycom_grabber_v3(url,dtff,vnm,fn_out):
+    # this is the function that is parallelized
+    # the input is url: the hycom url to get data from
+    # dtff: the time stamp of the forecast, ie, the file we want
+    # aa: a box that defines the region of interest
+    # PFM: used to set the path of where the .nc files go
+    # dstr_ft: the date string of the forecast model run. ie. the first
+    #          time stamp of the forecast
+    
+    PFM = get_PFM_info()
+
+    south = PFM['latlonbox']['L1'][0]
+    north = PFM['latlonbox']['L1'][1]
+    west = PFM['latlonbox']['L1'][2]+360.0
+    east = PFM['latlonbox']['L1'][3]+360.0
+
+    # time limits
+    dtff_adv = dtff+timedelta(hours=0.5) # hours=2 makes it only get 1 time.
+    dtff_m   = dtff-timedelta(hours=0.5)
+    dstr0 = dtff_m.strftime('%Y-%m-%dT%H:%M')
+    dstr1 = dtff_adv.strftime('%Y-%m-%dT%H:%M')
+    # use subprocess.call() to execute the ncks command
+    if vnm == '_ssh':
+        vstr = 'surf_el' 
+    if vnm == '_t3z':
+        vstr = 'water_temp'
+    if vnm == '_s3z':
+        vstr = 'salinity'
+    if vnm == '_u3z':
+        vstr = 'water_u'
+    if vnm == '_v3z':
+        vstr = 'water_v'
+    
+    og_url = 0
+    tst_err = 1
+    if tst_err == 1: # this didn't do it. got an error. should fix so that ncks doesn't make a ton of errors...
+        if og_url == 1:
+            cmd_list = ['ncks',
+                '-q',
+                '-D', '0',
+                '-d', 'time,'+dstr0+','+dstr1,
+                '-d', 'lon,'+str(west)+','+str(east),
+                '-d', 'lat,'+str(south)+','+str(north),
+                '-v', vstr,
+                url ,
+                '-4', '-O', fn_out]
+        else:
+            cmd_list = ['ncks',
+                '-d', 'lon,'+str(west)+','+str(east),
+                '-d', 'lat,'+str(south)+','+str(north),
+                url ,
+                '-4', '-O', fn_out]
+
+    else:
+        cmd_list = ['ncks',
+            '-d', 'time,'+dstr0+','+dstr1,
+            '-d', 'lon,'+str(west)+','+str(east),
+            '-d', 'lat,'+str(south)+','+str(north),
+            '-v', vstr,
+            url ,
+            '-4', '-O', fn_out]
+
+    #print(cmd_list)
     # run ncks
     ret1 = subprocess.call(cmd_list,stderr=subprocess.DEVNULL,stdout=subprocess.DEVNULL)
     return ret1
@@ -411,46 +489,118 @@ def get_hycom_foretime(t1str,t2str):
 
     return yyyymmdd
 
+def delete_directory_if_exists(dir_path):
+    """Deletes a directory and its contents if it exists.
+
+    Args:
+        dir_path: The path to the directory to delete.
+    """
+    if os.path.exists(dir_path):
+        try:
+            shutil.rmtree(dir_path)
+            print(f"Directory '{dir_path}' deleted successfully.")
+        except Exception as e:
+            print(f"Error deleting directory '{dir_path}': {e}")
+    else:
+        print(f"Directory '{dir_path}' does not exist.")
+
+
 def get_hycom_foretime_v2(t1str,t2str):
 
     PFM = get_PFM_info()
     hycom_dir = PFM['hycom_data_dir'] # this has the trailing /
+    
     t0s = stored_hycom_dates()
-    tnow = datetime.now()
-    tend = t0s[-1]
-    t0 =  datetime.strptime(tend,"%Y-%m-%d")
-    t0 = t0 + timedelta(days=1)
-    while t0 < tnow - timedelta(days = 2):
-        t0str = t0.strftime('%Y%m%d')
-        print('we are trying all of the hycom ', t0str, ' forecast')
-        get_hycom_data_1hr(t0str)
-        t0 = t0 + timedelta(days=1)
+    print('we currently have hycom forecasts starting from:')
+    print(t0s)
+    print('checking to see if we are missing any files...')
+    miss_dict = {}
+    total_missing = []
+    for tt in t0s:
+        t1 = datetime.strptime(tt,'%Y-%m-%d') + 0.5* timedelta(days=1)
+        yyyymmdd = t1.strftime('%Y%m%d')
+        t2 = t1+8.0*timedelta(days=1)
+        times = [t1,t2]
+        n0, num_missing, miss_dict[tt] = check_hycom_data(yyyymmdd,times)
+        for mm in miss_dict[tt]:
+            total_missing.append(mm)
+
+    print('we are missing ' + str(len(total_missing)) + ' files from these forecasts.')
+    
+    print('attempting to get these files ...')
+    get_hycom_data_fnames_v3(total_missing) # _v3 is the unaggregated server
+    print('...done')
 
     t0s = stored_hycom_dates()
     miss_dict = {}
-    nms_dict = {}
-    print('how many total files are we currently missing in the hycom directory?')
-    for dts in t0s:
-        yyyymmdd = dts[0:4] + dts[5:7] + dts[8:10]
-        yyyymmddhhmm = yyyymmdd + '1200'
-        t1 = datetime.strptime(yyyymmddhhmm,'%Y%m%d%H%M')
+    total_missing = []
+    for tt in t0s:
+        t1 = datetime.strptime(tt,'%Y-%m-%d') + 0.5* timedelta(days=1)
+        yyyymmdd = t1.strftime('%Y%m%d')
         t2 = t1+8.0*timedelta(days=1)
         times = [t1,t2]
-        n0, num_missing, miss_dict[yyyymmdd] = check_hycom_data(yyyymmdd,times)
-        nms_dict[yyyymmdd] = num_missing
-        print('the ', yyyymmdd, ' hycom forecast is missing')
-        print(str(num_missing), ' files out of ', str(n0))
+        n0, num_missing, miss_dict[tt] = check_hycom_data(yyyymmdd,times)
+        for mm in miss_dict[tt]:
+            total_missing.append(mm)
 
-    print('\nwe will try and get these missing files...')
+    print('we are now missing ' + str(len(total_missing)) + ' files from these forecasts.')
 
-    for dts in t0s:
-        yyyymmdd = dts[0:4] + dts[5:7] + dts[8:10]
-        if nms_dict[yyyymmdd] > 0:
-            print('getting hycom ', yyyymmdd, ' files...')
-            get_hycom_data_fnames(yyyymmdd,miss_dict[yyyymmdd])
-            print('...done')
+    print('\nattempting to get a new hycom forecast...')
+    tnow = datetime.now()
+    tend = t0s[-1]   # this is the last forecast we have...
+    t0 =  datetime.strptime(tend,"%Y-%m-%d")
+    t0 = t0 + timedelta(days=1) # this is one day after the last day we have data,
+                                # we have no data for this day.
+    while t0 < tnow - 1.0 * timedelta(days = 1): # get data from t0 to now-1 day
+        t0str = t0.strftime('%Y%m%d')
+        print('we are trying to get the entire ', t0str, ' hycom forecast in 10 file chunks...')
+        #get_hycom_data_1hr(t0str) # aggregated
+        get_hycom_data_1hr_v2(t0str) # new url
+        t0 = t0 + timedelta(days=1)
 
-    print('now how many total files are we missing?')
+#    t0s = stored_hycom_dates() # figure out what days we presently have forecast data for.
+#    miss_dict = {}
+#    nms_dict = {}
+#    for dts in t0s:
+#        yyyymmdd = dts[0:4] + dts[5:7] + dts[8:10]
+#        yyyymmddhhmm = yyyymmdd + '1200'
+#        t1 = datetime.strptime(yyyymmddhhmm,'%Y%m%d%H%M')
+#        t2 = t1+8.0*timedelta(days=1)
+#        times = [t1,t2]
+#        n0, num_missing, miss_dict[yyyymmdd] = check_hycom_data(yyyymmdd,times)
+#        nms_dict[yyyymmdd] = num_missing
+
+#    print('\nwe will try and get these missing files from the unaggregated server...')
+#    for dts in t0s:
+#        yyyymmdd = dts[0:4] + dts[5:7] + dts[8:10]
+#        if nms_dict[yyyymmdd] > 0:
+#            print('getting hycom ', yyyymmdd, ' files...')
+            #get_hycom_data_fnames(yyyymmdd,miss_dict[yyyymmdd])
+#            get_hycom_data_fnames_v3(miss_dict[yyyymmdd]) 
+#    print('...done')
+
+#    t0s = stored_hycom_dates() # figure out what days we presently have forecast data for.
+#    miss_dict = {}
+#    nms_dict = {}
+#    for dts in t0s:
+#        yyyymmdd = dts[0:4] + dts[5:7] + dts[8:10]
+#        yyyymmddhhmm = yyyymmdd + '1200'
+#        t1 = datetime.strptime(yyyymmddhhmm,'%Y%m%d%H%M')
+#        t2 = t1+8.0*timedelta(days=1)
+#        times = [t1,t2]
+#        n0, num_missing, miss_dict[yyyymmdd] = check_hycom_data(yyyymmdd,times)
+#        nms_dict[yyyymmdd] = num_missing
+
+#    print('\nwe will try and get these missing files from the unaggregated server...')
+#    for dts in t0s:
+#        yyyymmdd = dts[0:4] + dts[5:7] + dts[8:10]
+#        if nms_dict[yyyymmdd] > 0:
+#            print('getting hycom ', yyyymmdd, ' files...')
+            #get_hycom_data_fnames(yyyymmdd,miss_dict[yyyymmdd])
+#            get_hycom_data_fnames_v2(miss_dict[yyyymmdd]) 
+#    print('...done')
+
+    print('now how many total files are we now missing?')
     t0s = stored_hycom_dates()
     nms = []
     for dts in t0s:
@@ -496,7 +646,7 @@ def get_hycom_foretime_v2(t1str,t2str):
         yyyymmdd = dts[0:4] + dts[5:7] + dts[8:10]
         n0, num_missing, dum = check_hycom_data(yyyymmdd,times)
         missing.append(num_missing)
-        print('for the ', yyyymmdd, ' hycom simulation, we are missing')
+        print('for the ', yyyymmdd, ' hycom forecast, we are missing')
         print(num_missing, ' files.')
 
     fn2 = np.array(missing)
@@ -514,6 +664,12 @@ def get_hycom_foretime_v2(t1str,t2str):
     print('so we will use the')
     yyyymmdd = tkeep[0:4] + tkeep[5:7] + tkeep[8:10]
     print(yyyymmdd, ' hycom simulation for this PFM forecast\n')
+
+    # clean up step...
+    dir_path0 = os.getcwd() # this should be .../PFM/driver/
+    dir_path = dir_path0 + '/tds.hycom.org'
+    delete_directory_if_exists(dir_path) 
+
     return yyyymmdd
 
 
@@ -529,6 +685,17 @@ def get_hycom_data(yyyymmdd):
     PFM=get_PFM_info()
     ocn_name = ['https://tds.hycom.org/thredds/dodsC/FMRC_ESPC-D-V02','runs/FMRC_ESPC-D-V02','_RUN_'+ yyyy + '-' + mm + '-' + dd + 'T12:00:00Z']
     var_names = ['_ssh','_s3z','_t3z','_u3z','_v3z']
+
+# this is the one to try...
+# https://tds.hycom.org/thredds/dodsC/datasets/ESPC-D-V02/data/forecasts/US058GCOM-OPSnce.espc-d-031-hycom_fcst_glby008_2025021012_t0000_ssh.nc
+# https://tds.hycom.org/thredds/dodsC/datasets/ESPC-D-V02/data/forecasts/US058GCOM-OPSnce.espc-d-031-hycom_fcst_glby008_2025021212_t0000_ssh.nc
+#
+# https://tds.hycom.org/thredds/catalog/datasets/ESPC-D-V02/data/forecasts/catalog.html
+# https://tds.hycom.org/thredds/catalog/datasets/ESPC-D-V02/data/forecasts/catalog.html?dataset=datasets/ESPC-D-V02/data/forecasts/US058GCOM-OPSnce.espc-d-031-hycom_fcst_glby008_2025021012_t0000_ssh.nc
+# vs
+# https://tds.hycom.org/thredds/dodsC/FMRC_ESPC-D-V02_ssh/runs/FMRC_ESPC-D-V02_ssh_RUN_2025-02-18T12:00:00Z
+# https://tds.hycom.org/thredds/dodsC/FMRC_ESPC-D-V02_ssh/runs/FMRC_ESPC-D-V02_ssh_RUN_2025-02-18T12:00:00Z.html
+# https://tds.hycom.org/thredds/dodsC/FMRC_ESPC-D-V02_ssh/runs/FMRC_ESPC-D-V02_ssh_RUN_2025-02-18T12:00:00Z
 
     # time limits
     Tfor = 8.0 # hycom should go out 8 days.
@@ -582,30 +749,122 @@ def get_hycom_data(yyyymmdd):
 def get_hycom_data_fnames_v2(fnames):
     # this function gets all of the new hycom data as separate files for each field (ssh,temp,salt,u,v) and each time
     # and puts each .nc file in the directory for hycom data
+    og_url = 1 # switch to try the new unaggregated hycom 
+    url_check = 0 
 
- 
-    with ThreadPoolExecutor() as executor:
+#    with ThreadPoolExecutor(max_workers=64) as executor: # max workers, if not specified, can result in .tmp files
+    with ThreadPoolExecutor() as executor: # max workers, if not specified, can result in .tmp files
         threads = []
         for file_name in fnames:
+            t_f = datetime.strptime(file_name[7:20],'%Y-%m-%dT%H')
+            t_2 = datetime.strptime(file_name[24:37],'%Y-%m-%dT%H')
+            hr_f = ((t_2 - t_f).total_seconds()) / 3600
+            hr_fstr = str(int(hr_f)).zfill(4)
+            t_fstr = t_f.strftime('%Y%m%d%H')
+            var_str = file_name[3:6]
             #ocn_name = ['https://tds.hycom.org/thredds/dodsC/FMRC_ESPC-D-V02','runs/FMRC_ESPC-D-V02','_RUN_'+ yyyy + '-' + mm + '-' + dd + 'T12:00:00Z']
             ocn_name = ['https://tds.hycom.org/thredds/dodsC/FMRC_ESPC-D-V02','runs/FMRC_ESPC-D-V02','_RUN_'+ file_name[7:23] + ':00Z']
+            #hy_ssh_2025-02-18T12:00_2025-02-18T12:00.nc
+            #0123456789012345678901234567890123456789012
             #print('getting: ', file_name)
             fn = hycom_grabber_v2
             ffn = '/scratch/PFM_Simulations/hycom_data/'+ file_name
             #print('putting here: ',ffn)
             bb = file_name[2:6]
-            hycom = ocn_name[0] + bb + ocn_name[1] + bb + ocn_name[2]
+            if og_url == 1:
+                hycom = ocn_name[0] + bb + ocn_name[1] + bb + ocn_name[2]
+            else:
+                hycom = 'https://tds.hycom.org/thredds/dodsC/datasets/ESPC-D-V02/data/forecasts/US058GCOM-OPSnce.espc-d-031-hycom_fcst_glby008_' + t_fstr + '_t' + hr_fstr + '_' + var_str + '.nc'
+                #                                                                                US058GCOM-OPSnce.espc-d-031-hycom_fcst_glby008_2025022112_t0192_v3z.nc
+                #                                                                                US058GCOM-OPSnce.espc-d-031-hycom_fcst_glby008_2025022012_t0192_ssh.nc
+                #         https://tds.hycom.org/thredds/dodsC/datasets/ESPC-D-V02/data/forecasts/US058GCOM-OPSnce.espc-d-031-hycom_fcst_glby008_2025021212_t0000_ssh.nc
+
             dtff = datetime.strptime(file_name[24:40],'%Y-%m-%dT%H:%M')
             args = [hycom,dtff,bb,ffn]
             kwargs = {} #
             # start thread by submitting it to the executor
+            #if url_check == 0:
             threads.append(executor.submit(fn, *args, **kwargs))
-            
+        
         for future in as_completed(threads):
-                # retrieve the result
             result = future.result()
-            #print(result)
-                # report the result        
+            #else:
+            #    if is_opendap_file(hycom)==True:
+            #        threads.append(executor.submit(fn, *args, **kwargs))
+            #        for future in as_completed(threads):
+            #            result = future.result()
+
+def list_to_dict_of_chunks(long_list, chunk_size=10):
+    """
+    Converts a long list into a dictionary of lists, with each list (chunk)
+    containing a maximum of chunk_size elements.
+    
+    Args:
+        long_list: The original list.
+        chunk_size: The maximum size of each chunk (default is 10).
+    
+    Returns:
+        A dictionary where keys are chunk numbers (starting from 1) and
+        values are the corresponding list chunks.
+    """
+    dict_of_chunks = {}
+    for i in range(0, len(long_list), chunk_size):
+        chunk = long_list[i:i + chunk_size]
+        dict_of_chunks[i // chunk_size + 1] = chunk
+    return dict_of_chunks
+
+
+def get_hycom_data_fnames_v3(fnames):
+    # this function gets all of the new hycom data as separate files for each field (ssh,temp,salt,u,v) and each time
+    # and puts each .nc file in the directory for hycom data
+    og_url = 0 # switch to try the new unaggregated hycom 
+    url_check = 0 
+
+    fnames2 = list_to_dict_of_chunks(fnames) # we are getting chunks of 10 files to get
+                                             # trying to adhere to hycom niceness
+    for fnames3 in list(fnames2.keys()):     # we will loop through the chunks.
+        print('getting <=10 hycom files... ', end="")
+        with ThreadPoolExecutor() as executor: 
+            threads = []
+            for file_name in fnames2[fnames3]:
+                t_f = datetime.strptime(file_name[7:20],'%Y-%m-%dT%H')
+                t_2 = datetime.strptime(file_name[24:37],'%Y-%m-%dT%H')
+                hr_f = ((t_2 - t_f).total_seconds()) / 3600
+                hr_fstr = str(int(hr_f)).zfill(4)
+                t_fstr = t_f.strftime('%Y%m%d%H')
+                var_str = file_name[3:6]
+                #ocn_name = ['https://tds.hycom.org/thredds/dodsC/FMRC_ESPC-D-V02','runs/FMRC_ESPC-D-V02','_RUN_'+ yyyy + '-' + mm + '-' + dd + 'T12:00:00Z']
+                ocn_name = ['https://tds.hycom.org/thredds/dodsC/FMRC_ESPC-D-V02','runs/FMRC_ESPC-D-V02','_RUN_'+ file_name[7:23] + ':00Z']
+                #hy_ssh_2025-02-18T12:00_2025-02-18T12:00.nc
+                #0123456789012345678901234567890123456789012
+                #print('getting: ', file_name)
+                fn = hycom_grabber_v3
+                ffn = '/scratch/PFM_Simulations/hycom_data/'+ file_name
+                #print('putting here: ',ffn)
+                bb = file_name[2:6]
+                if og_url == 1:
+                    hycom = ocn_name[0] + bb + ocn_name[1] + bb + ocn_name[2]
+                else:
+                    hycom = 'https://tds.hycom.org/thredds/dodsC/datasets/ESPC-D-V02/data/forecasts/US058GCOM-OPSnce.espc-d-031-hycom_fcst_glby008_' + t_fstr + '_t' + hr_fstr + '_' + var_str + '.nc'
+                    #                                                                                US058GCOM-OPSnce.espc-d-031-hycom_fcst_glby008_2025022112_t0192_v3z.nc
+                    #                                                                                US058GCOM-OPSnce.espc-d-031-hycom_fcst_glby008_2025022012_t0192_ssh.nc
+                    #         https://tds.hycom.org/thredds/dodsC/datasets/ESPC-D-V02/data/forecasts/US058GCOM-OPSnce.espc-d-031-hycom_fcst_glby008_2025021212_t0000_ssh.nc
+
+                dtff = datetime.strptime(file_name[24:40],'%Y-%m-%dT%H:%M')
+                args = [hycom,dtff,bb,ffn]
+                kwargs = {} #
+                # start thread by submitting it to the executor
+                #if url_check == 0:
+                threads.append(executor.submit(fn, *args, **kwargs))
+            
+            for future in as_completed(threads):
+                result = future.result()
+                #else:
+                #    if is_opendap_file(hycom)==True:
+                #        threads.append(executor.submit(fn, *args, **kwargs))
+                #        for future in as_completed(threads):
+                #            result = future.result()
+        print('done')
 
 
 def get_hycom_data_fnames(yyyymmdd,fnames):
@@ -816,6 +1075,90 @@ def get_hycom_data_1hr(yyyymmdd):
             # retrieve the result
             result = future.result()
             # report the result
+
+def myname_to_urls(myfiles):
+    urls = []
+    for file_name in myfiles:
+        t_f = datetime.strptime(file_name[7:20],'%Y-%m-%dT%H')
+        t_2 = datetime.strptime(file_name[24:37],'%Y-%m-%dT%H')
+        hr_f = ((t_2 - t_f).total_seconds()) / 3600
+        hr_fstr = str(int(hr_f)).zfill(4)
+        t_fstr = t_f.strftime('%Y%m%d%H')
+        var_str = file_name[3:6]
+        hycom = 'https://tds.hycom.org/thredds/dodsC/datasets/ESPC-D-V02/data/forecasts/US058GCOM-OPSnce.espc-d-031-hycom_fcst_glby008_' + t_fstr + '_t' + hr_fstr + '_' + var_str + '.nc'
+        urls.append(hycom)
+
+    return urls
+
+
+def get_hycom_data_1hr_v2(yyyymmdd):
+    # this function gets all of the new hycom data as separate files for each field (ssh,temp,salt,u,v) and each time
+    # and puts each .nc file in the directory for hycom data
+
+
+    PFM = get_PFM_info()
+    south = PFM['latlonbox']['L1'][0]
+    north = PFM['latlonbox']['L1'][1]
+    west = PFM['latlonbox']['L1'][2]+360.0
+    east = PFM['latlonbox']['L1'][3]+360.0
+
+    yyyy = yyyymmdd[0:4]
+    mm = yyyymmdd[4:6]
+    dd = yyyymmdd[6:8]
+    #ocn_name = ['https://tds.hycom.org/thredds/dodsC/FMRC_ESPC-D-V02','runs/FMRC_ESPC-D-V02','_RUN_'+ yyyy + '-' + mm + '-' + dd + 'T12:00:00Z']
+    
+    #hycom = 'https://tds.hycom.org/thredds/dodsC/datasets/ESPC-D-V02/data/forecasts/US058GCOM-OPSnce.espc-d-031-hycom_fcst_glby008_' + yyyymmdd + '12_t' 
+# + hr_fstr + '_' + var_str + '.nc'
+
+    # time limits
+    Tfor = 8.0 # hycom should go out 8 days.
+    # the first time to get
+    dstr0 = yyyy + '-' + mm + '-' + dd + 'T12:00'
+    t00 = datetime.strptime(dstr0,"%Y-%m-%dT%H:%M")
+    # the last time to get
+    t10 = t00 + Tfor * timedelta(days=1)
+    
+    t1str = "%d%02d%02d%02d%02d" % (t00.year, t00.month, t00.day, t00.hour, t00.minute)
+    t2str = "%d%02d%02d%02d%02d" % (t10.year, t10.month, t10.day, t10.hour, t10.minute)
+    
+    
+    ncfiles = get_hycom_nc_file_names(yyyymmdd,t1str,t2str) # these are all of the files we are trying to get
+    print('attempting to get a total of ' + str(len(ncfiles)) + ' hycom nc files ...')
+
+    ncfiles2 = list_to_dict_of_chunks(ncfiles) # we are getting chunks of 10 files to get
+                                             # trying to adhere to hycom niceness
+    
+    for cnt in list(ncfiles2.keys()):     # we will loop through the chunks.
+        ncfiles3 = []
+        for ncf in ncfiles2[cnt]:
+            ncfiles3.append(ncf[36:])
+
+        urls = myname_to_urls(ncfiles3)
+        urls2 = dict(zip(ncfiles2[cnt],urls))
+
+        print('getting <=10 hycom files... ', end="")
+        with ThreadPoolExecutor() as executor: 
+            threads = []
+            for fname in ncfiles2[cnt]:
+                fun = hycom_grabber_hind #define function
+                hycom = urls2[fname]
+                cmd_list = ['ncks',
+                    '-d', 'lon,'+str(west)+','+str(east),
+                    '-d', 'lat,'+str(south)+','+str(north),
+                    hycom ,
+                    '-4', '-O', fname]
+
+                args = [cmd_list] #define args to function
+                kwargs = {} #
+                # start thread by submitting it to the executor
+                threads.append(executor.submit(fun, *args, **kwargs))
+                
+            for future in as_completed(threads):
+                # retrieve the result
+                result = future.result()
+                # report the result
+        print('done.')
+
 
 def get_hycom_nc_file_names(yyyymmdd,t1str,t2str):
 
@@ -1185,7 +1528,10 @@ def hycom_ncfiles_to_pickle(yyyymmdd):
     ntz = len(fn_ssh) # how many times for ssh
     nt  = len(fn_t3z) # how many times for 3d vars
 
-    dss = xr.open_dataset(fn_ssh[0])
+
+    #dss = xr.open_dataset(fn_ssh[0])
+    dss = xr.open_dataset(fn_ssh[0],decode_times=False)
+    
     lat = dss.lat.values
     lon = dss.lon.values
     dss.close()
@@ -1199,9 +1545,17 @@ def hycom_ncfiles_to_pickle(yyyymmdd):
     t_rom2 = np.zeros((ntz))
     cnt=0
     for fn in fn_ssh:
-        dss = xr.open_dataset(fn)
-        dt = (dss.time - np.datetime64(t_ref))  / np.timedelta64(1,'D') # this gets time in days from t_ref
-        t_rom2[cnt] = dt.values
+        #dss = xr.open_dataset(fn)
+        dss = xr.open_dataset(fn,decode_times=False)
+        #dt = (dss.time - np.datetime64(t_ref))  / np.timedelta64(1,'D') # this gets time in days from t_ref
+
+        thy_hr = dss.time[:].data # hours since 2000-1-1
+        thy = datetime.strptime('20000101','%Y%m%d') + thy_hr * timedelta(hours=1) # now datetime
+        trm = thy - t_ref # now a timedelta referenced to roms
+        dt = trm[0].total_seconds() / (3600*24) # now days since time ref
+
+        #t_rom2[cnt] = dt.values
+        t_rom2[cnt] = dt
         eta[cnt,:,:] = dss.surf_el.values
         dss.close()
         cnt=cnt+1
@@ -1211,7 +1565,7 @@ def hycom_ncfiles_to_pickle(yyyymmdd):
     del eta
    
 
-    dss = xr.open_dataset(fn_t3z[0])
+    dss = xr.open_dataset(fn_t3z[0],decode_times=False)
     z   = dss.depth.values
     dss.close()
     OCN['depth'] = z
@@ -1221,9 +1575,17 @@ def hycom_ncfiles_to_pickle(yyyymmdd):
 
     cnt = 0
     for fn in fn_t3z:
-        dss = xr.open_dataset(fn)
-        dt = (dss.time - np.datetime64(t_ref))  / np.timedelta64(1,'D') # this gets time in days from t_ref
-        t_rom[cnt] = dt.values
+        dss = xr.open_dataset(fn,decode_times=False)
+    #    dt = (dss.time - np.datetime64(t_ref))  / np.timedelta64(1,'D') # this gets time in days from t_ref
+
+        thy_hr = dss.time[:].data # hours since 2000-1-1
+        thy = datetime.strptime('20000101','%Y%m%d') + thy_hr * timedelta(hours=1) # now datetime
+        trm = thy - t_ref # now a timedelta referenced to roms
+        dt = trm[0].total_seconds() / (3600*24) # now days since time ref
+
+
+    #    t_rom[cnt] = dt.values
+        t_rom[cnt] = dt
         temp[cnt,:,:,:] = dss.water_temp.values
         dss.close()
         cnt = cnt + 1
@@ -1235,7 +1597,7 @@ def hycom_ncfiles_to_pickle(yyyymmdd):
     cnt = 0
     sal = np.zeros((nt,nz,nlt,nln))
     for fn in fn_s3z:
-        dss = xr.open_dataset(fn)
+        dss = xr.open_dataset(fn,decode_times=False)
         sal[cnt,:,:,:] = dss.salinity.values
         dss.close()
         cnt = cnt + 1
@@ -1246,7 +1608,7 @@ def hycom_ncfiles_to_pickle(yyyymmdd):
     cnt = 0
     u = np.zeros((nt,nz,nlt,nln))
     for fn in fn_u3z:
-        dss = xr.open_dataset(fn)
+        dss = xr.open_dataset(fn,decode_times=False)
         u[cnt,:,:,:] = dss.water_u.values
         dss.close()
         cnt = cnt + 1
@@ -1256,7 +1618,7 @@ def hycom_ncfiles_to_pickle(yyyymmdd):
     v = np.zeros((nt,nz,nlt,nln))
     cnt = 0
     for fn in fn_v3z:
-        dss = xr.open_dataset(fn)
+        dss = xr.open_dataset(fn,decode_times=False)
         v[cnt,:,:,:] = dss.water_v.values
         dss.close()
         cnt = cnt + 1

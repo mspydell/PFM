@@ -116,7 +116,7 @@ tnow = datetime.utcnow()
 tend = tnow.strftime('%Y%m%d')
 tend2 = datetime.strptime(tend,'%Y%m%d')
 
-while tcnt <= tend2: # these are the new dates to get hycomdata for...
+while tcnt <= tend2 - timedelta(days=1): # these are the new dates to get hycomdata for...
     t1 = tcnt + 0.5* timedelta(days=1)
     yyyymmdd = t1.strftime('%Y%m%d')
     t2 = t1+8.0*timedelta(days=1)
@@ -128,7 +128,7 @@ while tcnt <= tend2: # these are the new dates to get hycomdata for...
 
 
 # lets try and get these missing files...
-ocnfuns.get_hycom_data_fnames_v2(total_missing)
+ocnfuns.get_hycom_data_fnames_v3(total_missing)
 HY_info = check_present_hycom_data_v2()
 
 
