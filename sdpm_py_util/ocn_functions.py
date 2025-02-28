@@ -1548,9 +1548,11 @@ def hycom_ncfiles_to_pickle(yyyymmdd):
         #dss = xr.open_dataset(fn)
         dss = xr.open_dataset(fn,decode_times=False)
         #dt = (dss.time - np.datetime64(t_ref))  / np.timedelta64(1,'D') # this gets time in days from t_ref
-
-        thy_hr = dss.time[:].data # hours since 2000-1-1
-        thy = datetime.strptime('20000101','%Y%m%d') + thy_hr * timedelta(hours=1) # now datetime
+        thy_hr = dss.time[:].data # hours since tref_hy
+        tref_hy = dss.time.units
+        tref_hy2 = tref_hy[12:31]
+        tref_dt = datetime.strptime(tref_hy2,'%Y-%m-%d %H:%M:%S')
+        thy = tref_dt + thy_hr * timedelta(hours=1) # now datetime
         trm = thy - t_ref # now a timedelta referenced to roms
         dt = trm[0].total_seconds() / (3600*24) # now days since time ref
 
@@ -1577,13 +1579,13 @@ def hycom_ncfiles_to_pickle(yyyymmdd):
     for fn in fn_t3z:
         dss = xr.open_dataset(fn,decode_times=False)
     #    dt = (dss.time - np.datetime64(t_ref))  / np.timedelta64(1,'D') # this gets time in days from t_ref
-
-        thy_hr = dss.time[:].data # hours since 2000-1-1
-        thy = datetime.strptime('20000101','%Y%m%d') + thy_hr * timedelta(hours=1) # now datetime
+        thy_hr = dss.time[:].data # hours since tref_hy
+        tref_hy = dss.time.units
+        tref_hy2 = tref_hy[12:31]
+        tref_dt = datetime.strptime(tref_hy2,'%Y-%m-%d %H:%M:%S')
+        thy = tref_dt + thy_hr * timedelta(hours=1) # now datetime
         trm = thy - t_ref # now a timedelta referenced to roms
         dt = trm[0].total_seconds() / (3600*24) # now days since time ref
-
-
     #    t_rom[cnt] = dt.values
         t_rom[cnt] = dt
         temp[cnt,:,:,:] = dss.water_temp.values
