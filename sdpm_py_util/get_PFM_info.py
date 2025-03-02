@@ -69,6 +69,9 @@ def get_PFM_info():
          #print('PFM info was loaded from ' + pfm_info_full)
    else:         
       # set up the dict that will be saved
+      print('we are building the PFM_info.pkl file...')
+      print('we are currently using the file:')
+      print(os.path.abspath(__file__))
       PFM = dict()
       PFM['info_file'] = pfm_info_full
       if run_type == 'hindcast': # note hycom with tides starts on 2024-10-10 1200...
@@ -160,6 +163,7 @@ def get_PFM_info():
       #atm_model = 'nam_nest'
       atm_model = 'gfs'
       #atm_model = 'gfs_1hr'
+      
       atm_get_method = 'open_dap_nc'
       ocn_get_method = 'ncks_para'
       # atm option for run_type = 'hindcast' are: 
@@ -182,6 +186,8 @@ def get_PFM_info():
           PFM['forecast_days'] = 1.0 # we will always do 1 day at a time...
           PFM['atm_dt_hr'] = 3
 
+      print('we are doing a ',str(PFM['forecast_days']), ' day forecast')
+      print('using ',atm_model)
 
       PFM['ecmwf_dir'] = '/scratch/PFM_Simulations/ecmwf_data/'
       PFM['ecmwf_all_pkl_name'] = 'ecmwf_all.pkl'
