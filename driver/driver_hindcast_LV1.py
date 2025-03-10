@@ -25,7 +25,7 @@ clean_start = True
 infuns.initialize_simulation(clean_start)
 PFM=get_PFM_info()
 
-if PFM['run_tyep'] == 'hindcast':
+if PFM['run_type'] == 'hindcast':
     print('the hindcast start time is:')
     tbeg = PFM['sim_start_time']
     print(tbeg)
