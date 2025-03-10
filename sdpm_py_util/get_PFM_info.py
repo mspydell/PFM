@@ -63,12 +63,21 @@ def get_PFM_info():
    pfm_file_name = 'PFM_run_info.pkl'
    pfm_info_full = pfm_root_dir + pfm_file_name
    
+   #print('attempting to load pfm_info_full:')
+   #print(pfm_info_full)
+   #print('and making it a Path object to check if it exists...')
    if Path(pfm_info_full).is_file():
+      #print('it exists.')
+      #print('attempting to load it...')
       with open(pfm_info_full,'rb') as fp:
+         #print('fp is:')
+         #print(fp)
+         #print('attempting to load fp')
          PFM = pickle.load(fp)
          #print('PFM info was loaded from ' + pfm_info_full)
    else:         
       # set up the dict that will be saved
+      print('... it does not exist.')
       print('we are building the PFM_info.pkl file...')
       print('we are currently using the file:')
       print(os.path.abspath(__file__))
@@ -159,9 +168,9 @@ def get_PFM_info():
       PFM['lv4_grid_file_full'] = lv4_grid_file
  
       # atm options for run_type = 'forecast' are: nam_nest, gfs, gfs_1hr, ecmwf
-      #atm_model = 'ecmwf'
+      atm_model = 'ecmwf'
       #atm_model = 'nam_nest'
-      atm_model = 'gfs'
+      #atm_model = 'gfs'
       #atm_model = 'gfs_1hr'
       
       atm_get_method = 'open_dap_nc'
