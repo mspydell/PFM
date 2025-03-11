@@ -2,19 +2,18 @@
 
 from datetime import datetime
 from datetime import timedelta
-import time
-import gc
-import resource
+#import time
+#import gc
+#import resource
 import pickle
 import grid_functions as grdfuns
 import river_functions as rivfuns
-import os
+#import os
 import os.path
-import pickle
 from scipy.spatial import cKDTree
-import glob
-import requests
-import grib2io
+#import glob
+#import requests
+#import grib2io
 
 #sys.path.append('../sdpm_py_util')
 from get_PFM_info import get_PFM_info
@@ -28,17 +27,37 @@ from netCDF4 import Dataset
 from scipy.interpolate import RegularGridInterpolator, LinearNDInterpolator
 from scipy.interpolate import interp1d
 
-import seawater
+#import seawater
 import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 #import util_functions as utlfuns 
 from util_functions import s_coordinate_4
 #from pydap.client import open_url
-import sys
+#import sys
 
 import warnings
 warnings.filterwarnings("ignore")
+
+
+def list_to_dict_of_chunks(long_list, chunk_size=10):
+    """
+    Converts a long list into a dictionary of lists, with each list (chunk)
+    containing a maximum of chunk_size elements.
+    
+    Args:
+        long_list: The original list.
+        chunk_size: The maximum size of each chunk (default is 10).
+    
+    Returns:
+        A dictionary where keys are chunk numbers (starting from 1) and
+        values are the corresponding list chunks.
+    """
+    dict_of_chunks = {}
+    for i in range(0, len(long_list), chunk_size):
+        chunk = long_list[i:i + chunk_size]
+        dict_of_chunks[i // chunk_size + 1] = chunk
+    return dict_of_chunks
 
 
 def get_nam_hindcast_filelists(t1str,t2str):
@@ -92,6 +111,44 @@ def nam_grabber_hind(cmd):
     #ret1 = 1
     return ret1
 
+def get_nam_hindcast_grb2s_v2(t1str,t2str):
+    _, _, cmd_list0, _ = get_nam_hindcast_filelists(t1str,t2str)
+    cmd_list_2 = list_to_dict_of_chunks(cmd_list0, chunk_size=5)
+    result2 = []
+
+    nchnk = len(cmd_list_2)
+    for cnt in np.arange(nchnk):
+    #for cmd_list in list(cmd_list_2.keys()):
+        print('getting 5 nam files...')
+        with ThreadPoolExecutor() as executor:
+            threads = []
+            cnt = 0
+            for cmd in cmd_list_2[cnt+1]:
+                #print(cnt)
+                fun = nam_grabber_hind #define function
+                args = [cmd] #define args to function
+                kwargs = {} #
+                # start thread by submitting it to the executor
+                threads.append(executor.submit(fun, *args, **kwargs))
+                cnt=cnt+1
+
+            for future in as_completed(threads):
+                # retrieve the result
+                result = future.result()
+                result2.append(result)
+                # report the result
+
+    res3 = result2.copy()
+    res3 = [1 if x == 0 else x for x in res3]
+    nff = sum(res3)
+    if nff == len(cmd_list0):
+        print('things are good, we got all ' + str(nff) + ' nam files')
+    else:
+        print('things arent so good.')
+        print('we got ' + str(nff) + ' files of ' + str(len(cmd_list0)) + ' we tried to get.')
+
+    return result2    
+
 def get_nam_hindcast_grb2s(t1str,t2str):
 #wget https://www.ncei.noaa.gov/data/north-american-mesoscale-model/access/analysis/202412/20241231/nam_218_20241231_0000_000.grb2
     PFM = get_PFM_info()
@@ -110,6 +167,7 @@ def get_nam_hindcast_grb2s(t1str,t2str):
             threads.append(executor.submit(fun, *args, **kwargs))
             cnt=cnt+1
 
+        print('sent off all wget requests')
         result2 = []
         for future in as_completed(threads):
             # retrieve the result

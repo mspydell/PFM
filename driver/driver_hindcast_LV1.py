@@ -256,10 +256,10 @@ while tsim <= tend:
     dt_bc = []
     dt_bc.append(t02-t04)
 
-    # now for the atm part...
+    # now for the atm part... this function is different from PFM
     print('we are now getting the atm data and saving as a dict...')
     t01 = datetime.now()
-    cmd_list = ['python','-W','ignore','atm_functions.py','get_atm_data_as_dict']
+    cmd_list = ['python','-W','ignore','atm_functions.py','get_hind_atm_data_as_dict']
     os.chdir('../sdpm_py_util')
     ret5 = subprocess.run(cmd_list)   
     print('return code: ' + str(ret5.returncode) + ' (0=good)')  
