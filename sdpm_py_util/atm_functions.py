@@ -12,14 +12,11 @@ from get_PFM_info import get_PFM_info
 import grid_functions as grdfuns
 import subprocess
 
-#import cfgrib
+import cfgrib
 
 import os
 
 import getpass
-usrnm = getpass.getuser()
-if usrnm == 'mspydell':
-    import cfgrib
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 

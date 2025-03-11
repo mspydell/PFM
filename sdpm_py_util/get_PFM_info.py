@@ -159,9 +159,9 @@ def get_PFM_info():
       PFM['lv4_grid_file_full'] = lv4_grid_file
  
       # atm options for run_type = 'forecast' are: nam_nest, gfs, gfs_1hr, ecmwf
-      #atm_model = 'ecmwf'
+      atm_model = 'ecmwf'
       #atm_model = 'nam_nest'
-      atm_model = 'gfs'
+      #atm_model = 'gfs'
       #atm_model = 'gfs_1hr'
       
       atm_get_method = 'open_dap_nc'
@@ -179,7 +179,7 @@ def get_PFM_info():
       if atm_model == 'gfs_1hr':
          PFM['atm_dt_hr'] = 1
       if atm_model == 'ecmwf':
-         PFM['forecast_days'] = 2.0 # 5.0 is the target 
+         PFM['forecast_days'] = 5.0 #is the target 
          PFM['atm_dt_hr'] = 1
       
       if run_type == 'hindcast':
