@@ -8,12 +8,12 @@ from datetime import timedelta
 import pickle
 import grid_functions as grdfuns
 import river_functions as rivfuns
-#import os
+import os
 import os.path
 from scipy.spatial import cKDTree
 #import glob
 #import requests
-#import grib2io
+import grib2io
 
 #sys.path.append('../sdpm_py_util')
 from get_PFM_info import get_PFM_info
@@ -39,7 +39,6 @@ from util_functions import s_coordinate_4
 import warnings
 warnings.filterwarnings("ignore")
 
-
 def list_to_dict_of_chunks(long_list, chunk_size=10):
     """
     Converts a long list into a dictionary of lists, with each list (chunk)
@@ -62,7 +61,8 @@ def list_to_dict_of_chunks(long_list, chunk_size=10):
 
 def get_nam_hindcast_filelists(t1str,t2str):
 
-    PFM = get_PFM_info()
+    #PFM = get_PFM_info()
+    PFM = {}
     PFM['atm_hind_dir'] = '/scratch/PHM_Simulations/grb2_data'
 
     atm_hind_dir = PFM['atm_hind_dir']
@@ -363,4 +363,31 @@ def grb2_to_pickle(fn_in,fn_out):
     with open(fn_out,'wb') as fp:
         pickle.dump(ATM,fp)
         print('ATM grb2 file ' + fn_in + ' saved to pickle.')
+
+def check_file_exists_os(file_path):
+    """
+    Checks if a file exists using os.path.exists() and returns 1 if it exists, 0 otherwise.
+    """
+    return 1 if os.path.exists(file_path) else 0
+
+
+def nam_pkls_2_romsatm_pkl(t1str,t2str,fn_out):
+    _, _, _, fn_pkls = get_nam_hindcast_filelists(t1str,t2str)
+
+    # check and make sure pkl files exist
+    fes = [] # a list of 0 or -1
+    for fn in fn_pkls:
+        print(fn)
+        fe = check_file_exists_os(fn)
+        fes.append(fe-1)
+
+    fes_test = sum(fes)
+    if fes_test == 0:
+        print('the nam atm pickle files exist, will interpolate onto the roms grid...')
+        fes_test = 1
+    else:
+        print('not all pickle files in the time range ',t1str,' to ', t2str, ' were found. exiting.')
+        fes_test = 0
+        return fes_test
+    
 
