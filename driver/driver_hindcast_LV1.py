@@ -51,9 +51,14 @@ while tsim <= tend:
  
     print('\nGoing to do a PHM daily hindcast starting at (UTC)')
     print(tsim)
- 
+    print('and ending at (UTC)')
+    t2 = tsim + timedelta(days=1)
+    t2str = t2.strftime("%Y%m%d%H")
+    print(t2)
+
     # getting the hycom hindcast data for this simulation
     yyyymmddhh = tsim.strftime("%Y%m%d%H")
+    t1str = yyyymmddhh
     cmd_list = ['python','-W','ignore','ocn_functions.py','get_hycom_hind_data',yyyymmddhh]
     ret1 = subprocess.run(cmd_list)     
     
@@ -141,15 +146,15 @@ while tsim <= tend:
     t02 = datetime.now()
     dt_process.append(t02-t01)
 
-    if plot_ocnr == 1:
-        print('plotting LV1 ocn_R_fields...')
-        cmd_list = ['python','-W','ignore','plotting_functions.py','plot_ocn_R_fields_pckl']
-        os.chdir('../sdpm_py_util')
-        ret1 = subprocess.run(cmd_list)     
-        os.chdir('../driver')
-        print('subprocess return code? ' + str(ret1.returncode) +  ' (0=good)')
-        t03 = datetime.now()
-        dt_plotting.append(t03-t02)
+#    if plot_ocnr == 1:
+#        print('plotting LV1 ocn_R_fields...')
+#        cmd_list = ['python','-W','ignore','plotting_functions.py','plot_ocn_R_fields_pckl']
+#        os.chdir('../sdpm_py_util')
+#        ret1 = subprocess.run(cmd_list)     
+#        os.chdir('../driver')
+#        print('subprocess return code? ' + str(ret1.returncode) +  ' (0=good)')
+#        t03 = datetime.now()
+#        dt_plotting.append(t03-t02)
         
     print('...done with LV1 ocn_R')
     print('this took:')
@@ -257,9 +262,24 @@ while tsim <= tend:
     dt_bc.append(t02-t04)
 
     # now for the atm part... this function is different from PFM
-    print('we are now getting the atm data and saving as a dict...')
+    dt_download_atm = []
+    print('we are now getting the atm data...')
     t01 = datetime.now()
-    cmd_list = ['python','-W','ignore','atm_functions.py','get_hind_atm_data_as_dict']
+    cmd_list = ['python','-W','ignore','hind_functions.py','get_nam_hindcast_grb2s_v2',t1str,t2str]
+    os.chdir('../sdpm_py_util')
+    ret5 = subprocess.run(cmd_list)   
+    print('return code: ' + str(ret5.returncode) + ' (0=good)')  
+    os.chdir('../sdpm_py_util')
+    print('...done.')
+    t02 = datetime.now()
+    print('this took:')
+    print(t02-t01)
+    print('\n')
+    dt_download_atm.append(t02-t01)
+
+    print('we are now converting the atm grb2 files to pickles...')
+    t01 = datetime.now()
+    cmd_list = ['python','-W','ignore','hind_functions.py','grb2s_to_pickles',t1str,t2str]
     os.chdir('../sdpm_py_util')
     ret5 = subprocess.run(cmd_list)   
     print('return code: ' + str(ret5.returncode) + ' (0=good)')  
@@ -270,27 +290,12 @@ while tsim <= tend:
     print(t02-t01)
     print('\n')
 
-    dt_download_atm = []
-    dt_download_atm.append(t02-t01)
-
-    # plot some stuff
-    if plot_atm == 1:
-        print('we are now plotting the atm data...')
-        t01 = datetime.now()
-        pltfuns.plot_atm_fields()
-        print('...done with plotting ATM fields')
-        t02 = datetime.now()
-        print('this took:')
-        print(t02-t01)
-        print('\n')
-        dt_plotting.append(t02-t01)
-
     level = 1
     # put the atm data on the roms grid, and rotate the velocities
     # everything in this dict turn into the atm.nc file
-    print('we are now putting the atm data on the roms LV1 grid...')
+    print('we are now putting the hind atm data on the roms LV1 grid...')
     t01 = datetime.now()
-    cmd_list = ['python','-W','ignore','atm_functions.py','get_atm_data_on_roms_grid',str(level)]
+    cmd_list = ['python','-W','ignore','hind_functions.py','nam_pkls_2_romsatm_pkl',t1str,t2str,str(level)]
     os.chdir('../sdpm_py_util')
     ret5 = subprocess.run(cmd_list)   
     print('return code: ' + str(ret5.returncode) + ' (0=good)')  
@@ -303,17 +308,6 @@ while tsim <= tend:
     print('\n')
     dt_atm = []
     dt_atm.append(t02-t01)
-
-    if plot_all_atm == 1:
-        t01 = datetime.now()
-        print('we are now plotting the atm data on roms grid...')
-        pltfuns.plot_all_fields_in_one(str(level))
-        print('...done.')
-        t02 = datetime.now()
-        print('this took:')
-        print(t02-t01)
-        print('\n')
-        dt_plotting.append(t02-t01)
 
     # fn_out is the name of the atm.nc file used by roms
     print('we are now saving ATM LV1 to ' + fn_atm_out + ' ...')
@@ -331,20 +325,7 @@ while tsim <= tend:
     print('\n')
     dt_atm.append(t02-t01)
 
-
-    if load_plot_atm == 1:
-        t01 = datetime.now()
-        print('we are now plotting the atm data...')
-        pltfuns.load_and_plot_atm(str(level))
-        print('...done.')
-        t02 = datetime.now()
-        print('this took:')
-        print(t02-t01)
-        print('\n')
-        dt_plotting.append(t02-t01)
-
-
-    print('driver_run_forecast_LV1:  now make .in and .sb files...')
+    print('driver_run_forecast_LV1:  making .in and .sb files...')
     t01 = datetime.now()
     pfm_driver_src_dir = os.getcwd()
     yyyymmdd = PFM['yyyymmdd']
@@ -370,56 +351,3 @@ while tsim <= tend:
 
     # go to the next day
     tsim = tsim + timedelta(days=1)
-
-
-
-
-
-# now making history file plots
-print('now making LV1 history file plots...')
-t01=datetime.now()
-cmd_list = ['python','-W','ignore','plotting_functions.py','make_all_his_figures','LV1']
-os.chdir('../sdpm_py_util')
-ret6 = subprocess.run(cmd_list)   
-print('...done plotting LV1: ' + str(ret6.returncode) + ' (0=good)')  
-os.chdir('../driver')
-print('this took:')
-print(datetime.now()-t01)
-
-#print('now making LV1 history file plots...')
-#t01 = datetime.now()
-#pltfuns.make_all_his_figures('LV1')
-#print('...done.')
-#t02 = datetime.now()
-#print('this took:')
-#print(t02-t01)
-#print('\n')
-dt_plotting.append(datetime.now()-t01)
-
-dt_LV1 = {}
-dt_LV1['roms'] = dt_roms
-dt_LV1['ic'] = dt_ic
-dt_LV1['bc'] = dt_bc
-dt_LV1['atm'] = dt_atm
-dt_LV1['plotting'] = dt_plotting
-dt_LV1['process'] = dt_process
-dt_LV1['download_atm'] = dt_download_atm
-dt_LV1['download_ocn'] = dt_download_ocn
-dt_LV1['hycom_t0'] = yyyymmdd_hy
-
-fn_timing = PFM['lv1_run_dir'] + '/LV1_timing_info.pkl'
-with open(fn_timing,'wb') as fout:
-    pickle.dump(dt_LV1,fout)
-    print('OCN_LV1 timing info dict saved with pickle to: ',fn_timing)
-
-print('\n\n----------------------')
-print('Finished the LV1 simulation')
-print('this took:')
-print(t02-t00)
-print('\n')
-
-
-
-#######################
-
-

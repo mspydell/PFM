@@ -50,8 +50,8 @@ def get_PFM_info():
    except KeyError:
        HOSTNAME = 'BLANK'
 
-   run_type = 'forecast' # this is the switch to go from forecasting to hindcasting...
-   #run_type = 'hindcast'
+   #run_type = 'forecast' # this is the switch to go from forecasting to hindcasting...
+   run_type = 'hindcast'
 
    pfm_dir = '/scratch/PFM_Simulations/' # this stays fixed for Grids and executables
                                          # both forecasting and hindcasting use the same ones.

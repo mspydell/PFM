@@ -6,23 +6,23 @@ from datetime import timedelta
 #import gc
 #import resource
 import pickle
-import grid_functions as grdfuns
-import river_functions as rivfuns
 import os
 import os.path
 from scipy.spatial import cKDTree
 #import glob
 #import requests
 import grib2io
+import sys
 
-#sys.path.append('../sdpm_py_util')
+sys.path.append('../sdpm_py_util')
+import grid_functions as grdfuns
+import ocn_functions as ocnfuns
 from get_PFM_info import get_PFM_info
 
 import numpy as np
 import xarray as xr
 import netCDF4 as nc
 from netCDF4 import Dataset
-
 
 from scipy.interpolate import RegularGridInterpolator, LinearNDInterpolator
 from scipy.interpolate import interp1d
@@ -112,7 +112,18 @@ def nam_grabber_hind(cmd):
     return ret1
 
 def get_nam_hindcast_grb2s_v2(t1str,t2str):
-    _, _, cmd_list0, _ = get_nam_hindcast_filelists(t1str,t2str)
+    _, l2, cmd_list0, _ = get_nam_hindcast_filelists(t1str,t2str)
+    # check and see if the grb2 files are already there?
+    fes = [] # a list of 0 or -1
+    for fn in l2:
+        fe = check_file_exists_os(fn)
+        fes.append(fe)
+    
+    if sum(fes) == len(l2):
+        print('the ', len(l2), ' grb2 files already exist, no need to download.')
+        result2 = 0
+        return result2
+    
     cmd_list_2 = list_to_dict_of_chunks(cmd_list0, chunk_size=5)
     result2 = []
 
@@ -198,9 +209,9 @@ def grb2_to_pickle(fn_in,fn_out):
 
     g = grib2io.open(fn_in)
 
-    vars_in=['PRMSL','RH','TMP','UGRD','VGRD','APCP','DSWRF','USWRF','DLWRF','ULWRF']
-    lev =['mean sea level','2 m above ground','2 m above ground','10 m above ground','10 m above ground','surface','surface','surface','surface','surface']
-    vars_out=['Pair','','Tair','Uwind','Vwind','rain',]
+    #vars_in=['PRMSL','RH','TMP','UGRD','VGRD','APCP','DSWRF','USWRF','DLWRF','ULWRF']
+    #lev =['mean sea level','2 m above ground','2 m above ground','10 m above ground','10 m above ground','surface','surface','surface','surface','surface']
+    #vars_out=['Pair','','Tair','Uwind','Vwind','rain',]
 
     ATM = dict()
     # get precipitation (over 1 hr), total kg / m2
@@ -294,6 +305,9 @@ def grb2_to_pickle(fn_in,fn_out):
     ATM['vinfo']['ocean_time'] = {'long_name':'atmospheric forcing time',
                         'units':'days',
                         'field': 'time, scalar, series'}
+    ATM['vinfo']['ocean_time_ref'] = {'long_name':'the reference time that roms starts from',
+                            'units':'datetime object',
+                            'field': 'time, scalar'}
     ATM['vinfo']['rain_time'] = {'long_name':'atmospheric rain forcing time',
                         'units':'days',
                         'field': 'time, scalar, series'}
@@ -364,30 +378,169 @@ def grb2_to_pickle(fn_in,fn_out):
         pickle.dump(ATM,fp)
         print('ATM grb2 file ' + fn_in + ' saved to pickle.')
 
+
+def grb2s_to_pickles(t1str,t2str):
+    # this function takes all of the grb2 nam files and makes pickles out of them
+    
+    # get file names
+    _, l2, _, l4 = get_nam_hindcast_filelists(t1str,t2str)
+
+    for j in np.arange(len(l2)):
+        fn_in = l2[j]
+        fn_out = l4[j]
+        grb2_to_pickle(fn_in,fn_out)
+
+
 def check_file_exists_os(file_path):
     """
     Checks if a file exists using os.path.exists() and returns 1 if it exists, 0 otherwise.
     """
     return 1 if os.path.exists(file_path) else 0
 
+def load_pickle_file(file_path):
+    """
+    Loads data from a pickle file.
+    Args:
+        file_path (str): The path to the pickle file.
+    Returns:
+        object: The unpickled object, or None if an error occurs.
+    """
+    try:
+        with open(file_path, 'rb') as file:
+            data = pickle.load(file)
+        return data
+    except FileNotFoundError:
+        print(f"Error: File not found at {file_path}")
+        return None
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return None
 
-def nam_pkls_2_romsatm_pkl(t1str,t2str,fn_out):
+
+def nam_pkls_2_romsatm_pkl(t1str,t2str,lv):
+    # this function takes nam_hindcast pickle files, interpolates the fields
+    # from the nam grid to the rom grid at level = lv
+
+    PFM = get_PFM_info()
+    if lv == '1':
+        RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
+        fname_out = PFM['lv1_forc_dir'] + '/' + PFM['atm_tmp_LV1_pckl_file']
+    elif lv == '2':
+        RMG = grdfuns.roms_grid_to_dict(PFM['lv2_grid_file'])
+        fname_out = PFM['lv2_forc_dir'] + '/' + PFM['atm_tmp_LV2_pckl_file']
+    elif lv == '3':
+        RMG = grdfuns.roms_grid_to_dict(PFM['lv3_grid_file'])
+        fname_out = PFM['lv3_forc_dir'] + '/' + PFM['atm_tmp_LV3_pckl_file']
+    else:
+        RMG = grdfuns.roms_grid_to_dict(PFM['lv4_grid_file'])
+        fname_out = PFM['lv4_forc_dir'] + '/' + PFM['atm_tmp_LV4_pckl_file']
+
     _, _, _, fn_pkls = get_nam_hindcast_filelists(t1str,t2str)
 
     # check and make sure pkl files exist
     fes = [] # a list of 0 or -1
     for fn in fn_pkls:
-        print(fn)
+        #print(fn)
         fe = check_file_exists_os(fn)
         fes.append(fe-1)
 
     fes_test = sum(fes)
     if fes_test == 0:
-        print('the nam atm pickle files exist, will interpolate onto the roms grid...')
+        print('the nam atm pickle files exist, will load and interpolate onto the roms grid...')
         fes_test = 1
     else:
-        print('not all pickle files in the time range ',t1str,' to ', t2str, ' were found. exiting.')
+        print('not all pickle files in the time range ',t1str,' to ', t2str, ' were found.')
+        print('Please supply a time range with pickle files. Exiting!!!')
         fes_test = 0
         return fes_test
+    
+    # list of variables that we need to go from nam to roms grid
+    vars = ['rain','Tair','Qair','Pair','Uwind','Vwind','lwrad','lwrad_down','swrad']
+    nt = len(fn_pkls)
+    nltr,nlnr = np.shape(RMG['lat_rho'])
+
+    atm2 = dict()
+    atm2['vinfo'] = dict()
+    
+    for var in vars:
+        atm2[var]=np.zeros((nt,nltr,nlnr))
+    atm2['ocean_time'] = np.zeros((nt))
+
+    ATM = load_pickle_file(fn_pkls[0])
+    vlist = ['lon','lat','ocean_time','ocean_time_ref','lwrad','lwrad_down','swrad','rain','Tair','Pair','Qair','Uwind','Vwind','tair_time','pair_time','qair_time','wind_time','rain_time','srf_time','lrf_time']
+    for aa in vlist:
+        atm2['vinfo'][aa] = ATM['vinfo'][aa]
+
+    # the lat lons are from the roms grid
+    atm2['lat'] = RMG['lat_rho']
+    atm2['lon'] = RMG['lon_rho']
+
+    # these two are useful later
+    atm2['ocean_time_ref'] = ATM['ocean_time_ref']
+    
+    set_up = 0 # this flag is to set up the interpolators
+    cnt_time = 0
+    for fn in fn_pkls: # this loops over all times
+        # load the file
+        atm = load_pickle_file(fn)
+        atm2['ocean_time'][cnt_time] = atm['ocean_time']
+        
+        for var in vars:
+            z0  = atm[var]
+
+            if set_up == 0:
+                # this will set up all of the interpolating that needs to be done...
+                # this is only done once!
+                lat_nam = atm['lat']
+                lon_nam = atm['lon']
+                #nj,ni = np.shape(lat_nam) # how big is the nam grid? ny, nx
+                #i_nam = np.arange(ni) # nam lon counting vector 
+                #j_nam = np.arange(nj) # nam lat counting vector
+                #Xind,Yind = np.meshgrid(i_nam,j_nam) 
+
+                #points1 = np.zeros( (ni*nj, 2) )
+                #points1[:,1] = lon_nam.flatten()
+                #points1[:,0] = lat_nam.flatten()
+                #scat_interp_xi  = LinearNDInterpolator(points1,Xind.flatten())
+                #scat_interp_eta = LinearNDInterpolator(points1,Yind.flatten())
+                
+                lt2 = RMG['lat_rho']
+                ln2 = RMG['lon_rho']
+                # need roms indices
+                #xi_2  = scat_interp_xi(lt2,ln2) # roms lat lon in nam x indices
+                #eta_2 = scat_interp_eta(lt2,ln2) # roms lat lon in nam y indices
+                # we need the interpolator object
+                #interper = RegularGridInterpolator( (j_nam , i_nam), lat_nam , bounds_error=False, fill_value=None)                
+                xi_2, eta_2, interper = ocnfuns.get_child_xi_eta_interp(lon_nam,lat_nam,ln2,lt2,'rho')
+                set_up = 1
+
+            setattr(interper,'values',z0) # change the interpolator z values
+            z2 =  interper((eta_2,xi_2)) # perhaps change here to directly interpolate to (xi,eta) on the edges?
+            atm2[var][cnt_time,:,:] = z2
+
+        cnt_time = cnt_time + 1
+
+    # copy times to all time vars
+    tlist = ['tair_time','pair_time','qair_time','wind_time','rain_time','srf_time','lrf_time']
+    for tnm in tlist:
+        atm2[tnm] = atm2['ocean_time']
+
+    with open(fname_out,'wb') as fp:
+        pickle.dump(atm2,fp)
+        print('\nATM on roms grid dict saved with pickle.')
+    
+    return fes_test
+
+
+
+
+                
+
+
+
+
+
+
+        
     
 
