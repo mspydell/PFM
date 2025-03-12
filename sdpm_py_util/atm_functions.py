@@ -23,6 +23,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 #from pydap.client import open_url
 
+# adding a stupid comment to test git and github
 
 def get_atm_data_as_dict():
     
