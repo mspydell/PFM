@@ -8,6 +8,7 @@ import resource
 import pickle
 import grid_functions as grdfuns
 import river_functions as rivfuns
+import hind_functions as hindfuns
 import os
 import os.path
 import pickle
@@ -997,41 +998,62 @@ def get_hycom_hind_data(yyyymmddhh):
     # this function gets all of the new hycom data as separate files for each field (ssh,temp,salt,u,v) and each time
     # and puts each .nc file in the directory for hycom data
 
-    cmd_list, _ = get_hind_nc_cmd_list(yyyymmddhh)
-    #print(len(cmd_list))
-    print('we are getting ' + str(len(cmd_list)) + ' .nc files...')
+    cmd_list, ncs = get_hind_nc_cmd_list(yyyymmddhh)
+    print('we need ', len(ncs), ' hycom nc files...')
+
+    # first check and see if the files we want, we have...
+    fes = []
+    for fn in ncs:
+        fe=hindfuns.check_file_exists_os(fn)
+        fes.append(fe)
+    
+    if sum(fes) == len(ncs):
+        print('the ', len(ncs), ' nc files already exist, no need to download.')
+        result2 = 0
+        return result2
+    elif sum(fes)>0 and sum(fes)<len(ncs):
+        print('some, but not all nc files are missing, we will try and get them...')
+        cmd_list1 = [cmd_list[i] for i in range(len(fes)) if fes[i] == 0]
+    else:
+        cmd_list1 = cmd_list
+    
+
+    print('we are getting ' + str(len(cmd_list1)) + ' .nc files...')
 
     # make a dictionary of cmd_lists and a list of output file names
     # for day 1
- 
-    # create parallel executor
-    with ThreadPoolExecutor() as executor:
-        threads = []
-        cnt = 0
-        for cmd in cmd_list:
-            #print(cnt)
-            fun = hycom_grabber_hind #define function
-            args = [cmd] #define args to function
-            kwargs = {} #
-            # start thread by submitting it to the executor
-            threads.append(executor.submit(fun, *args, **kwargs))
-            cnt=cnt+1
 
-        result2 = []
-        for future in as_completed(threads):
-            # retrieve the result
-            result = future.result()
-            result2.append(result)
-            # report the result
+    # chunk the command list to play nice
+    cmd_list_2 = list_to_dict_of_chunks(cmd_list1, chunk_size=10)
+    nchnk = len(cmd_list_2)
+    for cnt in np.arange(nchnk):
+        print('getting ', len(cmd_list_2[cnt+1]), ' hycom files...')
+        # create parallel executor
+        with ThreadPoolExecutor() as executor:
+            threads = []
+            cnt = 0
+            for cmd in cmd_list_2[cnt+1]:
+                fun = hycom_grabber_hind #define function
+                args = [cmd] #define args to function
+                kwargs = {} #
+                # start thread by submitting it to the executor
+                threads.append(executor.submit(fun, *args, **kwargs))
+                cnt=cnt+1
 
-    res3 = result2.copy()
-    res3 = [1 if x == 0 else x for x in res3]
-    nff = sum(res3)
-    if nff == len(cmd_list):
-        print('things are good, we got all ' + str(nff) + ' files')
+            for future in as_completed(threads):
+                result = future.result()
+        print('...done.')
+
+    fes = []
+    for fn in ncs:
+        fe=hindfuns.check_file_exists_os(fn)
+        fes.append(fe)
+    
+    if sum(fes) == len(ncs):
+        print('we have the ', len(ncs), ' nc files now. Continuing!')
+        result2 = 0
     else:
-        print('things arent so good.')
-        print('we got ' + str(nff) + ' files of ' + str(len(cmd_list)) + ' we tried to get.')
+        sys.exit("need to abort, missing hycom.nc files.")
 
     return result2
 

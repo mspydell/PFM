@@ -46,7 +46,13 @@ print(t00)
 
 tsim = PFM['fetch_time']
 
-while tsim <= tend:  
+start_type = PFM['lv1_use_restart'] # 0=new solution. 1=from a restart file
+lv1_use_restart = start_type
+
+level = 1
+
+
+while tsim < tend:  
     # now a string of the time to start ROMS (and the 1st atm time too)
  
     print('\nGoing to do a PHM daily hindcast starting at (UTC)')
@@ -59,6 +65,7 @@ while tsim <= tend:
     # getting the hycom hindcast data for this simulation
     yyyymmddhh = tsim.strftime("%Y%m%d%H")
     t1str = yyyymmddhh
+    os.chdir('../sdpm_py_util')
     cmd_list = ['python','-W','ignore','ocn_functions.py','get_hycom_hind_data',yyyymmddhh]
     ret1 = subprocess.run(cmd_list)     
     
@@ -158,7 +165,7 @@ while tsim <= tend:
         
     print('...done with LV1 ocn_R')
     print('this took:')
-    print(t03-t01)
+    print(t02-t01)
     print('\n')
     t04 = datetime.now()
 
@@ -174,7 +181,10 @@ while tsim <= tend:
     dt_process.append(datetime.now()-t04)
         
     t01 = datetime.now()
-    if PFM['lv1_use_restart']==0:
+    PFM = get_PFM_info()
+    lv1_use_restart = PFM['lv1_use_restart']
+
+    if lv1_use_restart==0:
         print('going to save OCN_IC to a pickle file: ' + ocnIC_pckl)
         os.chdir('../sdpm_py_util')
         cmd_list = ['python','-W','ignore','ocn_functions.py','ocnr_2_ICdict_from_tmppkls',ocnIC_pckl]
@@ -290,7 +300,6 @@ while tsim <= tend:
     print(t02-t01)
     print('\n')
 
-    level = 1
     # put the atm data on the roms grid, and rotate the velocities
     # everything in this dict turn into the atm.nc file
     print('we are now putting the hind atm data on the roms LV1 grid...')
@@ -350,4 +359,8 @@ while tsim <= tend:
     dt_roms.append(t02-t01)
 
     # go to the next day
+    PFM2 = {}
+    PFM2['lv1_use_restart'] = 1
+    infuns.edit_and_save_PFM(PFM2)
     tsim = tsim + timedelta(days=1)
+    print('done with a 1 day LV1 hindcast, going to the next day.\n')

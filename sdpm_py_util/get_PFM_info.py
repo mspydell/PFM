@@ -87,7 +87,7 @@ def get_PFM_info():
          sim_start_time = '2024101100' # the simulation start time is in yyyymmddhh format
          # set the simulation end time. An integer number of days past the start time
          # We will loop over days until we get to this time.
-         sim_end_time   = '2024101200' # need 
+         sim_end_time   = '2024101500' # need 
          PFM['sim_start_time'] = datetime.strptime(sim_start_time,'%Y%m%d%H')
          PFM['sim_end_time'] = datetime.strptime(sim_end_time,'%Y%m%d%H') 
          ocn_model = 'hycom_hind_wtide' # _wtide indicates using the new (>20241010) hycom
@@ -192,6 +192,7 @@ def get_PFM_info():
          PFM['atm_dt_hr'] = 1
       
       if run_type == 'hindcast':
+          atm_model = 'nam_analysis'
           PFM['forecast_days'] = 1.0 # we will always do 1 day at a time...
           PFM['atm_dt_hr'] = 3
 
@@ -464,10 +465,10 @@ def get_PFM_info():
       # this is the switch to use restart files
       PFM['restart_files_dir'] =  pfm_root_dir + 'restart_data' 
 
-      PFM['lv1_use_restart']         = 1 # use_restart
-      PFM['lv2_use_restart']         = 1
-      PFM['lv3_use_restart']         = 1
-      PFM['lv4_use_restart']         = 1
+      PFM['lv1_use_restart']         = 0 # use_restart
+      PFM['lv2_use_restart']         = 0
+      PFM['lv3_use_restart']         = 0
+      PFM['lv4_use_restart']         = 0
       #PFM['lv4_swan_use_rst']        = 0
       PFM['lv4_swan_use_rst']        = 1
 

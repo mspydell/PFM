@@ -114,7 +114,7 @@ def nam_grabber_hind(cmd):
 def get_nam_hindcast_grb2s_v2(t1str,t2str):
     _, l2, cmd_list0, _ = get_nam_hindcast_filelists(t1str,t2str)
     # check and see if the grb2 files are already there?
-    fes = [] # a list of 0 or -1
+    fes = [] # a list of 0 (dont have) or 1 (have)
     for fn in l2:
         fe = check_file_exists_os(fn)
         fes.append(fe)
@@ -123,8 +123,13 @@ def get_nam_hindcast_grb2s_v2(t1str,t2str):
         print('the ', len(l2), ' grb2 files already exist, no need to download.')
         result2 = 0
         return result2
+    elif sum(fes)>0 and sum(fes)<len(l2):
+        print('some, but not all grb files are missing, we will try and get them...')
+        cmd_list1 = [cmd_list0[i] for i in range(len(fes)) if fes[i] == 0]
+    else:
+        cmd_list1 = cmd_list0
     
-    cmd_list_2 = list_to_dict_of_chunks(cmd_list0, chunk_size=5)
+    cmd_list_2 = list_to_dict_of_chunks(cmd_list1, chunk_size=5)
     result2 = []
 
     nchnk = len(cmd_list_2)
@@ -149,16 +154,19 @@ def get_nam_hindcast_grb2s_v2(t1str,t2str):
                 result2.append(result)
                 # report the result
 
-    res3 = result2.copy()
-    res3 = [1 if x == 0 else x for x in res3]
-    nff = sum(res3)
-    if nff == len(cmd_list0):
-        print('things are good, we got all ' + str(nff) + ' nam files')
+    # recheck for the files
+    fes = [] # a list of 0 (dont have) or 1 (have)
+    for fn in l2:
+        fe = check_file_exists_os(fn)
+        fes.append(fe)
+    
+    if sum(fes) == len(l2):
+        print('we have the ', len(l2), ' grb2 files now.')
+        result2 = 0
+        return result2
     else:
-        print('things arent so good.')
-        print('we got ' + str(nff) + ' files of ' + str(len(cmd_list0)) + ' we tried to get.')
+        sys.exit("need to abort, missing nam.grb2 files.")
 
-    return result2    
 
 def get_nam_hindcast_grb2s(t1str,t2str):
 #wget https://www.ncei.noaa.gov/data/north-american-mesoscale-model/access/analysis/202412/20241231/nam_218_20241231_0000_000.grb2
@@ -532,6 +540,12 @@ def nam_pkls_2_romsatm_pkl(t1str,t2str,lv):
     return fes_test
 
 
+if __name__ == "__main__":
+    args = sys.argv
+    # args[0] = current file
+    # args[1] = function name
+    # args[2:] = function args : (*unpacked)
+    globals()[args[1]](*args[2:])
 
 
                 
