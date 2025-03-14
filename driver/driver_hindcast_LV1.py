@@ -54,6 +54,7 @@ level = 1
 
 while tsim < tend:  
     # now a string of the time to start ROMS (and the 1st atm time too)
+    PFM = get_PFM_info()
  
     print('\nGoing to do a PHM daily hindcast starting at (UTC)')
     print(tsim)
@@ -181,7 +182,6 @@ while tsim < tend:
     dt_process.append(datetime.now()-t04)
         
     t01 = datetime.now()
-    PFM = get_PFM_info()
     lv1_use_restart = PFM['lv1_use_restart']
 
     if lv1_use_restart==0:
@@ -220,6 +220,8 @@ while tsim < tend:
             dt_plotting.append(t04-t05)
     else:
         print('going to use a restart file for the LV1 IC. Setting this up...')
+        print('first need to update the PFM pickle file...')
+        infuns.update_PFM_pkl(t1str,'1')
         cmd_list = ['python','-W','ignore','init_funs.py','restart_setup','LV1']
         os.chdir('../sdpm_py_util')
         ret4 = subprocess.run(cmd_list)     
@@ -237,6 +239,7 @@ while tsim < tend:
         if PFM['lv1_nrrec'] < 0:
             print('WARNING RESTARTING LV1 WILL NOT WORK!!!')
 
+    PFM = get_PFM_info() # refresh this
     # get the OCN_BC dictionary
     print('going to save OCN_BC to a pickle file to:')
     t01 = datetime.now()
@@ -337,10 +340,11 @@ while tsim < tend:
     print('driver_run_forecast_LV1:  making .in and .sb files...')
     t01 = datetime.now()
     pfm_driver_src_dir = os.getcwd()
-    yyyymmdd = PFM['yyyymmdd']
-    hhmm = PFM['hhmm']
+    #yyyymmdd = PFM['yyyymmdd']
+    #hhmm = PFM['hhmm']
+    yyyymmddhhmm = PFM['fetch_time'].strftime('%Y%m%d%H%M')
     os.chdir('../sdpm_py_util')
-    make_LV1_dotin_and_SLURM( PFM , yyyymmdd + hhmm )
+    make_LV1_dotin_and_SLURM( PFM , yyyymmddhhmm )
     print('...done.\n')
 
     # run command will be
@@ -359,8 +363,10 @@ while tsim < tend:
     dt_roms.append(t02-t01)
 
     # go to the next day
+    tsim = tsim + timedelta(days=1)
     PFM2 = {}
     PFM2['lv1_use_restart'] = 1
+    PFM2['fetch_time'] = tsim
     infuns.edit_and_save_PFM(PFM2)
-    tsim = tsim + timedelta(days=1)
     print('done with a 1 day LV1 hindcast, going to the next day.\n')
+    #sys.exit("exiting for now.")

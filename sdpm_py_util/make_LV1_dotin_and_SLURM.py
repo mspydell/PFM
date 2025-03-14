@@ -79,6 +79,10 @@ def  make_LV1_dotin_and_SLURM( PFM , yyyymmddhhmm):
     D['lv1_rst_name_full'] = PFM['lv1_rst_name_full'] 
     D['lv1_max_time'] = PFM['lv1_max_time_str']
 
+    print('history file will be:')
+    print(D['lv1_his_name_full'])
+    print('restart file will be:')
+    print(D['lv1_rst_name_full'])
 
     start_type = PFM['lv1_use_restart'] # 0=new solution. 1=from a restart file
     if start_type == 1:
@@ -92,6 +96,9 @@ def  make_LV1_dotin_and_SLURM( PFM , yyyymmddhhmm):
     D['nrrec']        = nrrec
     D['lv1_ini_file'] = lv1_ini_dir + '/' + ininame
     D['lv1_bc_file']  = PFM['lv1_forc_dir'] + '/' + PFM['lv1_bc_file']    
+
+    print('the ini file we are using is:')
+    print(D['lv1_ini_file'])
 
     D['vtransform']  = PFM['stretching']['L1','Vtransform']
     D['vstretching'] = PFM['stretching']['L1','Vstretching']

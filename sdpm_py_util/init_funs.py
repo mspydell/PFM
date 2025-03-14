@@ -244,6 +244,7 @@ def get_restart_file_and_index(lvl):
     print('going to restart ' + lvl + ' from')
     print(t_fore)
     rst_files = glob.glob(PFM['restart_files_dir'] + '/' + lvl + '*.nc')
+    print(rst_files)
     dts = []
     for rf in rst_files:
         head, tail = os.path.split(rf)
@@ -427,8 +428,9 @@ def restart_setup(lvl):
     fname1,tindex1 = get_restart_file_and_index(lvl)
 
     if lvl == 'LV1':
-        print('removing ocean restart files older than now - ' + str(older_than_days) + ' days old...')
-        remove_old_restart_files('ocean',older_than_days)
+        if PFM['run_type']=='forecast':
+            print('removing ocean restart files older than now - ' + str(older_than_days) + ' days old...')
+            remove_old_restart_files('ocean',older_than_days)
         key_rec = 'lv1_nrrec'
         key_file = 'lv1_ini_file'
     if lvl == 'LV2':
@@ -467,6 +469,29 @@ def restart_setup(lvl):
     PFM_edit[key_file] = fname1
     edit_and_save_PFM(PFM_edit)
 
+def update_PFM_pkl(t1str,lvl):
+    PFM = get_PFM_info()
+    tstart = datetime.strptime(t1str,'%Y%m%d%H')
+    tend = tstart + timedelta(days=1)
+    yyyymmddhhmm = tstart.strftime('%Y%m%d%H%M')
+    end_str = tend.strftime('%Y%m%d%H%M')
+
+    keystr1 = 'lv'+lvl+'_his_name'
+    fname1 = 'LV'+lvl+'_ocean_his_' + yyyymmddhhmm + '.nc'
+    keystr2 = 'lv'+lvl+'_rst_name'
+    fname2 = 'LV'+lvl+'_ocean_rst_' + yyyymmddhhmm + '_' + end_str + '.nc'
+    keystr3 = 'lv1_his_name_full'
+    str3 = PFM['lv1_his_dir']+ '/' + fname1
+    keystr4 = 'restart_files_dir'
+    str4 = PFM['restart_files_dir'] + '/' + fname2
+
+    PFM2 = {}
+    PFM2[keystr1] = fname1
+    PFM2[keystr2] = fname2 
+    PFM2[keystr3] = str3
+    PFM2[keystr4] = str4
+    edit_and_save_PFM(PFM2)
+   
 if __name__ == "__main__":
     args = sys.argv
     # args[0] = current file

@@ -537,8 +537,6 @@ def get_PFM_info():
       
       PFM['lv1_his_name'] = 'LV1_ocean_his_' + yyyymmdd + hhmm + '.nc'
       PFM['lv1_rst_name'] = 'LV1_ocean_rst_' + yyyymmdd + hhmm + '_' + end_str + '.nc' 
-      # for a restart file to work, the end_str of a restart file must match the 
-      # fetch_time of the PFM simulation...
       PFM['lv1_his_name_full'] = PFM['lv1_his_dir'] + '/' + PFM['lv1_his_name']
       PFM['lv1_rst_name_full'] = PFM['restart_files_dir'] + '/' + PFM['lv1_rst_name']
 
