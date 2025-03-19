@@ -482,7 +482,7 @@ def update_PFM_pkl(t1str,lvl):
     fname2 = 'LV'+lvl+'_ocean_rst_' + yyyymmddhhmm + '_' + end_str + '.nc'
     keystr3 = 'lv1_his_name_full'
     str3 = PFM['lv1_his_dir']+ '/' + fname1
-    keystr4 = 'restart_files_dir'
+    keystr4 = 'lv1_rst_name_full'
     str4 = PFM['restart_files_dir'] + '/' + fname2
 
     PFM2 = {}

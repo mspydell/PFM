@@ -87,7 +87,7 @@ def get_PFM_info():
          sim_start_time = '2024101100' # the simulation start time is in yyyymmddhh format
          # set the simulation end time. An integer number of days past the start time
          # We will loop over days until we get to this time.
-         sim_end_time   = '2024101500' # need 
+         sim_end_time   = '2024101800' # need 
          PFM['sim_start_time'] = datetime.strptime(sim_start_time,'%Y%m%d%H')
          PFM['sim_end_time'] = datetime.strptime(sim_end_time,'%Y%m%d%H') 
          ocn_model = 'hycom_hind_wtide' # _wtide indicates using the new (>20241010) hycom

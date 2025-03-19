@@ -1940,6 +1940,8 @@ def make_all_his_figures(lvl):
         Iy = np.array([750,1000])
         cmnH,cmxH = get_his_clims(fn,'Hwave',-1,'all')
 
+    if PFM['run_type'] == 'hindcast':
+        fn = '/scratch/PHM_Simulations/LV1_Forecast/His/LV1_ocean_his_202410110000.nc'
 
     #fn = '/scratch/PFM_Simulations/LV4_Forecast/His/LV4_ocean_his_202501240000.nc'
 

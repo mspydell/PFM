@@ -1028,17 +1028,15 @@ def get_hycom_hind_data(yyyymmddhh):
     nchnk = len(cmd_list_2)
     for cnt in np.arange(nchnk):
         print('getting ', len(cmd_list_2[cnt+1]), ' hycom files...')
+        threads = []
         # create parallel executor
         with ThreadPoolExecutor() as executor:
-            threads = []
-            cnt = 0
             for cmd in cmd_list_2[cnt+1]:
                 fun = hycom_grabber_hind #define function
                 args = [cmd] #define args to function
                 kwargs = {} #
                 # start thread by submitting it to the executor
                 threads.append(executor.submit(fun, *args, **kwargs))
-                cnt=cnt+1
 
             for future in as_completed(threads):
                 result = future.result()

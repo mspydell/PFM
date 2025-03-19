@@ -136,17 +136,14 @@ def get_nam_hindcast_grb2s_v2(t1str,t2str):
     for cnt in np.arange(nchnk):
     #for cmd_list in list(cmd_list_2.keys()):
         print('getting 5 nam files...')
+        threads = []
         with ThreadPoolExecutor() as executor:
-            threads = []
-            cnt = 0
             for cmd in cmd_list_2[cnt+1]:
-                #print(cnt)
                 fun = nam_grabber_hind #define function
                 args = [cmd] #define args to function
                 kwargs = {} #
                 # start thread by submitting it to the executor
                 threads.append(executor.submit(fun, *args, **kwargs))
-                cnt=cnt+1
 
             for future in as_completed(threads):
                 # retrieve the result
