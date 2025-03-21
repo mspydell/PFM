@@ -13,6 +13,127 @@ import cftime
 sys.path.append('../sdpm_py_util')
 import ocn_functions as ocnfuns
 
+def evaluate_function_from_file(file_path, function_name, *args):
+    """
+    Evaluates a function defined in a file, given its name and arguments.
+
+    Args:
+        file_path (str): The path to the Python file containing the function definition.
+        function_name (str): The name of the function to evaluate.
+        *args: Positional arguments to pass to the function.
+
+    Returns:
+        The result of the function call, or None if an error occurs.
+    """
+    try:
+        with open(file_path, 'r') as file:
+            code_string = file.read()
+        
+        # Create a dictionary to hold the function definition
+        func_dict = {}
+        
+        # Execute the code string in the dictionary's namespace
+        exec(code_string, func_dict)
+        
+        # Get the function from the dictionary
+        func = func_dict[function_name]
+        
+        # Call the function with the provided arguments
+        result = func(*args)
+        return result
+    
+    except FileNotFoundError:
+        print(f"Error: File not found: {file_path}")
+        return None
+    except KeyError:
+        print(f"Error: Function '{function_name}' not found in file.")
+        return None
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return None
+
+def get_hindcast_days(t1,tend,dt):
+    # this function returns a list of strings for the range of hindcasts.
+    t1s = []
+    t2s = []    
+
+    while t1<tend:
+        t2 = t1 + dt * timedelta(days=1)
+        t1s.append(t1.strftime('%Y%m%d%H'))
+        t2s.append(t2.strftime('%Y%m%d%H'))
+        t1 = t2
+    
+    # make sure the last t2s is tend...
+    tendstr = tend.strftime('%Y%m%d%H')
+    if t2s[-1] != tendstr:
+        print('the last t2 is not tend, something is wrong with dt and or tend. not returning lists of dates.')
+        t1s = []
+        t2s = []
+
+    return t1s, t2s
+
+
+def initialize_model(input_py_full,modinfo_pkl_full):
+    # this makes the pickle file from the model_input_dictionary
+    # first return the dictionary of model info
+    print('first, we need all the model information.')
+    print('from ' + input_py_full)
+    print('we create a dictionary of model info')
+    MINFO = evaluate_function_from_file( input_py_full , 'create_model_info_dict')
+    # now we save the MINFO dict to a pickle file
+
+    if MINFO['run_type'] == 'hindcast':
+        # get list of strings start and end days for the simulation
+        t_starts, t_ends = get_hindcast_days(MINFO['sim_start_time'],MINFO['sim_end_time'],MINFO['forecast_days'])
+        MINFO['start_times_str'] = t_starts
+        MINFO['end_times_str'] = t_ends
+        MINFO['levels_to_run'] = ['LV1']
+
+    with open(modinfo_pkl_full,'wb') as fout:
+        pickle.dump(MINFO,fout)
+        print('the model_info dictionary is saved to ' + modinfo_pkl_full)
+        print('this file dictates how the model is run, where files are saved, etc.')
+
+
+def get_model_info(pkl_fnm):
+    # this returns the model information stored in pkl_fnm
+    # as a dictionary
+    with open(pkl_fnm,'rb') as fp:
+        MI = pickle.load(fp)
+
+    return MI
+
+def print_initial_model_info(pkl_fnm):
+          
+    MI = get_model_info(pkl_fnm)    
+
+    run_type = MI['run_type']
+    if run_type == 'hindcast':
+        t1 = MI['sim_start_time']
+        t2 = MI['sim_end_time']
+    else:
+        t1 = MI['fetch_time'] 
+        t2 = t1 + MI['forecast_days']*timedelta(days=1)
+    t1str = t1.strftime('%Y-%m-%d %H:%M') 
+    t2str = t2.strftime('%Y-%m-%d %H:%M') 
+    dtstr = str(MI['forecast_days'])
+    nsims = len(MI['start_times_str'])
+    lvlstr = ', '.join(MI['levels_to_run'])
+
+    nn = 60 # total spaces
+    print(f"{'-'*nn}")
+    print(f"{'Model Set Up' : ^60}")
+    print(f"{'-'*nn}")
+    print(f"{run_type : <60}")
+    print(f"{'from           : ' + t1str : <60}")
+    print(f"{'to             : ' + t2str : <60}")
+    print(f"{'in             : ' + dtstr + ' day chunks (if hindcast)' : <60}")
+    if run_type == 'hindcast':
+        print(f"{'we will do     : ' + str(nsims) + ' separate ' + dtstr + ' day sims' : <60}")
+    print(f"{'atm model      : ' + MI['atm_model'] : <60}")
+    print(f"{'ocean_model    : ' + MI['ocn_model'] : <60}")
+    print(f"{'running levels : ' + lvlstr : <60}")
+
 def determine_hycom_foretime():
     PFM=get_PFM_info()
     # return the hycom forecast date based on the PFM simulation times
