@@ -9,6 +9,7 @@ import pickle
 import grid_functions as grdfuns
 import river_functions as rivfuns
 import hind_functions as hindfuns
+import init_funs as initfuns
 import os
 import os.path
 import pickle
@@ -939,11 +940,11 @@ def hycom_to_out(nc_in):
 
     return nc_out
 
-def get_hind_nc_cmd_list(yyyymmddhh):
+def get_hind_nc_cmd_list(t1str,t2str,pkl_fnm):
     # this function makes a list of cmd lists to get hycom hind data
     # and also return the list of nc files that will be made
 
-    PFM = get_PFM_info()
+    PFM = initfuns.get_model_info(pkl_fnm)
     south = PFM['latlonbox']['L1'][0]
     north = PFM['latlonbox']['L1'][1]
     west = PFM['latlonbox']['L1'][2]+360.0
@@ -963,19 +964,23 @@ def get_hind_nc_cmd_list(yyyymmddhh):
     cmd_list = []
     nc_out = []
     cnt = 0
+    t1 = datetime.strptime(t1str,'%Y%m%d%H')
+    t2 = datetime.strptime(t2str,'%Y%m%d%H')
+    dtime = t2-t1
+    dtime_hr = int( dtime.total_seconds() // 3600 )
 
     for vn in var_names:
-        t = datetime.strptime(yyyymmddhh,'%Y%m%d%H')
+        t = datetime.strptime(t1str,'%Y%m%d%H')
         hr = 0
         dhr = 3
         if vn == 'ssh':
             dhr = 1        
-        while hr <= 24:
+        while hr <= dtime_hr:
             t1 = t - 0.5 * timedelta(hours=1)
             t2 = t + 0.5 * timedelta(hours=1)
             yyyy = t.strftime("%Y") 
             url = ocn_name + vn + '/' + yyyy
-            fn_out = txt0 + yyyymmddhh + '_' + str(hr).zfill(2) + '_' + vn + '.nc'
+            fn_out = txt0 + t1str + '_' + str(hr).zfill(2) + '_' + vn + '.nc'
             nc_out.append(fn_out)
             dstr0 = t1.strftime('%Y-%m-%dT%H:%M')
             dstr1 = t2.strftime('%Y-%m-%dT%H:%M')
@@ -994,11 +999,11 @@ def get_hind_nc_cmd_list(yyyymmddhh):
 
     return cmd_list, nc_out
 
-def get_hycom_hind_data(yyyymmddhh):
+def get_hycom_hind_data(t1str,t2str,pkl_fnm):
     # this function gets all of the new hycom data as separate files for each field (ssh,temp,salt,u,v) and each time
     # and puts each .nc file in the directory for hycom data
 
-    cmd_list, ncs = get_hind_nc_cmd_list(yyyymmddhh)
+    cmd_list, ncs = get_hind_nc_cmd_list(t1str,t2str,pkl_fnm)
     print('we need ', len(ncs), ' hycom nc files...')
 
     # first check and see if the files we want, we have...

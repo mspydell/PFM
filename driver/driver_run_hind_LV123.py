@@ -32,6 +32,7 @@ def driver_run_hind_LV123( input_py_full, pkl_fnm ):
         print('doing a simulation from ' + time1 + ' to ' + time2)
         print(f"{'-'*60}")
         cnt_l = 0
+        # this is the loop over the levels to run
         for lvl in MI['levels_to_run']:
             t0_lvl = datetime.now()
             print('starting ' + lvl)
