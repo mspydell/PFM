@@ -980,7 +980,9 @@ def get_hind_nc_cmd_list(t1str,t2str,pkl_fnm):
             t2 = t + 0.5 * timedelta(hours=1)
             yyyy = t.strftime("%Y") 
             url = ocn_name + vn + '/' + yyyy
-            fn_out = txt0 + t1str + '_' + str(hr).zfill(2) + '_' + vn + '.nc'
+            hr2 = hr % 24
+            dstr0_b = t1.strftime('%Y%m%d%H')
+            fn_out = txt0 + dstr0_b + '_' + str(hr2).zfill(2) + '_' + vn + '.nc'
             nc_out.append(fn_out)
             dstr0 = t1.strftime('%Y-%m-%dT%H:%M')
             dstr1 = t2.strftime('%Y-%m-%dT%H:%M')
@@ -1002,6 +1004,7 @@ def get_hind_nc_cmd_list(t1str,t2str,pkl_fnm):
 def get_hycom_hind_data(t1str,t2str,pkl_fnm):
     # this function gets all of the new hycom data as separate files for each field (ssh,temp,salt,u,v) and each time
     # and puts each .nc file in the directory for hycom data
+    # it uses the aggregated archive. Maybe change unaggregated archive?
 
     cmd_list, ncs = get_hind_nc_cmd_list(t1str,t2str,pkl_fnm)
     print('we need ', len(ncs), ' hycom nc files...')
@@ -1703,7 +1706,7 @@ def hycom_ncfiles_to_pickle(yyyymmdd):
         print('\nHycom OCN dict saved with pickle')
 
 
-def hycom_hind_ncfiles_to_pickle():
+def hycom_hind_ncfiles_to_pickle(pkl_fnm):
     # set up dict and fill in
     OCN = dict()
     OCN['vinfo'] = dict()
@@ -1714,27 +1717,17 @@ def hycom_hind_ncfiles_to_pickle():
         OCN['vinfo'][aa] = dict()
 
     # yyyymmdd is the start day of the hycom forecast
-    PFM=get_PFM_info()
+    PFM=initfuns.get_model_info(pkl_fnm)
     t_ref = PFM['modtime0']
     OCN['ocean_time_ref'] = t_ref
 
     t1  = PFM['fetch_time']       # this is the start time of the PFM forecast
     # now a string of the time to start ROMS (and the 1st atm time too)
-    t1str = "%d%02d%02d%02d%02d" % (t1.year, t1.month, t1.day, t1.hour, t1.minute)
-    t2  = t1 + PFM['forecast_days'] * timedelta(days=1)  # this is the last time of the PFM forecast
-
-    t2str = "%d%02d%02d%02d%02d" % (t2.year, t2.month, t2.day, t2.hour, t2.minute)
 
     #nc_in_names = get_hycom_nc_file_names(yyyymmdd,t1str,t2str)
     yyyymmddhh = t1.strftime("%Y%m%d%H")
     _, nc_in_names = get_hind_nc_cmd_list(yyyymmddhh)
-    
-    
-#    var3d_1 = ['t3z','s3z','u3z','v3z']
-#    var3d_2 = ['water_temp','salinity','water_u','water_v']
-#    var2d_1 = ['ssh']
-#    var2d_2 = ['surf_el']
-    
+        
     # get lists of file names for each variable. I think they are sorted?
     fn_ssh = [s for s in nc_in_names if "_ssh" in s]
     fn_t3z = [s for s in nc_in_names if "_t3z" in s]
@@ -3447,9 +3440,9 @@ def make_tmp_hy_on_rom_pckl_files(fname_in,var_name):
         print(f"An unexpected error occurred: {e}")
 
 
-def print_maxmin_HYrm_pickles():
+def print_maxmin_HYrm_pickles(pkl_fnm):
 
-    HYrm = load_ocnR_from_pckl_files()
+    HYrm = load_ocnR_from_pckl_files(pkl_fnm)
     vlist = ['zeta','urm','vrm','temp','salt']
     ulist = ['m','m/s','m/s','C','psu']
     ulist2 = dict(zip(vlist,ulist))
@@ -3486,9 +3479,9 @@ def print_maxmin_HYrm_pickles():
             print(f'min {vvv:6} = {mnn:6.3f} {uvv:5}      at  ( it, iz, ilat, ilon) =  ({ind_mn[0]:3},{ind_mn[1]:3},{ind_mn[2]:4},{ind_mn[3]:4})')
 
 
-def load_ocnR_from_pckl_files():
+def load_ocnR_from_pckl_files(pkl_fnm):
 
-    PFM=get_PFM_info()
+    PFM=initfuns.get_model_info(pkl_fnm)
     onehr_zeta = 1
     if onehr_zeta == 0:
         ork = ['depth','lat_rho','lon_rho','lat_u','lon_u','lat_v','lon_v','ocean_time','ocean_time_ref','salt','temp','ubar','urm','vbar','vrm','zeta','vinfo']
@@ -3696,7 +3689,7 @@ def ocn_r_2_ICdict_pckl(fname_out):
 
 #    return OCN_IC
 
-def load_tmp_pkl(var_name):
+def load_tmp_pkl(var_name,pkl_fnm):
 
     PFM=get_PFM_info()
     fn_temp = PFM['lv1_forc_dir'] + '/tmp_' + var_name + '.pkl'
@@ -3705,7 +3698,7 @@ def load_tmp_pkl(var_name):
 
     return tmp_dat
 
-def ocnr_2_ICdict_from_tmppkls(fname_out):
+def ocnr_2_ICdict_from_tmppkls(fname_out,pkl_fnm):
     # this slices the OCN_R dictionary at the first time for all needed 
     # variables for the initial condition for roms
     # it then interpolates from the hycom z values that the vars are on
@@ -3713,7 +3706,7 @@ def ocnr_2_ICdict_from_tmppkls(fname_out):
     # this returns another dictionary OCN_IC that has all needed fields 
     # for making the .nc file
 
-    PFM=get_PFM_info()
+    PFM=initfuns.get_model_info(pkl_fnm)
     RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
 
     #OCN_R = load_ocnR_from_pckl_files()
@@ -4346,11 +4339,11 @@ def make_rom_depths(fname_depths_pickle):
     else:
         print('depth pickle file ' + fname_depths_pickle + 'already exists.')
 
-def make_rom_depths_1hrzeta(fname_depths_pickle):
+def make_rom_depths_1hrzeta(fname_depths_pickle,pkl_fnm):
 
     if os.path.isfile(fname_depths_pickle) == False: # might need to make the file if it doesn't exist...
         print('making roms depth pickle file ' + fname_depths_pickle + '...')
-        make_temp_rom_depth_files_1hrzeta(fname_depths_pickle)
+        make_temp_rom_depth_files_1hrzeta(fname_depths_pickle,pkl_fnm)
         print('...done makeing depth pickle file.')
     else:
         print('depth pickle file ' + fname_depths_pickle + 'already exists.')
@@ -4443,9 +4436,9 @@ def make_temp_rom_depth_files(fname_out):
         pickle.dump(Zrm,fout)
         print('ROMS depths for IC/BC saved with pickle to ' + fname_out)
 
-def make_temp_rom_depth_files_1hrzeta(fname_out):
+def make_temp_rom_depth_files_1hrzeta(fname_out,pkl_fnm):
     
-    PFM=get_PFM_info()
+    PFM=initfuns.get_model_info(pkl_fnm)
     Nz   = PFM['stretching']['L1','Nz']                              # number of vertical levels: 40
     Vtr  = PFM['stretching']['L1','Vtransform']                       # transformation equation: 2
     Vst  = PFM['stretching']['L1','Vstretching']                    # stretching function: 4 

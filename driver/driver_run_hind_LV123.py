@@ -2,7 +2,7 @@ import sys
 import os
 import subprocess
 import numpy as np
-from datetime import datetime
+from datetime import datetime, timedelta
 
 sys.path.append('../sdpm_py_util')
 import init_funs as initfuns
@@ -19,8 +19,6 @@ def driver_run_hind_LV123( input_py_full, pkl_fnm ):
     nlv = len(MI['levels_to_run'])
     time_tots = [0]*nt
     time_lvls = [[0] * nt for i in range(nlv)]
-
-
 
     # this si the loop over the different separate simulations
     cnt_t = 0
@@ -54,7 +52,22 @@ def driver_run_hind_LV123( input_py_full, pkl_fnm ):
         print(t2_t - t0_t)
         time_tots[cnt_t] = t2_t - t0_t
         print(f"{'='*60}")
+
+        # go to the next day
+        tsim = tsim + MI['forecast_days']*timedelta(days=1)
+        MI2 = {}
+        MI2['lv1_use_restart'] = 1
+        MI2['lv2_use_restart'] = 1
+        MI2['lv3_use_restart'] = 1
+        MI2['fetch_time'] = tsim
+        initfuns.edit_and_save_MI(MI2)
+        print('done with a 1 day LV1 hindcast, going to the next day.\n')
+        #sys.exit("exiting for now.")
+
+
         cnt_t = cnt_t + 1
+
+
 
     print(f"{'\n'}")
     print(f"{'='*60}")
