@@ -2099,8 +2099,26 @@ def get_tide_levels(metadata):
 
         t_pr = np.array(t_pr)
 
+    #print(all_observed_v)
 
-    return np.array(all_observed_v).astype(float), t_ob, np.array(all_predicted_v).astype(float), t_pr
+    all_observed_v2 = [t if t is not '' else '-9999' for t in all_observed_v]
+    all_predicted_v2 = [t if t is not '' else '-9999' for t in all_predicted_v]
+    
+    vob2 = np.array([float(x) for x in all_observed_v2])
+    vpr2 = np.array([float(x) for x in all_predicted_v2])
+    
+    mask = np.ones(np.shape(vob2)).astype(bool)
+    mask = np.logical_and(mask, vob2 == -9999)
+    vob2[mask] = np.nan
+    mask = np.ones(np.shape(vpr2)).astype(bool)
+    mask = np.logical_and(mask, vpr2 == -9999)
+    vpr2[mask] = np.nan
+
+    #vob2 = np.array(all_observed_v).astype(float)
+    #vpr2 = np.array(all_predicted_v).astype(float)
+    # [t if t is not '' else 'hello' for t in test1]
+
+    return vob2, t_ob, vpr2, t_pr
 
 def nan_helper(y):
     """Helper to handle indices and logical indices of NaNs.
