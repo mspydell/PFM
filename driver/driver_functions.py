@@ -62,43 +62,39 @@ def run_hind_LV1(t1str,pkl_fnm):
     dt_plotting = []
 
     # need the file names and locations of the pickle and .nc files we will save
-    hy_pckl = MI['lv1_forc_dir'] + '/' + MI['lv1_ocn_tmp_pckl_file']
-    ocnIC_pckl = MI['lv1_forc_dir'] + '/' + MI['lv1_ocnIC_tmp_pckl_file']
-    ic_file_out = MI['lv1_forc_dir'] + '/' + MI['lv1_ini_file']
-    bc_file_out = MI['lv1_forc_dir'] + '/' + MI['lv1_bc_file']
     ocnBC_pckl = MI['lv1_forc_dir'] + '/' + MI['lv1_ocnBC_tmp_pckl_file']
     fn_atm_out = MI['lv1_forc_dir'] + '/' + MI['lv1_atm_file'] # LV1 atm forcing filename
 
-
-    if plot_ocn == 1:
-        print('making some plots from: ' + hy_pckl)
-        cmd_list = ['python','-W','ignore','plotting_functions.py','plot_ocn_fields_from_dict_pckl',hy_pckl]
-        os.chdir('../sdpm_py_util')
-        ret1 = subprocess.run(cmd_list)     
+    # fix this for new pkl file usage !!!
+    #if plot_ocn == 1:
+    #    print('making some plots from: ' + hy_pckl)
+    #    cmd_list = ['python','-W','ignore','plotting_functions.py','plot_ocn_fields_from_dict_pckl',hy_pckl]
+    #    os.chdir('../sdpm_py_util')
+    #    ret1 = subprocess.run(cmd_list)     
         #pltfuns.plot_ocn_fields_from_dict_pckl(fn_pckl)
-        print('subprocess return code? ' + str(ret1.returncode) +  ' (0=good)')
-        print('...done')
-        os.chdir('../driver')
-        t02= datetime.now()
-        print('this took:')
-        print(t02-t01)
-        print('\n')
-        dt_plotting.append(t02-t01)
+    #    print('subprocess return code? ' + str(ret1.returncode) +  ' (0=good)')
+    #    print('...done')
+    #    os.chdir('../driver')
+    #    t02= datetime.now()
+    #    print('this took:')
+    #    print(t02-t01)
+    #    print('\n')
+    #    dt_plotting.append(t02-t01)
 
     # put the ocn data on the roms grid
     print('starting: ocnfuns.hycom_to_roms_latlon(OCN,RMG)')
     t01 = datetime.now()
-
     os.chdir('../sdpm_py_util')
+    hy_pckl = MI['lv1_forc_dir'] + '/' + MI['lv1_ocn_tmp_pckl_file']
     print('putting the hycom data in ' + hy_pckl + ' on the roms grid...')
-    cmd_list = ['python','-W','ignore','ocn_functions.py','make_all_tmp_pckl_ocnR_files_1hrzeta',hy_pckl]
+    cmd_list = ['python','-W','ignore','ocn_functions.py','make_all_tmp_pckl_ocnR_files_1hrzeta',pkl_fnm]
     os.chdir('../sdpm_py_util')
     ret1 = subprocess.run(cmd_list)     
     #ocnfuns.make_all_tmp_pckl_ocnR_files(fn_pckl)
     os.chdir('../driver')
     print('subprocess return code? ' + str(ret1.returncode) +  ' (0=good)')
 
-    cmd_list = ['python','-W','ignore','ocn_functions.py','print_maxmin_HYrm_pickles','pkl_fnm']
+    cmd_list = ['python','-W','ignore','ocn_functions.py','print_maxmin_HYrm_pickles',pkl_fnm]
     os.chdir('../sdpm_py_util')
     ret1 = subprocess.run(cmd_list)     
     os.chdir('../driver')
@@ -126,6 +122,7 @@ def run_hind_LV1(t1str,pkl_fnm):
     t01 = datetime.now()
     lv1_use_restart = MI['lv1_use_restart']
 
+    ocnIC_pckl = MI['lv1_forc_dir'] + '/' + MI['lv1_ocnIC_tmp_pckl_file']
     if lv1_use_restart==0:
         print('going to save OCN_IC to a pickle file: ' + ocnIC_pckl)
         os.chdir('../sdpm_py_util')
@@ -141,6 +138,7 @@ def run_hind_LV1(t1str,pkl_fnm):
         print('\n')
 
         print('making IC file from pickled IC: '+ ic_file_out)
+        ic_file_out = MI['lv1_forc_dir'] + '/' + MI['lv1_ini_file']
         t03 = datetime.now()
         cmd_list = ['python','-W','ignore','ocn_functions.py','ocn_roms_IC_dict_to_netcdf_pckl',ocnIC_pckl,ic_file_out]
         os.chdir('../sdpm_py_util')
@@ -152,19 +150,19 @@ def run_hind_LV1(t1str,pkl_fnm):
         dt_ic = []
         t05 = datetime.now()
         dt_ic.append(t05-t01)
-        if plot_ocn_icnc == 1:
-            print('plotting...')
-            pltfuns.plot_ocn_ic_fields(ic_file_out)
-            t04 = datetime.now()
-            print('...done. this took:')
-            print(t04-t03)
-            print('\n')
-            dt_plotting.append(t04-t05)
+        #if plot_ocn_icnc == 1:
+        #    print('plotting...')
+        #    pltfuns.plot_ocn_ic_fields(ic_file_out)
+        #    t04 = datetime.now()
+        #    print('...done. this took:')
+        #    print(t04-t03)
+        #    print('\n')
+        #    dt_plotting.append(t04-t05)
     else:
         print('going to use a restart file for the LV1 IC. Setting this up...')
         print('first need to update the MI pickle file...')
-        infuns.update_MI_pkl(t1str,'1')
-        cmd_list = ['python','-W','ignore','init_funs.py','restart_setup','LV1']
+        initfuns.update_MI_pkl(t1str,'1')
+        cmd_list = ['python','-W','ignore','init_funs.py','restart_setup','LV1',pkl_fnm]
         os.chdir('../sdpm_py_util')
         ret4 = subprocess.run(cmd_list)     
         os.chdir('../driver')
@@ -181,7 +179,7 @@ def run_hind_LV1(t1str,pkl_fnm):
         if MI['lv1_nrrec'] < 0:
             print('WARNING RESTARTING LV1 WILL NOT WORK!!!')
 
-    MI = get_model_info() # refresh this
+    MI = initfuns.get_model_info(pkl_fnm) # refresh this
     # get the OCN_BC dictionary
     print('going to save OCN_BC to a pickle file to:')
     t01 = datetime.now()
@@ -189,7 +187,7 @@ def run_hind_LV1(t1str,pkl_fnm):
     ocnBC_pckl = MI['lv1_forc_dir'] + '/' + MI['lv1_ocnBC_tmp_pckl_file']
     print(ocnBC_pckl) 
     os.chdir('../sdpm_py_util')
-    cmd_list = ['python','-W','ignore','ocn_functions.py','ocnr_2_BCdict_1hrzeta_from_tmppkls',ocnBC_pckl]
+    cmd_list = ['python','-W','ignore','ocn_functions.py','ocnr_2_BCdict_1hrzeta_from_tmppkls',ocnBC_pckl,pkl_fnm]
     ret4 = subprocess.run(cmd_list)     
     os.chdir('../driver')
     print('OCN BC data saved with pickle, correctly? ' + str(ret4.returncode) + ' (0=yes)')
@@ -199,7 +197,7 @@ def run_hind_LV1(t1str,pkl_fnm):
     print(t02-t01)
     print('\n')
 
-
+    bc_file_out = MI['lv1_forc_dir'] + '/' + MI['lv1_bc_file']
     print('making BC nc file from pickled BC: '+ bc_file_out)
     t01 = datetime.now()
     cmd_list = ['python','-W','ignore','ocn_functions.py','ocn_roms_BC_dict_to_netcdf_pckl_1hrzeta',ocnBC_pckl,bc_file_out]
@@ -207,7 +205,6 @@ def run_hind_LV1(t1str,pkl_fnm):
     ret5 = subprocess.run(cmd_list)     
     os.chdir('../driver')
     print('OCN BC nc data saved, correctly? ' + str(ret5.returncode) + ' (0=yes)')
-
     print('done makeing BC nc file.')
     t02 = datetime.now()
     print('this took:')
@@ -220,7 +217,7 @@ def run_hind_LV1(t1str,pkl_fnm):
     dt_download_atm = []
     print('we are now getting the atm data...')
     t01 = datetime.now()
-    cmd_list = ['python','-W','ignore','hind_functions.py','get_nam_hindcast_grb2s_v2',t1str,t2str]
+    cmd_list = ['python','-W','ignore','hind_functions.py','get_nam_hindcast_grb2s_v2',t1str,t2str,pkl_fnm]
     os.chdir('../sdpm_py_util')
     ret5 = subprocess.run(cmd_list)   
     print('return code: ' + str(ret5.returncode) + ' (0=good)')  

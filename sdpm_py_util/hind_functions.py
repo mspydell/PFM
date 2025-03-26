@@ -1,23 +1,17 @@
 # functions specific to hindcasting will be here
 
-from datetime import datetime
-from datetime import timedelta
-#import time
-#import gc
-#import resource
+from datetime import datetime, timedelta
 import pickle
 import os
 import os.path
 from scipy.spatial import cKDTree
-#import glob
-#import requests
 import grib2io
 import sys
 
 sys.path.append('../sdpm_py_util')
 import grid_functions as grdfuns
 import ocn_functions as ocnfuns
-from get_PFM_info import get_PFM_info
+import init_funs as initfuns
 
 import numpy as np
 import xarray as xr
@@ -59,11 +53,9 @@ def list_to_dict_of_chunks(long_list, chunk_size=10):
     return dict_of_chunks
 
 
-def get_nam_hindcast_filelists(t1str,t2str):
+def get_nam_hindcast_filelists(t1str,t2str,pkl_fnm):
 
-    #PFM = get_PFM_info()
-    PFM = {}
-    PFM['atm_hind_dir'] = '/scratch/PHM_Simulations/grb2_data'
+    PFM = initfuns.get_model_info( pkl_fnm )
 
     atm_hind_dir = PFM['atm_hind_dir']
     url = 'https://www.ncei.noaa.gov/data/north-american-mesoscale-model/access/analysis/'
@@ -111,8 +103,8 @@ def nam_grabber_hind(cmd):
     #ret1 = 1
     return ret1
 
-def get_nam_hindcast_grb2s_v2(t1str,t2str):
-    _, l2, cmd_list0, _ = get_nam_hindcast_filelists(t1str,t2str)
+def get_nam_hindcast_grb2s_v2(t1str,t2str,pkl_fnm):
+    _, l2, cmd_list0, _ = get_nam_hindcast_filelists(t1str,t2str,pkl_fnm)
     # check and see if the grb2 files are already there?
     fes = [] # a list of 0 (dont have) or 1 (have)
     for fn in l2:

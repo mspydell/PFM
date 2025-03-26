@@ -11,8 +11,10 @@ def driver_run_hind_LV123( input_py_full, pkl_fnm ):
     t00 = datetime.now()
     # upon initialization, make the model_info.pkl file
     initfuns.initialize_model( input_py_full, pkl_fnm )
+    
     # print info from pickle file
     initfuns.print_initial_model_info( pkl_fnm )
+    
     # get model information
     MI = initfuns.get_model_info( pkl_fnm )
     nt  = len(MI['start_times_str'])
@@ -23,6 +25,11 @@ def driver_run_hind_LV123( input_py_full, pkl_fnm ):
     # this si the loop over the different separate simulations
     cnt_t = 0
     for time1 in MI['start_times_str']:
+        # add / change file names to model info
+        # this uses the start (and end) times in pkl_fnm to construct
+        # his and restart file names
+        initfuns.add_file_names_2MI( time1, pkl_fnm )
+
         t0_t = datetime.now()
         print(f"{'\n'}")
         print(f"{'='*60}")

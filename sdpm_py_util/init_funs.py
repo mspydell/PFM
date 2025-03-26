@@ -13,6 +13,8 @@ import cftime
 sys.path.append('../sdpm_py_util')
 import ocn_functions as ocnfuns
 
+
+
 def evaluate_function_from_file(file_path, function_name, *args):
     """
     Evaluates a function defined in a file, given its name and arguments.
@@ -102,6 +104,43 @@ def get_model_info(pkl_fnm):
         MI = pickle.load(fp)
 
     return MI
+
+
+def add_file_names_2MI(yyyymmddhh,pkl_fnm):
+
+    yyyymmddhhmm = yyyymmddhh + '00'
+    t1 = datenum.strptime(yyyymmddhh,'%Y%m%d%H')
+    PFM = get_model_info( pkl_fnm )
+    t2 = t1 + PFM['forecast_days'] * timedelta(days=1)
+    end_str = t2.strftime('%Y%m%d%H%M')
+
+    PFM['lv1_his_name'] = 'LV1_ocean_his_' + yyyymmddhhmm + '.nc'
+    PFM['lv1_rst_name'] = 'LV1_ocean_rst_' + yyyymmddhhmm + '_' + end_str + '.nc' 
+    PFM['lv1_his_name_full'] = PFM['lv1_his_dir'] + '/' + PFM['lv1_his_name']
+    PFM['lv1_rst_name_full'] = PFM['restart_files_dir'] + '/' + PFM['lv1_rst_name']
+
+    PFM['lv2_his_name'] = 'LV2_ocean_his_' + yyyymmddhhmm + '.nc'
+    PFM['lv2_rst_name'] = 'LV2_ocean_rst_' + yyyymmddhhmm + '_' + end_str + '.nc' 
+    PFM['lv2_his_name_full'] = PFM['lv2_his_dir'] + '/' + PFM['lv2_his_name']
+    PFM['lv2_rst_name_full'] = PFM['restart_files_dir'] + '/' + PFM['lv2_rst_name']
+
+    PFM['lv3_his_name'] = 'LV3_ocean_his_' + yyyymmddhhmm + '.nc'
+    PFM['lv3_rst_name'] = 'LV3_ocean_rst_' + yyyymmddhhmm + '_' + end_str + '.nc' 
+    PFM['lv3_his_name_full'] = PFM['lv3_his_dir'] + '/'  + PFM['lv3_his_name']
+    PFM['lv3_rst_name_full'] = PFM['restart_files_dir'] + '/' + PFM['lv3_rst_name']
+
+    PFM['lv4_his_name'] = 'LV4_ocean_his_' + yyyymmddhhmm + '.nc'
+    PFM['lv4_rst_name'] = 'LV4_ocean_rst_' + yyyymmddhhmm + '_' + end_str + '.nc' 
+    PFM['lv4_swan_rst_name']  = 'LV4_swan_rst_' + yyyymmddhhmm + '.dat' 
+    PFM['lv4_his_name_full'] = PFM['lv4_his_dir'] + '/'  + PFM['lv4_his_name']
+    PFM['lv4_rst_name_full'] = PFM['restart_files_dir'] + '/' + PFM['lv4_rst_name']
+    PFM['lv4_swan_rst_name_full'] = PFM['restart_files_dir'] + '/' + PFM['lv4_swan_rst_name']
+
+    with open(pkl_fnm,'wb') as fout:
+        pickle.dump(PFM,fout)
+        print('the model_info dictionary was resaved to ' + modinfo_pkl_full)
+        print('with properly time stamped output file names')
+    
 
 def print_initial_model_info(pkl_fnm):
           
@@ -359,9 +398,14 @@ def get_swan_restart_file_name():
 
     return fnm_swan
 
-def get_restart_file_and_index(lvl):
-    PFM = get_PFM_info()
-    t_fore = PFM['fetch_time'] + 0 * timedelta(days = 1)
+def get_restart_file_and_index(lvl,pkl_fnm):
+    PFM = get_model_info(pkl_fnm)
+    # get the start time of the simulation
+    if PFM['run_type'] == 'forecast':
+        t_fore = PFM['fetch_time']
+    else:
+        t_fore = PFM['sim_time_1']
+
     print('going to restart ' + lvl + ' from')
     print(t_fore)
     rst_files = glob.glob(PFM['restart_files_dir'] + '/' + lvl + '*.nc')
@@ -404,13 +448,13 @@ def get_restart_file_and_index(lvl):
     head, fname0 = os.path.split(fname)
     return fname0, index
 
-def edit_and_save_PFM(dict_in):
-    PFM = get_PFM_info()
+def edit_and_save_PFM(dict_in,pkl_fnm):
+    PFM = get_model_info(pkl_fnm)
     kys = dict_in.keys()
     for ky in kys:
         PFM[ky] = dict_in[ky]
     
-    with open(PFM['info_file'],'wb') as fout:
+    with open(pkl_fnm,'wb') as fout:
         pickle.dump(PFM,fout)
         print('PFM info was edited and resaved')
     
@@ -537,16 +581,14 @@ def remove_swan_rst_incomplete():
             else:
                 print('...there were no incomplete sets of swan rst files from the ' + fn + ' PFM simulation.')
 
-def restart_setup(lvl):
+def restart_setup(lvl,pkl_fnm):
 
-    PFM = get_PFM_info()
-    print('PFM is set to do a forecast from...')
-    print(PFM['fetch_time'])
+    PFM = get_model_info(pkl_fnm)
 
     older_than_days = 7.0
 
     PFM_edit = dict()
-    fname1,tindex1 = get_restart_file_and_index(lvl)
+    fname1,tindex1 = get_restart_file_and_index(lvl,pkl_fnm)
 
     if lvl == 'LV1':
         if PFM['run_type']=='forecast':
@@ -586,12 +628,13 @@ def restart_setup(lvl):
                 print('we are going to restart swan with the line ...')
                 print(PFM_edit['swan_init_txt_full'])
 
+    # these are now the index and file name used to restart the simulation
     PFM_edit[key_rec] = tindex1+1 # need to add 1 to get non-python indexing    
     PFM_edit[key_file] = fname1
-    edit_and_save_PFM(PFM_edit)
+    edit_and_save_PFM(PFM_edit,pkl_fnm)
 
-def update_PFM_pkl(t1str,lvl):
-    PFM = get_PFM_info()
+def update_PFM_pkl(t1str,lvl,pkl_fnm):
+    PFM = get_model_info(pkl_fnm)
     tstart = datetime.strptime(t1str,'%Y%m%d%H')
     tend = tstart + timedelta(days=1)
     yyyymmddhhmm = tstart.strftime('%Y%m%d%H%M')
@@ -611,7 +654,7 @@ def update_PFM_pkl(t1str,lvl):
     PFM2[keystr2] = fname2 
     PFM2[keystr3] = str3
     PFM2[keystr4] = str4
-    edit_and_save_PFM(PFM2)
+    edit_and_save_PFM(PFM2,pkl_fnm)
    
 if __name__ == "__main__":
     args = sys.argv

@@ -61,13 +61,22 @@ def create_model_info_dict():
     PFM = dict()
     if run_type == 'hindcast': # note hycom with tides starts on 2024-10-10 1200...
         sim_start_time = '2024101100' # the simulation start time is in yyyymmddhh format
+        sim_end_time   = '2024101800' # need 
+        PFM['forecast_days'] = 1.0 # for now we do 1 day sub simulations
         # set the simulation end time. An integer number of days past the start time
         # We will loop over days until we get to this time.
-        sim_end_time   = '2024101800' # need 
         PFM['sim_start_time'] = datetime.strptime(sim_start_time,'%Y%m%d%H')
-        PFM['sim_end_time'] = datetime.strptime(sim_end_time,'%Y%m%d%H') 
+        PFM['sim_end_time'] = datetime.strptime(sim_end_time,'%Y%m%d%H')
+        PFM['sim_time_1'] = PFM['sim_start_time']
+        PFM['sim_time_2'] = PFM['sim_time_1'] + PFM['forecast_days'] * timedelta(days=1)
+        # sim_start_time is the overall 1st time of the simulation
+        # sim_end_time is the overall last time of the simulation
+        # sim_time_1 is the inital time of the sub simulation
+        # sim_time_2 is the last time of the sub simulation 
         ocn_model = 'hycom_hind_wtide' # _wtide indicates using the new (>20241010) hycom
         PFM['atm_hind_dir'] = '/scratch/PHM_Simulations/grb2_data'
+        atm_model = 'nam_analysis'
+        PFM['atm_dt_hr'] = 3
     else:
         # hycom_new is the only forecast option
         ocn_model = 'hycom_new' # worked with 'hycom' but that is now (9/13/24) depricated      
@@ -75,8 +84,6 @@ def create_model_info_dict():
     if ocn_model == 'hycom_new' or ocn_model == 'hycom_hind_wtide':
         add_tides=0 # the new version of hycom has tides, we don't need to add them
 
-
-    lo_env = 'mss_swell'
     PFM['executable_dir'] = pfm_dir + 'executables/'   # we will not make copies of executables and 
     pfm_grid_dir =  pfm_dir +  'Grids'                 # grids. PHM will use the ones in pfm_dir
     lv1_root_dir =  pfm_root_dir +  'LV1_Forecast/'
@@ -153,36 +160,25 @@ def create_model_info_dict():
     # atm option for run_type = 'hindcast' are: 
 
     # we now set the forecast duration depending on atm_model
-    if atm_model == 'nam_nest':
-        PFM['forecast_days'] = 2.5
-        PFM['atm_dt_hr'] = 3
-    if atm_model == 'gfs' or atm_model == 'gfs_1hr':
-        PFM['forecast_days'] = 5.0 # this should be 5, but might be out of bounds?
-    if atm_model == 'gfs':
-        PFM['atm_dt_hr'] = 3
-    if atm_model == 'gfs_1hr':
-        PFM['atm_dt_hr'] = 1
-    if atm_model == 'ecmwf':
-        PFM['forecast_days'] = 5.0 #is the target 
-        PFM['atm_dt_hr'] = 1
+    if run_type == 'forecast':
+        if atm_model == 'nam_nest':
+            PFM['forecast_days'] = 2.5
+            PFM['atm_dt_hr'] = 3
+        if atm_model == 'gfs' or atm_model == 'gfs_1hr':
+            PFM['forecast_days'] = 5.0 # this should be 5, but might be out of bounds?
+        if atm_model == 'gfs':
+            PFM['atm_dt_hr'] = 3
+        if atm_model == 'gfs_1hr':
+            PFM['atm_dt_hr'] = 1
+        if atm_model == 'ecmwf':
+            PFM['forecast_days'] = 5.0 #is the target 
+            PFM['atm_dt_hr'] = 1
     
-    if run_type == 'hindcast':
-        atm_model = 'nam_analysis'
-        PFM['forecast_days'] = 1.0 # we will always do 1 day at a time...
-        PFM['atm_dt_hr'] = 3
-
-
     PFM['ecmwf_dir'] = '/scratch/PFM_Simulations/ecmwf_data/'
     PFM['ecmwf_all_pkl_name'] = 'ecmwf_all.pkl'
     PFM['ecmwf_pkl_roms_vars'] = 'ecmwf_roms_vars.pkl'
     PFM['ecmwf_pkl_on_roms_grid'] = 'ecmwf_on_romsgrid.pkl'
 
-# what is the time resolution of the models (in days), (used? 9/4/24 MSS)
-    daystep_ocn = 3/24
-    daystep_atm = 3/24
-# roms will be run with this time step (in days)
-    daystep = 1 # not used right now (9/4/24 MSS)
-    
 # this it the one place where the model time reference is set
     modtime0 = datetime(1999,1,1,0,0)
 # see notes in Evernote, Run Log 9, 2020.10.06
@@ -417,9 +413,6 @@ def create_model_info_dict():
     PFM['ds_fmt']          = ds_fmt
     PFM['ndefhis']         = 0 # when zero, only 1 history file is made.
 
-    PFM['daystep']        = daystep
-    PFM['daystep_ocn']    = daystep_ocn
-    PFM['daystep_atm']    = daystep_atm
     PFM['ocn_model']      = ocn_model
     PFM['atm_model']      = atm_model
     PFM['atm_get_method'] = atm_get_method
@@ -478,59 +471,23 @@ def create_model_info_dict():
         # nam data to now.
         fetch_time2 = datetime(year_utc,mon_utc,day_utc,hour_utc,0,0,0)
         fetch_time2 = fetch_time2 - timedelta(hours=past_6) 
-
         #if hour_utc < 11:
         #   fetch_time = datetime(fetch_time.year,fetch_time.month, fetch_time.day, 12) - timedelta(days=4)
         #else:
         #   fetch_time = datetime(fetch_time.year,fetch_time.month, fetch_time.day, 12) - timedelta(days=3)
         hhmm = fetch_time2.strftime('%H%M')
-
         yyyymmdd = "%d%02d%02d" % (fetch_time2.year, fetch_time2.month, fetch_time2.day)
         PFM['yyyymmdd']   = yyyymmdd
         PFM['hhmm']       = hhmm        # this is the HHMM of the forecast, aligns with NAM
         PFM['fetch_time'] = fetch_time2 # this is the start time of the PFM forecast
-        end_time = fetch_time2 + PFM['forecast_days'] * timedelta(days=1)
-        end_str = end_time.strftime("%Y%m%d%H%M")
-        PFM['fore_end_time'] = end_time # the end time of the forecast
     else:
-        PFM['yyyymmdd']   = sim_start_time[0:8]    # simulation start date
-        PFM['hhmm']       = sim_start_time[8:]        # this is the HHMM of the forecast, aligns with NAM
-        fetch_time2 = datetime.strptime(sim_start_time,'%Y%m%d%H')
-        PFM['fetch_time'] =  fetch_time2 # this is the start time of the PFM hindcast as datetime object
-        end_time = fetch_time2 + PFM['forecast_days'] * timedelta(days=1)
-        end_str = end_time.strftime("%Y%m%d%H%M")
-        PFM['fore_end_time'] = end_time 
-        # the end time of the forecast as datetime object, for a hindcast, this is always one day more than fetch_time
+        fetch_time2 = PFM['sim_time_1']
+        
+    PFM['fetch_time'] =  fetch_time2 # this is the start time of the PFM hindcast as datetime object     
+    # the end time of the forecast as datetime object, for a hindcast, this is always one day more than fetch_time
+    end_time = fetch_time2 + PFM['forecast_days'] * timedelta(days=1)
+    PFM['fore_end_time'] = end_time # the end time of the forecast
 
-    yyyymmdd = PFM['fetch_time'].strftime("%Y%m%d")
-    hhmm = PFM['fetch_time'].strftime("%H%M")
-    
-    PFM['lv1_his_name'] = 'LV1_ocean_his_' + yyyymmdd + hhmm + '.nc'
-    PFM['lv1_rst_name'] = 'LV1_ocean_rst_' + yyyymmdd + hhmm + '_' + end_str + '.nc' 
-    PFM['lv1_his_name_full'] = PFM['lv1_his_dir'] + '/' + PFM['lv1_his_name']
-    PFM['lv1_rst_name_full'] = PFM['restart_files_dir'] + '/' + PFM['lv1_rst_name']
-
-    PFM['lv2_his_name'] = 'LV2_ocean_his_' + yyyymmdd + hhmm + '.nc'
-    PFM['lv2_rst_name'] = 'LV2_ocean_rst_' + yyyymmdd + hhmm + '_' + end_str + '.nc' 
-    PFM['lv2_his_name_full'] = PFM['lv2_his_dir'] + '/' + PFM['lv2_his_name']
-    PFM['lv2_rst_name_full'] = PFM['restart_files_dir'] + '/' + PFM['lv2_rst_name']
-
-    PFM['lv3_his_name'] = 'LV3_ocean_his_' + yyyymmdd + hhmm + '.nc'
-    PFM['lv3_rst_name'] = 'LV3_ocean_rst_' + yyyymmdd + hhmm + '_' + end_str + '.nc' 
-    PFM['lv3_his_name_full'] = PFM['lv3_his_dir'] + '/'  + PFM['lv3_his_name']
-    PFM['lv3_rst_name_full'] = PFM['restart_files_dir'] + '/' + PFM['lv3_rst_name']
-
-    PFM['lv4_his_name'] = 'LV4_ocean_his_' + yyyymmdd + hhmm + '.nc'
-    PFM['lv4_rst_name'] = 'LV4_ocean_rst_' + yyyymmdd + hhmm + '_' + end_str + '.nc' 
-    PFM['lv4_swan_rst_name']  = 'LV4_swan_rst_' + yyyymmdd + hhmm + '.dat' 
-    PFM['lv4_his_name_full'] = PFM['lv4_his_dir'] + '/'  + PFM['lv4_his_name']
-    PFM['lv4_rst_name_full'] = PFM['restart_files_dir'] + '/' + PFM['lv4_rst_name']
-    PFM['lv4_swan_rst_name_full'] = PFM['restart_files_dir'] + '/' + PFM['lv4_swan_rst_name']
-
-
-    # get how often swan files are written. The 0.2 makes sure we check 5 times between 
-    # approximate writing times. based on CURRENT (12/13/24) coawst tiling!!! if 
-    # tiling changes this needs to change too!
     PFM['lv4_swan_check_freq_sec'] = int( np.round( 0.2 * OP['L4','rst_interval'] * 2 * 3600 / 2.5 ) ) 
 
        
