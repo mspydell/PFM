@@ -5,6 +5,12 @@ import subprocess
 sys.path.append('../sdpm_py_util')
 import init_funs as initfuns
 from datetime import datetime, timedelta
+import run_funs as runfuns 
+
+#from make_LV1_dotin_and_SLURM import make_LV1_dotin_and_SLURM
+#from run_slurm_LV1 import run_slurm_LV1
+
+
 
 # the functions in here are used to make the 
 
@@ -231,7 +237,7 @@ def run_hind_LV1(t1str,pkl_fnm):
 
     print('we are now converting the atm grb2 files to pickles...')
     t01 = datetime.now()
-    cmd_list = ['python','-W','ignore','hind_functions.py','grb2s_to_pickles',t1str,t2str]
+    cmd_list = ['python','-W','ignore','hind_functions.py','grb2s_to_pickles',t1str,t2str,pkl_fnm]
     os.chdir('../sdpm_py_util')
     ret5 = subprocess.run(cmd_list)   
     print('return code: ' + str(ret5.returncode) + ' (0=good)')  
@@ -246,7 +252,7 @@ def run_hind_LV1(t1str,pkl_fnm):
     # everything in this dict turn into the atm.nc file
     print('we are now putting the hind atm data on the roms LV1 grid...')
     t01 = datetime.now()
-    cmd_list = ['python','-W','ignore','hind_functions.py','nam_pkls_2_romsatm_pkl',t1str,t2str,str(level)]
+    cmd_list = ['python','-W','ignore','hind_functions.py','nam_pkls_2_romsatm_pkl',t1str,t2str,str(level),pkl_fnm]
     os.chdir('../sdpm_py_util')
     ret5 = subprocess.run(cmd_list)   
     print('return code: ' + str(ret5.returncode) + ' (0=good)')  
@@ -263,7 +269,7 @@ def run_hind_LV1(t1str,pkl_fnm):
     # fn_out is the name of the atm.nc file used by roms
     print('we are now saving ATM LV1 to ' + fn_atm_out + ' ...')
     t01 = datetime.now()
-    cmd_list = ['python','-W','ignore','atm_functions.py','atm_roms_dict_to_netcdf',str(level)]
+    cmd_list = ['python','-W','ignore','atm_functions.py','atm_roms_dict_to_netcdf',str(level),pkl_fnm]
     os.chdir('../sdpm_py_util')
     ret5 = subprocess.run(cmd_list)   
     print('return code: ' + str(ret5.returncode) + ' (0=good)')  
@@ -278,12 +284,10 @@ def run_hind_LV1(t1str,pkl_fnm):
 
     print('driver_run_forecast_LV1:  making .in and .sb files...')
     t01 = datetime.now()
-    pfm_driver_src_dir = os.getcwd()
     #yyyymmdd = MI['yyyymmdd']
     #hhmm = MI['hhmm']
-    yyyymmddhhmm = MI['fetch_time'].strftime('%Y%m%d%H%M')
     os.chdir('../sdpm_py_util')
-    make_LV1_dotin_and_SLURM( MI , yyyymmddhhmm )
+    runfuns.make_LV1_dotin_and_SLURM( pkl_fnm )
     print('...done.\n')
 
     # run command will be
@@ -291,7 +295,7 @@ def run_hind_LV1(t1str,pkl_fnm):
     print('using ' + str(MI['gridinfo']['L1','nnodes']) + ' nodes.')
     print('Ni = ' + str(MI['gridinfo']['L1','ntilei']) + ', NJ = ' + str(MI['gridinfo']['L1','ntilej']))
     print('working...')
-    run_slurm_LV1(MI)
+    runfuns.run_slurm_LV1( pkl_fnm )
     print('...done.')
     os.chdir('../driver')
     t02 = datetime.now()

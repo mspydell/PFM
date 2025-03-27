@@ -194,8 +194,9 @@ def get_nam_hindcast_grb2s(t1str,t2str):
 
     return result2
 
-def grb2_to_pickle(fn_in,fn_out):
-    PFM = get_PFM_info()
+def grb2_to_pickle(fn_in,fn_out,pkl_fnm):
+    
+    PFM = initfuns.get_model_info(pkl_fnm)
     # this function is going to load the .grb2 file, and then cut out a portion of it,
     # get the variables and data we need, and save to a pickle file.
 
@@ -376,16 +377,16 @@ def grb2_to_pickle(fn_in,fn_out):
         print('ATM grb2 file ' + fn_in + ' saved to pickle.')
 
 
-def grb2s_to_pickles(t1str,t2str):
+def grb2s_to_pickles(t1str,t2str,pkl_fnm):
     # this function takes all of the grb2 nam files and makes pickles out of them
     
     # get file names
-    _, l2, _, l4 = get_nam_hindcast_filelists(t1str,t2str)
+    _, l2, _, l4 = get_nam_hindcast_filelists(t1str,t2str,pkl_fnm)
 
     for j in np.arange(len(l2)):
         fn_in = l2[j]
         fn_out = l4[j]
-        grb2_to_pickle(fn_in,fn_out)
+        grb2_to_pickle(fn_in,fn_out,pkl_fnm)
 
 
 def check_file_exists_os(file_path):
@@ -414,11 +415,12 @@ def load_pickle_file(file_path):
         return None
 
 
-def nam_pkls_2_romsatm_pkl(t1str,t2str,lv):
+def nam_pkls_2_romsatm_pkl(t1str,t2str,lv,pkl_fnm):
     # this function takes nam_hindcast pickle files, interpolates the fields
     # from the nam grid to the rom grid at level = lv
 
-    PFM = get_PFM_info()
+    PFM = initfuns.get_model_info(pkl_fnm)
+
     if lv == '1':
         RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
         fname_out = PFM['lv1_forc_dir'] + '/' + PFM['atm_tmp_LV1_pckl_file']
@@ -432,7 +434,7 @@ def nam_pkls_2_romsatm_pkl(t1str,t2str,lv):
         RMG = grdfuns.roms_grid_to_dict(PFM['lv4_grid_file'])
         fname_out = PFM['lv4_forc_dir'] + '/' + PFM['atm_tmp_LV4_pckl_file']
 
-    _, _, _, fn_pkls = get_nam_hindcast_filelists(t1str,t2str)
+    _, _, _, fn_pkls = get_nam_hindcast_filelists(t1str,t2str,pkl_fnm)
 
     # check and make sure pkl files exist
     fes = [] # a list of 0 or -1

@@ -25,6 +25,14 @@ def driver_run_hind_LV123( input_py_full, pkl_fnm ):
     # this si the loop over the different separate simulations
     cnt_t = 0
     for time1 in MI['start_times_str']:
+        # get 1st and last times as datetime objects
+        t1 = datetime.strptime(time1,'%Y%m%d%H')
+        t2 = t1 + MI['forecast_days']*timedelta(days=1)
+        # put the current sub simulation 1st and last times into MI.pkl file
+        MI2['sim_time_1'] = t1
+        MI2['sim_time_2'] = t2
+        initfuns.edit_and_save_MI(MI2,pkl_fnm)
+        
         # add / change file names to model info
         # this uses the start (and end) times in pkl_fnm to construct
         # his and restart file names
@@ -60,14 +68,12 @@ def driver_run_hind_LV123( input_py_full, pkl_fnm ):
         time_tots[cnt_t] = t2_t - t0_t
         print(f"{'='*60}")
 
-        # go to the next day
-        tsim = tsim + MI['forecast_days']*timedelta(days=1)
+        # after the 1st simulation, change to using restarts
         MI2 = {}
         MI2['lv1_use_restart'] = 1
         MI2['lv2_use_restart'] = 1
         MI2['lv3_use_restart'] = 1
-        MI2['fetch_time'] = tsim
-        initfuns.edit_and_save_MI(MI2)
+        initfuns.edit_and_save_MI(MI2,pkl_fnm)
         print('done with a 1 day LV1 hindcast, going to the next day.\n')
         #sys.exit("exiting for now.")
 

@@ -74,7 +74,7 @@ def create_model_info_dict():
         # sim_time_1 is the inital time of the sub simulation
         # sim_time_2 is the last time of the sub simulation 
         ocn_model = 'hycom_hind_wtide' # _wtide indicates using the new (>20241010) hycom
-        PFM['atm_hind_dir'] = '/scratch/PHM_Simulations/grb2_data'
+        PFM['atm_hind_dir'] = '/dataSIO/PHM_Simulations/raw_download/nam_grb2'
         atm_model = 'nam_analysis'
         PFM['atm_dt_hr'] = 3
     else:
@@ -344,7 +344,11 @@ def create_model_info_dict():
     PFM['lv4_grid_file'] = lv4_grid_file
     PFM['lv4_model']     = lv4_model
 
-    PFM['hycom_data_dir'] = pfm_root_dir + 'hycom_data/'
+    if PFM['run_type'] == 'forecast':
+        PFM['hycom_data_dir'] = pfm_root_dir + 'hycom_data/'
+    else:
+        PFM['hycom_data_dir'] = '/dataSIO/PHM_Simulations/raw_download/hycom_nc'
+
     PFM['cdip_data_dir'] = pfm_root_dir + 'cdip_data'
 
     PFM['lv1_tides_file']          = 'ocean_tide.nc'
@@ -479,7 +483,10 @@ def create_model_info_dict():
         yyyymmdd = "%d%02d%02d" % (fetch_time2.year, fetch_time2.month, fetch_time2.day)
         PFM['yyyymmdd']   = yyyymmdd
         PFM['hhmm']       = hhmm        # this is the HHMM of the forecast, aligns with NAM
-        PFM['fetch_time'] = fetch_time2 # this is the start time of the PFM forecast
+        PFM['sim_time_1'] = fetch_time2
+        PFM['sim_time_2'] = fetch_time2 + PFM['forecast_days']*timedelta(days=1)
+        PFM['sim_start_time'] = PFM['sim_time_1']
+        PFM['sim_end_time'] = PFM['sim_time_2']
     else:
         fetch_time2 = PFM['sim_time_1']
         

@@ -1,28 +1,19 @@
 # library of atm functions
 from datetime import datetime, timedelta
 from scipy.interpolate import RegularGridInterpolator
-
 import sys
 import pickle
 import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
 import netCDF4 as nc
-from get_PFM_info import get_PFM_info
+sys.path.append('../sdpm_py_util')
+import init_funs as initfuns
 import grid_functions as grdfuns
 import subprocess
-
 import cfgrib
-
 import os
-
-import getpass
-
 from concurrent.futures import ThreadPoolExecutor, as_completed
-
-
-#from pydap.client import open_url
-
 
 def get_atm_data_as_dict():
     
@@ -971,9 +962,9 @@ def append_to_atm_dotnc(fld,lv):
     ds.to_netcdf(fname_out, mode='a')
 
 
-def atm_roms_dict_to_netcdf(lv):
+def atm_roms_dict_to_netcdf(lv,pkl_fnm):
 
-    PFM=get_PFM_info()
+    PFM=initfuns.get_model_info(pkl_fnm)
 
     if lv == '1':
         fname_in  = PFM['lv1_forc_dir'] + '/' + PFM['atm_tmp_LV1_pckl_file']
@@ -991,8 +982,6 @@ def atm_roms_dict_to_netcdf(lv):
     with open(fname_in,'rb') as fp:
         ATM_R = pickle.load(fp)
 
-    print('file_out is:')
-    print(fname_out)
 
     ds = xr.Dataset(
         data_vars = dict(
@@ -1022,6 +1011,8 @@ def atm_roms_dict_to_netcdf(lv):
             'time info':'ocean time is from '+ ATM_R['ocean_time_ref'].strftime("%Y/%m/%d %H:%M:%S") },
         )
 
+    print('file_out is:')
+    print(fname_out)
     ds.to_netcdf(fname_out)
 
 

@@ -1,26 +1,23 @@
 # the ocean functions will be here
-
+import sys
 from datetime import datetime
 from datetime import timedelta
 import time
 import gc
 import resource
 import pickle
+
+sys.path.append('../sdpm_py_util')
+import init_funs as initfuns
 import grid_functions as grdfuns
 import river_functions as rivfuns
 import hind_functions as hindfuns
-import init_funs as initfuns
 import os
 import os.path
 import pickle
 from scipy.spatial import cKDTree
 import glob
-import requests
 import shutil
-
-
-#sys.path.append('../sdpm_py_util')
-from get_PFM_info import get_PFM_info
 
 import numpy as np
 import xarray as xr
@@ -38,7 +35,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 #import util_functions as utlfuns 
 from util_functions import s_coordinate_4
 #from pydap.client import open_url
-import sys
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -1721,7 +1717,7 @@ def hycom_hind_ncfiles_to_pickle(pkl_fnm):
     t_ref = PFM['modtime0']
     OCN['ocean_time_ref'] = t_ref
 
-    t1  = PFM['fetch_time']       # this is the start time of the PFM forecast
+    t1  = PFM['sim_time_1']       # this is the start time of the PFM forecast
     # now a string of the time to start ROMS (and the 1st atm time too)
 
     #nc_in_names = get_hycom_nc_file_names(yyyymmdd,t1str,t2str)
@@ -5849,7 +5845,7 @@ def ocn_r_2_BCdict_pckl(fname_out):
 
 def get_child_xi_eta_interp(ln1,lt1,ln2,lt2,vnm):
     # this function returns the index values of (lat,lon) in grid 2 on grid 1
-    # this way we can ruse egular grid interpolator
+    # this way we can use regular grid interpolator
     # this function also returns the regular grid interpolator object
     # vnm is either zeta, u, or v
     M, L = np.shape(ln1)
