@@ -61,7 +61,7 @@ def create_model_info_dict():
     PFM = dict()
     if run_type == 'hindcast': # note hycom with tides starts on 2024-10-10 1200...
         sim_start_time = '2024101100' # the simulation start time is in yyyymmddhh format
-        sim_end_time   = '2024101800' # need 
+        sim_end_time   = '2024101300' # need 
         PFM['forecast_days'] = 1.0 # for now we do 1 day sub simulations
         # set the simulation end time. An integer number of days past the start time
         # We will loop over days until we get to this time.
@@ -149,11 +149,13 @@ def create_model_info_dict():
     PFM['lv3_grid_file_full'] = lv3_grid_file
     PFM['lv4_grid_file_full'] = lv4_grid_file
 
+
     # atm options for run_type = 'forecast' are: nam_nest, gfs, gfs_1hr, ecmwf
-    atm_model = 'ecmwf'
-    #atm_model = 'nam_nest'
-    #atm_model = 'gfs'
-    #atm_model = 'gfs_1hr'
+    if run_type == 'forecast':
+        atm_model = 'ecmwf'
+        #atm_model = 'nam_nest'
+        #atm_model = 'gfs'
+        #atm_model = 'gfs_1hr'
     
     atm_get_method = 'open_dap_nc'
     ocn_get_method = 'ncks_para'
@@ -347,7 +349,7 @@ def create_model_info_dict():
     if PFM['run_type'] == 'forecast':
         PFM['hycom_data_dir'] = pfm_root_dir + 'hycom_data/'
     else:
-        PFM['hycom_data_dir'] = '/dataSIO/PHM_Simulations/raw_download/hycom_nc'
+        PFM['hycom_data_dir'] = '/dataSIO/PHM_Simulations/raw_download/hycom_nc/'
 
     PFM['cdip_data_dir'] = pfm_root_dir + 'cdip_data'
 

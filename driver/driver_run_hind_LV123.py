@@ -29,6 +29,7 @@ def driver_run_hind_LV123( input_py_full, pkl_fnm ):
         t1 = datetime.strptime(time1,'%Y%m%d%H')
         t2 = t1 + MI['forecast_days']*timedelta(days=1)
         # put the current sub simulation 1st and last times into MI.pkl file
+        MI2 = dict()
         MI2['sim_time_1'] = t1
         MI2['sim_time_2'] = t2
         initfuns.edit_and_save_MI(MI2,pkl_fnm)
@@ -49,11 +50,11 @@ def driver_run_hind_LV123( input_py_full, pkl_fnm ):
         for lvl in MI['levels_to_run']:
             t0_lvl = datetime.now()
             print('starting ' + lvl)
-            cmd_list = ['python','-W','ignore','driver_functions.py','run_hind_simulation',time1,lvl,pkl_fnm]
-            os.chdir('../sdpm_py_util')
+#            cmd_list = ['python','-W','ignore','driver_functions.py','run_hind_simulation',time1,lvl,pkl_fnm]
+            cmd_list = ['python','driver_functions.py','run_hind_simulation',time1,lvl,pkl_fnm]
             ret1 = subprocess.run(cmd_list)     
-            os.chdir('../driver')
             print('done with ' + lvl)
+            print('LV1 hind ran correctly? ' + str(ret1.returncode) + ' (0=yes)')
             print('this took ')
             t2_lvl = datetime.now()
             time_lvls[cnt_l][cnt_t] = t2_lvl - t0_lvl
@@ -76,8 +77,6 @@ def driver_run_hind_LV123( input_py_full, pkl_fnm ):
         initfuns.edit_and_save_MI(MI2,pkl_fnm)
         print('done with a 1 day LV1 hindcast, going to the next day.\n')
         #sys.exit("exiting for now.")
-
-
         cnt_t = cnt_t + 1
 
 

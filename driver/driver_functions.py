@@ -1,4 +1,3 @@
-import numpy as np
 import os
 import sys
 import subprocess
@@ -143,8 +142,8 @@ def run_hind_LV1(t1str,pkl_fnm):
         print(t02-t01)
         print('\n')
 
-        print('making IC file from pickled IC: '+ ic_file_out)
         ic_file_out = MI['lv1_forc_dir'] + '/' + MI['lv1_ini_file']
+        print('making IC file from pickled IC: '+ ic_file_out)
         t03 = datetime.now()
         cmd_list = ['python','-W','ignore','ocn_functions.py','ocn_roms_IC_dict_to_netcdf_pckl',ocnIC_pckl,ic_file_out]
         os.chdir('../sdpm_py_util')
@@ -167,7 +166,6 @@ def run_hind_LV1(t1str,pkl_fnm):
     else:
         print('going to use a restart file for the LV1 IC. Setting this up...')
         print('first need to update the MI pickle file...')
-        initfuns.update_MI_pkl(t1str,'1')
         cmd_list = ['python','-W','ignore','init_funs.py','restart_setup','LV1',pkl_fnm]
         os.chdir('../sdpm_py_util')
         ret4 = subprocess.run(cmd_list)     
@@ -178,7 +176,8 @@ def run_hind_LV1(t1str,pkl_fnm):
         t05 = datetime.now()
         print(t05-t01)
         dt_ic.append(t05-t01)
-        MI = get_model_info()
+        # update the model information as we are now using restarts
+        MI = initfuns.get_model_info(pkl_fnm)
         print('\nGoing to use the file ' + MI['lv1_ini_file'] + ' to restart the simulation')
         print('with time index ' + str(MI['lv1_nrrec']))
         print('\n')
@@ -313,3 +312,10 @@ def run_hind_simulation(t1str,lvl,pkl_fnm):
         run_hind_LV2(t1str,pkl_fnm)
     if lvl == 'LV3':
         run_hind_LV3(t1str,pkl_fnm)
+
+if __name__ == "__main__":
+    args = sys.argv
+    # args[0] = current file
+    # args[1] = function name
+    # args[2:] = function args : (*unpacked)
+    globals()[args[1]](*args[2:])

@@ -977,7 +977,7 @@ def get_hind_nc_cmd_list(t1str,t2str,pkl_fnm):
             yyyy = t.strftime("%Y") 
             url = ocn_name + vn + '/' + yyyy
             hr2 = hr % 24
-            dstr0_b = t1.strftime('%Y%m%d%H')
+            dstr0_b = t.strftime('%Y%m%d') + '00'
             fn_out = txt0 + dstr0_b + '_' + str(hr2).zfill(2) + '_' + vn + '.nc'
             nc_out.append(fn_out)
             dstr0 = t1.strftime('%Y-%m-%dT%H:%M')
@@ -1718,11 +1718,13 @@ def hycom_hind_ncfiles_to_pickle(pkl_fnm):
     OCN['ocean_time_ref'] = t_ref
 
     t1  = PFM['sim_time_1']       # this is the start time of the PFM forecast
+    t2  = PFM['sim_time_2']
     # now a string of the time to start ROMS (and the 1st atm time too)
 
     #nc_in_names = get_hycom_nc_file_names(yyyymmdd,t1str,t2str)
-    yyyymmddhh = t1.strftime("%Y%m%d%H")
-    _, nc_in_names = get_hind_nc_cmd_list(yyyymmddhh)
+    t1str = t1.strftime("%Y%m%d%H")
+    t2str = t2.strftime("%Y%m%d%H")
+    _, nc_in_names = get_hind_nc_cmd_list(t1str,t2str,pkl_fnm)
         
     # get lists of file names for each variable. I think they are sorted?
     fn_ssh = [s for s in nc_in_names if "_ssh" in s]
@@ -3063,7 +3065,7 @@ def make_all_tmp_pckl_ocnR_files_1hrzeta(pkl_fnm):
     rctot = 0
 
     for aa in ork:
-        cmd_list = ['python','-W','ignore','ocn_functions.py','make_tmp_hy_on_rom_pckl_files_1hrzeta',fname_in,aa]
+        cmd_list = ['python','-W','ignore','ocn_functions.py','make_tmp_hy_on_rom_pckl_files_1hrzeta',fname_in,aa,pkl_fnm]
         ret1 = subprocess.run(cmd_list )     
         rctot = rctot + ret1.returncode
         if ret1.returncode != 0:
@@ -3082,7 +3084,7 @@ def mk_pick_files(cmd_list):
     ret1 = subprocess.run(cmd_list)
     return ret1
 
-def make_all_tmp_pckl_ocnR_files_1hrzeta_para(fname_in):
+def make_all_tmp_pckl_ocnR_files_1hrzeta_para(fname_in,pkl_fnm):
     
     print('and saving 18 pickle files...')
     
@@ -3095,7 +3097,7 @@ def make_all_tmp_pckl_ocnR_files_1hrzeta_para(fname_in):
                 
     with ThreadPoolExecutor() as executor:
         for aa in ork:
-            cmd_list = ['python','-W','ignore','ocn_functions.py','make_tmp_hy_on_rom_pckl_files_1hrzeta',fname_in,aa]
+            cmd_list = ['python','-W','ignore','ocn_functions.py','make_tmp_hy_on_rom_pckl_files_1hrzeta',fname_in,aa,pkl_fnm]
             fn = mk_pick_files #define function
             #args = cmd_list
             kwargs = {} #
@@ -3117,7 +3119,7 @@ def make_all_tmp_pckl_ocnR_files_1hrzeta_para(fname_in):
 
 
 
-def make_tmp_hy_on_rom_pckl_files_1hrzeta(fname_in,var_name):
+def make_tmp_hy_on_rom_pckl_files_1hrzeta(fname_in,var_name,pkl_fnm):
     # HYcom and RoMsGrid come in as dicts with ROMS variable names    
     # The output of this, HYrm, is a dict with 
     # hycom fields on roms horizontal grid points
@@ -3133,7 +3135,7 @@ def make_tmp_hy_on_rom_pckl_files_1hrzeta(fname_in,var_name):
     lnhy = HY['lon']
     lthy = HY['lat']
 
-    PFM=get_PFM_info()
+    PFM=initfuns.get_model_info(pkl_fnm)
     RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
 
     NR,NC = np.shape(RMG['lon_rho'])
@@ -3688,7 +3690,7 @@ def ocn_r_2_ICdict_pckl(fname_out):
 
 def load_tmp_pkl(var_name,pkl_fnm):
 
-    PFM=get_model_info(pkl_fnm)
+    PFM=initfuns.get_model_info(pkl_fnm)
     fn_temp = PFM['lv1_forc_dir'] + '/tmp_' + var_name + '.pkl'
     with open(fn_temp,'rb') as fp:
         tmp_dat = pickle.load(fp)

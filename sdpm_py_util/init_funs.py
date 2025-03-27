@@ -109,7 +109,7 @@ def get_model_info(pkl_fnm):
 def add_file_names_2MI(yyyymmddhh,pkl_fnm):
 
     yyyymmddhhmm = yyyymmddhh + '00'
-    t1 = datenum.strptime(yyyymmddhh,'%Y%m%d%H')
+    t1 = datetime.strptime(yyyymmddhh,'%Y%m%d%H')
     PFM = get_model_info( pkl_fnm )
     t2 = t1 + PFM['forecast_days'] * timedelta(days=1)
     end_str = t2.strftime('%Y%m%d%H%M')
@@ -138,7 +138,7 @@ def add_file_names_2MI(yyyymmddhh,pkl_fnm):
 
     with open(pkl_fnm,'wb') as fout:
         pickle.dump(PFM,fout)
-        print('the model_info dictionary was resaved to ' + modinfo_pkl_full)
+        print('the model_info dictionary was resaved to ' + pkl_fnm)
         print('with properly time stamped output file names')
     
 
@@ -448,7 +448,7 @@ def get_restart_file_and_index(lvl,pkl_fnm):
     head, fname0 = os.path.split(fname)
     return fname0, index
 
-def edit_and_save_PFM(dict_in,pkl_fnm):
+def edit_and_save_MI(dict_in,pkl_fnm):
     PFM = get_model_info(pkl_fnm)
     kys = dict_in.keys()
     for ky in kys:
@@ -631,7 +631,7 @@ def restart_setup(lvl,pkl_fnm):
     # these are now the index and file name used to restart the simulation
     PFM_edit[key_rec] = tindex1+1 # need to add 1 to get non-python indexing    
     PFM_edit[key_file] = fname1
-    edit_and_save_PFM(PFM_edit,pkl_fnm)
+    edit_and_save_MI(PFM_edit,pkl_fnm)
 
 def update_PFM_pkl(t1str,lvl,pkl_fnm):
     PFM = get_model_info(pkl_fnm)
