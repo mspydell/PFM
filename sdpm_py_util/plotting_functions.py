@@ -17,6 +17,7 @@ import pandas as pd
 import requests
 import subprocess
 import os
+import init_funs as initfuns
 
 
 def plot_roms_box(axx, RMG):
@@ -1409,7 +1410,7 @@ def plot_roms_LV1_bathy_and_locs(fn,Ix,Iy,sv_fig):
         plt.show()
 
 
-def plot_his_temps_wuv(fn,It,Iz,sv_fig,lvl,cmn,cmx):
+def plot_his_temps_wuv(fn,It,Iz,sv_fig,lvl,cmn,cmx,pkl_fnm):
 
     cmn = float(cmn) # these are the colorbar limits
     cmx = float(cmx)
@@ -1428,7 +1429,7 @@ def plot_his_temps_wuv(fn,It,Iz,sv_fig,lvl,cmn,cmx):
     cmn = cmn - .1
     cmx = cmx + .1
 
-    PFM=get_PFM_info()
+    PFM=initfuns.get_model_info( pkl_fnm )
     if lvl == 'LV1':
         RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
         res = '110m'
@@ -1530,15 +1531,17 @@ def plot_his_temps_wuv(fn,It,Iz,sv_fig,lvl,cmn,cmx):
 
     it_str = str(It).zfill(3)
 
+    yyyymmddhh = PFM['sim_time_1'].strftime('%Y%m%d%H')
+
     if sv_fig == '1':
         if lvl == 'LV1':
-            fn_out = PFM['lv1_plot_dir'] + '/his_tempuv_LV1_' + PFM['yyyymmdd'] + PFM['hhmm'] + '_' + it_str + 'hr.png'
+            fn_out = PFM['lv1_plot_dir'] + '/his_tempuv_LV1_' + yyyymmddhh + '_' + it_str + 'hr.png'
         elif lvl == 'LV2':            
-            fn_out = PFM['lv2_plot_dir'] + '/his_tempuv_LV2_' + PFM['yyyymmdd'] + PFM['hhmm'] + '_' + it_str + 'hr.png'
+            fn_out = PFM['lv2_plot_dir'] + '/his_tempuv_LV2_' + yyyymmddhh + '_' + it_str + 'hr.png'
         elif lvl == 'LV3':            
-            fn_out = PFM['lv3_plot_dir'] + '/his_tempuv_LV3_' + PFM['yyyymmdd'] + PFM['hhmm'] + '_' + it_str + 'hr.png'
+            fn_out = PFM['lv3_plot_dir'] + '/his_tempuv_LV3_' + yyyymmddhh + '_' + it_str + 'hr.png'
         elif lvl == 'LV4':            
-            fn_out = PFM['lv4_plot_dir'] + '/his_tempuv_LV4_' + PFM['yyyymmdd'] + PFM['hhmm'] + '_' + it_str + 'hr.png'
+            fn_out = PFM['lv4_plot_dir'] + '/his_tempuv_LV4_' + yyyymmddhh + '_' + it_str + 'hr.png'
         
         plt.savefig(fn_out, dpi=300)
     else:
@@ -1910,8 +1913,8 @@ def get_his_clims(fn,var_name,Iz,It):
     return cmin,cmax
     #return data
 
-def make_all_his_figures(lvl):
-    PFM=get_PFM_info()
+def make_all_his_figures(lvl,pkl_fnm):
+    PFM=initfuns.get_model_info(pkl_fnm)
     #PFM['lv4_model']='COAWST' # for testing
     sv_fig = 1
     #sv_fig = 0
@@ -1940,8 +1943,6 @@ def make_all_his_figures(lvl):
         Iy = np.array([750,1000])
         cmnH,cmxH = get_his_clims(fn,'Hwave',-1,'all')
 
-    if PFM['run_type'] == 'hindcast':
-        fn = '/scratch/PHM_Simulations/LV1_Forecast/His/LV1_ocean_his_202410110000.nc'
 
     #fn = '/scratch/PFM_Simulations/LV4_Forecast/His/LV4_ocean_his_202501240000.nc'
 
@@ -1963,7 +1964,7 @@ def make_all_his_figures(lvl):
     pfm_hrs = int(24*PFM['forecast_days']) # this should be an integer
     It=0
     while It<=pfm_hrs:
-        cmd_list = ['python','-W','ignore','plotting_functions.py','plot_his_temps_wuv',fn,str(It),str(iz),str(sv_fig),lvl,str(cmn),str(cmx)] 
+        cmd_list = ['python','-W','ignore','plotting_functions.py','plot_his_temps_wuv',fn,str(It),str(iz),str(sv_fig),lvl,str(cmn),str(cmx),pkl_fnm] 
         if lvl == 'LV4':
             ret1 = subprocess.Popen(cmd_list)  
         else:
