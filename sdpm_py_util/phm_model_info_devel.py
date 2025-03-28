@@ -74,7 +74,7 @@ def create_model_info_dict():
         # sim_time_1 is the inital time of the sub simulation
         # sim_time_2 is the last time of the sub simulation 
         # we loop through levels_to_run
-        PFM['levels_to_run'] = ['LV1','LV2']
+        PFM['levels_to_run'] = ['LV1','LV2','LV3']
         ocn_model = 'hycom_hind_wtide' # _wtide indicates using the new (>20241010) hycom
         PFM['atm_hind_dir'] = '/dataSIO/PHM_Simulations/raw_download/nam_grb2'
         atm_model = 'nam_analysis'
