@@ -1011,8 +1011,6 @@ def atm_roms_dict_to_netcdf(lv,pkl_fnm):
             'time info':'ocean time is from '+ ATM_R['ocean_time_ref'].strftime("%Y/%m/%d %H:%M:%S") },
         )
 
-    print('file_out is:')
-    print(fname_out)
     ds.to_netcdf(fname_out)
 
 

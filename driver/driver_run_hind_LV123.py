@@ -43,7 +43,7 @@ def driver_run_hind_LV123( input_py_full, pkl_fnm ):
         print(f"{'\n'}")
         print(f"{'='*60}")
         time2 = MI['end_times_str'][cnt_t]
-        print('doing a simulation from ' + time1 + ' to ' + time2)
+        print('doing a sub simulation from ' + time1 + ' to ' + time2)
         print(f"{'-'*60}")
         cnt_l = 0
         # this is the loop over the levels to run
@@ -62,7 +62,7 @@ def driver_run_hind_LV123( input_py_full, pkl_fnm ):
             print(f"{'-'*60}")
             cnt_l = cnt_l + 1
 
-        print('done with the ' + time1 + ' to ' + MI['end_times_str'][cnt_t] + ' simulation')
+        print('done with the ' + time1 + ' to ' + MI['end_times_str'][cnt_t] + ' sub simulation')
         print('this took')
         t2_t = datetime.now()
         print(t2_t - t0_t)
@@ -80,9 +80,11 @@ def driver_run_hind_LV123( input_py_full, pkl_fnm ):
         cnt_t = cnt_t + 1
 
 
-
     print(f"{'\n'}")
     print(f"{'='*60}")
     print('done with full simulation. this took')
     print(datetime.now() - t00)
+
+    print('each sub simulation took:')
+    print(time_tots)
 

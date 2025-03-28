@@ -422,7 +422,7 @@ def get_restart_file_and_index(lvl,pkl_fnm):
     found = 0
     while cnt < len(isort):
         fname = rst_files[isort[cnt]]
-        print('looking in ' + fname + ' for the right restart time...')
+        #print('looking in ' + fname + ' for the right restart time...')
         ds = netCDF4.Dataset(fname)
         t_var = ds['ocean_time']
         t_units = t_var.units
@@ -434,10 +434,8 @@ def get_restart_file_and_index(lvl,pkl_fnm):
             print('found the time index!')
             break
 
-        print('didnt find the right time in ' + fname)
-        if cnt<len(isort)-1:
-            print('going to look at a previous forecast restart file...')
-        else:
+        #print('didnt find the right time in ' + fname)
+        if cnt >= len(isort)-1:
             print('WARNIG the time stamp wasnt found in any restart file. CANT USE RESTART')
             fname = 'none'
             index = -99
@@ -445,7 +443,7 @@ def get_restart_file_and_index(lvl,pkl_fnm):
 
     print('going to restart using ' + fname + ' and python-index ' + str(index))    
         
-    head, fname0 = os.path.split(fname)
+    _, fname0 = os.path.split(fname)
     return fname0, index
 
 def edit_and_save_MI(dict_in,pkl_fnm):

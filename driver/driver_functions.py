@@ -165,7 +165,6 @@ def run_hind_LV1(t1str,pkl_fnm):
         #    dt_plotting.append(t04-t05)
     else:
         print('going to use a restart file for the LV1 IC. Setting this up...')
-        print('first need to update the MI pickle file...')
         cmd_list = ['python','-W','ignore','init_funs.py','restart_setup','LV1',pkl_fnm]
         os.chdir('../sdpm_py_util')
         ret4 = subprocess.run(cmd_list)     
