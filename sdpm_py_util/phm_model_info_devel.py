@@ -61,7 +61,7 @@ def create_model_info_dict():
     PFM = dict()
     if run_type == 'hindcast': # note hycom with tides starts on 2024-10-10 1200...
         sim_start_time = '2024101100' # the simulation start time is in yyyymmddhh format
-        sim_end_time   = '2024101900' # this is the very last time of the full simulation
+        sim_end_time   = '2024101300' # this is the very last time of the full simulation
         PFM['forecast_days'] = 1.0 # for now we do 1 day sub simulations
         # set the simulation end time. An integer number of days past the start time
         # We will loop over days until we get to this time.
@@ -73,6 +73,8 @@ def create_model_info_dict():
         # sim_end_time is the overall last time of the full simulation
         # sim_time_1 is the inital time of the sub simulation
         # sim_time_2 is the last time of the sub simulation 
+        # we loop through levels_to_run
+        PFM['levels_to_run'] = ['LV1','LV2']
         ocn_model = 'hycom_hind_wtide' # _wtide indicates using the new (>20241010) hycom
         PFM['atm_hind_dir'] = '/dataSIO/PHM_Simulations/raw_download/nam_grb2'
         atm_model = 'nam_analysis'

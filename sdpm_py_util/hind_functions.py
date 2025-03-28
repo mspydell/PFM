@@ -492,24 +492,10 @@ def nam_pkls_2_romsatm_pkl(t1str,t2str,lv,pkl_fnm):
                 # this is only done once!
                 lat_nam = atm['lat']
                 lon_nam = atm['lon']
-                #nj,ni = np.shape(lat_nam) # how big is the nam grid? ny, nx
-                #i_nam = np.arange(ni) # nam lon counting vector 
-                #j_nam = np.arange(nj) # nam lat counting vector
-                #Xind,Yind = np.meshgrid(i_nam,j_nam) 
-
-                #points1 = np.zeros( (ni*nj, 2) )
-                #points1[:,1] = lon_nam.flatten()
-                #points1[:,0] = lat_nam.flatten()
-                #scat_interp_xi  = LinearNDInterpolator(points1,Xind.flatten())
-                #scat_interp_eta = LinearNDInterpolator(points1,Yind.flatten())
-                
+                 
                 lt2 = RMG['lat_rho']
                 ln2 = RMG['lon_rho']
-                # need roms indices
-                #xi_2  = scat_interp_xi(lt2,ln2) # roms lat lon in nam x indices
-                #eta_2 = scat_interp_eta(lt2,ln2) # roms lat lon in nam y indices
                 # we need the interpolator object
-                #interper = RegularGridInterpolator( (j_nam , i_nam), lat_nam , bounds_error=False, fill_value=None)                
                 xi_2, eta_2, interper = ocnfuns.get_child_xi_eta_interp(lon_nam,lat_nam,ln2,lt2,'rho')
                 set_up = 1
 

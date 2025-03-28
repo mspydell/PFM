@@ -25,7 +25,6 @@ import plotting_functions as pltfuns
 
 
 def run_slurm_LV2( PFM ):
-
     cwd = os.getcwd()
     os.chdir(PFM['lv2_run_dir'])
     print('run_slurm_LV2: current directory is now: ', os.getcwd() )

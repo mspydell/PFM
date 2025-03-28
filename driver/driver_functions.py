@@ -66,9 +66,6 @@ def run_hind_LV1(t1str,pkl_fnm):
     t01 = datetime.now()
     dt_plotting = []
 
-    # need the file names and locations of the pickle and .nc files we will save
-    ocnBC_pckl = MI['lv1_forc_dir'] + '/' + MI['lv1_ocnBC_tmp_pckl_file']
-    fn_atm_out = MI['lv1_forc_dir'] + '/' + MI['lv1_atm_file'] # LV1 atm forcing filename
 
     # fix this for new pkl file usage !!!
     #if plot_ocn == 1:
@@ -265,6 +262,7 @@ def run_hind_LV1(t1str,pkl_fnm):
     dt_atm.append(t02-t01)
 
     # fn_out is the name of the atm.nc file used by roms
+    fn_atm_out = MI['lv1_forc_dir'] + '/' + MI['lv1_atm_file'] # LV1 atm forcing filename
     print('we are now saving ATM LV1 to ' + fn_atm_out + ' ...')
     t01 = datetime.now()
     cmd_list = ['python','-W','ignore','atm_functions.py','atm_roms_dict_to_netcdf',str(level),pkl_fnm]
@@ -303,6 +301,150 @@ def run_hind_LV1(t1str,pkl_fnm):
     dt_roms = []
     dt_roms.append(t02-t01)
 
+def run_hind_LV2(t1str,pkl_fnm):
+
+    level = 2
+    MI = initfuns.get_model_info(pkl_fnm)
+    t1 = datetime.strptime(t1str,'%Y%m%d%H')
+    t2 = t1 + MI['forecast_days']*timedelta(days=1)
+    t2str = t2.strftime('%Y%m%d%H')
+    print('we are now putting the hind atm data on the roms LV2 grid...')
+    t01 = datetime.now()
+    cmd_list = ['python','-W','ignore','hind_functions.py','nam_pkls_2_romsatm_pkl',t1str,t2str,str(level),pkl_fnm]
+    os.chdir('../sdpm_py_util')
+    ret5 = subprocess.run(cmd_list)   
+    print('return code: ' + str(ret5.returncode) + ' (0=good)')  
+    os.chdir('../sdpm_py_util')
+    print('...done.')
+    # all the fields plotted with the data on roms grid
+    t02 = datetime.now()
+    print('this took:')
+    print(t02-t01)
+    print('\n')
+    dt_atm = []
+    dt_atm.append(t02-t01)
+
+    # fn_out is the name of the atm.nc file used by roms
+    fn_atm_out = MI['lv2_forc_dir'] + '/' + MI['lv2_atm_file'] # LV1 atm forcing filename
+    print('we are now saving ATM LV2 to ' + fn_atm_out + ' ...')
+    t01 = datetime.now()
+    cmd_list = ['python','-W','ignore','atm_functions.py','atm_roms_dict_to_netcdf',str(level),pkl_fnm]
+    os.chdir('../sdpm_py_util')
+    ret5 = subprocess.run(cmd_list)   
+    print('return code: ' + str(ret5.returncode) + ' (0=good)')  
+    os.chdir('../sdpm_py_util')
+    print('...done.') 
+    # put in a function to plot the atm.nc file if we want to
+    t02 = datetime.now()
+    print('this took:')
+    print(t02-t01)
+    print('\n')
+    dt_atm.append(t02-t01)
+
+    # make the LV2_OCN_BC.pkl file
+    t1 = datetime.now()
+    t01 = datetime.now()
+    print('driver_run_forcast_LV2: saving LV2_OCN_BC pickle file')
+    os.chdir('../sdpm_py_util')
+    cmd_list = ['python','-W','ignore','ocn_functions.py','mk_LV2_BC_dict_edges',str(level),pkl_fnm]
+    ret5 = subprocess.run(cmd_list)   
+    print('return code: ' + str(ret5.returncode) + ' (0=good)')  
+    os.chdir('../sdpm_py_util')
+    print('driver_run_forecast_LV2:  done with writing LV2_OCN_BC.pkl file.') 
+    print('this took:')
+    t2 = datetime.now()
+    print(t2-t1)
+    print('\n')
+
+    # convert LV2_BC.pkl to LV2_BC.nc
+    t1 = datetime.now()
+    lv2_ocnBC_pckl = MI['lv2_forc_dir'] + '/' + MI['lv2_ocnBC_tmp_pckl_file']
+    lv2_bc_file_out = MI['lv2_forc_dir'] + '/' + MI['lv2_bc_file']
+    print('driver_run_forcast_LV2: saving LV2_OCN_BC netcdf file')
+    os.chdir('../sdpm_py_util')
+    cmd_list = ['python','-W','ignore','ocn_functions.py','ocn_roms_BC_dict_to_netcdf_pckl',lv2_ocnBC_pckl,lv2_bc_file_out]
+    ret5 = subprocess.run(cmd_list)   
+    print('return code: ' + str(ret5.returncode) + ' (0=good)')  
+    os.chdir('../sdpm_py_util')
+    print('driver_run_forecast_L21:  done with writing LV2_OCN_BC.nc file.') 
+    print('this took:')
+    t2 = datetime.now()
+    print(t2-t1)
+    print('\n')
+    dt_bc = []
+    dt_bc.append(t2-t01)
+
+    # make and save the LV2_IC.pkl file
+    dt_ic = []
+    t1=datetime.now()
+    t01 = datetime.now()
+    if MI['lv2_use_restart']==0:
+        print('driver_run_forcast_LV2: making and saving LV2_OCN_IC pickle file')
+        os.chdir('../sdpm_py_util')
+        cmd_list = ['python','-W','ignore','ocn_functions.py','mk_LV2_IC_dict',str(level),pkl_fnm]
+        ret5 = subprocess.run(cmd_list)   
+        print('return code: ' + str(ret5.returncode) + ' (0=good)')  
+        os.chdir('../sdpm_py_util')
+        print('driver_run_forecast_L21:  done with writing LV2_OCN_IC.pkl file.') 
+        print('this took:')
+        t2 = datetime.now()
+        print(t2-t1)
+        print('\n')
+
+        # convert the LV2_IC.pkl file to LV2_IC.nc
+        t1=datetime.now()
+        lv2_ocnIC_pckl = MI['lv2_forc_dir'] + '/' + MI['lv2_ocnIC_tmp_pckl_file']
+        lv2_ic_file_out = MI['lv2_forc_dir'] + '/' + MI['lv2_ini_file']
+        print('driver_run_forcast_LV2: saving LV2_OCN_IC netcdf file')
+        os.chdir('../sdpm_py_util')
+        cmd_list = ['python','-W','ignore','ocn_functions.py','ocn_roms_IC_dict_to_netcdf_pckl',lv2_ocnIC_pckl,lv2_ic_file_out]
+        ret5 = subprocess.run(cmd_list)   
+        print('return code: ' + str(ret5.returncode) + ' (0=good)')  
+        os.chdir('../sdpm_py_util')
+        print('driver_run_forecast_L21:  done with writing LV2_OCN_IC.nc file.') 
+        print('this took:')
+        t2 = datetime.now()
+        print(t2-t1)
+        print('\n')
+        dt_ic.append(t2-t01)
+    else:
+        print('going to use a restart file for the LV2 IC. Setting this up...')
+        cmd_list = ['python','-W','ignore','init_funs.py','restart_setup','LV2',pkl_fnm]
+        os.chdir('../sdpm_py_util')
+        ret4 = subprocess.run(cmd_list)     
+        os.chdir('../driver')
+        print('...done setting up for restart.')
+        print('this took:')
+        dt_ic = []
+        t05 = datetime.now()
+        print(t05-t01)
+        dt_ic.append(t05-t01)
+        MI = initfuns.get_model_info(pkl_fnm)
+        print('\nGoing to use the file ' + MI['lv2_ini_file'] + ' to restart the simulation')
+        print('with time index ' + str(MI['lv2_nrrec']))
+        print('\n')
+        if MI['lv2_nrrec'] < 0:
+            print('WARNING RESTARTING LV2 WILL NOT WORK!!!')
+
+    # now make .in and .sb for roms, and run roms...
+    print('making .in and .sb...')
+    t1=datetime.now()
+    os.chdir('../sdpm_py_util')
+    runfuns.make_LV2_dotin_and_SLURM( pkl_fnm )
+    print('...done')
+    # run command will be
+    print('now running roms LV2 with slurm.')
+    print('using ' + str(MI['gridinfo']['L2','nnodes']) + ' nodes.')
+    print('Ni = ' + str(MI['gridinfo']['L2','ntilei']) + ', NJ = ' + str(MI['gridinfo']['L2','ntilej']))
+    print('working...')
+    runfuns.run_slurm_LV2( pkl_fnm )
+    os.chdir('../driver')
+    print('running ROMS took:')
+    t2 = datetime.now()
+    print(t2-t1)
+    print('\n')
+    dt_roms = []
+    dt_roms.append(t2-t1)
 
 def run_hind_simulation(t1str,lvl,pkl_fnm):
     if lvl == 'LV1':

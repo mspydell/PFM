@@ -6296,9 +6296,9 @@ def mk_LV2_BC_dict(lvl):
     #return OCN_BC
     #return xi_r2, eta_r2, interp_r
 
-def mk_LV2_BC_dict_edges(lvl):
+def mk_LV2_BC_dict_edges(lvl,pkl_fnm):
 
-    PFM=get_PFM_info()  
+    PFM=initfuns.get_model_info(pkl_fnm)  
     if lvl == '2':
         G1 = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
         G2 = grdfuns.roms_grid_to_dict(PFM['lv2_grid_file'])
@@ -6362,9 +6362,8 @@ def mk_LV2_BC_dict_edges(lvl):
     
     with open(LV1_BC_pckl,'rb') as fout:
         BC1=pickle.load(fout)
-        print('OCN_LV' + str(int(lvl)-1) + '_BC dict loaded with pickle')
+        #print('OCN_LV' + str(int(lvl)-1) + '_BC dict loaded with pickle')
 
-    
     OCN_BC_0 = dict() # dict of data with the origian Nz for 3d vars
 
     OCN_BC = dict() # dict of data with final Nz
@@ -6383,13 +6382,11 @@ def mk_LV2_BC_dict_edges(lvl):
     if Vst1 == 4:
         zrom1 = s_coordinate_4(G1['h'], th_b1 , th_s1 , Tcl1 , Nz1, hraw=hraw, zeta=np.squeeze(his_ds.variables['zeta'][:,:,:]))
         
-
     OCN_BC['ocean_time'] = his_ds.variables['ocean_time'][:] / (3600.0 * 24) # his.nc has time in sec past reference time.
     Nt = len( OCN_BC['ocean_time'] )                                           # need in days past.
     OCN_BC['ocean_time_ref'] = BC1['ocean_time_ref']
 
     nlt, nln = np.shape(ltr2)
-
     OCN_BC['temp_south'] = np.zeros((Nt,Nz2,nln))
     OCN_BC['salt_south'] = np.zeros((Nt,Nz2,nln))
     OCN_BC['u_south']    = np.zeros((Nt,Nz2,nln-1))
@@ -6429,7 +6426,6 @@ def mk_LV2_BC_dict_edges(lvl):
     OCN_BC_0['u_west']    = np.zeros((Nt,Nz1,nlt))
     OCN_BC_0['v_west']    = np.zeros((Nt,Nz1,nlt-1))
     
-
     ZZ = dict() # this is a dict of the depths based on horizontal interpolation
     ZZ['rho_west'] = np.zeros((Nt,Nz1,nlt))
     ZZ['rho_north'] = np.zeros((Nt,Nz1,nln))
@@ -6463,18 +6459,14 @@ def mk_LV2_BC_dict_edges(lvl):
     Z2['rho_south'] = np.zeros((Nt,Nz2,nln))
     Z2['rho_west'] = np.zeros((Nt,Nz2,nlt))
 
-
     bnds = ['_north','_south','_west']
 
     # get x,y on LV1 grid.
     # x1,y1 = ll2xy(lnr1, ltr1, np.mean(lnr1), np.mean(ltr1))
-
     # get (x,y) grids, note zi = interp_r( (eta,xi) )
     xi_r2, eta_r2, interp_r = get_child_xi_eta_interp(lnr1,ltr1,lnr2,ltr2,'zeta')
     xi_u2, eta_u2, interp_u = get_child_xi_eta_interp(lnu1,ltu1,lnu2,ltu2,'u')
     xi_v2, eta_v2, interp_v = get_child_xi_eta_interp(lnv1,ltv1,lnv2,ltv2,'v')
-
-    
 
     XX = dict()
     YY = dict()
@@ -6505,7 +6497,7 @@ def mk_LV2_BC_dict_edges(lvl):
     indv = get_indices_to_fill(G1['mask_v'])
 
     # bookkeeping so that everything needed for each variable is associated with that variable
-    v_list1 = ['zeta','ubar','vbar']
+    #v_list1 = ['zeta','ubar','vbar']
     v1_2_g = dict()
     v1_2_g['zeta'] = 'rho'
     v1_2_g['ubar'] = 'u'
@@ -6552,7 +6544,6 @@ def mk_LV2_BC_dict_edges(lvl):
     msk2_d2['salt','_west']  = msk2_d1['zeta','_west']
     msk2_d2['u','_west']     = msk2_d1['ubar','_west']
     msk2_d2['v','_west']     = msk2_d1['vbar','_west']
- 
  
     ind_d1 = dict()
     ind_d1['zeta'] = indr
@@ -6635,7 +6626,6 @@ def mk_LV2_BC_dict_edges(lvl):
             angle_on_1[vn,bb][0,:] = z2
             ang_2m1[vn,bb][0,:] = angle_on_2[vn,bb][0,:] - angle_on_1[vn,bb][0,:]
 
-
     #for vn in v_list1: # loop through all 2d variables
     for vn in ['zeta']:
         msk = msk_d1[vn] # get mask on LV1
@@ -6663,9 +6653,6 @@ def mk_LV2_BC_dict_edges(lvl):
                     z2 = interpfun((yy2,xx2)) 
                     ZTA['v'+bb][tind,:] = z2
 
-
-
-
     for vn in v_list2:
         msk = msk_d2[vn]
         ind = ind_d2[vn]
@@ -6682,7 +6669,6 @@ def mk_LV2_BC_dict_edges(lvl):
                     msk2 = msk2_d2[vn,bb]
                     z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the mask
                     OCN_BC_0[vn+bb][tind,zind,:] = z2 # fill correctly
-
 
     for vn in ['temp','u','v']:
         vnn = vn
@@ -6708,106 +6694,8 @@ def mk_LV2_BC_dict_edges(lvl):
                     z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the mask
                     ZZ[vnn+bb][tind,zind,:] = z2 # we need the depths that the horizontal interpolation thinks it is
 
-
-    #print('before entering LV4...')
-    #print('BC[ubar_south][0,0:5]')
-    #print(OCN_BC['ubar_south'][0,0:5])
-    #print('BC[vbar_south][0,0:5]')
-    #print(OCN_BC['vbar_south'][0,0:5])
-
-
-    #lvl = '5'
-    #print('level ', lvl)
-
     if lvl == '4': # need to rotate the velocities!
-
-        OCN_BC_2 = dict()
-   #     OCN_BC_2['vbar_on_u_south'] = np.zeros((Nt,nln-1))
-   #     OCN_BC_2['vbar_on_u_north'] = np.zeros((Nt,nln-1))
-   #     OCN_BC_2['vbar_on_u_west'] = np.zeros((Nt,nlt))
-   #     msk = msk_d1['vbar'] # get mask on LV1
-   #     ind = ind_d1['vbar'] # get indices so that land can be filled with nearest neighbor
-   #     interpfun = intf_d1['vbar']
-   #     for tind in np.arange(Nt): # loop through times
-   #         z0 = np.squeeze( his_ds.variables['vbar'][tind,:,:] )
-   #         z0[msk==0] = z0[msk==1][ind] # fill the mask with nearest neighbor
-   #         setattr(interpfun,'values',z0) # change the interpolator z values
-   #         for bb in bnds:
-   #             xx2 = XX[v1_2_g['ubar'],bb]
-   #             yy2 = YY[v1_2_g['ubar'],bb]
-   #             z2 = interpfun((yy2,xx2)) 
-   #             msk2 = msk2_d1['ubar',bb]
-   #             z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the mask, this is vbar on u
-   #             OCN_BC_2['vbar_on_u'+bb][tind,:] = z2
-                
-        #print('in LV4, pre rotation')
-        #print('vbar_south[0,0:5]')
-        #print(OCN_BC['vbar_south'][0,0:5])
-        #print('ubar_south[0,0:5]')
-        #print(OCN_BC['ubar_south'][0,0:5])
-        #print('vbar_south_onu[0,0:5]')
-        #print(OCN_BC_2['vbar_on_u_south'][0,0:5])
-    
- #       for bb in bnds:
- #           cosa = np.cos(ang_2m1['ubar',bb])
- #           sina = np.sin(ang_2m1['ubar',bb])
- #           OCN_BC['ubar'+bb][:,:] = cosa[None,:] * OCN_BC['ubar'+bb] + sina[None,:] * OCN_BC_2['vbar_on_u'+bb]
-            #if bb == '_south':
-                #print('angle2m1[_south][0:5]')
-                #print(ang_2m1['ubar',bb][0:5])
-                #print('south, cosa[0:5]')
-                #print(cosa[0:5])
-                #print('south, sina[0:5]')
-                #print(sina[0:5])
-        
-        #print('post rotation')
-        #print('ubar_south[0,0:5]')
-        #print(OCN_BC['ubar_south'][0,0:5])
-
-
-
-#        OCN_BC_2['ubar_on_v_south'] = np.zeros((Nt,nln))
-#        OCN_BC_2['ubar_on_v_north'] = np.zeros((Nt,nln))
-#        OCN_BC_2['ubar_on_v_west'] = np.zeros((Nt,nlt-1))
-#        msk = msk_d1['ubar'] # get mask on LV1
-#        ind = ind_d1['ubar'] # get indices so that land can be filled with nearest neighbor
-#        interpfun = intf_d1['ubar']
-#        for tind in np.arange(Nt): # loop through times
-#            z0 = np.squeeze( his_ds.variables['ubar'][tind,:,:] )
-#            z0[msk==0] = z0[msk==1][ind] # fill the mask with nearest neighbor
-#            setattr(interpfun,'values',z0) # change the interpolator z values
-#            for bb in bnds:
-#                xx2 = XX[v1_2_g['vbar'],bb]
-#                yy2 = YY[v1_2_g['vbar'],bb]
-#                z2 = interpfun((yy2,xx2)) # perhaps change here to directly interpolate to (xi,eta) on the edges?
-#                msk2 = msk2_d1['vbar',bb]
-#                z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the mask
-#                OCN_BC_2['ubar_on_v'+bb][tind,:] = z2
-                
-#        print('pre rotation')
-#        print('vbar_south[0,0:5]')
-#        print(OCN_BC['vbar_south'][0,0:5])
-#        print('ubar_south_onv[0,0:5]')
-#        print(OCN_BC_2['ubar_on_v_south'][0,0:5])
-
-#        for bb in bnds:
-#            cosa = np.cos(ang_2m1['vbar',bb])
-#            sina = np.sin(ang_2m1['vbar',bb])
-#            OCN_BC['vbar'+bb][:,:] = cosa[None,:] * OCN_BC['vbar'+bb] - sina[None,:] * OCN_BC_2['ubar_on_v'+bb]
-#            if bb == '_south':
-#                print('angle2m1[_south][0:5]')
-#                print(ang_2m1['vbar',bb][0:5])
-#                print('cosa[0:5]')
-#                print(cosa[0:5])
-#                print('sina[0:5]')
-#                print(sina[0:5])
-
-
-
-#        print('post rotation')
-#        print('vbar_south[0,0:5]')
-#        print(OCN_BC['vbar_south'][0,0:5])
-        
+        OCN_BC_2 = dict()        
         OCN_BC_2['u_on_v_south'] = np.zeros((Nt,Nz1,nln))
         OCN_BC_2['u_on_v_north'] = np.zeros((Nt,Nz1,nln))
         OCN_BC_2['u_on_v_west'] = np.zeros((Nt,Nz1,nlt-1))
@@ -6935,7 +6823,6 @@ def mk_LV2_BC_dict_edges(lvl):
                             hh   = HB[vn+bnd][aa]
                             OCN_BC[vn+'bar'+bnd][cc,aa] = get_depth_avg_v(vf,zf,zeta,hh)                
 
-
     # need to add dye_01 and dye_02 BC.
     # dye BC is zero. And we only need 1st and last times.
 #    lvl = '4'
@@ -6978,23 +6865,9 @@ def mk_LV2_BC_dict_edges(lvl):
                     'coordinates':'dye_time',
                     'field':'dye_time, scalar, series'}
 
-
-#    fn_out = '/scratch/PFM_Simulations/LV3_Forecast/Forc/test_BC_LV4.pkl'
-
-#    print('before exporting to pckl file')
-#    print('BC[ubar_south][0,0:5]')
-#    print(OCN_BC['ubar_south'][0,0:5])
-#    print('BC[vbar_south][0,0:5]')
-#    print(OCN_BC['vbar_south'][0,0:5])
-
-
-
     with open(fn_out,'wb') as fout:
         pickle.dump(OCN_BC,fout)
         print('OCN_LV',lvl,'_BC dict saved with pickle to: ',fn_out)
-
-    #return OCN_BC
-    #return xi_r2, eta_r2, interp_r
 
 
 def zzinterp(vp, zp, zf):
@@ -7352,9 +7225,9 @@ def mk_LV2_BC_dict_1hrzeta(lvl):
 
 
 
-def mk_LV2_IC_dict(lvl):
+def mk_LV2_IC_dict(lvl,pkl_fnm):
 
-    PFM=get_PFM_info()  
+    PFM=initfuns.get_model_info(pkl_fnm)  
     if lvl == '2':
         G1 = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
         G2 = grdfuns.roms_grid_to_dict(PFM['lv2_grid_file'])
@@ -7615,18 +7488,6 @@ def mk_LV2_IC_dict(lvl):
                 z2 = interpfun((yy2,xx2))
                 ZZ['v'][tind,zind,:,:] = z2
 
-    #print('pre rotation IC values:')
-    #print('OCN_IC[vbar][0,0,0:5]:')
-    #print(OCN_IC['vbar'][0,0,0:5])
-    #print('OCN_IC[ubar][0,0,0:5]:')
-    #print(OCN_IC['ubar'][0,0,0:5])
-    #print('OCN_IC_0[v][0,-1,0,0:5]:')
-    #print(OCN_IC_0['v'][0,-1,0,0:5])
-    #print('OCN_IC_0[u][0,-1,0,0:5]:')
-    #print(OCN_IC_0['u'][0,-1,0,0:5])
-
-    #lvl = '5'
-    #print('level ',lvl)
 
     if lvl == '4': # we need to rotate the velocities
         method = 1
@@ -7635,9 +7496,6 @@ def mk_LV2_IC_dict(lvl):
             ang2on2 = G2['angle']
             ang2on2u = .5*( ang2on2[:,0:-1] + ang2on2[:,1:] )
             ang2on2v = .5*( ang2on2[0:-1,:] + ang2on2[1:,:] )
-
-            #print('ang2on2[0,0:5]')
-            #print(ang2on2[0,0:5])
             
             # this part rotates ubar. we need vb1on2
             interpfun = intf_d1['zeta'] 
@@ -7655,14 +7513,6 @@ def mk_LV2_IC_dict(lvl):
             sin_ang = np.sin( ang2on2u - ang1on2u )
             
             interpfun = intf_d1['vbar']
-            #z0 = np.squeeze( IC1['vbar'][tind,:,:] )
-            #z0[msk==0] = z0[msk==1][ind]
-            #setattr(interpfun,'values',z0)
-            #z2 = interpfun((yy2,xx2))
-            #z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the mask
-            #OCN_IC['ubar'][0,:,:] = cos_ang * np.squeeze(OCN_IC['ubar'][0,:,:]) + sin_ang  * z2
-            #print('post rotation OCN_IC[ubar][0,0,0:5]')
-            #print(OCN_IC['ubar'][0,0,0:5])
 
             for zind in np.arange(Nz1): # now rotate to new u
                 z0 = np.squeeze( IC1['v'][tind,zind,:,:] )
@@ -7687,20 +7537,6 @@ def mk_LV2_IC_dict(lvl):
             #z0 = np.squeeze( IC1['ubar'][tind,:,:] )
             #z0[msk==0] = z0[msk==1][ind]
             interpfun = intf_d1['ubar']
-            #setattr(interpfun,'values',z0)
-            #z2 = interpfun((yy2,xx2))
-            #z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the mask
-            #print('pre rotation ubar on v, z2[0,0:5]:')
-            #print(z2[0,0:5])
-            #print('cos_ang[0,0:5]')
-            #print(cos_ang[0:0:5])
-            #print('sin_ang[0,0:5]')
-            #print(sin_ang[0:0:5])
-            #print('pre rotation OCN_IC[vbar][0,0,0:5]')
-            #print(OCN_IC['vbar'][0,0,0:5])
-            #OCN_IC['vbar'][0,:,:] = cos_ang * np.squeeze(OCN_IC['vbar'][0,:,:]) - sin_ang * z2
-            #print('post rotation OCN_IC[vbar][0,0,0:5]')
-            #print(OCN_IC['vbar'][0,0,0:5])
             
             for zind in np.arange(Nz1): # now rotate to new v
                 z0 = np.squeeze( IC1['u'][tind,zind,:,:] )
@@ -7852,13 +7688,6 @@ def mk_LV2_IC_dict(lvl):
                 hb = 0.5 * ( G2['h'][aa,bb] + G2['h'][aa+1,bb])
                 OCN_IC['vbar'][tind,aa,bb] = get_depth_avg_v(v2,z2,zeta,hb)
 
-
-#    fn_out = '/scratch/PFM_Simulations/LV3_Forecast/Forc/test_IC_LV3.pkl'
-#    with open(LV2_BC_pckl,'wb') as fout:
-#    print('pre saving, OCN_IC[ubar][0,0,0:5]')
-#    print(OCN_IC['ubar'][0,0,0:5])
-#    print('pre saving, OCN_IC[vbar][0,0,0:5]')
-#    print(OCN_IC['vbar'][0,0,0:5])
 
     with open(fn_out,'wb') as fout:
         pickle.dump(OCN_IC,fout)

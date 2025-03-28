@@ -89,7 +89,6 @@ def initialize_model(input_py_full,modinfo_pkl_full):
         t_starts, t_ends = get_hindcast_days(MINFO['sim_start_time'],MINFO['sim_end_time'],MINFO['forecast_days'])
         MINFO['start_times_str'] = t_starts
         MINFO['end_times_str'] = t_ends
-        MINFO['levels_to_run'] = ['LV1']
 
     with open(modinfo_pkl_full,'wb') as fout:
         pickle.dump(MINFO,fout)
