@@ -1,11 +1,68 @@
 import os
 import numpy as np
+import xarray as xr
 import sys
 import subprocess
+from datetime import datetime
 sys.path.append('../sdpm_py_util')
 import plotting_functions as pltfuns
 #import grid_functions as grdfuns
 
+
+def full_his_to_essential(his_fname,grd_fname):
+
+    # return the essential data from the history file
+    # dye has dye[time,lat,lon]
+    # shoreline has dye[time,position] and risk
+    # sites has dye[time,6 positions] and risk
+    dye, shore, sites = pltfuns.get_history_essential(his_fname,grd_fname) 
+
+#    print(dye.keys())
+#    print(shore.keys())
+#    print(sites.keys())
+
+    site_locations = ", ".join(sites['Names'][:])
+
+    times = dye['Times'][:]
+    dt = times - datetime.strptime('19990101','%Y%m%d')
+    days_past = np.zeros(len(dt))
+    for ii in np.arange(len(dt)):
+        days_past[ii] = dt[ii].total_seconds() / (3600*24)
+
+    #print(np.shape(shore['Lat']))
+
+    ds = xr.Dataset(
+        data_vars = dict(
+            shoreline_dye_tot = (["ntime","nshore"],shore['Dye_tot'],{'long_name':'total dye concentration at shoreline, dye_01+dye_02','units':'waste water concetration','time':'time','coordinates':'shoreline'}),
+            shoreline_risk = (["ntime","nshore"],shore['Risk'],{'long_name':'risk at shoreline, 0=low,1=medium,2=high','units':'none','time':'time','coordinates':'shoreline'}),
+            map_dye_tot = (["ntime","nlat","nlon"],dye['Dye_tot'],{'long_name':'total dye concentration from history file, dye_01+dye_02','units':'waste water concetration','time':'time','coordinates':'lat,lon'}),
+            sites_dye_tot = (["ntime","nsites"],sites['Dye_tot'],{'long_name':'total dye concentration at specific sites, dye_01+dye_02','units':'none','time':'time','coordinates':'site locations'}),
+            sites_risk = (["ntime","nsites"],sites['Risk'],{'long_name':'risk at specific sites, 0=low,1=medium,2=high','units':'none','time':'time','coordinates':'site locations'}),
+        ),
+        coords=dict(
+            map_lat = (["nlat","nlon"],dye['Lat'],{'long_name':'latitudes on map','units':'degrees'}),
+            map_lon = (["nlat","nlon"],dye['Lon'],{'long_name':'longitudes on map','units':'degrees'}),
+            shoreline_lat =(["nshore"],np.squeeze(shore['Lat']),{'long_name':'shoreline latitudes','units':'degrees'}),
+            shoreline_lon =(["nshore"],np.squeeze(shore['Lon']),{'long_name':'shoreline longitudes','units':'degrees'}),
+            time = (["ntime"],np.squeeze(days_past),{'long_name':'time in days past Jan 1, 1999','units':'days'}),
+            sites_lat = (["nsites"],sites['Lat'],{'long_name':'latitudes at sites','units':'degrees'}),
+            sites_lon = (["nsites"],sites['Lon'],{'long_name':'longitudes at sites','units':'degrees'}),
+               ),
+        attrs={'type':'data for website plotting',
+            'time info':'time is in days relative to Jan 1 1999.',
+            'risk info':'0 is low risk, log10 dye_tot < ' + str(shore['Thresh_holds'][0]) + ', 1 is medium, ' + str(shore['Thresh_holds'][0]) + '<log10 dye_tot <'+ str(shore['Thresh_holds'][1]) + ', high, log10 dye_tot >' + str(shore['Thresh_holds'][1]),
+            'site info':'the site locations are ' + site_locations,
+            },
+        )
+
+    yyyymmddhh = times[0].strftime('%Y%m%d%H')
+    fname_out = '/scratch/PFM_Simulations/LV4_Forecast/His/web_data_'+yyyymmddhh+'.nc'
+    ds.to_netcdf(fname_out)
+
+
+    #file_made_code=1
+    #return file_made_code
+    #return dye, shore, sites
 
 def plot_his_figures_fromnc(*args):
     # this function is a wrapper to plot all of the history file plots with the input being: 

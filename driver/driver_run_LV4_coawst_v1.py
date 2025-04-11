@@ -295,6 +295,13 @@ copy_mv_nc_file('atm','lv4')
 copy_mv_nc_file('river','lv4')
 print('...done')
 
+print('making the web netcdf file...')
+cmd_list = ['python','-W','ignore','web_functions.py','full_his_to_essential',fn_hs,fn_gr]
+os.chdir('../web_util')
+ret6 = subprocess.run(cmd_list)   
+print('...done making web nc file: ' + str(ret6.returncode) + ' (0=good)')  
+os.chdir('../driver')
+
 
 #pltfuns.make_all_his_figures('LV4')
 dt_plotting.append(datetime.now()-t01)
