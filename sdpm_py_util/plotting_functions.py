@@ -2227,7 +2227,7 @@ def get_history_essential(fn_his,fn_grd):
     # the numbers that separate low, medium, and high risk
     # based on log10 of total_dye concentration
     # threshholds are set here!!!
-    thresh_hold = np.array([-4,-3])
+    thresh_hold = np.array([-4.5,-3])
     Shoreline['Thresh_holds'] = thresh_hold
     Sites['Thresh_holds'] = thresh_hold
 
