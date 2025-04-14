@@ -2300,6 +2300,8 @@ def get_history_essential(fn_his,fn_grd):
 
     Dye['Dye_tot'] = dyetot
     dyeTot = dye_01 + dye_02
+    msk = dyeTot==0
+    dyeTot[msk]=0.0000000001
     Shoreline['Dye_tot'] = dyeTot
     l10dyeTot = np.log10( dyeTot )
     risk = 0*dyeTot
@@ -2313,9 +2315,9 @@ def get_history_essential(fn_his,fn_grd):
     Shoreline['Risk']=risk
     
     # PTJ, border, TJRE, IB pier, Silver Strand, HdC
-    ln_lab = ['PTJ','border','TJRE','IB pier','Silver Strand','HdC']
+    ln_lab = ['PTJ','IB pier','Silver Strand','HdC']
     Sites['Names'] = ln_lab
-    lts0 = [32.52, 32.534, 32.552, 32.58, 32.625, 32.678]
+    lts0 = [32.52, 32.58, 32.625, 32.678]
     ipts = np.zeros((len(lts0)),dtype=int)
 
     lat2 = np.zeros(len(lts0))
