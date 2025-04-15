@@ -3049,6 +3049,7 @@ def make_all_tmp_pckl_ocnR_files_1hrzeta(fname_in):
 
     for aa in ork:
         cmd_list = ['python','-W','ignore','ocn_functions.py','make_tmp_hy_on_rom_pckl_files_1hrzeta',fname_in,aa]
+        #cmd_list = ['python','ocn_functions.py','make_tmp_hy_on_rom_pckl_files_1hrzeta',fname_in,aa]
         ret1 = subprocess.run(cmd_list )     
         rctot = rctot + ret1.returncode
         if ret1.returncode != 0:
@@ -3110,6 +3111,7 @@ def make_tmp_hy_on_rom_pckl_files_1hrzeta(fname_in,var_name):
     # velocity will be on both (lat_u,lon_u)
     # and (lat_v,lon_v).
 
+    # print('doing ' + var_name )
     # load the hycom data
     with open(fname_in,'rb') as fp:
         HY = pickle.load(fp)
@@ -3198,14 +3200,17 @@ def make_tmp_hy_on_rom_pckl_files_1hrzeta(fname_in,var_name):
             HYrm[var_name][cc,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],Fz)            
 
     elif var_name == 'salt' or var_name == 'temp':
+        #print('in here ' + var_name)
         Fz = RegularGridInterpolator((HY['lat'],HY['lon']),HY['zeta'][0,:,:])
         HYrm[var_name] = np.zeros((NT,NZ,NR,NC))
         for cc in range(NT):
+            #print(cc)
             for bb in range(NZ):
                 zhy2 = HY[var_name][cc,bb,:,:]
                 HYrm[var_name][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],Fz)            
 
     elif var_name == 'urm' or var_name == 'vrm':
+        #print('doing ' + var_name)
         Fz = RegularGridInterpolator((HY['lat'],HY['lon']),HY['zeta'][0,:,:])
 
         hyz = HY['depth']
@@ -3219,6 +3224,7 @@ def make_tmp_hy_on_rom_pckl_files_1hrzeta(fname_in,var_name):
             HYrm['vrm'] = np.zeros((NT,NZ,NR-1,NC)) 
         
         for cc in range(NT):
+            #print(cc)
             for bb in range(NZ):
                 uhy = HY['u'][cc,bb,:,:]
                 vhy = HY['v'][cc,bb,:,:]
@@ -3265,6 +3271,7 @@ def make_tmp_hy_on_rom_pckl_files(fname_in,var_name):
     # velocity will be on both (lat_u,lon_u)
     # and (lat_v,lon_v).
 
+    print('doing ' + var_name)
     # load the hycom data
     with open(fname_in,'rb') as fp:
         HY = pickle.load(fp)
@@ -3352,6 +3359,7 @@ def make_tmp_hy_on_rom_pckl_files(fname_in,var_name):
             HYrm[var_name][cc,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],Fz)            
 
     elif var_name == 'salt' or var_name == 'temp':
+        #print('in here')
         Fz = RegularGridInterpolator((HY['lat'],HY['lon']),HY['zeta'][0,:,:])
         HYrm[var_name] = np.zeros((NT,NZ,NR,NC))
         for cc in range(NT):
@@ -8682,7 +8690,12 @@ def mk_lv4_river_nc():
     print('the time-mean discharge for TJR is ')
     print(str( 5*np.mean(D['river_transport'][:,0]) ) + ' m3/s')
 
-    D['river_transport'][:,5] = -2.1906 + D['river_transport'][:,5] # this is PB. and is the right value
+    #D['river_transport'][:,5] = -2.1906 + D['river_transport'][:,5] # this is PB. original value
+    D['river_transport'][:,5] = -2.5 + D['river_transport'][:,5] # this is PB. 4/14/25 value
+    # based on discussion with Liden at PFM meeting
+    # but Liden also said that this is good for dry weather, wet weather flow gets
+    # diverted and at PB Qww = 0.175 m3/s, Qfw 0.79 m3/s, Qtot = 0.965 m3/s, and 
+    # dye_01 = 0.175 / 0.965 = 0.1818. NOT IMPLEMENTED!!!! 
 
     D['river_transport'][:,6] = - 0.5 * QQ['discharge'][:,0] # sweetwater discharge
     D['river_transport'][:,7] = D['river_transport'][:,6]
@@ -8727,23 +8740,41 @@ def mk_lv4_river_nc():
                         'field':'river salt, scalar, series'}
 
     D['river_dye_01'] = np.zeros((nt,Nz,9)) # this is always zero. 
-    D['river_dye_01'][:,:,5] = 0.7 + D['river_dye_01'][:,:,5]
+    #D['river_dye_01'][:,:,5] = 0.7 + D['river_dye_01'][:,:,5] # original value
+    D['river_dye_01'][:,:,5] = 0.5088 + D['river_dye_01'][:,:,5] # new value
+    # based on Liden discussion at PFM meeting 0.5088 = 29/(28+29)
+    # where 29 MGD WW, and 28 MGD non-WW
+
     D['vinfo']['river_dye_01'] = {'long_name':'river runoff dye, fraction raw sewage at PB',
                         'units':'fraction',
                         'field':'river dye 1, scalar, series'}
 
     D['river_dye_02'] = np.zeros((nt,Nz,9)) # this is always zero.
     Q2 = - 5 * D['river_transport'][:,0] # - sign to insure positive
-    mgd2m3s = 1.01/23    # a conversion factor, from MGD to m3/s
-    Qd = 12.5 * mgd2m3s  # the amount of sewage discharge if Q > Qcrit
-    dye2 = Qd  / Q2      # the fraction of raw sewage for Q > Qcrit
-    dye0 = .3            # the fraction of raw sewage for Q < Qcrit 
-    Qcrit = Qd / dye0    # we calculate Qcrit so that dye2 is continuous as a function of Q
-    print('the TJRE critical Q is')
-    print(str(Qcrit) + ' m3/s or ' + str(Qcrit/mgd2m3s) + ' MGD')
+    # this is Qtot of TJRE
+    old_way = 2
+    if old_way == 1:
+        mgd2m3s = 1.01/23    # a conversion factor, from MGD to m3/s
+        Qd = 12.5 * mgd2m3s  # the amount of sewage discharge if Q > Qcrit
+        dye2 = Qd  / Q2      # the fraction of raw sewage for Q > Qcrit
+        dye0 = .3            # the fraction of raw sewage for Q < Qcrit 
+        Qcrit = Qd / dye0    # we calculate Qcrit so that dye2 is continuous as a function of Q
+        print('the TJRE critical Q is')
+        print(str(Qcrit) + ' m3/s or ' + str(Qcrit/mgd2m3s) + ' MGD')
 
-    ic = np.argwhere(Q2 < Qcrit) # where 
-    dye2[ic] = dye0 # is now the correct dye concentration for TJRE
+        ic = np.argwhere(Q2 < Qcrit) # where 
+        dye2[ic] = dye0 # is now the correct dye concentration for TJRE
+    else:
+        # this is based on Biggs data. we were underestimate WW fraction
+        # this formula better matches his data
+        R1 = 0.65
+        R2 = 0.045
+        Q00 = 2.25
+        WW1 = R1*Q2
+        WW2 = R2*Q2 + (R1-R2)*Q00
+        msk = Q2>Q00
+        WW1[msk] = WW2[msk]
+        dye2 = WW1 / Q2
 
     for aa in np.arange(nt):
         D['river_dye_02'][aa,:,0:4] = dye2[aa]
