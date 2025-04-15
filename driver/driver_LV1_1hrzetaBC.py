@@ -424,7 +424,7 @@ os.chdir('../driver')
 #print('this took:')
 #print(t02-t01)
 #print('\n')
-print('\nmoving LV1 atm file to Archive2.5...')
+print('\nmoving LV1 atm file to Archive...')
 copy_mv_nc_file('atm','lv1')
 print('...done')
 

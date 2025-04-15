@@ -290,7 +290,7 @@ os.chdir('../driver')
 print('this took:')
 print(datetime.now()-t01)
 
-print('\nmoving LV4 atm and river files to Archive2.5...')
+print('\nmoving LV4 atm and river files to Archive...')
 copy_mv_nc_file('atm','lv4')
 copy_mv_nc_file('river','lv4')
 print('...done')
