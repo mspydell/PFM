@@ -3049,6 +3049,7 @@ def make_all_tmp_pckl_ocnR_files_1hrzeta(fname_in):
 
     for aa in ork:
         cmd_list = ['python','-W','ignore','ocn_functions.py','make_tmp_hy_on_rom_pckl_files_1hrzeta',fname_in,aa]
+        #cmd_list = ['python','ocn_functions.py','make_tmp_hy_on_rom_pckl_files_1hrzeta',fname_in,aa]
         ret1 = subprocess.run(cmd_list )     
         rctot = rctot + ret1.returncode
         if ret1.returncode != 0:
@@ -3110,6 +3111,7 @@ def make_tmp_hy_on_rom_pckl_files_1hrzeta(fname_in,var_name):
     # velocity will be on both (lat_u,lon_u)
     # and (lat_v,lon_v).
 
+    # print('doing ' + var_name )
     # load the hycom data
     with open(fname_in,'rb') as fp:
         HY = pickle.load(fp)
@@ -3198,14 +3200,17 @@ def make_tmp_hy_on_rom_pckl_files_1hrzeta(fname_in,var_name):
             HYrm[var_name][cc,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],Fz)            
 
     elif var_name == 'salt' or var_name == 'temp':
+        #print('in here ' + var_name)
         Fz = RegularGridInterpolator((HY['lat'],HY['lon']),HY['zeta'][0,:,:])
         HYrm[var_name] = np.zeros((NT,NZ,NR,NC))
         for cc in range(NT):
+            #print(cc)
             for bb in range(NZ):
                 zhy2 = HY[var_name][cc,bb,:,:]
                 HYrm[var_name][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],Fz)            
 
     elif var_name == 'urm' or var_name == 'vrm':
+        #print('doing ' + var_name)
         Fz = RegularGridInterpolator((HY['lat'],HY['lon']),HY['zeta'][0,:,:])
 
         hyz = HY['depth']
@@ -3219,6 +3224,7 @@ def make_tmp_hy_on_rom_pckl_files_1hrzeta(fname_in,var_name):
             HYrm['vrm'] = np.zeros((NT,NZ,NR-1,NC)) 
         
         for cc in range(NT):
+            #print(cc)
             for bb in range(NZ):
                 uhy = HY['u'][cc,bb,:,:]
                 vhy = HY['v'][cc,bb,:,:]
@@ -3265,6 +3271,7 @@ def make_tmp_hy_on_rom_pckl_files(fname_in,var_name):
     # velocity will be on both (lat_u,lon_u)
     # and (lat_v,lon_v).
 
+    print('doing ' + var_name)
     # load the hycom data
     with open(fname_in,'rb') as fp:
         HY = pickle.load(fp)
@@ -3352,6 +3359,7 @@ def make_tmp_hy_on_rom_pckl_files(fname_in,var_name):
             HYrm[var_name][cc,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],Fz)            
 
     elif var_name == 'salt' or var_name == 'temp':
+        #print('in here')
         Fz = RegularGridInterpolator((HY['lat'],HY['lon']),HY['zeta'][0,:,:])
         HYrm[var_name] = np.zeros((NT,NZ,NR,NC))
         for cc in range(NT):
