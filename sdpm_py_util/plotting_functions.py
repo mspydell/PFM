@@ -2751,7 +2751,13 @@ def make_dye_plots_v2(fn_grd,fn_his,dir_out):
     else:
         plt.show()
 
-
+#def test_popen(nsec,nloop):
+#    nsec2 = int(nsec)
+#    nloop2 = int(nloop)
+#    for aa in np.arange(nloop2):
+#        print('testing. loop:', str(aa), ' of ',nloop)
+#        print('pausing ',nsec,' sec')
+#        time.sleep(nsec2)
 
 if __name__ == "__main__":
     args = sys.argv

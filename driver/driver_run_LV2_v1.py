@@ -187,14 +187,15 @@ dt_roms.append(t2-t1)
 
 # plot his.nc from LV2 
 t01=datetime.now()
-print('now making LV2 history file plots...')
+print('now making LV2 history file plots. Starting subprocesses.Popen...')
 cmd_list = ['python','-W','ignore','plotting_functions.py','make_all_his_figures','LV2']
 os.chdir('../sdpm_py_util')
-ret6 = subprocess.run(cmd_list)   
-print('...done plotting LV2: ' + str(ret6.returncode) + ' (0=good)')  
+ret6 = subprocess.Popen(cmd_list)   
+#print('...done plotting LV2: ' + str(ret6.returncode) + ' (0=good)')  
 os.chdir('../driver')
-print('this took:')
-print(datetime.now()-t01)
+print('... moving on.')
+#print('this took:')
+#print(datetime.now()-t01)
 
 #print('now making LV2 history file plots')
 #pltfuns.make_all_his_figures('LV2')

@@ -408,15 +408,13 @@ dt_roms = []
 dt_roms.append(t02-t01)
 
 # now making history file plots
-print('now making LV1 history file plots...')
+print('now making LV1 history file plots. starting subprocess.Popen...')
 t01=datetime.now()
 cmd_list = ['python','-W','ignore','plotting_functions.py','make_all_his_figures','LV1']
 os.chdir('../sdpm_py_util')
-ret6 = subprocess.run(cmd_list)   
-print('...done plotting LV1: ' + str(ret6.returncode) + ' (0=good)')  
+ret6 = subprocess.Popen(cmd_list)   
+print('... moving on.')  
 os.chdir('../driver')
-print('this took:')
-print(datetime.now()-t01)
 
 #print('now making LV1 history file plots...')
 #t01 = datetime.now()
@@ -429,7 +427,6 @@ print(datetime.now()-t01)
 print('\nmoving LV1 atm file to Archive2.5...')
 copy_mv_nc_file('atm','lv1')
 print('...done')
-
 
 dt_plotting.append(datetime.now()-t01)
 
