@@ -38,6 +38,9 @@ def full_his_to_essential(his_fname,grd_fname):
             map_dye_tot = (["ntime","nlat","nlon"],dye['Dye_tot'],{'long_name':'total dye concentration from history file, dye_01+dye_02','units':'waste water concetration','time':'time','coordinates':'lat,lon'}),
             sites_dye_tot = (["ntime","nsites"],sites['Dye_tot'],{'long_name':'total dye concentration at specific sites, dye_01+dye_02','units':'none','time':'time','coordinates':'site locations'}),
             sites_risk = (["ntime","nsites"],sites['Risk'],{'long_name':'risk at specific sites, 0=low,1=medium,2=high','units':'none','time':'time','coordinates':'site locations'}),
+            shoreline_l10_dye_tot = (["ntime","nshore"],shore['l10_Dye_tot'],{'long_name':'log10 total dye concentration at shoreline, log10(dye_01+dye_02)','units':'waste water concetration','time':'time','coordinates':'shoreline'}),
+            map_l10_dye_tot = (["ntime","nlat","nlon"],dye['l10_Dye_tot'],{'long_name':'log10 total dye concentration from history file, log10(dye_01+dye_02)','units':'waste water concetration','time':'time','coordinates':'lat,lon'}),
+            sites_l10_dye_tot = (["ntime","nsites"],sites['l10_Dye_tot'],{'long_name':'log10 total dye concentration at specific sites, log10(dye_01+dye_02)','units':'none','time':'time','coordinates':'site locations'}),
         ),
         coords=dict(
             map_lat = (["nlat","nlon"],dye['Lat'],{'long_name':'latitudes on map','units':'degrees'}),
@@ -58,6 +61,7 @@ def full_his_to_essential(his_fname,grd_fname):
 
     yyyymmddhh = times[0].strftime('%Y%m%d%H')
     fname_out = '/scratch/PFM_Simulations/LV4_Forecast/His/web_data_'+yyyymmddhh+'.nc'
+#    fname_out = '/scratch/PFM_Simulations/LV4_Forecast/His/web_data_latest.nc'
     ds.to_netcdf(fname_out)
 
 

@@ -103,6 +103,10 @@ os.chdir('../sdpm_py_util')
 cmd_list = ['python','-W','ignore','ocn_functions.py','hycom_ncfiles_to_pickle',yyyymmdd_hy]
 ret1 = subprocess.run(cmd_list)     
 os.chdir('../driver')
+if ret1.returncode != 0:
+    print('exiting driver_LV1 now!')
+    sys.exit(1)
+
 print('did subprocess run correctly? ' + str(ret1.returncode) + ' (0=yes,1=no)')
 print('...done.')
 t02 = datetime.now() 

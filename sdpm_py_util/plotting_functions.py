@@ -2299,11 +2299,17 @@ def get_history_essential(fn_his,fn_grd):
                 dye_02[aa,bb] = np.squeeze(dye2[iys[bb],ixs[bb]])
 
     Dye['Dye_tot'] = dyetot
+    msk = dyetot==0
+    dyetot2 = dyetot
+    dyetot2[msk] = 0.0000000001
+    l10dyetot2 = np.log10(dyetot2)
+    Dye['l10_Dye_tot'] = l10dyetot2
     dyeTot = dye_01 + dye_02
     msk = dyeTot==0
     dyeTot[msk]=0.0000000001
     Shoreline['Dye_tot'] = dyeTot
     l10dyeTot = np.log10( dyeTot )
+    Shoreline['l10_Dye_tot'] = l10dyeTot
     risk = 0*dyeTot
     #print(thresh_hold)
     #print(thresh_hold[0])
@@ -2314,8 +2320,8 @@ def get_history_essential(fn_his,fn_grd):
     risk[msk2] = 2
     Shoreline['Risk']=risk
     
-    # PTJ, border, TJRE, IB pier, Silver Strand, HdC
-    ln_lab = ['PTJ','IB pier','Silver Strand','HdC']
+    # PTJ, IB pier, Silver Strand, HdC
+    ln_lab = ['Playas de Tijuana','Imperial Beach pier','Silver Strand','Hotel del Coronado']
     Sites['Names'] = ln_lab
     lts0 = [32.52, 32.58, 32.625, 32.678]
     ipts = np.zeros((len(lts0)),dtype=int)
@@ -2333,7 +2339,13 @@ def get_history_essential(fn_his,fn_grd):
     Sites['Lon'] = lon2
     Sites['Risk'] = Shoreline['Risk'][:,ipts]
     Sites['Dye_tot'] = Shoreline['Dye_tot'][:,ipts]
-    
+    dye3 = Sites['Dye_tot']
+    msk = dye3==0
+    dye4 = dye3
+    dye4[msk]=0.0000000001
+    dye5=np.log10(dye4)
+    Sites['l10_Dye_tot'] = dye5
+
     return Dye, Shoreline, Sites
 
 def get_shoreline_data(fn_grd):

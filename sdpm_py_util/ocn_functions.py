@@ -1544,23 +1544,39 @@ def hycom_ncfiles_to_pickle(yyyymmdd):
     eta = np.zeros((ntz,nlt,nln))
     t_rom2 = np.zeros((ntz))
     cnt=0
+    t_from_fname = 1 # switch added 4-19-2025 because hycom time stopped having units.
     for fn in fn_ssh:
+        #print(fn)
         #dss = xr.open_dataset(fn)
         dss = xr.open_dataset(fn,decode_times=False)
         #dt = (dss.time - np.datetime64(t_ref))  / np.timedelta64(1,'D') # this gets time in days from t_ref
-        thy_hr = dss.time[:].data # hours since tref_hy
-        tref_hy = dss.time.units
-        tref_hy2 = tref_hy[12:31]
-        tref_dt = datetime.strptime(tref_hy2,'%Y-%m-%d %H:%M:%S')
-        thy = tref_dt + thy_hr * timedelta(hours=1) # now datetime
-        trm = thy - t_ref # now a timedelta referenced to roms
-        dt = trm[0].total_seconds() / (3600*24) # now days since time ref
+        if t_from_fname == 1:
+            tstr = fn[-19:-3] # this is where time is in the filename
+            thy  = datetime.strptime(tstr,'%Y-%m-%dT%H:%M')
+            trm = thy - t_ref # now a timedelta referenced to roms
+            dt = trm.total_seconds() / (3600*24) # now days since time ref
+        else:    
+            thy_hr = dss.time[:].data # hours since tref_hy
+            tref_hy = dss.time.units
+            tref_hy2 = tref_hy[12:31]
+            tref_dt = datetime.strptime(tref_hy2,'%Y-%m-%d %H:%M:%S')
+            thy = tref_dt + thy_hr * timedelta(hours=1) # now datetime
+            trm = thy - t_ref # now a timedelta referenced to roms
+            dt = trm[0].total_seconds() / (3600*24) # now days since time ref
+        
 
         #t_rom2[cnt] = dt.values
         t_rom2[cnt] = dt
         eta[cnt,:,:] = dss.surf_el.values
         dss.close()
         cnt=cnt+1
+
+    etamx = np.nanmax( np.abs(eta[:]) )
+    #print(etamx)
+    if etamx > 5.0:
+        print('\n!!!! WARNING !!!!')
+        print('there is a at least one bad hycom surf_el .nc file. We will exit the simulation!!!')
+        sys.exit(1)        
 
     OCN['zeta_time'] = t_rom2
     OCN['zeta'] = eta
@@ -1579,13 +1595,21 @@ def hycom_ncfiles_to_pickle(yyyymmdd):
     for fn in fn_t3z:
         dss = xr.open_dataset(fn,decode_times=False)
     #    dt = (dss.time - np.datetime64(t_ref))  / np.timedelta64(1,'D') # this gets time in days from t_ref
-        thy_hr = dss.time[:].data # hours since tref_hy
-        tref_hy = dss.time.units
-        tref_hy2 = tref_hy[12:31]
-        tref_dt = datetime.strptime(tref_hy2,'%Y-%m-%d %H:%M:%S')
-        thy = tref_dt + thy_hr * timedelta(hours=1) # now datetime
-        trm = thy - t_ref # now a timedelta referenced to roms
-        dt = trm[0].total_seconds() / (3600*24) # now days since time ref
+
+        if t_from_fname == 1:
+            tstr = fn[-19:-3] # this is where time is in the filename
+            thy  = datetime.strptime(tstr,'%Y-%m-%dT%H:%M')
+            trm = thy - t_ref # now a timedelta referenced to roms
+            dt = trm.total_seconds() / (3600*24) # now days since time ref
+        else:    
+            thy_hr = dss.time[:].data # hours since tref_hy
+            tref_hy = dss.time.units
+            tref_hy2 = tref_hy[12:31]
+            tref_dt = datetime.strptime(tref_hy2,'%Y-%m-%d %H:%M:%S')
+            thy = tref_dt + thy_hr * timedelta(hours=1) # now datetime
+            trm = thy - t_ref # now a timedelta referenced to roms
+            dt = trm[0].total_seconds() / (3600*24) # now days since time ref
+            
     #    t_rom[cnt] = dt.values
         t_rom[cnt] = dt
         temp[cnt,:,:,:] = dss.water_temp.values
