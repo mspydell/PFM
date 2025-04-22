@@ -3,6 +3,7 @@
 from datetime import datetime
 from datetime import timedelta
 import time
+import re
 import gc
 import resource
 import pickle
@@ -505,6 +506,24 @@ def delete_directory_if_exists(dir_path):
         print(f"Directory '{dir_path}' does not exist.")
 
 
+def get_matching_files(directory, regex):
+    """
+    Returns a list of files in the given directory that match the provided regular expression.
+
+    Args:
+        directory (str): The path to the directory to search.
+        regex (str): The regular expression to match against filenames.
+
+    Returns:
+        list: A list of filenames that match the regular expression.
+    """
+    matching_files = []
+    for filename in os.listdir(directory):
+        if re.search(regex, filename):
+            matching_files.append(filename)
+    return matching_files
+
+
 def get_hycom_foretime_v2(t1str,t2str):
 
     PFM = get_PFM_info()
@@ -557,48 +576,6 @@ def get_hycom_foretime_v2(t1str,t2str):
         #get_hycom_data_1hr(t0str) # aggregated
         get_hycom_data_1hr_v2(t0str) # new url
         t0 = t0 + timedelta(days=1)
-
-#    t0s = stored_hycom_dates() # figure out what days we presently have forecast data for.
-#    miss_dict = {}
-#    nms_dict = {}
-#    for dts in t0s:
-#        yyyymmdd = dts[0:4] + dts[5:7] + dts[8:10]
-#        yyyymmddhhmm = yyyymmdd + '1200'
-#        t1 = datetime.strptime(yyyymmddhhmm,'%Y%m%d%H%M')
-#        t2 = t1+8.0*timedelta(days=1)
-#        times = [t1,t2]
-#        n0, num_missing, miss_dict[yyyymmdd] = check_hycom_data(yyyymmdd,times)
-#        nms_dict[yyyymmdd] = num_missing
-
-#    print('\nwe will try and get these missing files from the unaggregated server...')
-#    for dts in t0s:
-#        yyyymmdd = dts[0:4] + dts[5:7] + dts[8:10]
-#        if nms_dict[yyyymmdd] > 0:
-#            print('getting hycom ', yyyymmdd, ' files...')
-            #get_hycom_data_fnames(yyyymmdd,miss_dict[yyyymmdd])
-#            get_hycom_data_fnames_v3(miss_dict[yyyymmdd]) 
-#    print('...done')
-
-#    t0s = stored_hycom_dates() # figure out what days we presently have forecast data for.
-#    miss_dict = {}
-#    nms_dict = {}
-#    for dts in t0s:
-#        yyyymmdd = dts[0:4] + dts[5:7] + dts[8:10]
-#        yyyymmddhhmm = yyyymmdd + '1200'
-#        t1 = datetime.strptime(yyyymmddhhmm,'%Y%m%d%H%M')
-#        t2 = t1+8.0*timedelta(days=1)
-#        times = [t1,t2]
-#        n0, num_missing, miss_dict[yyyymmdd] = check_hycom_data(yyyymmdd,times)
-#        nms_dict[yyyymmdd] = num_missing
-
-#    print('\nwe will try and get these missing files from the unaggregated server...')
-#    for dts in t0s:
-#        yyyymmdd = dts[0:4] + dts[5:7] + dts[8:10]
-#        if nms_dict[yyyymmdd] > 0:
-#            print('getting hycom ', yyyymmdd, ' files...')
-            #get_hycom_data_fnames(yyyymmdd,miss_dict[yyyymmdd])
-#            get_hycom_data_fnames_v2(miss_dict[yyyymmdd]) 
-#    print('...done')
 
     print('now how many total files are we now missing?')
     t0s = stored_hycom_dates()
@@ -655,6 +632,12 @@ def get_hycom_foretime_v2(t1str,t2str):
         print('No hycom forecasts had the necessary files for this')
         print(str(PFM['forecast_days']) + ' day PFM forecast starting at')
         print(PFM['fetch_time'])
+        print('with the current hycom data, what is the maximum forecast length we can run?')
+        print('new hook will be added here!')
+        # get forecast dates we have
+        #t0s = stored_hycom_dates()
+
+
         print('exiting this PFM forecast...')
         print('perhaps if this were a 5 day forecast we should restart PFM as a 2.5 day forecast here')
         sys.exit("...exiting!")
