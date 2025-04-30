@@ -52,7 +52,8 @@ def  make_LV4_coawst_dotins_dotsb():
     # timing info
     dtsec         = PFM['tinfo']['L4','dtsec']
     D['ndtfast']  = PFM['tinfo']['L4','ndtfast']
-    forecast_days = PFM['tinfo']['L4','forecast_days']  #   forecast_days=2;
+#    forecast_days = PFM['tinfo']['L4','forecast_days']  #   forecast_days=2;
+    forecast_days = PFM['forecast_days']  #   forecast_days=2;
     days_to_run   = forecast_days  #float(Ldir['forecast_days'])
     his_interval  = PFM['outputinfo']['L4','his_interval']
     rst_interval  = PFM['outputinfo']['L4','rst_interval']
@@ -97,7 +98,8 @@ def  make_LV4_coawst_dotins_dotsb():
     D['atm_dt_hr'] = PFM['atm_dt_hr']
 
     t1 = PFM['fetch_time']
-    t2 = PFM['fore_end_time']
+    #t2 = PFM['fore_end_time']
+    t2 = t1 + PFM['forecast_days'] * timedelta(days=1)
     t1_swan_str = t1.strftime("%Y%m%d.%H") + '0000'
     t2_swan_str = t2.strftime("%Y%m%d.%H") + '0000'
     D['swan_t1_str'] = t1_swan_str

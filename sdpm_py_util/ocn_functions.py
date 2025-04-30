@@ -9,6 +9,7 @@ import resource
 import pickle
 import grid_functions as grdfuns
 import river_functions as rivfuns
+import init_funs as initfuns
 import os
 import os.path
 import pickle
@@ -505,23 +506,109 @@ def delete_directory_if_exists(dir_path):
     else:
         print(f"Directory '{dir_path}' does not exist.")
 
+def get_longest_forecast():
+    # this return the forecast start time and the forecast last time
+    # ftime is a string, tmx_tot is a datetime object
+    # and is the longest forecast we can make given the hycom data 
+    # we have
 
-def get_matching_files(directory, regex):
-    """
-    Returns a list of files in the given directory that match the provided regular expression.
+    # get the unique dates of the hycom forecasts
+    t0s = stored_hycom_dates()
 
-    Args:
-        directory (str): The path to the directory to search.
-        regex (str): The regular expression to match against filenames.
+    print(t0s)
+    # get all .nc files in the hycom directory
+    matched_files = glob.glob('/scratch/PFM_Simulations/hycom_data/*.nc')
+    fnms = []
+    for mf in matched_files:
+        _, tail = os.path.split(mf)
+        fnms.append(tail)
 
-    Returns:
-        list: A list of filenames that match the regular expression.
-    """
-    matching_files = []
-    for filename in os.listdir(directory):
-        if re.search(regex, filename):
-            matching_files.append(filename)
-    return matching_files
+    # DB is the dictionary that stores all of the time stamps of each .nc file
+    DB = dict()
+    # we loop through the variables
+    vars = ['ssh','t3z','s3z','u3z','v3z']
+    # t0s and the file name strings for time don't match, make 
+    # the formatting match
+    t0su = []
+    for t0 in t0s:
+        t0su.append(t0+'T12')
+
+    # initialize the dictionary with empty lists for each forecast t0
+    # and each variable
+    for var in vars:
+        for t0 in t0su:
+            DB[(var,t0)]=[]
+
+    # now we loop through all the files and keep track of the time stamps
+    # for each var and forecast time
+    for fn in fnms:
+        var = fn[3:6]
+        t0  = fn[7:20]
+        tf  = fn[24:37]
+        DB[(var,t0)].append(tf)
+
+    # set up a dictionary of maximum times, as a function of var and 
+    # forecast
+    TMX = dict()
+    for var in vars: # loop through variables
+        if var == 'ssh':
+            DT0 = 1  # set DT0, how space the times are for each var
+            NT = 193 # the number of files if it is a full forecast
+        else:
+            DT0 = 3
+            NT = 65
+        for t0 in t0su: # loop through the forecasts
+            tfs = DB[(var,t0)]
+            tfdtl = []
+            for tf in tfs:
+                tfdt = datetime.strptime(tf,'%Y-%m-%dT%H')
+                tfdtl.append(tfdt)
+            
+            # there are a couple of options, no data, full forecast, and partial
+            if len(tfdtl) == 0:
+                # there is no data
+                TMX[(var,t0)] = datetime.strptime(t0,'%Y-%m-%dT%H')
+            elif len(tfdtl) == NT:
+                # we have all the data, full forecast!
+                TMX[(var,t0)] = np.max(tfdtl)
+            else:
+                # a parital forecast. 2 options here. we skip times
+                tfdta = np.array(tfdtl)
+                tfdta_s = np.sort(tfdta)
+                for aa in np.arange(len(tfdta_s)-1):
+                    dt = tfdta_s[aa+1]-tfdta_s[aa]
+                    dt_hr = int( dt.total_seconds()/3600 )
+                    if dt_hr > DT0: # if we get here, files are skipped
+                        TMX[(var,t0)] = tfdta_s[aa]
+                        break 
+                # if we dont skip files, this is TMX    
+                TMX[(var,t0)] = tfdta_s[aa+1]
+                
+    # set up a dictionary to figure out what the longest forecast we can do 
+    # this is a function of forecast start time
+    tmxx = dict()
+    for t0 in t0su:
+        tmxx[t0] = []
+        tmx_tot = datetime.strptime('2100','%Y') # a dummy to start with
+        for var in vars:
+            tmx2 = TMX[(var,t0)]
+            if tmx2 < tmx_tot:
+                tmx_tot = tmx2
+        tmxx[t0] = tmx_tot # this is now the maximum forecast date
+                           # for the forecast t0
+
+    # we now determine which forecast t0 has the larges tmx. what we want
+    tmx_tot = datetime.strptime('2000','%Y') # initialize this
+    for t0 in t0su: # t0su is sorted
+        tmxx3 = tmxx[t0]
+        if tmxx3 >= tmx_tot: # the >= insures we use the latest forecast
+            # if they go out to the same time.
+            tmx_tot = tmxx3
+            ftime = t0
+
+    # return the forecast start time and the forecast last time
+    # ftime is a string, tmx_tot is a datetime object
+    return ftime, tmx_tot
 
 
 def get_hycom_foretime_v2(t1str,t2str):
@@ -619,6 +706,22 @@ def get_hycom_foretime_v2(t1str,t2str):
     missing = []
     print('for the PFM simulation starting from ', t1)
     print('and ending at ', t2)
+
+    # code here moves some hycom data to hycom_tmp for testing
+    # move all files >= 05-02..
+    hy_test=0
+    if hy_test==1:
+        print('we are moving some files for testing...')
+        source_dir = "/scratch/PFM_Simulations/hycom_data"
+        destination_dir = "/scratch/PFM_Simulations/hycom_data/hy_tmp"
+        days = ['05-04','05-05','05-06','05-07']
+        for dy in days:
+            fpat = "hy*" + dy + "*.nc"
+            full_pat = os.path.join(source_dir,fpat)
+            files2mv = glob.glob(full_pat)
+            for filenm in files2mv:
+                shutil.move(filenm, destination_dir)
+
     for dts in t0s:
         yyyymmdd = dts[0:4] + dts[5:7] + dts[8:10]
         n0, num_missing, dum = check_hycom_data(yyyymmdd,times)
@@ -628,25 +731,46 @@ def get_hycom_foretime_v2(t1str,t2str):
 
     fn2 = np.array(missing)
     ind0 = np.where(fn2 == 0)[0]
+    og_method = 1
     if len(ind0) == 0: # ie ind0 is empty, then there are no hycom forecasts with data for PFM
         print('No hycom forecasts had the necessary files for this')
         print(str(PFM['forecast_days']) + ' day PFM forecast starting at')
         print(PFM['fetch_time'])
-        print('with the current hycom data, what is the maximum forecast length we can run?')
-        print('new hook will be added here!')
+        print('with the current hycom data, we will run a shorter forecast...')
         # get forecast dates we have
         #t0s = stored_hycom_dates()
 
+        # get the forecast time, fore_txt. and the maximum time
+        # we can do a forecast to (max_time, a datetime object)
+        og_method = 0
+        fore_txt, max_time = get_longest_forecast()
+        DT = max_time - PFM['fetch_time'] # length of forecast now
+        DT_days = DT.total_seconds()/(24*3600)
 
-        print('exiting this PFM forecast...')
-        print('perhaps if this were a 5 day forecast we should restart PFM as a 2.5 day forecast here')
-        sys.exit("...exiting!")
+        if DT_days >= 3 and DT_days<5:
+            print('we will do a forecast using the hycom forecast starting at ', fore_txt)
+            # reset the forecast days in PFM pickle
+            print('the forecast is now ', DT_days, ' long')
+            print('from ', PFM['fetch_time'], ' to ', PFM['fetch_time'] + DT)
+            print('updating PFM to reflect this shorter forecast')
+            newd = dict()
+            newd['forecast_days'] = DT_days
+            initfuns.edit_and_save_PFM(newd)
+        else:
+            print('exiting this PFM forecast...')
+            print('perhaps if this were a 5 day forecast we should restart PFM as a 2.5 day forecast here')
+            sys.exit("...exiting!")
 
-    keeper = np.max(ind0) # get the latest hycom forecast that has the files we need.
-    tkeep = t0s[keeper]
-    print('so we will use the')
-    yyyymmdd = tkeep[0:4] + tkeep[5:7] + tkeep[8:10]
-    print(yyyymmdd, ' hycom simulation for this PFM forecast\n')
+    if og_method == 1: # using a full 5 day forecast
+        keeper = np.max(ind0) # get the latest hycom forecast that has the files we need.
+        tkeep = t0s[keeper]
+        print('so we will use the')
+        yyyymmdd = tkeep[0:4] + tkeep[5:7] + tkeep[8:10]
+        print(yyyymmdd, ' hycom simulation for this PFM forecast\n')
+    else: # using a shorter forecast
+        yyyymmdd = fore_txt[0:4]+fore_txt[5:7]+fore_txt[8:10]
+        # we now need to set the maximum forecast time.
+
 
     # clean up step...
     dir_path0 = os.getcwd() # this should be .../PFM/driver/
