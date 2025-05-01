@@ -758,8 +758,8 @@ def get_hycom_foretime_v2(t1str,t2str):
             initfuns.edit_and_save_PFM(newd)
         else:
             print('exiting this PFM forecast...')
-            print('perhaps if this were a 5 day forecast we should restart PFM as a 2.5 day forecast here')
-            sys.exit("...exiting!")
+            print('we could not do a forecast >= 3 days.')
+            sys.exit("there was not enough hycom data.")
 
     if og_method == 1: # using a full 5 day forecast
         keeper = np.max(ind0) # get the latest hycom forecast that has the files we need.
