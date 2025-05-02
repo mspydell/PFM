@@ -3,6 +3,7 @@ import sys
 from datetime import datetime
 from datetime import timedelta
 import time
+import re
 import gc
 import resource
 import pickle
@@ -502,6 +503,110 @@ def delete_directory_if_exists(dir_path):
     else:
         print(f"Directory '{dir_path}' does not exist.")
 
+def get_longest_forecast():
+    # this return the forecast start time and the forecast last time
+    # ftime is a string, tmx_tot is a datetime object
+    # and is the longest forecast we can make given the hycom data 
+    # we have
+
+    # get the unique dates of the hycom forecasts
+    t0s = stored_hycom_dates()
+
+    print(t0s)
+    # get all .nc files in the hycom directory
+    matched_files = glob.glob('/scratch/PFM_Simulations/hycom_data/*.nc')
+    fnms = []
+    for mf in matched_files:
+        _, tail = os.path.split(mf)
+        fnms.append(tail)
+
+    # DB is the dictionary that stores all of the time stamps of each .nc file
+    DB = dict()
+    # we loop through the variables
+    vars = ['ssh','t3z','s3z','u3z','v3z']
+    # t0s and the file name strings for time don't match, make 
+    # the formatting match
+    t0su = []
+    for t0 in t0s:
+        t0su.append(t0+'T12')
+
+    # initialize the dictionary with empty lists for each forecast t0
+    # and each variable
+    for var in vars:
+        for t0 in t0su:
+            DB[(var,t0)]=[]
+
+    # now we loop through all the files and keep track of the time stamps
+    # for each var and forecast time
+    for fn in fnms:
+        var = fn[3:6]
+        t0  = fn[7:20]
+        tf  = fn[24:37]
+        DB[(var,t0)].append(tf)
+
+    # set up a dictionary of maximum times, as a function of var and 
+    # forecast
+    TMX = dict()
+    for var in vars: # loop through variables
+        if var == 'ssh':
+            DT0 = 1  # set DT0, how space the times are for each var
+            NT = 193 # the number of files if it is a full forecast
+        else:
+            DT0 = 3
+            NT = 65
+        for t0 in t0su: # loop through the forecasts
+            tfs = DB[(var,t0)]
+            tfdtl = []
+            for tf in tfs:
+                tfdt = datetime.strptime(tf,'%Y-%m-%dT%H')
+                tfdtl.append(tfdt)
+            
+            # there are a couple of options, no data, full forecast, and partial
+            if len(tfdtl) == 0:
+                # there is no data
+                TMX[(var,t0)] = datetime.strptime(t0,'%Y-%m-%dT%H')
+            elif len(tfdtl) == NT:
+                # we have all the data, full forecast!
+                TMX[(var,t0)] = np.max(tfdtl)
+            else:
+                # a parital forecast. 2 options here. we skip times
+                tfdta = np.array(tfdtl)
+                tfdta_s = np.sort(tfdta)
+                for aa in np.arange(len(tfdta_s)-1):
+                    dt = tfdta_s[aa+1]-tfdta_s[aa]
+                    dt_hr = int( dt.total_seconds()/3600 )
+                    if dt_hr > DT0: # if we get here, files are skipped
+                        TMX[(var,t0)] = tfdta_s[aa]
+                        break 
+                # if we dont skip files, this is TMX    
+                TMX[(var,t0)] = tfdta_s[aa+1]
+                
+    # set up a dictionary to figure out what the longest forecast we can do 
+    # this is a function of forecast start time
+    tmxx = dict()
+    for t0 in t0su:
+        tmxx[t0] = []
+        tmx_tot = datetime.strptime('2100','%Y') # a dummy to start with
+        for var in vars:
+            tmx2 = TMX[(var,t0)]
+            if tmx2 < tmx_tot:
+                tmx_tot = tmx2
+        tmxx[t0] = tmx_tot # this is now the maximum forecast date
+                           # for the forecast t0
+
+    # we now determine which forecast t0 has the larges tmx. what we want
+    tmx_tot = datetime.strptime('2000','%Y') # initialize this
+    for t0 in t0su: # t0su is sorted
+        tmxx3 = tmxx[t0]
+        if tmxx3 >= tmx_tot: # the >= insures we use the latest forecast
+            # if they go out to the same time.
+            tmx_tot = tmxx3
+            ftime = t0
+
+    # return the forecast start time and the forecast last time
+    # ftime is a string, tmx_tot is a datetime object
+    return ftime, tmx_tot
+
 
 def get_hycom_foretime_v2(t1str,t2str):
 
@@ -556,48 +661,6 @@ def get_hycom_foretime_v2(t1str,t2str):
         get_hycom_data_1hr_v2(t0str) # new url
         t0 = t0 + timedelta(days=1)
 
-#    t0s = stored_hycom_dates() # figure out what days we presently have forecast data for.
-#    miss_dict = {}
-#    nms_dict = {}
-#    for dts in t0s:
-#        yyyymmdd = dts[0:4] + dts[5:7] + dts[8:10]
-#        yyyymmddhhmm = yyyymmdd + '1200'
-#        t1 = datetime.strptime(yyyymmddhhmm,'%Y%m%d%H%M')
-#        t2 = t1+8.0*timedelta(days=1)
-#        times = [t1,t2]
-#        n0, num_missing, miss_dict[yyyymmdd] = check_hycom_data(yyyymmdd,times)
-#        nms_dict[yyyymmdd] = num_missing
-
-#    print('\nwe will try and get these missing files from the unaggregated server...')
-#    for dts in t0s:
-#        yyyymmdd = dts[0:4] + dts[5:7] + dts[8:10]
-#        if nms_dict[yyyymmdd] > 0:
-#            print('getting hycom ', yyyymmdd, ' files...')
-            #get_hycom_data_fnames(yyyymmdd,miss_dict[yyyymmdd])
-#            get_hycom_data_fnames_v3(miss_dict[yyyymmdd]) 
-#    print('...done')
-
-#    t0s = stored_hycom_dates() # figure out what days we presently have forecast data for.
-#    miss_dict = {}
-#    nms_dict = {}
-#    for dts in t0s:
-#        yyyymmdd = dts[0:4] + dts[5:7] + dts[8:10]
-#        yyyymmddhhmm = yyyymmdd + '1200'
-#        t1 = datetime.strptime(yyyymmddhhmm,'%Y%m%d%H%M')
-#        t2 = t1+8.0*timedelta(days=1)
-#        times = [t1,t2]
-#        n0, num_missing, miss_dict[yyyymmdd] = check_hycom_data(yyyymmdd,times)
-#        nms_dict[yyyymmdd] = num_missing
-
-#    print('\nwe will try and get these missing files from the unaggregated server...')
-#    for dts in t0s:
-#        yyyymmdd = dts[0:4] + dts[5:7] + dts[8:10]
-#        if nms_dict[yyyymmdd] > 0:
-#            print('getting hycom ', yyyymmdd, ' files...')
-            #get_hycom_data_fnames(yyyymmdd,miss_dict[yyyymmdd])
-#            get_hycom_data_fnames_v2(miss_dict[yyyymmdd]) 
-#    print('...done')
-
     print('now how many total files are we now missing?')
     t0s = stored_hycom_dates()
     nms = []
@@ -640,6 +703,22 @@ def get_hycom_foretime_v2(t1str,t2str):
     missing = []
     print('for the PFM simulation starting from ', t1)
     print('and ending at ', t2)
+
+    # code here moves some hycom data to hycom_tmp for testing
+    # move all files >= 05-02..
+    hy_test=0
+    if hy_test==1:
+        print('we are moving some files for testing...')
+        source_dir = "/scratch/PFM_Simulations/hycom_data"
+        destination_dir = "/scratch/PFM_Simulations/hycom_data/hy_tmp"
+        days = ['05-04','05-05','05-06','05-07']
+        for dy in days:
+            fpat = "hy*" + dy + "*.nc"
+            full_pat = os.path.join(source_dir,fpat)
+            files2mv = glob.glob(full_pat)
+            for filenm in files2mv:
+                shutil.move(filenm, destination_dir)
+
     for dts in t0s:
         yyyymmdd = dts[0:4] + dts[5:7] + dts[8:10]
         n0, num_missing, dum = check_hycom_data(yyyymmdd,times)
@@ -649,19 +728,46 @@ def get_hycom_foretime_v2(t1str,t2str):
 
     fn2 = np.array(missing)
     ind0 = np.where(fn2 == 0)[0]
+    og_method = 1
     if len(ind0) == 0: # ie ind0 is empty, then there are no hycom forecasts with data for PFM
         print('No hycom forecasts had the necessary files for this')
         print(str(PFM['forecast_days']) + ' day PFM forecast starting at')
         print(PFM['fetch_time'])
-        print('exiting this PFM forecast...')
-        print('perhaps if this were a 5 day forecast we should restart PFM as a 2.5 day forecast here')
-        sys.exit("...exiting!")
+        print('with the current hycom data, we will run a shorter forecast...')
+        # get forecast dates we have
+        #t0s = stored_hycom_dates()
 
-    keeper = np.max(ind0) # get the latest hycom forecast that has the files we need.
-    tkeep = t0s[keeper]
-    print('so we will use the')
-    yyyymmdd = tkeep[0:4] + tkeep[5:7] + tkeep[8:10]
-    print(yyyymmdd, ' hycom simulation for this PFM forecast\n')
+        # get the forecast time, fore_txt. and the maximum time
+        # we can do a forecast to (max_time, a datetime object)
+        og_method = 0
+        fore_txt, max_time = get_longest_forecast()
+        DT = max_time - PFM['fetch_time'] # length of forecast now
+        DT_days = DT.total_seconds()/(24*3600)
+
+        if DT_days >= 3 and DT_days<5:
+            print('we will do a forecast using the hycom forecast starting at ', fore_txt)
+            # reset the forecast days in PFM pickle
+            print('the forecast is now ', DT_days, ' long')
+            print('from ', PFM['fetch_time'], ' to ', PFM['fetch_time'] + DT)
+            print('updating PFM to reflect this shorter forecast')
+            newd = dict()
+            newd['forecast_days'] = DT_days
+            initfuns.edit_and_save_PFM(newd)
+        else:
+            print('exiting this PFM forecast...')
+            print('we could not do a forecast >= 3 days.')
+            sys.exit("there was not enough hycom data.")
+
+    if og_method == 1: # using a full 5 day forecast
+        keeper = np.max(ind0) # get the latest hycom forecast that has the files we need.
+        tkeep = t0s[keeper]
+        print('so we will use the')
+        yyyymmdd = tkeep[0:4] + tkeep[5:7] + tkeep[8:10]
+        print(yyyymmdd, ' hycom simulation for this PFM forecast\n')
+    else: # using a shorter forecast
+        yyyymmdd = fore_txt[0:4]+fore_txt[5:7]+fore_txt[8:10]
+        # we now need to set the maximum forecast time.
+
 
     # clean up step...
     dir_path0 = os.getcwd() # this should be .../PFM/driver/
@@ -1568,23 +1674,39 @@ def hycom_ncfiles_to_pickle(yyyymmdd):
     eta = np.zeros((ntz,nlt,nln))
     t_rom2 = np.zeros((ntz))
     cnt=0
+    t_from_fname = 1 # switch added 4-19-2025 because hycom time stopped having units.
     for fn in fn_ssh:
+        #print(fn)
         #dss = xr.open_dataset(fn)
         dss = xr.open_dataset(fn,decode_times=False)
         #dt = (dss.time - np.datetime64(t_ref))  / np.timedelta64(1,'D') # this gets time in days from t_ref
-        thy_hr = dss.time[:].data # hours since tref_hy
-        tref_hy = dss.time.units
-        tref_hy2 = tref_hy[12:31]
-        tref_dt = datetime.strptime(tref_hy2,'%Y-%m-%d %H:%M:%S')
-        thy = tref_dt + thy_hr * timedelta(hours=1) # now datetime
-        trm = thy - t_ref # now a timedelta referenced to roms
-        dt = trm[0].total_seconds() / (3600*24) # now days since time ref
+        if t_from_fname == 1:
+            tstr = fn[-19:-3] # this is where time is in the filename
+            thy  = datetime.strptime(tstr,'%Y-%m-%dT%H:%M')
+            trm = thy - t_ref # now a timedelta referenced to roms
+            dt = trm.total_seconds() / (3600*24) # now days since time ref
+        else:    
+            thy_hr = dss.time[:].data # hours since tref_hy
+            tref_hy = dss.time.units
+            tref_hy2 = tref_hy[12:31]
+            tref_dt = datetime.strptime(tref_hy2,'%Y-%m-%d %H:%M:%S')
+            thy = tref_dt + thy_hr * timedelta(hours=1) # now datetime
+            trm = thy - t_ref # now a timedelta referenced to roms
+            dt = trm[0].total_seconds() / (3600*24) # now days since time ref
+        
 
         #t_rom2[cnt] = dt.values
         t_rom2[cnt] = dt
         eta[cnt,:,:] = dss.surf_el.values
         dss.close()
         cnt=cnt+1
+
+    etamx = np.nanmax( np.abs(eta[:]) )
+    #print(etamx)
+    if etamx > 5.0:
+        print('\n!!!! WARNING !!!!')
+        print('there is a at least one bad hycom surf_el .nc file. We will exit the simulation!!!')
+        sys.exit(1)        
 
     OCN['zeta_time'] = t_rom2
     OCN['zeta'] = eta
@@ -1603,13 +1725,21 @@ def hycom_ncfiles_to_pickle(yyyymmdd):
     for fn in fn_t3z:
         dss = xr.open_dataset(fn,decode_times=False)
     #    dt = (dss.time - np.datetime64(t_ref))  / np.timedelta64(1,'D') # this gets time in days from t_ref
-        thy_hr = dss.time[:].data # hours since tref_hy
-        tref_hy = dss.time.units
-        tref_hy2 = tref_hy[12:31]
-        tref_dt = datetime.strptime(tref_hy2,'%Y-%m-%d %H:%M:%S')
-        thy = tref_dt + thy_hr * timedelta(hours=1) # now datetime
-        trm = thy - t_ref # now a timedelta referenced to roms
-        dt = trm[0].total_seconds() / (3600*24) # now days since time ref
+
+        if t_from_fname == 1:
+            tstr = fn[-19:-3] # this is where time is in the filename
+            thy  = datetime.strptime(tstr,'%Y-%m-%dT%H:%M')
+            trm = thy - t_ref # now a timedelta referenced to roms
+            dt = trm.total_seconds() / (3600*24) # now days since time ref
+        else:    
+            thy_hr = dss.time[:].data # hours since tref_hy
+            tref_hy = dss.time.units
+            tref_hy2 = tref_hy[12:31]
+            tref_dt = datetime.strptime(tref_hy2,'%Y-%m-%d %H:%M:%S')
+            thy = tref_dt + thy_hr * timedelta(hours=1) # now datetime
+            trm = thy - t_ref # now a timedelta referenced to roms
+            dt = trm[0].total_seconds() / (3600*24) # now days since time ref
+            
     #    t_rom[cnt] = dt.values
         t_rom[cnt] = dt
         temp[cnt,:,:,:] = dss.water_temp.values
@@ -3127,6 +3257,7 @@ def make_tmp_hy_on_rom_pckl_files_1hrzeta(fname_in,var_name,pkl_fnm):
     # velocity will be on both (lat_u,lon_u)
     # and (lat_v,lon_v).
 
+    # print('doing ' + var_name )
     # load the hycom data
     with open(fname_in,'rb') as fp:
         HY = pickle.load(fp)
@@ -3215,14 +3346,17 @@ def make_tmp_hy_on_rom_pckl_files_1hrzeta(fname_in,var_name,pkl_fnm):
             HYrm[var_name][cc,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],Fz)            
 
     elif var_name == 'salt' or var_name == 'temp':
+        #print('in here ' + var_name)
         Fz = RegularGridInterpolator((HY['lat'],HY['lon']),HY['zeta'][0,:,:])
         HYrm[var_name] = np.zeros((NT,NZ,NR,NC))
         for cc in range(NT):
+            #print(cc)
             for bb in range(NZ):
                 zhy2 = HY[var_name][cc,bb,:,:]
                 HYrm[var_name][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],Fz)            
 
     elif var_name == 'urm' or var_name == 'vrm':
+        #print('doing ' + var_name)
         Fz = RegularGridInterpolator((HY['lat'],HY['lon']),HY['zeta'][0,:,:])
 
         hyz = HY['depth']
@@ -3236,6 +3370,7 @@ def make_tmp_hy_on_rom_pckl_files_1hrzeta(fname_in,var_name,pkl_fnm):
             HYrm['vrm'] = np.zeros((NT,NZ,NR-1,NC)) 
         
         for cc in range(NT):
+            #print(cc)
             for bb in range(NZ):
                 uhy = HY['u'][cc,bb,:,:]
                 vhy = HY['v'][cc,bb,:,:]
@@ -3282,6 +3417,7 @@ def make_tmp_hy_on_rom_pckl_files(fname_in,var_name):
     # velocity will be on both (lat_u,lon_u)
     # and (lat_v,lon_v).
 
+    print('doing ' + var_name)
     # load the hycom data
     with open(fname_in,'rb') as fp:
         HY = pickle.load(fp)
@@ -3369,6 +3505,7 @@ def make_tmp_hy_on_rom_pckl_files(fname_in,var_name):
             HYrm[var_name][cc,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],Fz)            
 
     elif var_name == 'salt' or var_name == 'temp':
+        #print('in here')
         Fz = RegularGridInterpolator((HY['lat'],HY['lon']),HY['zeta'][0,:,:])
         HYrm[var_name] = np.zeros((NT,NZ,NR,NC))
         for cc in range(NT):
@@ -8528,7 +8665,14 @@ def mk_lv4_river_nc():
     print('the time-mean discharge for TJR is ')
     print(str( 5*np.mean(D['river_transport'][:,0]) ) + ' m3/s')
 
-    D['river_transport'][:,5] = -2.1906 + D['river_transport'][:,5] # this is PB. and is the right value
+    #D['river_transport'][:,5] = -2.1906 + D['river_transport'][:,5] # this is PB. original value
+    #D['river_transport'][:,5] = -2.5 + D['river_transport'][:,5] # this is PB. 4/14/25 value
+    # based on discussion with Liden at PFM meeting
+    # but Liden also said that this is good for dry weather, wet weather flow gets
+    # diverted and at PB Qww = 0.175 m3/s, Qfw 0.79 m3/s, Qtot = 0.965 m3/s, and 
+    # dye_01 = 0.175 / 0.965 = 0.1818. NOT IMPLEMENTED!!!! 
+    D['river_transport'][:,5] = -2.0 + D['river_transport'][:,5] # this is PB. 5/2/25 value
+    # based on FF email with Liden
 
     D['river_transport'][:,6] = - 0.5 * QQ['discharge'][:,0] # sweetwater discharge
     D['river_transport'][:,7] = D['river_transport'][:,6]
@@ -8573,23 +8717,44 @@ def mk_lv4_river_nc():
                         'field':'river salt, scalar, series'}
 
     D['river_dye_01'] = np.zeros((nt,Nz,9)) # this is always zero. 
-    D['river_dye_01'][:,:,5] = 0.7 + D['river_dye_01'][:,:,5]
+    #D['river_dye_01'][:,:,5] = 0.7 + D['river_dye_01'][:,:,5] # original value
+    #D['river_dye_01'][:,:,5] = 0.5088 + D['river_dye_01'][:,:,5] # new value
+    # based on Liden discussion at PFM 4/14/25 meeting 0.5088 = 29/(28+29)
+    # where 29 MGD WW, and 28 MGD non-WW
+    D['river_dye_01'][:,:,5] = 0.5 + D['river_dye_01'][:,:,5] # new value 5/2/25
+    # based on FF email with Liden
+
+
     D['vinfo']['river_dye_01'] = {'long_name':'river runoff dye, fraction raw sewage at PB',
                         'units':'fraction',
                         'field':'river dye 1, scalar, series'}
 
     D['river_dye_02'] = np.zeros((nt,Nz,9)) # this is always zero.
     Q2 = - 5 * D['river_transport'][:,0] # - sign to insure positive
-    mgd2m3s = 1.01/23    # a conversion factor, from MGD to m3/s
-    Qd = 12.5 * mgd2m3s  # the amount of sewage discharge if Q > Qcrit
-    dye2 = Qd  / Q2      # the fraction of raw sewage for Q > Qcrit
-    dye0 = .3            # the fraction of raw sewage for Q < Qcrit 
-    Qcrit = Qd / dye0    # we calculate Qcrit so that dye2 is continuous as a function of Q
-    print('the TJRE critical Q is')
-    print(str(Qcrit) + ' m3/s or ' + str(Qcrit/mgd2m3s) + ' MGD')
+    # this is Qtot of TJRE
+    old_way = 2
+    if old_way == 1:
+        mgd2m3s = 1.01/23    # a conversion factor, from MGD to m3/s
+        Qd = 12.5 * mgd2m3s  # the amount of sewage discharge if Q > Qcrit
+        dye2 = Qd  / Q2      # the fraction of raw sewage for Q > Qcrit
+        dye0 = .3            # the fraction of raw sewage for Q < Qcrit 
+        Qcrit = Qd / dye0    # we calculate Qcrit so that dye2 is continuous as a function of Q
+        print('the TJRE critical Q is')
+        print(str(Qcrit) + ' m3/s or ' + str(Qcrit/mgd2m3s) + ' MGD')
 
-    ic = np.argwhere(Q2 < Qcrit) # where 
-    dye2[ic] = dye0 # is now the correct dye concentration for TJRE
+        ic = np.argwhere(Q2 < Qcrit) # where 
+        dye2[ic] = dye0 # is now the correct dye concentration for TJRE
+    else:
+        # this is based on Biggs data. we were underestimate WW fraction
+        # this formula better matches his data
+        R1 = 0.65
+        R2 = 0.045
+        Q00 = 2.25
+        WW1 = R1*Q2
+        WW2 = R2*Q2 + (R1-R2)*Q00
+        msk = Q2>Q00
+        WW1[msk] = WW2[msk]
+        dye2 = WW1 / Q2
 
     for aa in np.arange(nt):
         D['river_dye_02'][aa,:,0:4] = dye2[aa]

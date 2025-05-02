@@ -39,7 +39,8 @@ def  make_LV3_dotin_and_SLURM( PFM , yyyymmddhhmm):
     # timing info
     dtsec         = PFM['tinfo']['L3','dtsec']
     D['ndtfast']  = PFM['tinfo']['L3','ndtfast']
-    forecast_days = PFM['tinfo']['L3','forecast_days']  #   forecast_days=2;
+#    forecast_days = PFM['tinfo']['L3','forecast_days']  #   forecast_days=2;
+    forecast_days = PFM['forecast_days']  #   forecast_days=2;
     days_to_run   = forecast_days  #float(Ldir['forecast_days'])
     his_interval  = PFM['outputinfo']['L3','his_interval']
     rst_interval  = PFM['outputinfo']['L3','rst_interval']

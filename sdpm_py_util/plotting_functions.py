@@ -2102,8 +2102,26 @@ def get_tide_levels(metadata):
 
         t_pr = np.array(t_pr)
 
+    #print(all_observed_v)
 
-    return np.array(all_observed_v).astype(float), t_ob, np.array(all_predicted_v).astype(float), t_pr
+    all_observed_v2 = [t if t is not '' else '-9999' for t in all_observed_v]
+    all_predicted_v2 = [t if t is not '' else '-9999' for t in all_predicted_v]
+    
+    vob2 = np.array([float(x) for x in all_observed_v2])
+    vpr2 = np.array([float(x) for x in all_predicted_v2])
+    
+    mask = np.ones(np.shape(vob2)).astype(bool)
+    mask = np.logical_and(mask, vob2 == -9999)
+    vob2[mask] = np.nan
+    mask = np.ones(np.shape(vpr2)).astype(bool)
+    mask = np.logical_and(mask, vpr2 == -9999)
+    vpr2[mask] = np.nan
+
+    #vob2 = np.array(all_observed_v).astype(float)
+    #vpr2 = np.array(all_predicted_v).astype(float)
+    # [t if t is not '' else 'hello' for t in test1]
+
+    return vob2, t_ob, vpr2, t_pr
 
 def nan_helper(y):
     """Helper to handle indices and logical indices of NaNs.
@@ -2202,6 +2220,164 @@ def get_alonshore_distance_etc(ixs,iys,fn_grd):
     DD['hb'] = hs
 
     return DD
+
+def get_history_essential(fn_his,fn_grd):
+
+    Dye = dict()       # this dict will have all the dye information 
+    Shoreline = dict() # this dict will have all the shoreline info
+    Sites = dict()     # this will have the data at the site locations
+    
+    # the numbers that separate low, medium, and high risk
+    # based on log10 of total_dye concentration
+    # threshholds are set here!!!
+    thresh_hold = np.array([-5,-3])
+    Shoreline['Thresh_holds'] = thresh_hold
+    Sites['Thresh_holds'] = thresh_hold
+
+    ix0 = 75 # this is the starting index to look to the right from 
+    iymn = 0
+    iymx = 1060
+    iys = np.arange(iymn,iymx,1)
+    hb0 = [1.25] # this is the depth to get the indices from
+    with nc.Dataset(fn_grd) as ds:
+        hb = ds.variables['h'][iys,ix0:] # the data to extract depth from
+        hb_og = ds.variables['h'][:,:]
+        lats = ds.variables['lat_rho'][iys,ix0:]
+        Dye['Lat'] = ds.variables['lat_rho'][:,:]
+        Dye['Lon'] = ds.variables['lon_rho'][:,:]
+        iy,ix = np.shape(hb_og)
+
+    ixs, _ = get_depth_indices(hb,lats,hb0)    
+    ixs = ixs + ix0 # must return the starting point
+
+    with nc.Dataset(fn_grd) as ds:
+        lat = ds.variables['lat_rho'][:,:] # the data to extract depth from
+
+    ny = len(ixs)
+    lat2 = np.zeros((ny))
+    for aa in np.arange(ny):
+        lat2[aa] = lat[iys[aa],ixs[aa]]
+
+   # fig, ax = plt.subplots()
+   # ax.contourf(np.arange(ix),np.arange(iy),hb_og,levels=10)
+   # lvls = [1.25, 1.5]
+   # ax.contour(np.arange(ix),np.arange(iy),hb_og, levels=lvls)
+   # ax.plot(ixs,iys,'r')
+
+    DD = get_alonshore_distance_etc(ixs,iys,fn_grd)
+    #print(DD.keys())
+    Shoreline['Lat'] = DD['lat']
+    Shoreline['Lon'] = DD['lon']
+
+
+    with nc.Dataset(fn_his) as his:
+        times = his.variables['ocean_time']
+        times2 = num2date(times[:], times.units)
+        times2 = np.array([datetime(year=date.year, month=date.month, day=date.day, 
+                              hour=date.hour, minute=date.minute, second=date.second) for date in times2])
+
+    Shoreline['Times'] = times2
+    Dye['Times'] = times2
+    Sites['Times'] = times2
+
+    nt = len(times2) # these are the times for the history file
+    nlat,nlon = np.shape( Dye['Lat'] )
+    dyetot = np.zeros((nt,nlat,nlon))
+    #nt = 60
+    dye_01 = np.zeros((nt,ny))
+    dye_02 = np.zeros((nt,ny))
+    for aa in np.arange(0,nt,1):
+        with nc.Dataset(fn_his) as his:
+            hh = his.variables['h'][iys,ix0:] + np.squeeze( his.variables['zeta'][aa,iys,ix0:] )
+            dye1 = his.variables['dye_01'][aa,-1,:,:] # get the surface
+            dye2 = his.variables['dye_02'][aa,-1,:,:]
+            msk = np.squeeze( his.variables['wetdry_mask_rho'][aa,:,:] )
+            tmp = np.squeeze( dye1 ) + np.squeeze( dye2 ) 
+            tmp[msk==0] = np.nan
+            dyetot[aa,:,:] = tmp         
+            ixs,_ = get_depth_indices(hh,lats,hb0)
+            ixs = ixs + ix0
+            for bb in np.arange(ny):
+                dye_01[aa,bb] = np.squeeze(dye1[iys[bb],ixs[bb]])
+                dye_02[aa,bb] = np.squeeze(dye2[iys[bb],ixs[bb]])
+
+    Dye['Dye_tot'] = dyetot
+    msk = dyetot==0
+    dyetot2 = dyetot
+    dyetot2[msk] = 0.0000000001
+    l10dyetot2 = np.log10(dyetot2)
+    Dye['l10_Dye_tot'] = l10dyetot2
+    dyeTot = dye_01 + dye_02
+    msk = dyeTot==0
+    dyeTot[msk]=0.0000000001
+    Shoreline['Dye_tot'] = dyeTot
+    l10dyeTot = np.log10( dyeTot )
+    Shoreline['l10_Dye_tot'] = l10dyeTot
+    risk = 0*dyeTot
+    #print(thresh_hold)
+    #print(thresh_hold[0])
+    #print(thresh_hold[1])
+    msk1 = (l10dyeTot>thresh_hold[0]) & (l10dyeTot<thresh_hold[1])
+    msk2 = l10dyeTot>=thresh_hold[1]
+    risk[msk1] = 1
+    risk[msk2] = 2
+    Shoreline['Risk']=risk
+    
+    # PTJ, IB pier, Silver Strand, HdC
+    ln_lab = ['Playas de Tijuana','Imperial Beach pier','Silver Strand','Hotel del Coronado']
+    Sites['Names'] = ln_lab
+    lts0 = [32.52, 32.58, 32.625, 32.678]
+    ipts = np.zeros((len(lts0)),dtype=int)
+
+    lat2 = np.zeros(len(lts0))
+    lon2 = 0 * lat2
+
+    for aa in np.arange(len(lts0)):
+        dlt = DD['lat']-lts0[aa]
+        ipts[aa] = np.argmin(np.square(dlt))
+        lat2[aa] = DD['lat'][ipts[aa]]
+        lon2[aa] = DD['lon'][ipts[aa]]
+
+    Sites['Lat'] = lat2
+    Sites['Lon'] = lon2
+    Sites['Risk'] = Shoreline['Risk'][:,ipts]
+    Sites['Dye_tot'] = Shoreline['Dye_tot'][:,ipts]
+    dye3 = Sites['Dye_tot']
+    msk = dye3==0
+    dye4 = dye3
+    dye4[msk]=0.0000000001
+    dye5=np.log10(dye4)
+    Sites['l10_Dye_tot'] = dye5
+
+    return Dye, Shoreline, Sites
+
+def get_shoreline_data(fn_grd):
+    ix0 = 75 # this is the starting index to look to the right from 
+    iymn = 0
+    iymx = 1060
+    iys = np.arange(iymn,iymx,1)
+    hb0 = [1.25] # this is the depth to get the indices from
+    with nc.Dataset(fn_grd) as ds:
+        hb = ds.variables['h'][iys,ix0:] # the data to extract depth from
+        hb_og = ds.variables['h'][:,:]
+        lats = ds.variables['lat_rho'][iys,ix0:]
+        iy,ix = np.shape(hb_og)
+    
+    ixs, _ = get_depth_indices(hb,lats,hb0)    
+    ixs = ixs + ix0 # must return the starting point
+
+    with nc.Dataset(fn_grd) as ds:
+        lat = ds.variables['lat_rho'][:,:] # the data to extract depth from
+
+    ny = len(ixs)
+    lat2 = np.zeros((ny))
+    for aa in np.arange(ny):
+        lat2[aa] = lat[iys[aa],ixs[aa]]
+
+    DD = get_alonshore_distance_etc(ixs,iys,fn_grd)
+
+    return DD
+
 
 def make_dye_plots(fn_grd,fn_his):
     # this function makes dye plots for a given history file, and associated grid file
@@ -2590,7 +2766,13 @@ def make_dye_plots_v2(fn_grd,fn_his,dir_out):
     else:
         plt.show()
 
-
+#def test_popen(nsec,nloop):
+#    nsec2 = int(nsec)
+#    nloop2 = int(nloop)
+#    for aa in np.arange(nloop2):
+#        print('testing. loop:', str(aa), ' of ',nloop)
+#        print('pausing ',nsec,' sec')
+#        time.sleep(nsec2)
 
 if __name__ == "__main__":
     args = sys.argv

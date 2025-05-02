@@ -15,7 +15,7 @@ def copy_mv_nc_file(nc_type,lvl):
 
     PFM = get_PFM_info()
     fcdate = PFM['fetch_time'].strftime("%Y%m%d%H")
-    dir_out = '/dataSIO/PFM_Simulations/Archive2.5/Forcing/'
+    dir_out = '/dataSIO/PFM_Simulations/Archive/Forcing/'
     if nc_type == 'atm':
         fn_in_full = PFM[lvl+'_forc_dir'] + '/' + PFM[lvl+'_atm_file']
         fn_out = 'atm_' + PFM['atm_model'] + '_' + lvl_upper + '_' + fcdate + '.nc'
