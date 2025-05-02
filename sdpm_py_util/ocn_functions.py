@@ -8822,11 +8822,13 @@ def mk_lv4_river_nc():
     print(str( 5*np.mean(D['river_transport'][:,0]) ) + ' m3/s')
 
     #D['river_transport'][:,5] = -2.1906 + D['river_transport'][:,5] # this is PB. original value
-    D['river_transport'][:,5] = -2.5 + D['river_transport'][:,5] # this is PB. 4/14/25 value
+    #D['river_transport'][:,5] = -2.5 + D['river_transport'][:,5] # this is PB. 4/14/25 value
     # based on discussion with Liden at PFM meeting
     # but Liden also said that this is good for dry weather, wet weather flow gets
     # diverted and at PB Qww = 0.175 m3/s, Qfw 0.79 m3/s, Qtot = 0.965 m3/s, and 
     # dye_01 = 0.175 / 0.965 = 0.1818. NOT IMPLEMENTED!!!! 
+    D['river_transport'][:,5] = -2.0 + D['river_transport'][:,5] # this is PB. 5/2/25 value
+    # based on FF email with Liden
 
     D['river_transport'][:,6] = - 0.5 * QQ['discharge'][:,0] # sweetwater discharge
     D['river_transport'][:,7] = D['river_transport'][:,6]
@@ -8872,9 +8874,12 @@ def mk_lv4_river_nc():
 
     D['river_dye_01'] = np.zeros((nt,Nz,9)) # this is always zero. 
     #D['river_dye_01'][:,:,5] = 0.7 + D['river_dye_01'][:,:,5] # original value
-    D['river_dye_01'][:,:,5] = 0.5088 + D['river_dye_01'][:,:,5] # new value
-    # based on Liden discussion at PFM meeting 0.5088 = 29/(28+29)
+    #D['river_dye_01'][:,:,5] = 0.5088 + D['river_dye_01'][:,:,5] # new value
+    # based on Liden discussion at PFM 4/14/25 meeting 0.5088 = 29/(28+29)
     # where 29 MGD WW, and 28 MGD non-WW
+    D['river_dye_01'][:,:,5] = 0.5 + D['river_dye_01'][:,:,5] # new value 5/2/25
+    # based on FF email with Liden
+
 
     D['vinfo']['river_dye_01'] = {'long_name':'river runoff dye, fraction raw sewage at PB',
                         'units':'fraction',
