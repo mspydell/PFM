@@ -42,7 +42,6 @@ def create_model_info_dict():
 
     run_type = 'hindcast'
 
-
     HOME = Path.home()
     try:
         HOSTNAME = os.environ['HOSTNAME']
