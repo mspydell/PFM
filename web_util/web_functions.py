@@ -22,6 +22,7 @@ def full_his_to_essential(his_fname,grd_fname):
 #    print(sites.keys())
 
     site_locations = ", ".join(sites['Names'][:])
+    #print(site_locations)
 
     times = dye['Times'][:]
     dt = times - datetime.strptime('19990101','%Y%m%d')
@@ -62,6 +63,9 @@ def full_his_to_essential(his_fname,grd_fname):
     yyyymmddhh = times[0].strftime('%Y%m%d%H')
     fname_out = '/scratch/PFM_Simulations/LV4_Forecast/His/web_data_'+yyyymmddhh+'.nc'
 #    fname_out = '/scratch/PFM_Simulations/LV4_Forecast/His/web_data_latest.nc'
+
+    #print(ds.attrs)
+    #print('out to dotnc')
     ds.to_netcdf(fname_out)
 
 
