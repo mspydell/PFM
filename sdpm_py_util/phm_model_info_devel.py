@@ -78,6 +78,7 @@ def create_model_info_dict():
         PFM['atm_hind_dir'] = '/dataSIO/PHM_Simulations/raw_download/nam_grb2'
         atm_model = 'nam_analysis'
         PFM['atm_dt_hr'] = 3
+        PFM['server'] = 'swell'
     else:
         # hycom_new is the only forecast option
         ocn_model = 'hycom_new' # worked with 'hycom' but that is now (9/13/24) depricated      
