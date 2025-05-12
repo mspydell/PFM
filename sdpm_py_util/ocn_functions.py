@@ -1591,6 +1591,45 @@ def hycom_cats_to_pickle(yyyymmdd):
         pickle.dump(OCN,fp)
         print('\nHycom OCN dict saved with pickle')
 
+def redownload_hycom_file(fn):
+    # get the url associated with the nc file on swell that is too small
+    url = myname_to_urls(fn)
+
+
+def check_and_redownload_ncfile(fn):
+    # this function checks to see if the hycom.nc file is the right size
+    # if it isn't the right size, it removes it, and redownloads it.
+    # it tries this 5 times before returning a bad 0 error code
+
+    # parse the information from the file name
+    var = fn[-40:-37] # this is variable we are checking
+    
+    if var == 'ssh':
+        mnfsize = 0.4 # files size should be bigger than this in Mb for ssh
+    else:
+        mnfsize = 1.5 # files should be bigger than this for others
+
+    file_size_bytes = os.path.getsize(fn) # check file size
+    file_size_mb = file_size_bytes / (1024*1024) # convert to Mb
+    cnt = 0
+
+    while file_size_mb < mnfsize and cnt<=3:
+        print('ssh file ', fn, ' was too small. deleting it.')
+        os.remove(fn)
+        print('redownloading from hycom...')
+        redownload_hycom_file(fn)
+        file_size_bytes = os.path.getsize(fn) # check file size
+        file_size_mb = file_size_bytes / (1024*1024) # convert to Mb
+        cnt = cnt+1
+
+    if file_size_mb > mnfsize:
+        eecode = 0 # this means the file should be good
+    else: 
+        eecode = 1 # the means the file is too small still
+    
+    return eecode
+
+
 def hycom_ncfiles_to_pickle(yyyymmdd):
     # set up dict and fill in
     OCN = dict()
@@ -1615,16 +1654,6 @@ def hycom_ncfiles_to_pickle(yyyymmdd):
 
     nc_in_names = get_hycom_nc_file_names(yyyymmdd,t1str,t2str)
 
-    yyyy = yyyymmdd[0:4]
-    mm = yyyymmdd[4:6]
-    dd = yyyymmdd[6:8]    
-#    dstr0 = yyyy + '-' + mm + '-' + dd + 'T12:00'
-    
-#    var3d_1 = ['t3z','s3z','u3z','v3z']
-#    var3d_2 = ['water_temp','salinity','water_u','water_v']
-#    var2d_1 = ['ssh']
-#    var2d_2 = ['surf_el']
-    
     # get lists of file names for each variable. I think they are sorted?
     fn_ssh = [s for s in nc_in_names if "_ssh_" in s]
     fn_t3z = [s for s in nc_in_names if "_t3z_" in s]
@@ -1653,7 +1682,15 @@ def hycom_ncfiles_to_pickle(yyyymmdd):
     cnt=0
     t_from_fname = 1 # switch added 4-19-2025 because hycom time stopped having units.
     for fn in fn_ssh:
-        #print(fn)
+        ecode = check_and_redownload_ncfile(fn,'ssh',cnt,)
+        file_size_bytes = os.path.getsize(fn) # check file size
+        file_size_kb = file_size_bytes / 1024 # convert to kb
+        cnt2 = 0
+        while file_size_kb < 445 and cnt2<=3:
+            print('ssh file ', fn, ' was too small. deleting it.')
+            os.remove(fn)
+
+
         #dss = xr.open_dataset(fn)
         dss = xr.open_dataset(fn,decode_times=False)
         #dt = (dss.time - np.datetime64(t_ref))  / np.timedelta64(1,'D') # this gets time in days from t_ref
@@ -1671,8 +1708,6 @@ def hycom_ncfiles_to_pickle(yyyymmdd):
             trm = thy - t_ref # now a timedelta referenced to roms
             dt = trm[0].total_seconds() / (3600*24) # now days since time ref
         
-
-        #t_rom2[cnt] = dt.values
         t_rom2[cnt] = dt
         eta[cnt,:,:] = dss.surf_el.values
         dss.close()
