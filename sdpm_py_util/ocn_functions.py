@@ -8937,6 +8937,7 @@ def mk_lv4_river_nc():
     D['river_transport'][:,4] = D['river_transport'][:,0]
     print('the time-mean discharge for TJR is ')
     print(str( 5*np.mean(D['river_transport'][:,0]) ) + ' m3/s')
+    print('or ', str( 22.824*5*np.mean(D['river_transport'][:,0]) ) + ' MGD')
 
     #D['river_transport'][:,5] = -2.1906 + D['river_transport'][:,5] # this is PB. original value
     #D['river_transport'][:,5] = -2.5 + D['river_transport'][:,5] # this is PB. 4/14/25 value
@@ -8944,20 +8945,23 @@ def mk_lv4_river_nc():
     # but Liden also said that this is good for dry weather, wet weather flow gets
     # diverted and at PB Qww = 0.175 m3/s, Qfw 0.79 m3/s, Qtot = 0.965 m3/s, and 
     # dye_01 = 0.175 / 0.965 = 0.1818. NOT IMPLEMENTED!!!! 
-    D['river_transport'][:,5] = -2.0 + D['river_transport'][:,5] # this is PB. 5/2/25 value
+    D['river_transport'][:,5] = PFM['Q_PB'] + D['river_transport'][:,5] # this is PB. 5/2/25 value
     # based on FF email with Liden
 
     D['river_transport'][:,6] = - 0.5 * QQ['discharge'][:,0] # sweetwater discharge
     D['river_transport'][:,7] = D['river_transport'][:,6]
     print('the time-mean discharge for Sweetwater is ')
     print(str( 2*np.mean(D['river_transport'][:,6]) ) + ' m3/s')
+    print('or ', str( 22.824*2*np.mean(D['river_transport'][:,6]) ) + ' MGD')
 
     D['river_transport'][:,8] = - QQ['discharge'][:,1] # Otay discharge
     #D['river_transport'][:,6:] = -0.01 + D['river_transport'][:,6:] # these are in SD Bay
     print('the time-mean discharge for Otay Mesa is ')
     print(str( np.mean(D['river_transport'][:,8]) ) + ' m3/s')
+    print('or ', str( 22.824*np.mean(D['river_transport'][:,8]) ) + ' MGD')
     print('the time-constant discharge for Punta Bandera is ')
     print(str( np.mean(D['river_transport'][:,5]) ) + ' m3/s')
+    print('or ', str( 22.824*np.mean(D['river_transport'][:,5]) ) + ' MGD')
 
     
     D['vinfo']['river_transport'] = {'long_name':'river runoff mass transport',
@@ -8994,7 +8998,7 @@ def mk_lv4_river_nc():
     #D['river_dye_01'][:,:,5] = 0.5088 + D['river_dye_01'][:,:,5] # new value
     # based on Liden discussion at PFM 4/14/25 meeting 0.5088 = 29/(28+29)
     # where 29 MGD WW, and 28 MGD non-WW
-    D['river_dye_01'][:,:,5] = 0.5 + D['river_dye_01'][:,:,5] # new value 5/2/25
+    D['river_dye_01'][:,:,5] = PFM['dye_PB'] + D['river_dye_01'][:,:,5] # new value 5/2/25
     # based on FF email with Liden
 
 

@@ -82,6 +82,9 @@ def get_PFM_info():
       print('we are currently using the file:')
       print(os.path.abspath(__file__))
       PFM = dict()
+      PFM['Q_PB'] = -2.0 # m3/s flow at Punta Bandera
+      PFM['dye_PB'] = 0.5 # fraction of Q_PB that is raw WW
+      # new value 5/2/25 based on FF email with Liden
       PFM['info_file'] = pfm_info_full
       if run_type == 'hindcast': # note hycom with tides starts on 2024-10-10 1200...
          sim_start_time = '2024101100' # the simulation start time is in yyyymmddhh format
