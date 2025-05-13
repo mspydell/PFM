@@ -1766,7 +1766,7 @@ def hycom_ncfiles_to_pickle(yyyymmdd):
     cnt=0
     t_from_fname = 1 # switch added 4-19-2025 because hycom time stopped having units.
     # check an redownload hycom.nc files
-    eecode = check_and_redownload_ncfiles()
+    eecode = check_and_redownload_ncfiles(yyyymmdd)
 
     if eecode==1: # this means there is something wrong with the hycom nc files
         print('something is wrong with on or more of the hycom nc files. Aborting.')
