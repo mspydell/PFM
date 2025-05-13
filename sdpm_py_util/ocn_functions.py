@@ -1591,42 +1591,126 @@ def hycom_cats_to_pickle(yyyymmdd):
         pickle.dump(OCN,fp)
         print('\nHycom OCN dict saved with pickle')
 
-def redownload_hycom_file(fn):
-    # get the url associated with the nc file on swell that is too small
-    url = myname_to_urls(fn)
+
+def remove_files_by_pattern(directory, pattern):
+    """Removes files matching a specified pattern within a directory.
+
+    Args:
+        directory: The path to the directory to search in.
+        pattern: The pattern to match (e.g., "*.txt", "file_*.log").
+    """
+    for filename in glob.glob(os.path.join(directory, pattern)):
+        try:
+            os.remove(filename)
+            print(f"Removed: {filename}")
+        except FileNotFoundError:
+            print(f"File not found: {filename}")
+        except Exception as e:
+            print(f"Error removing {filename}: {e}")
+
+def delete_files(file_list):
+    """
+    Deletes files specified in a list.
+
+    Args:
+        file_list: A list of file paths to be deleted.
+    """
+    for file_path in file_list:
+        try:
+            os.remove(file_path)
+            print(f"Deleted file: {file_path}")
+        except FileNotFoundError:
+            print(f"File not found: {file_path}")
+        except Exception as e:
+            print(f"Error deleting {file_path}: {e}")
 
 
-def check_and_redownload_ncfile(fn):
+def check_and_redownload_ncfiles(yyyymmdd):
     # this function checks to see if the hycom.nc file is the right size
     # if it isn't the right size, it removes it, and redownloads it.
     # it tries this 5 times before returning a bad 0 error code
 
-    # parse the information from the file name
-    var = fn[-40:-37] # this is variable we are checking
-    
-    if var == 'ssh':
-        mnfsize = 0.4 # files size should be bigger than this in Mb for ssh
-    else:
-        mnfsize = 1.5 # files should be bigger than this for others
+    PFM = get_PFM_info()
 
-    file_size_bytes = os.path.getsize(fn) # check file size
-    file_size_mb = file_size_bytes / (1024*1024) # convert to Mb
-    cnt = 0
+    hydir = PFM['hycom_data_dir']
+    hydir = hydir[0:-1]
+    #remove_files_by_pattern(hydir,'*.tmp')
 
-    while file_size_mb < mnfsize and cnt<=3:
-        print('ssh file ', fn, ' was too small. deleting it.')
-        os.remove(fn)
-        print('redownloading from hycom...')
-        redownload_hycom_file(fn)
-        file_size_bytes = os.path.getsize(fn) # check file size
-        file_size_mb = file_size_bytes / (1024*1024) # convert to Mb
-        cnt = cnt+1
+    south = PFM['latlonbox']['L1'][0]
+    north = PFM['latlonbox']['L1'][1]
+    west = PFM['latlonbox']['L1'][2]+360.0
+    east = PFM['latlonbox']['L1'][3]+360.0
 
-    if file_size_mb > mnfsize:
-        eecode = 0 # this means the file should be good
-    else: 
-        eecode = 1 # the means the file is too small still
-    
+    t1  = PFM['fetch_time']       # this is the start time of the PFM forecast
+    # now a string of the time to start ROMS (and the 1st atm time too)
+    t1str = "%d%02d%02d%02d%02d" % (t1.year, t1.month, t1.day, t1.hour, t1.minute)
+    t2  = t1 + PFM['forecast_days'] * timedelta(days=1)  # this is the last time of the PFM forecast
+
+    t2str = "%d%02d%02d%02d%02d" % (t2.year, t2.month, t2.day, t2.hour, t2.minute)
+
+    nc_in_names = get_hycom_nc_file_names(yyyymmdd,t1str,t2str)
+    chk = 1
+    cnt2 = 0
+    while chk==1 and cnt2<3:
+        bad_files = []
+        urls = []
+        for fn in nc_in_names:
+            if "_ssh_" in fn:
+                mnfsz = 0.4 # this is the minimum filesize for ssh in Mb
+            else:
+                mnfsz = 1.5 # for other vars
+        
+            file_size_mb = os.path.getsize(fn) / (1024*1024)
+            if file_size_mb < mnfsz:
+                bad_files.append(fn)
+
+        if len(bad_files) == 0:
+            print('all hycom nc files are the correct size, moving on!')
+            chk = 0 # we don't need to check anymore, all files are good
+            eecode = 0 # return zero if there are no bad files
+        else:
+            print('there were ', str(len(bad_files)), ' bad hycom nc files.')
+            print('attempting to fix this. Attempt ', str(cnt2+1))
+            print('Deleting offending files...')
+            delete_files(bad_files)
+            print('...done. pausing 15 sec...')
+            time.sleep(20)
+            print('...done. Redownloading bad files...')
+            ncfiles2 = list_to_dict_of_chunks(bad_files) # we are getting chunks of 10 files to get
+                                             # trying to adhere to hycom niceness    
+            for cnt in list(ncfiles2.keys()):     # we will loop through the chunks.
+                ncfiles3 = []
+                for ncf in ncfiles2[cnt]:
+                    ncfiles3.append(ncf[36:])
+
+                urls = myname_to_urls(ncfiles3)
+                urls2 = dict(zip(ncfiles2[cnt],urls))
+
+                print('getting <=10 hycom files... ', end="")
+                with ThreadPoolExecutor() as executor: 
+                    threads = []
+                    for fname in ncfiles2[cnt]:
+                        fun = hycom_grabber_hind #define function
+                        hycom = urls2[fname]
+                        cmd_list = ['ncks',
+                            '-d', 'lon,'+str(west)+','+str(east),
+                            '-d', 'lat,'+str(south)+','+str(north),
+                            hycom ,
+                            '-4', '-O', fname]
+
+                        args = [cmd_list] #define args to function
+                        kwargs = {} #
+                        # start thread by submitting it to the executor
+                        threads.append(executor.submit(fun, *args, **kwargs))
+                        
+                    for future in as_completed(threads):
+                        # retrieve the result
+                        result = future.result()
+                        # report the result
+            print('...done') 
+        cnt2 = cnt2 + 1
+
+    #remove_files_by_pattern(hydir,'*.tmp')
     return eecode
 
 
@@ -1681,16 +1765,14 @@ def hycom_ncfiles_to_pickle(yyyymmdd):
     t_rom2 = np.zeros((ntz))
     cnt=0
     t_from_fname = 1 # switch added 4-19-2025 because hycom time stopped having units.
+    # check an redownload hycom.nc files
+    eecode = check_and_redownload_ncfiles()
+
+    if eecode==1: # this means there is something wrong with the hycom nc files
+        print('something is wrong with on or more of the hycom nc files. Aborting.')
+        sys.exit(1)    
+
     for fn in fn_ssh:
-        ecode = check_and_redownload_ncfile(fn,'ssh',cnt,)
-        file_size_bytes = os.path.getsize(fn) # check file size
-        file_size_kb = file_size_bytes / 1024 # convert to kb
-        cnt2 = 0
-        while file_size_kb < 445 and cnt2<=3:
-            print('ssh file ', fn, ' was too small. deleting it.')
-            os.remove(fn)
-
-
         #dss = xr.open_dataset(fn)
         dss = xr.open_dataset(fn,decode_times=False)
         #dt = (dss.time - np.datetime64(t_ref))  / np.timedelta64(1,'D') # this gets time in days from t_ref
@@ -1713,12 +1795,12 @@ def hycom_ncfiles_to_pickle(yyyymmdd):
         dss.close()
         cnt=cnt+1
 
-    etamx = np.nanmax( np.abs(eta[:]) )
+    #etamx = np.nanmax( np.abs(eta[:]) )
     #print(etamx)
-    if etamx > 5.0:
-        print('\n!!!! WARNING !!!!')
-        print('there is a at least one bad hycom surf_el .nc file. We will exit the simulation!!!')
-        sys.exit(1)        
+    #if etamx > 5.0:
+    #    print('\n!!!! WARNING !!!!')
+    #    print('there is a at least one bad hycom surf_el .nc file. We will exit the simulation!!!')
+    #    sys.exit(1)        
 
     OCN['zeta_time'] = t_rom2
     OCN['zeta'] = eta
