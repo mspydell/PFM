@@ -2,6 +2,7 @@
 from datetime import datetime, timedelta
 from scipy.interpolate import RegularGridInterpolator
 import sys
+import glob
 import pickle
 import matplotlib.pyplot as plt
 import numpy as np
@@ -15,6 +16,38 @@ import cfgrib
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+def delete_files_by_pattern(directory, pattern):
+    """Deletes files in a directory matching a given pattern.
+
+    Args:
+        directory: The directory to search in.
+        pattern: The pattern to match (e.g., "*.txt", "file_??.log").
+    """
+    files_to_delete = glob.glob(os.path.join(directory, pattern))
+    print('deleting ', str(len(files_to_delete)),' files...')
+    for file_path in files_to_delete:
+        try:
+            os.remove(file_path)
+            #print(f"Deleted: {file_path}")
+        except OSError as e:
+            print(f"Error deleting {file_path}: {e}")
+
+def delete_files_by_pattern(directory, pattern):
+    """Deletes files in a directory matching a given pattern.
+
+    Args:
+        directory: The directory to search in.
+        pattern: The pattern to match (e.g., "*.txt", "file_??.log").
+    """
+    files_to_delete = glob.glob(os.path.join(directory, pattern))
+    print('deleting ', str(len(files_to_delete)),' files...')
+    for file_path in files_to_delete:
+        try:
+            os.remove(file_path)
+            #print(f"Deleted: {file_path}")
+        except OSError as e:
+            print(f"Error deleting {file_path}: {e}")
+
 def get_atm_data_as_dict():
     
     PFM        = get_PFM_info()   
@@ -27,21 +60,62 @@ def get_atm_data_as_dict():
     atm_mod    = PFM['atm_model']
     if atm_mod == 'ecmwf': # the hook just so we get ecmwf data
         # the start time of the forecast
-        yyyymmddhh0 = PFM['fetch_time'].strftime("%Y%m%d%H")
-        print('getting the ecmwf data from cdip for the ' + yyyymmddhh0 + ' forecast...')
-        # download the ecmwf data...
-        cmd_list = ['python','-W','ignore','atm_functions.py','get_ecmwf_forecast_grbs',yyyymmddhh0]
-        os.chdir('../sdpm_py_util')
-        ret5 = subprocess.run(cmd_list)   
-        print('return code: ' + str(ret5.returncode) + ' (0=good)')  
-        print('...done.') 
+        ecmwf_method = 'new'
+        if ecmwf_method == 'old':
+            yyyymmddhh0 = PFM['fetch_time'].strftime("%Y%m%d%H")
+            print('getting the ecmwf data from cdip for the ' + yyyymmddhh0 + ' forecast...')
+            # download the ecmwf data...
+            cmd_list = ['python','-W','ignore','atm_functions.py','get_ecmwf_forecast_grbs',yyyymmddhh0]
+            os.chdir('../sdpm_py_util')
+            ret5 = subprocess.run(cmd_list)   
+            print('return code: ' + str(ret5.returncode) + ' (0=good)')  
+            print('...done.') 
 
-        print('\nputting all grib data into a single pickle file...')
-        cmd_list = ['python','-W','ignore','atm_functions.py','ecmwf_grib_2_dict_all',yyyymmddhh0]
-        ret5 = subprocess.run(cmd_list)   
-        print('return code: ' + str(ret5.returncode) + ' (0=good)')  
-        print('...done.') 
-        
+            print('\nputting all grib data into a single pickle file...')
+            cmd_list = ['python','-W','ignore','atm_functions.py','ecmwf_grib_2_dict_all',yyyymmddhh0]
+            ret5 = subprocess.run(cmd_list)   
+            print('return code: ' + str(ret5.returncode) + ' (0=good)')  
+            print('...done.') 
+        else:
+            print('trying the new more robust method of getting and using ecmwf data from cdip...')
+            tfore0 = PFM['fetch_time']
+            tstart = tfore0
+            yyyymmddhh0 = tfore0.strftime("%Y%m%d%H")
+            tstart_str = tstart.strftime("%Y%m%d%H")
+            got_files = 1 # >=1 means we don't have the files we want. 0 means we do.
+            cnt = 0
+            while got_files >= 1 and cnt<4:   
+                yyyymmddhh0 = tfore0.strftime("%Y%m%d%H")
+                print('getting the ecmwf data from cdip for the ' + yyyymmddhh0 + ' forecast...')
+                # download the ecmwf data...
+                cmd_list = ['python','-W','ignore','atm_functions.py','get_ecmwf_forecast_grbs_v2',yyyymmddhh0,tstart_str]
+                os.chdir('../sdpm_py_util')
+                ret5 = subprocess.run(cmd_list)   
+                print('return code: ' + str(ret5.returncode) + ' (0=good)')  
+                print('did we get the ecmwf data?')
+                got_files = got_ecmwf_files(yyyymmddhh0,tstart_str)
+                if got_files == 0:
+                    print('we got the files from the ecmwf forecast ',yyyymmddhh0)
+                    print('to do the PFM forecast starting on ', tstart_str)
+
+                tfore0 = tfore0 - 0.5 * timedelta(days=1) # try a previous forecast
+                cnt = cnt+1 # increment cnt so that we only try previous -36 hr max forecast
+                if cnt==4:
+                    print('we are going to have problems, not enough ecmwf data to do a forecast')
+
+            print('...done.') 
+
+            print('\nputting all grib data into a single pickle file...')
+            cmd_list = ['python','-W','ignore','atm_functions.py','ecmwf_grib_2_dict_all_v2',yyyymmddhh0, tstart_str]
+            ret5 = subprocess.run(cmd_list)   
+            print('return code: ' + str(ret5.returncode) + ' (0=good)')  
+            print('...done.') 
+
+        print('deleting grb and idx files from ', PFM['ecmwf_dir'], ' ...')
+        delete_files_by_pattern(PFM['ecmwf_dir'], "T*")
+        delete_files_by_pattern(PFM['ecmwf_dir'], "*.idx")
+        print('...done')
+
         print('\ngoing from ecmwf variables to roms variables...')
         atmpkl = PFM['ecmwf_dir'] + PFM['ecmwf_all_pkl_name']
         cmd_list = ['python','-W','ignore','atm_functions.py','ecmwf_to_roms_vars',atmpkl]
@@ -1073,6 +1147,96 @@ def get_ecmwf_grib_files_lists(yyyymmddhh0):
 
     return fnms, fnms_tot, fnms_out, cmds_tot
 
+def check_file_exists_and_is_not_empty(file_path):
+    """
+    Checks if a file exists and is larger than zero bytes.
+
+    Args:
+        file_path: The path to the file.
+
+    Returns:
+        0 if the file exists and is larger than zero bytes, otherwise returns None.
+    """
+    if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
+        return 0
+    else:
+        return 1
+    
+def got_ecmwf_files(yyyymmddhh0,t0_str):
+    # get the list of file names
+    _, _, fns_out, _ = get_ecmwf_grib_files_lists_v2(yyyymmddhh0,t0_str)
+    got_all_files = 0
+    # loop through file names
+    for fn in fns_out:
+        got_all_files = got_all_files + check_file_exists_and_is_not_empty(fn)
+
+    # if got_all_files > 0, then there were some files that were either missing or zero size
+
+    return got_all_files
+
+def get_ecmwf_grib_files_lists_v2(yyyymmddhh0,t0_str):
+    # this gets the ecmwf grib files from the cdip server for the forecast starting at yyyymmddhh0
+    # but we are now only going to get data from t0 to t0+PFM['forecast_days']
+
+    # the forecast time stamp
+    yyyy0 = yyyymmddhh0[0:4]
+    mm0 = yyyymmddhh0[4:6]
+    dd0 = yyyymmddhh0[6:8]
+    hh0 = yyyymmddhh0[8:]
+
+    url_txt = 'https://syntool.cdip.ucsd.edu/thredds/fileServer/raw/ECMWF_TMP/FALK/' + yyyy0 + '/' + mm0 + '/' + dd0 + '/'
+
+    if hh0 == '00' or hh0 == '12':
+        txt1 = 'D'
+    else:
+        txt1 = 'S'
+
+    # this is the string associated with the forecast time stamp
+    txt2 = 'T1' + txt1 + mm0 + dd0 + hh0
+
+    PFM = get_PFM_info()
+
+    dir_out = PFM['ecmwf_dir']
+    
+    t_fore = datetime.strptime(yyyymmddhh0,'%Y%m%d%H') # this is the time stamp of the forecast
+    t_0 = datetime.strptime(t0_str,'%Y%m%d%H') # this is when the PFM forecast starts
+
+    t_f = t_0
+    hr_f = int( (t_0 - t_fore).total_seconds()/3600 )# this is the forecast hour, the 1st time we want
+    hr_max = int( hr_f + 24 * PFM['forecast_days'] )
+
+    if hr_f == 0:
+        mm = '01' # this is the first mm string. after the first file, it is '00'
+    else:
+        mm = '00'
+
+    fnms = []
+    fnms_tot = []
+    fnms_out = []
+    cmds_tot = []
+
+    while hr_f <= hr_max:
+        yyyymmddhh = t_f.strftime("%Y%m%d%H") # the timestamp of the file we will get
+        txt3 = txt2 + yyyymmddhh + mm + '1'
+        fnms.append(txt3)
+        txt4 = url_txt + txt3
+        fnms_tot.append(txt4)
+        txt5 = dir_out + txt3
+        fnms_out.append(txt5)
+        cmds = ['wget','-q','--user','syntool','--password','cdip','-O',txt5,txt4]
+        cmds_tot.append(cmds)
+        mm = '00'
+
+        if hr_f < 90:
+            hr_dt = 1.0 # the first 90 hrs is 1 hr dt
+        else: 
+            hr_dt = 3.0 # after that it is 3 hr dt
+        hr_f = hr_f + hr_dt
+        t_f = t_f + hr_dt * timedelta(hours=1)
+
+    return fnms, fnms_tot, fnms_out, cmds_tot
+
+
 def get_ecmwf_forecast_grbs(yyyymmddhh0):
     _, _, _, cmd_list = get_ecmwf_grib_files_lists(yyyymmddhh0)
 
@@ -1095,22 +1259,29 @@ def get_ecmwf_forecast_grbs(yyyymmddhh0):
             result2.append(result)
             # report the result
 
-    # some stuff for error checking
-    # didn't work the same as for the hindcast stuff. punting on this for now.
+def get_ecmwf_forecast_grbs_v2(yyyymmddhh0,t0_str):
+    _, _, _, cmd_list = get_ecmwf_grib_files_lists_v2(yyyymmddhh0,t0_str)
 
-    #print(result2)
-    #res3 = result2.copy()
-    #print(res3)
-    #res3 = [1 if x == 0 else x for x in res3]
-    #print(res3)
-    #nff = sum(res3)
-    #if nff == len(cmd_list):
-    #    print('things are good, we got all ' + str(nff) + ' ecmwf files')
-    #else:
-    #    print('things arent so good.')
-    #    print('we got ' + str(nff) + ' files of ' + str(len(cmd_list)) + ' ecmwf files we tried to get.')
+   # create parallel executor
+    with ThreadPoolExecutor() as executor:
+        threads = []
+        cnt = 0
+        for cmd in cmd_list:
+            fun =  ecmwf_grabber #define function
+            args = [cmd] #define args to function
+            kwargs = {} #
+            # start thread by submitting it to the executor
+            threads.append(executor.submit(fun, *args, **kwargs))
+            cnt=cnt+1
 
-    #return result2
+        result2 = []
+        for future in as_completed(threads):
+            # retrieve the result
+            result = future.result()
+            result2.append(result)
+            # report the result
+
+
 
 def ecmwf_grib_2_dict(fn_in):
     AA = dict()
@@ -1157,6 +1328,59 @@ def ecmwf_grib_2_dict(fn_in):
 
 #    return Aout
 
+def ecmwf_grib_2_dict_all_v2(yyyymmddhh0,t0_str):
+    # this saves the ecmwf grib data as a dictionary pkl file. Variables will be in ROMS units with ROMS
+    # variable names, but on the ecmwf grid
+
+    _, _, fn_grbs, _ = get_ecmwf_grib_files_lists_v2(yyyymmddhh0,t0_str)
+    nt = len(fn_grbs) # the number of files is the number of time stamps (101 for a 5 day ecmwf forecast)
+    print('there are ' + str(nt) + ' ecmwf grib files to stack in time.')
+    
+    A0 = ecmwf_grib_2_dict(fn_grbs[0]) # us this to get nlat and nlon
+
+    ATM = dict()
+    ATM['var_info'] = A0['var_info']
+    ATM['lat'] = A0['latitude']
+    ATM['lon'] = A0['longitude']
+    nlat = len(ATM['lat']) # ecmwf lat, lon are vectors, both at 0.1 deg resolution
+    nlon = len(ATM['lon'])
+    # the following are ecmwf 2d variables variables
+    var_e = ['d2m','t2m','msl','u10','v10','e','tp','slhf','sshf','ssr','ssrd','strd','str'] # need 'str' !!!
+
+    ATM['time'] = []
+    ATM['valid_time'] = np.zeros((nt))
+    for var in var_e:
+        ATM[var] = np.zeros((nt,nlat,nlon))
+
+    cnt=0
+    for fn in fn_grbs:
+        g = ecmwf_grib_2_dict(fn)
+        ATM['time'].append(g['time'])
+        ATM['valid_time'][cnt] = g['valid_time']
+        for var in var_e:
+            dum = g[var][:,:]
+            dum = np.flip(dum,0)
+            ATM[var][cnt,:,:] = dum
+        cnt = cnt+1
+    
+    ATM['lat'] = np.flipud( ATM['lat'] )
+    PFM = get_PFM_info()
+    # stuff to be set with PFM structure.
+
+    #PFM['ecmwf_dir'] = '/scratch/PFM_Simulations/ecmwf_data/'
+    #PFM['ecmwf_pkl_name'] = 'ecmwf_all.pkl'
+    
+    dir_out = PFM['ecmwf_dir']
+    fn_out = PFM['ecmwf_all_pkl_name']
+    fname_out = dir_out + fn_out
+    
+    with open(fname_out,'wb') as fp:
+        pickle.dump(ATM,fp)
+        print('\necmwf 1st ATM dict saved with pickle.')
+
+    #return ATM    
+
+
 def ecmwf_grib_2_dict_all(yyyymmddhh0):
     # this saves the ecmwf grib data as a dictionary pkl file. Variables will be in ROMS units with ROMS
     # variable names, but on the ecmwf grid
@@ -1202,10 +1426,6 @@ def ecmwf_grib_2_dict_all(yyyymmddhh0):
     dir_out = PFM['ecmwf_dir']
     fn_out = PFM['ecmwf_all_pkl_name']
     fname_out = dir_out + fn_out
-    #PFM['ecmwf_dir'] = '/scratch/PFM_Simulations/ecmwf_data/'
-    #PFM['ecmwf_all_pkl_name'] = 'ecmwf_all.pkl'
-    #PFM['ecmwf_pkl_roms_vars'] = 'ecmwf_roms_vars.pkl'
-    #PFM['ecmwf_pkl_on_roms_grid'] = 'ecmwf_on_romsgrid.pkl'
     
     with open(fname_out,'wb') as fp:
         pickle.dump(ATM,fp)

@@ -1614,6 +1614,129 @@ def hycom_cats_to_pickle(yyyymmdd):
         pickle.dump(OCN,fp)
         print('\nHycom OCN dict saved with pickle')
 
+
+def remove_files_by_pattern(directory, pattern):
+    """Removes files matching a specified pattern within a directory.
+
+    Args:
+        directory: The path to the directory to search in.
+        pattern: The pattern to match (e.g., "*.txt", "file_*.log").
+    """
+    for filename in glob.glob(os.path.join(directory, pattern)):
+        try:
+            os.remove(filename)
+            print(f"Removed: {filename}")
+        except FileNotFoundError:
+            print(f"File not found: {filename}")
+        except Exception as e:
+            print(f"Error removing {filename}: {e}")
+
+def delete_files(file_list):
+    """
+    Deletes files specified in a list.
+
+    Args:
+        file_list: A list of file paths to be deleted.
+    """
+    for file_path in file_list:
+        try:
+            os.remove(file_path)
+            print(f"Deleted file: {file_path}")
+        except FileNotFoundError:
+            print(f"File not found: {file_path}")
+        except Exception as e:
+            print(f"Error deleting {file_path}: {e}")
+
+
+def check_and_redownload_ncfiles(yyyymmdd):
+    # this function checks to see if the hycom.nc file is the right size
+    # if it isn't the right size, it removes it, and redownloads it.
+    # it tries this 5 times before returning a bad 0 error code
+
+    PFM = get_PFM_info()
+
+    hydir = PFM['hycom_data_dir']
+    hydir = hydir[0:-1]
+    #remove_files_by_pattern(hydir,'*.tmp')
+
+    south = PFM['latlonbox']['L1'][0]
+    north = PFM['latlonbox']['L1'][1]
+    west = PFM['latlonbox']['L1'][2]+360.0
+    east = PFM['latlonbox']['L1'][3]+360.0
+
+    t1  = PFM['fetch_time']       # this is the start time of the PFM forecast
+    # now a string of the time to start ROMS (and the 1st atm time too)
+    t1str = "%d%02d%02d%02d%02d" % (t1.year, t1.month, t1.day, t1.hour, t1.minute)
+    t2  = t1 + PFM['forecast_days'] * timedelta(days=1)  # this is the last time of the PFM forecast
+
+    t2str = "%d%02d%02d%02d%02d" % (t2.year, t2.month, t2.day, t2.hour, t2.minute)
+
+    nc_in_names = get_hycom_nc_file_names(yyyymmdd,t1str,t2str)
+    chk = 1
+    cnt2 = 0
+    while chk==1 and cnt2<3:
+        bad_files = []
+        urls = []
+        for fn in nc_in_names:
+            if "_ssh_" in fn:
+                mnfsz = 0.4 # this is the minimum filesize for ssh in Mb
+            else:
+                mnfsz = 1.5 # for other vars
+        
+            file_size_mb = os.path.getsize(fn) / (1024*1024)
+            if file_size_mb < mnfsz:
+                bad_files.append(fn)
+
+        if len(bad_files) == 0:
+            print('all hycom nc files are the correct size, moving on!')
+            chk = 0 # we don't need to check anymore, all files are good
+            eecode = 0 # return zero if there are no bad files
+        else:
+            print('there were ', str(len(bad_files)), ' bad hycom nc files.')
+            print('attempting to fix this. Attempt ', str(cnt2+1))
+            print('Deleting offending files...')
+            delete_files(bad_files)
+            print('...done. pausing 15 sec...')
+            time.sleep(20)
+            print('...done. Redownloading bad files...')
+            ncfiles2 = list_to_dict_of_chunks(bad_files) # we are getting chunks of 10 files to get
+                                             # trying to adhere to hycom niceness    
+            for cnt in list(ncfiles2.keys()):     # we will loop through the chunks.
+                ncfiles3 = []
+                for ncf in ncfiles2[cnt]:
+                    ncfiles3.append(ncf[36:])
+
+                urls = myname_to_urls(ncfiles3)
+                urls2 = dict(zip(ncfiles2[cnt],urls))
+
+                print('getting <=10 hycom files... ', end="")
+                with ThreadPoolExecutor() as executor: 
+                    threads = []
+                    for fname in ncfiles2[cnt]:
+                        fun = hycom_grabber_hind #define function
+                        hycom = urls2[fname]
+                        cmd_list = ['ncks',
+                            '-d', 'lon,'+str(west)+','+str(east),
+                            '-d', 'lat,'+str(south)+','+str(north),
+                            hycom ,
+                            '-4', '-O', fname]
+
+                        args = [cmd_list] #define args to function
+                        kwargs = {} #
+                        # start thread by submitting it to the executor
+                        threads.append(executor.submit(fun, *args, **kwargs))
+                        
+                    for future in as_completed(threads):
+                        # retrieve the result
+                        result = future.result()
+                        # report the result
+            print('...done') 
+        cnt2 = cnt2 + 1
+
+    #remove_files_by_pattern(hydir,'*.tmp')
+    return eecode
+
+
 def hycom_ncfiles_to_pickle(yyyymmdd):
     # set up dict and fill in
     OCN = dict()
@@ -1638,16 +1761,6 @@ def hycom_ncfiles_to_pickle(yyyymmdd):
 
     nc_in_names = get_hycom_nc_file_names(yyyymmdd,t1str,t2str)
 
-    yyyy = yyyymmdd[0:4]
-    mm = yyyymmdd[4:6]
-    dd = yyyymmdd[6:8]    
-#    dstr0 = yyyy + '-' + mm + '-' + dd + 'T12:00'
-    
-#    var3d_1 = ['t3z','s3z','u3z','v3z']
-#    var3d_2 = ['water_temp','salinity','water_u','water_v']
-#    var2d_1 = ['ssh']
-#    var2d_2 = ['surf_el']
-    
     # get lists of file names for each variable. I think they are sorted?
     fn_ssh = [s for s in nc_in_names if "_ssh_" in s]
     fn_t3z = [s for s in nc_in_names if "_t3z_" in s]
@@ -1675,8 +1788,14 @@ def hycom_ncfiles_to_pickle(yyyymmdd):
     t_rom2 = np.zeros((ntz))
     cnt=0
     t_from_fname = 1 # switch added 4-19-2025 because hycom time stopped having units.
+    # check an redownload hycom.nc files
+    eecode = check_and_redownload_ncfiles(yyyymmdd)
+
+    if eecode==1: # this means there is something wrong with the hycom nc files
+        print('something is wrong with on or more of the hycom nc files. Aborting.')
+        sys.exit(1)    
+
     for fn in fn_ssh:
-        #print(fn)
         #dss = xr.open_dataset(fn)
         dss = xr.open_dataset(fn,decode_times=False)
         #dt = (dss.time - np.datetime64(t_ref))  / np.timedelta64(1,'D') # this gets time in days from t_ref
@@ -1694,19 +1813,17 @@ def hycom_ncfiles_to_pickle(yyyymmdd):
             trm = thy - t_ref # now a timedelta referenced to roms
             dt = trm[0].total_seconds() / (3600*24) # now days since time ref
         
-
-        #t_rom2[cnt] = dt.values
         t_rom2[cnt] = dt
         eta[cnt,:,:] = dss.surf_el.values
         dss.close()
         cnt=cnt+1
 
-    etamx = np.nanmax( np.abs(eta[:]) )
+    #etamx = np.nanmax( np.abs(eta[:]) )
     #print(etamx)
-    if etamx > 5.0:
-        print('\n!!!! WARNING !!!!')
-        print('there is a at least one bad hycom surf_el .nc file. We will exit the simulation!!!')
-        sys.exit(1)        
+    #if etamx > 5.0:
+    #    print('\n!!!! WARNING !!!!')
+    #    print('there is a at least one bad hycom surf_el .nc file. We will exit the simulation!!!')
+    #    sys.exit(1)        
 
     OCN['zeta_time'] = t_rom2
     OCN['zeta'] = eta
@@ -8664,6 +8781,7 @@ def mk_lv4_river_nc():
     D['river_transport'][:,4] = D['river_transport'][:,0]
     print('the time-mean discharge for TJR is ')
     print(str( 5*np.mean(D['river_transport'][:,0]) ) + ' m3/s')
+    print('or ', str( 22.824*5*np.mean(D['river_transport'][:,0]) ) + ' MGD')
 
     #D['river_transport'][:,5] = -2.1906 + D['river_transport'][:,5] # this is PB. original value
     #D['river_transport'][:,5] = -2.5 + D['river_transport'][:,5] # this is PB. 4/14/25 value
@@ -8671,20 +8789,23 @@ def mk_lv4_river_nc():
     # but Liden also said that this is good for dry weather, wet weather flow gets
     # diverted and at PB Qww = 0.175 m3/s, Qfw 0.79 m3/s, Qtot = 0.965 m3/s, and 
     # dye_01 = 0.175 / 0.965 = 0.1818. NOT IMPLEMENTED!!!! 
-    D['river_transport'][:,5] = -2.0 + D['river_transport'][:,5] # this is PB. 5/2/25 value
+    D['river_transport'][:,5] = PFM['Q_PB'] + D['river_transport'][:,5] # this is PB. 5/2/25 value
     # based on FF email with Liden
 
     D['river_transport'][:,6] = - 0.5 * QQ['discharge'][:,0] # sweetwater discharge
     D['river_transport'][:,7] = D['river_transport'][:,6]
     print('the time-mean discharge for Sweetwater is ')
     print(str( 2*np.mean(D['river_transport'][:,6]) ) + ' m3/s')
+    print('or ', str( 22.824*2*np.mean(D['river_transport'][:,6]) ) + ' MGD')
 
     D['river_transport'][:,8] = - QQ['discharge'][:,1] # Otay discharge
     #D['river_transport'][:,6:] = -0.01 + D['river_transport'][:,6:] # these are in SD Bay
     print('the time-mean discharge for Otay Mesa is ')
     print(str( np.mean(D['river_transport'][:,8]) ) + ' m3/s')
+    print('or ', str( 22.824*np.mean(D['river_transport'][:,8]) ) + ' MGD')
     print('the time-constant discharge for Punta Bandera is ')
     print(str( np.mean(D['river_transport'][:,5]) ) + ' m3/s')
+    print('or ', str( 22.824*np.mean(D['river_transport'][:,5]) ) + ' MGD')
 
     
     D['vinfo']['river_transport'] = {'long_name':'river runoff mass transport',
@@ -8721,7 +8842,7 @@ def mk_lv4_river_nc():
     #D['river_dye_01'][:,:,5] = 0.5088 + D['river_dye_01'][:,:,5] # new value
     # based on Liden discussion at PFM 4/14/25 meeting 0.5088 = 29/(28+29)
     # where 29 MGD WW, and 28 MGD non-WW
-    D['river_dye_01'][:,:,5] = 0.5 + D['river_dye_01'][:,:,5] # new value 5/2/25
+    D['river_dye_01'][:,:,5] = PFM['dye_PB'] + D['river_dye_01'][:,:,5] # new value 5/2/25
     # based on FF email with Liden
 
 
