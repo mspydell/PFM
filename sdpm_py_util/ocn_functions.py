@@ -1651,6 +1651,7 @@ def check_and_redownload_ncfiles(yyyymmdd):
     nc_in_names = get_hycom_nc_file_names(yyyymmdd,t1str,t2str)
     chk = 1
     cnt2 = 0
+    eecode = 1 # assume there are bad files...
     while chk==1 and cnt2<3:
         bad_files = []
         urls = []
@@ -1660,8 +1661,31 @@ def check_and_redownload_ncfiles(yyyymmdd):
             else:
                 mnfsz = 1.5 # for other vars
         
+            if "_ssh_" in fn:
+                data_var = 'surf_el'
+            elif "_s3z_" in fn:
+                data_var = 'sal'
+            elif "_t3z_" in fn:
+                data_var = 'temp'
+            elif "_u3z_" in fn:
+                data_var = 'water_u'
+            elif "_v3z_" in fn:
+                data_var = 'water_v'
+
             file_size_mb = os.path.getsize(fn) / (1024*1024)
-            if file_size_mb < mnfsz:
+
+            with nc.Dataset(fn) as ds:
+                data = ds.variables[data_var][:]
+                mnd = np.nanmin(data[:])
+                mxd = np.nanmax(data[:])
+            
+            bad_data = 0
+            if (mnd < -10 or mxd > 100) and ("_s3z_" in fn or "_t3z_" in fn):
+                bad_data = 1
+            elif (mnd < -20 or mxd > 20) and ("_u3z_" in fn or "_v3z_" in fn or "_ssh_" in fn): 
+                bad_data = 1
+
+            if file_size_mb < mnfsz or bad_data == 1:
                 bad_files.append(fn)
 
         if len(bad_files) == 0:
