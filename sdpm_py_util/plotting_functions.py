@@ -17,8 +17,7 @@ import pandas as pd
 import requests
 import subprocess
 import os
-import init_funs as initfuns
-
+import init_funs_forecast as initfuns
 
 def plot_roms_box(axx, RMG):
     xr1 = RMG['lon_rho'][0, :]
@@ -840,7 +839,7 @@ def plot_ocn_fields_from_dict(OCN, RMG, PFM, fields_to_plot=None, show=False):
             plt.close()
 
 
-def plot_ocn_fields_from_dict_pckl(fname_in, fields_to_plot=None, show=False):
+def plot_ocn_fields_from_dict_pckl(fname_in, pkl_fnm, fields_to_plot=None, show=False):
     """
     Plot specified fields from a dictionary and save them as PNG files.
     
@@ -849,7 +848,7 @@ def plot_ocn_fields_from_dict_pckl(fname_in, fields_to_plot=None, show=False):
     fields_to_plot (list or str): The fields to plot. If None, plot all fields.
     """
 
-    PFM=get_PFM_info()
+    PFM=initfuns.get_PFM_info(pkl_fnm)
     RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
 
     print(fname_in)
@@ -1023,9 +1022,9 @@ def plot_ocn_R_fields(OCN_R, RMG, PFM, fields_to_plot=None, time_index=0, depth_
         else:
             plt.close()
 
-def load_ocnR_from_pckl_files():
+def load_ocnR_from_pckl_files(pkl_fnm):
 
-    PFM=get_PFM_info()
+    PFM=initfuns.get_model_info(pkl_fnm)
     ork = ['depth','lat_rho','lon_rho','lat_u','lon_u','lat_v','lon_v','ocean_time','ocean_time_ref','salt','temp','ubar','urm','vbar','vrm','zeta','vinfo']
 
     OCN_R = dict()
@@ -1036,12 +1035,12 @@ def load_ocnR_from_pckl_files():
 
     return OCN_R
 
-def plot_ocn_R_fields_pckl(fields_to_plot=None, time_index=0, depth_index=0, show=False):
+def plot_ocn_R_fields_pckl(pkl_fnm,fields_to_plot=None, time_index=0, depth_index=0, show=False):
 
-    PFM=get_PFM_info()
+    PFM=initfuns.get_model_info(pkl_fnm)
     RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
 
-    OCN_R = load_ocnR_from_pckl_files()
+    OCN_R = load_ocnR_from_pckl_files(pkl_fnm)
 
     timestamp = extract_timestamp(OCN_R)
     lon = OCN_R['lon_rho']

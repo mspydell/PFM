@@ -1,0 +1,995 @@
+we need  61  hycom nc files...
+the  61  nc files already exist, no need to download.
+
+max and min raw hycom data (iz is top [0] to bottom [39]):
+max zeta   =  0.816 m          at  ( it, ilat, ilon)     =  ( 23,  49,  49)
+min zeta   = -0.995 m          at  ( it, ilat, ilon)     =  (  7, 203,   0)
+max u      =  0.608 m/s        at  ( it, iz, ilat, ilon) =  (  3,  8,  74,  53)
+min u      = -0.580 m/s        at  ( it, iz, ilat, ilon) =  (  4,  2,  41,  76)
+max v      =  0.585 m/s        at  ( it, iz, ilat, ilon) =  (  7,  4,  36,  90)
+min v      = -0.633 m/s        at  ( it, iz, ilat, ilon) =  (  7,  0, 148,   5)
+max temp   = 22.837 C          at  ( it, iz, ilat, ilon) =  (  8,  0,   0,  98)
+min temp   =  1.368 C          at  ( it, iz, ilat, ilon) =  (  3, 38, 170,   4)
+max dT/dz  =  1.390 C/m        at  ( it, iz, ilat, ilon) =  (  0,  0,  59,  97)
+min dT/dz  = -0.137 C/m        at  ( it, iz, ilat, ilon) =  (  0, 13, 121,  56)
+max salt   = 34.722 psu        at  ( it, iz, ilat, ilon) =  (  5, 38,  17,  39)
+min salt   = 32.592 psu        at  ( it, iz, ilat, ilon) =  (  0, 14, 153,   2)
+max dS/dz  =  0.039 psu/m      at  ( it, iz, ilat, ilon) =  (  1,  7, 157,  15)
+min dS/dz  = -0.052 psu/m      at  ( it, iz, ilat, ilon) =  (  2,  8, 163,   8)
+
+going to save a hycom pickle file to /scratch/PHM_Simulations/LV1_Forecast/Forc/hycom_tmp_pckl_file.pkl
+Hycom OCN dict saved with pickle.
+...done. 
+all 18 ocnR pickle files were made correctly
+
+max and min of hycom data on ROMS grid (iz is top [0] to bottom [39]):
+max zeta   =  0.816 m          at  ( it, ilat, ilon)     =  ( 23,  87,  62)
+min zeta   = -0.950 m          at  ( it, ilat, ilon)     =  (  6, 351, 141)
+max urm    =  0.613 m/s        at  ( it, iz, ilat, ilon) =  (  3,  8, 132, 100)
+min urm    = -0.655 m/s        at  ( it, iz, ilat, ilon) =  (  4,  0,  23, 150)
+max vrm    =  0.512 m/s        at  ( it, iz, ilat, ilon) =  (  7,  4,   0, 194)
+min vrm    = -0.720 m/s        at  ( it, iz, ilat, ilon) =  (  6,  0, 364,   3)
+max temp   = 22.160 C          at  ( it, iz, ilat, ilon) =  (  0,  0, 209, 191)
+min temp   =  1.402 C          at  ( it, iz, ilat, ilon) =  (  5, 38, 389,  26)
+max dT/dz  =  1.388 C/m        at  ( it, iz, ilat, ilon) =  (  0,  0,  25, 247)
+min dT/dz  = -0.348 C/m        at  ( it, iz, ilat, ilon) =  (  1,  6,   2, 240)
+max salt   = 34.722 psu        at  ( it, iz, ilat, ilon) =  (  5, 38,  35,   1)
+min salt   = 32.624 psu        at  ( it, iz, ilat, ilon) =  (  3, 13, 366,   0)
+max dS/dz  =  0.037 psu/m      at  ( it, iz, ilat, ilon) =  (  1,  7, 365,  44)
+min dS/dz  = -0.050 psu/m      at  ( it, iz, ilat, ilon) =  (  2,  8, 386,  25)
+depth pickle file /scratch/PHM_Simulations/LV1_Forecast/Forc/roms_tmp_depth_file.pklalready exists.
+OCN_IC dict saved with pickle
+OCN_IC dict loaded with pickle
+
+max and min of data in ROMS IC file (iz is bottom [0] to top [39], note: it is always 0 b/c IC):
+max zeta   =  0.720 m          at  ( it, ilat, ilon)     =  (  0, 294, 171)
+min zeta   =  0.372 m          at  ( it, ilat, ilon)     =  (  0,   0, 172)
+max ubar   =  0.196 m/s        at  ( it, ilat, ilon)     =  (  0, 244, 144)
+min ubar   = -0.245 m/s        at  ( it, ilat, ilon)     =  (  0, 309, 137)
+max vbar   =  0.270 m/s        at  ( it, ilat, ilon)     =  (  0, 325, 123)
+min vbar   = -0.172 m/s        at  ( it, ilat, ilon)     =  (  0, 166, 216)
+max u      =  0.412 m/s        at  ( it, iz, ilat, ilon) =  (  0, 31, 134, 106)
+min u      = -0.473 m/s        at  ( it, iz, ilat, ilon) =  (  0, 22, 305, 138)
+max v      =  0.482 m/s        at  ( it, iz, ilat, ilon) =  (  0, 20, 328, 119)
+min v      = -0.591 m/s        at  ( it, iz, ilat, ilon) =  (  0, 39, 363,  11)
+max temp   = 22.141 C          at  ( it, iz, ilat, ilon) =  (  0, 39, 209, 191)
+min temp   =  0.977 C          at  ( it, iz, ilat, ilon) =  (  0,  0, 106,  41)
+max salt   = 34.716 psu        at  ( it, iz, ilat, ilon) =  (  0,  0,  37, 171)
+min salt   = 32.645 psu        at  ( it, iz, ilat, ilon) =  (  0, 29, 372,   0)
+loading /scratch/PHM_Simulations/LV1_Forecast/Forc/roms_tmp_depth_file.pkl
+OCN_BC dict saved with pickle
+OCN_BC dict loaded with pickle
+
+max and min of data in ROMS BC file (iz is bottom [0] to top [39]):
+max zeta_north =  0.660 m          at  ( it, ilon)     =  (  0, 128)
+min zeta_north = -0.893 m          at  ( it, ilon)     =  (  7,  99)
+max zeta_south =  0.768 m          at  ( it, ilon)     =  ( 23,  54)
+min zeta_south = -0.722 m          at  ( it, ilon)     =  (  6, 158)
+max zeta_west  =  0.776 m          at  ( it, ilat)     =  ( 23,  70)
+min zeta_west  = -0.755 m          at  ( it, ilat)     =  (  7, 221)
+max ubar_north =  0.018 m/s        at  ( it, ilon)     =  (  2, 108)
+min ubar_north = -0.061 m/s        at  ( it, ilon)     =  (  4, 127)
+max ubar_south =  0.032 m/s        at  ( it, ilon)     =  (  5, 214)
+min ubar_south = -0.080 m/s        at  ( it, ilon)     =  (  8, 240)
+max ubar_west  =  0.028 m/s        at  ( it, ilat)     =  (  7, 130)
+min ubar_west  = -0.037 m/s        at  ( it, ilat)     =  (  5,   5)
+max vbar_north =  0.148 m/s        at  ( it, ilon)     =  (  8, 120)
+min vbar_north = -0.058 m/s        at  ( it, ilon)     =  (  2,   6)
+max vbar_south =  0.151 m/s        at  ( it, ilon)     =  (  8, 236)
+min vbar_south = -0.062 m/s        at  ( it, ilon)     =  (  2, 135)
+max vbar_west  =  0.033 m/s        at  ( it, ilat)     =  (  8, 293)
+min vbar_west  = -0.060 m/s        at  ( it, ilat)     =  (  2, 351)
+max u_north    =  0.153 m/s        at  ( it, iz, ilon) =  (  8,  32,  99)
+min u_north    = -0.330 m/s        at  ( it, iz, ilon) =  (  4,  39, 115)
+max u_south    =  0.277 m/s        at  ( it, iz, ilon) =  (  7,  33, 103)
+min u_south    = -0.452 m/s        at  ( it, iz, ilon) =  (  4,  39, 171)
+max u_west     =  0.343 m/s        at  ( it, iz, ilat) =  (  4,  35, 132)
+min u_west     = -0.443 m/s        at  ( it, iz, ilat) =  (  3,  39, 295)
+max v_north    =  0.368 m/s        at  ( it, iz, ilon) =  (  5,  36, 112)
+min v_north    = -0.538 m/s        at  ( it, iz, ilon) =  (  5,  39,   1)
+max v_south    =  0.512 m/s        at  ( it, iz, ilon) =  (  7,  35, 194)
+min v_south    = -0.448 m/s        at  ( it, iz, ilon) =  (  2,  39, 127)
+max v_west     =  0.264 m/s        at  ( it, iz, ilat) =  (  6,  34,  21)
+min v_west     = -0.691 m/s        at  ( it, iz, ilat) =  (  6,  39, 365)
+max temp_north = 17.994 C          at  ( it, iz, ilon) =  (  0,  38,  58)
+min temp_north =  1.083 C          at  ( it, iz, ilon) =  (  7,   0,   4)
+max temp_south = 21.785 C          at  ( it, iz, ilon) =  (  8,  39,  10)
+min temp_south =  1.124 C          at  ( it, iz, ilon) =  (  6,   0,   0)
+max temp_west  = 21.775 C          at  ( it, iz, ilat) =  (  8,  39,   7)
+min temp_west  =  1.072 C          at  ( it, iz, ilat) =  (  2,   0, 230)
+max salt_north = 34.708 psu        at  ( it, iz, ilon) =  (  0,   0,  22)
+min salt_north = 32.678 psu        at  ( it, iz, ilon) =  (  0,  28,  10)
+max salt_south = 34.708 psu        at  ( it, iz, ilon) =  (  6,   0,   0)
+min salt_south = 33.384 psu        at  ( it, iz, ilon) =  (  2,  26,  96)
+max salt_west  = 34.710 psu        at  ( it, iz, ilat) =  (  2,   0,  65)
+min salt_west  = 32.627 psu        at  ( it, iz, ilat) =  (  3,  29, 365)
+the  9  grb2 files already exist, no need to download.
+the nam atm pickle files exist, will load and interpolate onto the roms grid...
+
+ATM on roms grid dict saved with pickle.
+getting the hycom data for this simulation...
+...done
+making the hycom pickle file from all hycom.nc files ...
+did subprocess run correctly? 0 (0=yes,1=no)
+...done.
+this took:
+0:00:14.354030
+
+
+starting: ocnfuns.hycom_to_roms_latlon(OCN,RMG)
+putting the hycom data in /scratch/PHM_Simulations/LV1_Forecast/Forc/hycom_tmp_pckl_file.pkl on the roms grid...
+subprocess return code? 0 (0=good)
+driver_run_forecast_LV1: done with hycom_to_roms_latlon
+...done with LV1 ocn_R
+this took:
+0:00:48.497868
+
+
+making the depth pickle file...
+subprocess return code? 0 (0=good)
+
+
+going to save OCN_IC to a pickle file: /scratch/PHM_Simulations/LV1_Forecast/Forc/ocnIC_tmp_pckl_file.pkl
+OCN IC data saved with pickle, correctly? 0 (0=yes,1=no)
+driver_run_forecast_LV1: done with ocn_r_2_ICdict
+this took:
+0:00:27.102482
+
+
+making IC file from pickled IC: /scratch/PHM_Simulations/LV1_Forecast/Forc/LV1_OCEAN_IC.nc
+OCN IC nc data saved, correctly? 0 (0=yes)
+done makeing IC file.
+going to save OCN_BC to a pickle file to:
+/scratch/PHM_Simulations/LV1_Forecast/Forc/ocnBC_tmp_pckl_file.pkl
+OCN BC data saved with pickle, correctly? 0 (0=yes)
+this took:
+0:00:03.422823
+
+
+making BC nc file from pickled BC: /scratch/PHM_Simulations/LV1_Forecast/Forc/LV1_OCEAN_BC.nc
+OCN BC nc data saved, correctly? 0 (0=yes)
+done makeing BC nc file.
+this took:
+0:00:00.940078
+
+
+we are now getting the atm data...
+return code: 0 (0=good)
+...done.
+this took:
+0:00:00.826768
+
+
+we are now converting the atm grb2 files to pickles...
+return code: 1 (0=good)
+...done.
+this took:
+0:00:01.508373
+
+
+we are now putting the hind atm data on the roms LV1 grid...
+return code: 0 (0=good)
+...done.
+this took:
+0:00:01.657263
+
+
+we are now saving ATM LV1 to /scratch/PHM_Simulations/LV1_Forecast/Forc/LV1_ATM_FORCING.nc ...
+return code: 0 (0=good)
+...done.
+this took:
+0:00:00.958439
+
+
+driver_run_forecast_LV1:  making .in and .sb files...
+ --- making dot_in and dot_sb --- 
+for this LV1 simulation
+history file made will be:
+/scratch/PHM_Simulations/LV1_Forecast/His/LV1_ocean_his_202410110000.nc
+restart file made will be:
+/scratch/PHM_Simulations/restart_data/LV1_ocean_rst_202410110000_202410120000.nc
+the ini file used is:
+/scratch/PHM_Simulations/LV1_Forecast/Forc/LV1_OCEAN_IC.nc
+we are using
+/scratch/PFM_Simulations/executables/LV3_romsM_INTEL
+...done.
+
+now running roms LV1 with slurm.
+using 6 nodes.
+Ni = 9, NJ = 24
+working...
+run_slurm_LV1: current directory is now:  /scratch/PHM_Simulations/LV1_Forecast/Run
+CompletedProcess(args=['sbatch', '--wait', 'LV1_SLURM.sb'], returncode=0, stdout=b'Submitted batch job 2049\n', stderr=b'')
+subprocess slurm ran correctly? 0 (0=yes)
+run_slurm_LV1: run command:  ['sbatch', '--wait', 'LV1_SLURM.sb']
+...done.
+this took:
+0:01:46.027922
+
+
+the nam atm pickle files exist, will load and interpolate onto the roms grid...
+
+ATM on roms grid dict saved with pickle.
+interpolating z with normal loops.
+OCN_LV 2 _BC dict saved with pickle to:  /scratch/PHM_Simulations/LV2_Forecast/Forc/BC_LV2_tmp_file.pkl
+OCN_BC dict loaded with pickle
+
+max and min of data in ROMS BC file (iz is bottom [0] to top [39]):
+max zeta_north =  0.688 m          at  ( it, ilon)     =  ( 24,  59)
+min zeta_north = -0.796 m          at  ( it, ilon)     =  (  7, 161)
+max zeta_south =  0.667 m          at  ( it, ilon)     =  ( 24,   0)
+min zeta_south = -0.760 m          at  ( it, ilon)     =  (  6, 134)
+max zeta_west  =  0.676 m          at  ( it, ilat)     =  ( 24,  59)
+min zeta_west  = -0.765 m          at  ( it, ilat)     =  (  7, 395)
+max ubar_north =  0.113 m/s        at  ( it, ilon)     =  ( 12, 134)
+min ubar_north = -0.040 m/s        at  ( it, ilon)     =  ( 10,  45)
+max ubar_south =  0.083 m/s        at  ( it, ilon)     =  (  9, 244)
+min ubar_south = -0.084 m/s        at  ( it, ilon)     =  (  7, 254)
+max ubar_west  =  0.198 m/s        at  ( it, ilat)     =  ( 15, 338)
+min ubar_west  = -0.167 m/s        at  ( it, ilat)     =  ( 12, 338)
+max vbar_north =  0.110 m/s        at  ( it, ilon)     =  ( 14,  44)
+min vbar_north = -0.186 m/s        at  ( it, ilon)     =  ( 16, 148)
+max vbar_south =  0.147 m/s        at  ( it, ilon)     =  ( 24, 236)
+min vbar_south = -0.126 m/s        at  ( it, ilon)     =  (  3, 255)
+max vbar_west  =  0.178 m/s        at  ( it, ilat)     =  ( 22, 330)
+min vbar_west  = -0.136 m/s        at  ( it, ilat)     =  (  7, 318)
+max u_north    =  0.337 m/s        at  ( it, iz, ilon) =  ( 23,  39, 147)
+min u_north    = -0.374 m/s        at  ( it, iz, ilon) =  (  5,   0,  60)
+max u_south    =  0.303 m/s        at  ( it, iz, ilon) =  ( 24,   0,  73)
+min u_south    = -0.317 m/s        at  ( it, iz, ilon) =  ( 22,   0,  78)
+max u_west     =  1.293 m/s        at  ( it, iz, ilat) =  ( 15,   0, 338)
+min u_west     = -0.793 m/s        at  ( it, iz, ilat) =  ( 12,   0, 338)
+max v_north    =  0.285 m/s        at  ( it, iz, ilon) =  ( 23,   0,  23)
+min v_north    = -0.390 m/s        at  ( it, iz, ilon) =  (  3,  39, 143)
+max v_south    =  0.322 m/s        at  ( it, iz, ilon) =  ( 22,  19, 227)
+min v_south    = -0.425 m/s        at  ( it, iz, ilon) =  ( 23,  39,  35)
+max v_west     =  0.977 m/s        at  ( it, iz, ilat) =  (  5,   0, 318)
+min v_west     = -1.221 m/s        at  ( it, iz, ilat) =  (  7,   0, 318)
+max temp_north = 21.072 C          at  ( it, iz, ilon) =  (  0,  39, 131)
+min temp_north =  3.956 C          at  ( it, iz, ilon) =  (  0,   0,   1)
+max temp_south = 20.586 C          at  ( it, iz, ilon) =  (  0,  39,  74)
+min temp_south =  2.014 C          at  ( it, iz, ilon) =  (  4,   0,   0)
+max temp_west  = 20.992 C          at  ( it, iz, ilat) =  (  0,  39, 278)
+min temp_west  =  1.715 C          at  ( it, iz, ilat) =  (  3,   0,  23)
+max salt_north = 34.663 psu        at  ( it, iz, ilon) =  ( 24,   0,   2)
+min salt_north = 33.374 psu        at  ( it, iz, ilon) =  (  0,  24,  65)
+max salt_south = 34.604 psu        at  ( it, iz, ilon) =  (  4,   0,   0)
+min salt_south = 33.356 psu        at  ( it, iz, ilon) =  (  0,  24,   6)
+max salt_west  = 34.661 psu        at  ( it, iz, ilat) =  ( 20,   0, 389)
+min salt_west  = 33.325 psu        at  ( it, iz, ilat) =  (  5,  24,  59)
+LV_1_OCN_IC dict loaded with pickle
+OCN_LV2_IC dict saved with pickle
+OCN_IC dict loaded with pickle
+
+max and min of data in ROMS IC file (iz is bottom [0] to top [39], note: it is always 0 b/c IC):
+max zeta   =  0.631 m          at  ( it, ilat, ilon)     =  (  0, 344, 185)
+min zeta   =  0.447 m          at  ( it, ilat, ilon)     =  (  0,   0, 125)
+max ubar   =  0.180 m/s        at  ( it, ilat, ilon)     =  (  0, 336, 197)
+min ubar   = -0.130 m/s        at  ( it, ilat, ilon)     =  (  0, 106,  95)
+max vbar   =  0.169 m/s        at  ( it, ilat, ilon)     =  (  0, 334, 197)
+min vbar   = -0.226 m/s        at  ( it, ilat, ilon)     =  (  0, 373, 159)
+max u      =  0.339 m/s        at  ( it, iz, ilat, ilon) =  (  0, 39, 344, 168)
+min u      = -0.313 m/s        at  ( it, iz, ilat, ilon) =  (  0, 39,  74, 162)
+max v      =  0.220 m/s        at  ( it, iz, ilat, ilon) =  (  0, 20, 333, 194)
+min v      = -0.396 m/s        at  ( it, iz, ilat, ilon) =  (  0, 39,  18,  44)
+max temp   = 22.141 C          at  ( it, iz, ilat, ilon) =  (  0, 39, 284,  95)
+min temp   =  1.757 C          at  ( it, iz, ilat, ilon) =  (  0,  0,  32,   4)
+max salt   = 34.709 psu        at  ( it, iz, ilat, ilon) =  (  0,  0, 365,  16)
+min salt   = 33.198 psu        at  ( it, iz, ilat, ilon) =  (  0, 27, 137, 110)
+we are now putting the hind atm data on the roms LV2 grid...
+return code: 0 (0=good)
+...done.
+this took:
+0:00:01.283454
+
+
+we are now saving ATM LV2 to /scratch/PHM_Simulations/LV2_Forecast/Forc/LV2_ATM_FORCING.nc ...
+return code: 0 (0=good)
+...done.
+this took:
+0:00:00.952632
+
+
+driver_run_forcast_LV2: saving LV2_OCN_BC pickle file
+return code: 0 (0=good)
+driver_run_forecast_LV2:  done with writing LV2_OCN_BC.pkl file.
+this took:
+0:00:54.020484
+
+
+driver_run_forcast_LV2: saving LV2_OCN_BC netcdf file
+return code: 0 (0=good)
+driver_run_forecast_L21:  done with writing LV2_OCN_BC.nc file.
+this took:
+0:00:00.954884
+
+
+driver_run_forcast_LV2: making and saving LV2_OCN_IC pickle file
+return code: 0 (0=good)
+driver_run_forecast_L21:  done with writing LV2_OCN_IC.pkl file.
+this took:
+0:00:30.385490
+
+
+driver_run_forcast_LV2: saving LV2_OCN_IC netcdf file
+return code: 0 (0=good)
+driver_run_forecast_L21:  done with writing LV2_OCN_IC.nc file.
+this took:
+0:00:01.127450
+
+
+making .in and .sb...
+ --- making dot_in and dot_sb --- 
+for this LV2 simulation
+history file made will be:
+/scratch/PHM_Simulations/LV2_Forecast/His/LV2_ocean_his_202410110000.nc
+restart file made will be:
+/scratch/PHM_Simulations/restart_data/LV2_ocean_rst_202410110000_202410120000.nc
+the ini file used is:
+/scratch/PHM_Simulations/LV2_Forecast/Forc/LV2_OCEAN_IC.nc
+we are using
+/scratch/PFM_Simulations/executables/LV3_romsM_INTEL
+...done
+now running roms LV2 with slurm.
+using 6 nodes.
+Ni = 9, NJ = 24
+working...
+run_slurm_LV2: current directory is now:  /scratch/PHM_Simulations/LV2_Forecast/Run
+CompletedProcess(args=['sbatch', '--wait', 'LV2_SLURM.sb'], returncode=0, stdout=b'Submitted batch job 2050\n', stderr=b'')
+run_slurm_LV2: run command:  ['sbatch', '--wait', 'LV2_SLURM.sb']
+subprocess slurm ran correctly? 0 (0=yes)
+running ROMS took:
+0:03:22.034997
+
+
+the nam atm pickle files exist, will load and interpolate onto the roms grid...
+
+ATM on roms grid dict saved with pickle.
+interpolating z with normal loops.
+OCN_LV 3 _BC dict saved with pickle to:  /scratch/PHM_Simulations/LV3_Forecast/Forc/BC_LV3_tmp_file.pkl
+OCN_BC dict loaded with pickle
+
+max and min of data in ROMS BC file (iz is bottom [0] to top [39]):
+max zeta_north =  0.659 m          at  ( it, ilon)     =  ( 24,   0)
+min zeta_north = -0.750 m          at  ( it, ilon)     =  (  6, 230)
+max zeta_south =  0.641 m          at  ( it, ilon)     =  ( 24, 188)
+min zeta_south = -0.738 m          at  ( it, ilon)     =  (  6,  53)
+max zeta_west  =  0.666 m          at  ( it, ilat)     =  ( 24, 281)
+min zeta_west  = -0.733 m          at  ( it, ilat)     =  (  6,   0)
+max ubar_north =  0.112 m/s        at  ( it, ilon)     =  ( 22, 249)
+min ubar_north = -0.075 m/s        at  ( it, ilon)     =  (  7, 248)
+max ubar_south =  0.065 m/s        at  ( it, ilon)     =  ( 17, 160)
+min ubar_south = -0.239 m/s        at  ( it, ilon)     =  (  8, 203)
+max ubar_west  =  0.072 m/s        at  ( it, ilat)     =  ( 15, 314)
+min ubar_west  = -0.079 m/s        at  ( it, ilat)     =  ( 24, 146)
+max vbar_north =  0.105 m/s        at  ( it, ilon)     =  ( 24, 224)
+min vbar_north = -0.218 m/s        at  ( it, ilon)     =  (  3, 248)
+max vbar_south =  0.192 m/s        at  ( it, ilon)     =  ( 15, 119)
+min vbar_south = -0.148 m/s        at  ( it, ilon)     =  (  3, 189)
+max vbar_west  =  0.025 m/s        at  ( it, ilat)     =  ( 12,   0)
+min vbar_west  = -0.119 m/s        at  ( it, ilat)     =  (  4, 303)
+max u_north    =  0.286 m/s        at  ( it, iz, ilon) =  (  1,   0, 210)
+min u_north    = -0.195 m/s        at  ( it, iz, ilon) =  (  8,  39,  36)
+max u_south    =  0.486 m/s        at  ( it, iz, ilon) =  ( 11,   0, 111)
+min u_south    = -0.836 m/s        at  ( it, iz, ilon) =  (  7,   0, 111)
+max u_west     =  0.281 m/s        at  ( it, iz, ilat) =  ( 15,   0, 117)
+min u_west     = -0.548 m/s        at  ( it, iz, ilat) =  (  8,  38,  65)
+max v_north    =  0.227 m/s        at  ( it, iz, ilon) =  ( 23,   6, 221)
+min v_north    = -0.298 m/s        at  ( it, iz, ilon) =  (  5,  39,   0)
+max v_south    =  0.321 m/s        at  ( it, iz, ilon) =  ( 23,   8, 116)
+min v_south    = -0.405 m/s        at  ( it, iz, ilon) =  ( 13,   0, 133)
+max v_west     =  0.429 m/s        at  ( it, iz, ilat) =  ( 20,   0, 310)
+min v_west     = -0.373 m/s        at  ( it, iz, ilat) =  (  3,  39, 282)
+max temp_north = 21.128 C          at  ( it, iz, ilon) =  (  0,  39,   0)
+min temp_north =  4.367 C          at  ( it, iz, ilon) =  (  0,   0,  38)
+max temp_south = 19.124 C          at  ( it, iz, ilon) =  (  0,  39,  32)
+min temp_south =  2.613 C          at  ( it, iz, ilon) =  (  0,   0,  97)
+max temp_west  = 21.334 C          at  ( it, iz, ilat) =  (  0,  39, 296)
+min temp_west  =  3.156 C          at  ( it, iz, ilat) =  ( 15,   0,  97)
+max salt_north = 34.628 psu        at  ( it, iz, ilon) =  (  0,   0,  38)
+min salt_north = 33.259 psu        at  ( it, iz, ilon) =  (  7,  24, 140)
+max salt_south = 34.590 psu        at  ( it, iz, ilon) =  (  0,   0,  96)
+min salt_south = 33.438 psu        at  ( it, iz, ilon) =  ( 24,  24,   0)
+max salt_west  = 34.660 psu        at  ( it, iz, ilat) =  ( 17,   0, 341)
+min salt_west  = 33.242 psu        at  ( it, iz, ilat) =  (  1,  25, 161)
+LV_2_OCN_IC dict loaded with pickle
+OCN_LV3_IC dict saved with pickle
+OCN_IC dict loaded with pickle
+
+max and min of data in ROMS IC file (iz is bottom [0] to top [39], note: it is always 0 b/c IC):
+max zeta   =  0.537 m          at  ( it, ilat, ilon)     =  (  0, 323,   0)
+min zeta   =  0.477 m          at  ( it, ilat, ilon)     =  (  0,   0, 185)
+max ubar   =  0.052 m/s        at  ( it, ilat, ilon)     =  (  0, 396,   0)
+min ubar   = -0.124 m/s        at  ( it, ilat, ilon)     =  (  0,  48, 123)
+max vbar   =  0.060 m/s        at  ( it, ilat, ilon)     =  (  0,   0, 116)
+min vbar   = -0.181 m/s        at  ( it, ilat, ilon)     =  (  0,  78, 128)
+max u      =  0.154 m/s        at  ( it, iz, ilat, ilon) =  (  0, 11, 395,   0)
+min u      = -0.266 m/s        at  ( it, iz, ilat, ilon) =  (  0, 39,  62,   0)
+max v      =  0.197 m/s        at  ( it, iz, ilat, ilon) =  (  0,  0, 156, 113)
+min v      = -0.384 m/s        at  ( it, iz, ilat, ilon) =  (  0,  0, 147, 131)
+max temp   = 21.334 C          at  ( it, iz, ilat, ilon) =  (  0, 39, 296,   0)
+min temp   =  1.837 C          at  ( it, iz, ilat, ilon) =  (  0,  0,  88, 111)
+max salt   = 34.704 psu        at  ( it, iz, ilat, ilon) =  (  0,  0, 317, 211)
+min salt   = 33.240 psu        at  ( it, iz, ilat, ilon) =  (  0, 26, 161,   5)
+we are now putting the hind atm data on the roms LV3 grid...
+return code: 0 (0=good)
+...done.
+this took:
+0:00:01.263578
+
+
+we are now saving ATM LV2 to /scratch/PHM_Simulations/LV3_Forecast/Forc/LV3_ATM_FORCING.nc ...
+return code: 0 (0=good)
+...done.
+this took:
+0:00:00.962003
+
+
+driver_run_forcast_LV3: saving LV3_OCN_BC pickle file
+return code: 0 (0=good)
+driver_run_forecast_LV3:  done with writing LV3_OCN_BC.pkl file.
+this took:
+0:00:58.294997
+
+
+driver_run_forcast_LV3: saving LV3_OCN_BC netcdf file
+return code: 0 (0=good)
+driver_run_forecast_LV3:  done with writing LV3_OCN_BC.nc file.
+this took:
+0:00:00.950422
+
+
+driver_run_forcast_LV3: making and saving LV3_OCN_IC pickle file
+return code: 0 (0=good)
+driver_run_forecast_LV3:  done with writing LV3_OCN_IC.pkl file.
+this took:
+0:00:31.116839
+
+
+driver_run_forcast_LV3: saving LV3_OCN_IC netcdf file
+return code: 0 (0=good)
+driver_run_forecast_LV3:  done with writing LV3_OCN_IC.nc file.
+this took:
+0:00:01.122174
+
+
+making .in and .sb...
+ --- making dot_in and dot_sb --- 
+for this LV3 simulation
+history file made will be:
+/scratch/PHM_Simulations/LV3_Forecast/His/LV3_ocean_his_202410110000.nc
+restart file made will be:
+/scratch/PHM_Simulations/restart_data/LV3_ocean_rst_202410110000_202410120000.nc
+the ini file used is:
+/scratch/PHM_Simulations/LV3_Forecast/Forc/LV3_OCEAN_IC.nc
+we are using
+/scratch/PFM_Simulations/executables/LV3_romsM_INTEL
+...done
+now running roms LV3 with slurm.
+using 10 nodes.
+Ni = 12, NJ = 30
+working...
+run_slurm_LV3: current directory is now:  /scratch/PHM_Simulations/LV3_Forecast/Run
+CompletedProcess(args=['sbatch', '--wait', 'LV3_SLURM.sb'], returncode=0, stdout=b'Submitted batch job 2051\n', stderr=b'')
+run_slurm_LV3: run command:  ['sbatch', '--wait', 'LV3_SLURM.sb']
+subprocess slurm ran correctly? 0 (0=yes)
+running ROMS took:
+0:03:54.037366
+
+
+we need  61  hycom nc files...
+the  61  nc files already exist, no need to download.
+
+max and min raw hycom data (iz is top [0] to bottom [39]):
+max zeta   =  1.029 m          at  ( it, ilat, ilon)     =  ( 24,  68,  94)
+min zeta   = -1.015 m          at  ( it, ilat, ilon)     =  (  8, 203,   0)
+max u      =  0.635 m/s        at  ( it, iz, ilat, ilon) =  (  3,  8,  74,  53)
+min u      = -0.522 m/s        at  ( it, iz, ilat, ilon) =  (  4,  3,  42,  76)
+max v      =  0.553 m/s        at  ( it, iz, ilat, ilon) =  (  3,  1,   7,  94)
+min v      = -0.711 m/s        at  ( it, iz, ilat, ilon) =  (  7,  0, 146,   6)
+max temp   = 22.837 C          at  ( it, iz, ilat, ilon) =  (  0,  0,   0,  98)
+min temp   =  1.369 C          at  ( it, iz, ilat, ilon) =  (  3, 38, 170,   4)
+max dT/dz  =  1.162 C/m        at  ( it, iz, ilat, ilon) =  (  0,  0,  60,  97)
+min dT/dz  = -0.098 C/m        at  ( it, iz, ilat, ilon) =  (  8, 13, 121,  56)
+max salt   = 34.733 psu        at  ( it, iz, ilat, ilon) =  (  4, 38,  27,  30)
+min salt   = 32.509 psu        at  ( it, iz, ilat, ilon) =  (  4,  4, 177,   5)
+max dS/dz  =  0.045 psu/m      at  ( it, iz, ilat, ilon) =  (  6,  5, 100,  75)
+min dS/dz  = -0.040 psu/m      at  ( it, iz, ilat, ilon) =  (  6,  9, 155,   8)
+
+going to save a hycom pickle file to /scratch/PHM_Simulations/LV1_Forecast/Forc/hycom_tmp_pckl_file.pkl
+Hycom OCN dict saved with pickle.
+...done. 
+all 18 ocnR pickle files were made correctly
+
+max and min of hycom data on ROMS grid (iz is top [0] to bottom [39]):
+max zeta   =  1.014 m          at  ( it, ilat, ilon)     =  ( 24,  52, 245)
+min zeta   = -0.963 m          at  ( it, ilat, ilon)     =  (  7, 335, 135)
+max urm    =  0.639 m/s        at  ( it, iz, ilat, ilon) =  (  3,  8, 132, 100)
+min urm    = -0.601 m/s        at  ( it, iz, ilat, ilon) =  (  4,  0,  25, 151)
+max vrm    =  0.544 m/s        at  ( it, iz, ilat, ilon) =  (  6,  6,  43, 125)
+min vrm    = -0.796 m/s        at  ( it, iz, ilat, ilon) =  (  7,  0, 355,   4)
+max temp   = 22.096 C          at  ( it, iz, ilat, ilon) =  (  8,  0,   0,   0)
+min temp   =  1.404 C          at  ( it, iz, ilat, ilon) =  (  5, 38, 214,  10)
+max dT/dz  =  1.191 C/m        at  ( it, iz, ilat, ilon) =  (  4,  2, 148, 242)
+min dT/dz  = -0.419 C/m        at  ( it, iz, ilat, ilon) =  (  7,  4, 189, 243)
+max salt   = 34.726 psu        at  ( it, iz, ilat, ilon) =  (  4, 38, 272,  29)
+min salt   = 32.615 psu        at  ( it, iz, ilat, ilon) =  (  4,  6, 389,  14)
+max dS/dz  =  0.045 psu/m      at  ( it, iz, ilat, ilon) =  (  6,  5, 151, 205)
+min dS/dz  = -0.038 psu/m      at  ( it, iz, ilat, ilon) =  (  6,  9, 370,  18)
+depth pickle file /scratch/PHM_Simulations/LV1_Forecast/Forc/roms_tmp_depth_file.pklalready exists.
+going to restart LV1 from
+2024-10-12 00:00:00
+['/scratch/PHM_Simulations/restart_data/LV1_ocean_rst_202410180000_202410190000.nc', '/scratch/PHM_Simulations/restart_data/LV1_ocean_rst_202410170000_202410180000.nc', '/scratch/PHM_Simulations/restart_data/LV1_ocean_rst_202410110000_202410120000.nc', '/scratch/PHM_Simulations/restart_data/LV1_ocean_rst_202410130000_202410140000.nc', '/scratch/PHM_Simulations/restart_data/LV1_ocean_rst_202410160000_202410170000.nc', '/scratch/PHM_Simulations/restart_data/LV1_ocean_rst_202410120000_202410130000.nc', '/scratch/PHM_Simulations/restart_data/LV1_ocean_rst_202410140000_202410150000.nc', '/scratch/PHM_Simulations/restart_data/LV1_ocean_rst_202410150000_202410160000.nc']
+found the time index!
+going to restart using /scratch/PHM_Simulations/restart_data/LV1_ocean_rst_202410110000_202410120000.nc and python-index 3
+PFM info was edited and resaved
+loading /scratch/PHM_Simulations/LV1_Forecast/Forc/roms_tmp_depth_file.pkl
+OCN_BC dict saved with pickle
+OCN_BC dict loaded with pickle
+
+max and min of data in ROMS BC file (iz is bottom [0] to top [39]):
+max zeta_north =  0.658 m          at  ( it, ilon)     =  (  0,   0)
+min zeta_north = -0.931 m          at  ( it, ilon)     =  (  8,  95)
+max zeta_south =  0.839 m          at  ( it, ilon)     =  ( 24,  55)
+min zeta_south = -0.834 m          at  ( it, ilon)     =  (  7, 158)
+max zeta_west  =  0.789 m          at  ( it, ilat)     =  ( 24,  53)
+min zeta_west  = -0.806 m          at  ( it, ilat)     =  (  7, 223)
+max ubar_north =  0.017 m/s        at  ( it, ilon)     =  (  2, 108)
+min ubar_north = -0.059 m/s        at  ( it, ilon)     =  (  4, 127)
+max ubar_south =  0.035 m/s        at  ( it, ilon)     =  (  5, 214)
+min ubar_south = -0.080 m/s        at  ( it, ilon)     =  (  0, 240)
+max ubar_west  =  0.029 m/s        at  ( it, ilat)     =  (  7, 131)
+min ubar_west  = -0.038 m/s        at  ( it, ilat)     =  (  1,   5)
+max vbar_north =  0.148 m/s        at  ( it, ilon)     =  (  0, 120)
+min vbar_north = -0.057 m/s        at  ( it, ilon)     =  (  2,   6)
+max vbar_south =  0.193 m/s        at  ( it, ilon)     =  (  7, 236)
+min vbar_south = -0.061 m/s        at  ( it, ilon)     =  (  2, 135)
+max vbar_west  =  0.035 m/s        at  ( it, ilat)     =  (  8,   9)
+min vbar_west  = -0.060 m/s        at  ( it, ilat)     =  (  2, 366)
+max u_north    =  0.153 m/s        at  ( it, iz, ilon) =  (  0,  32,  99)
+min u_north    = -0.315 m/s        at  ( it, iz, ilon) =  (  6,  37,  34)
+max u_south    =  0.274 m/s        at  ( it, iz, ilon) =  (  0,  33, 102)
+min u_south    = -0.434 m/s        at  ( it, iz, ilon) =  (  4,  39, 158)
+max u_west     =  0.353 m/s        at  ( it, iz, ilat) =  (  3,  34, 133)
+min u_west     = -0.506 m/s        at  ( it, iz, ilat) =  (  3,  38, 293)
+max v_north    =  0.328 m/s        at  ( it, iz, ilon) =  (  5,  25, 119)
+min v_north    = -0.549 m/s        at  ( it, iz, ilon) =  (  5,  39,   0)
+max v_south    =  0.461 m/s        at  ( it, iz, ilon) =  (  0,  35, 199)
+min v_south    = -0.413 m/s        at  ( it, iz, ilon) =  (  8,  39, 129)
+max v_west     =  0.240 m/s        at  ( it, iz, ilat) =  (  5,  34,   5)
+min v_west     = -0.750 m/s        at  ( it, iz, ilat) =  (  6,  39, 366)
+max temp_north = 17.863 C          at  ( it, iz, ilon) =  (  8,  39,   0)
+min temp_north =  1.082 C          at  ( it, iz, ilon) =  (  6,   0,   4)
+max temp_south = 22.096 C          at  ( it, iz, ilon) =  (  8,  39,   0)
+min temp_south =  1.124 C          at  ( it, iz, ilon) =  (  7,   0,   0)
+max temp_west  = 22.096 C          at  ( it, iz, ilat) =  (  8,  39,   0)
+min temp_west  =  1.072 C          at  ( it, iz, ilat) =  (  3,   0, 230)
+max salt_north = 34.708 psu        at  ( it, iz, ilon) =  (  0,   0,  22)
+min salt_north = 32.616 psu        at  ( it, iz, ilon) =  (  4,  34,  14)
+max salt_south = 34.708 psu        at  ( it, iz, ilon) =  (  2,   0,   0)
+min salt_south = 33.403 psu        at  ( it, iz, ilon) =  (  4,  25, 226)
+max salt_west  = 34.710 psu        at  ( it, iz, ilat) =  (  2,   0,  65)
+min salt_west  = 32.662 psu        at  ( it, iz, ilat) =  (  4,  29, 385)
+the  9  grb2 files already exist, no need to download.
+not all pickle files in the time range  2024101200  to  2024101300  were found.
+Please supply a time range with pickle files. Exiting!!!
+getting the hycom data for this simulation...
+...done
+making the hycom pickle file from all hycom.nc files ...
+did subprocess run correctly? 0 (0=yes,1=no)
+...done.
+this took:
+0:00:05.145580
+
+
+starting: ocnfuns.hycom_to_roms_latlon(OCN,RMG)
+putting the hycom data in /scratch/PHM_Simulations/LV1_Forecast/Forc/hycom_tmp_pckl_file.pkl on the roms grid...
+subprocess return code? 0 (0=good)
+driver_run_forecast_LV1: done with hycom_to_roms_latlon
+...done with LV1 ocn_R
+this took:
+0:00:48.389683
+
+
+making the depth pickle file...
+subprocess return code? 0 (0=good)
+
+
+going to use a restart file for the LV1 IC. Setting this up...
+...done setting up for restart.
+this took:
+0:00:00.880922
+
+Going to use the file LV1_ocean_rst_202410110000_202410120000.nc to restart the simulation
+with time index 4
+
+
+going to save OCN_BC to a pickle file to:
+/scratch/PHM_Simulations/LV1_Forecast/Forc/ocnBC_tmp_pckl_file.pkl
+OCN BC data saved with pickle, correctly? 0 (0=yes)
+this took:
+0:00:03.341773
+
+
+making BC nc file from pickled BC: /scratch/PHM_Simulations/LV1_Forecast/Forc/LV1_OCEAN_BC.nc
+OCN BC nc data saved, correctly? 0 (0=yes)
+done makeing BC nc file.
+this took:
+0:00:00.935292
+
+
+we are now getting the atm data...
+return code: 0 (0=good)
+...done.
+this took:
+0:00:00.830173
+
+
+we are now converting the atm grb2 files to pickles...
+return code: 1 (0=good)
+...done.
+this took:
+0:00:01.646827
+
+
+we are now putting the hind atm data on the roms LV1 grid...
+return code: 0 (0=good)
+...done.
+this took:
+0:00:00.854041
+
+
+we are now saving ATM LV1 to /scratch/PHM_Simulations/LV1_Forecast/Forc/LV1_ATM_FORCING.nc ...
+return code: 0 (0=good)
+...done.
+this took:
+0:00:00.948533
+
+
+driver_run_forecast_LV1:  making .in and .sb files...
+ --- making dot_in and dot_sb --- 
+for this LV1 simulation
+history file made will be:
+/scratch/PHM_Simulations/LV1_Forecast/His/LV1_ocean_his_202410120000.nc
+restart file made will be:
+/scratch/PHM_Simulations/restart_data/LV1_ocean_rst_202410120000_202410130000.nc
+the ini file used is:
+/scratch/PHM_Simulations/restart_data/LV1_ocean_rst_202410110000_202410120000.nc
+we are using
+/scratch/PFM_Simulations/executables/LV3_romsM_INTEL
+...done.
+
+now running roms LV1 with slurm.
+using 6 nodes.
+Ni = 9, NJ = 24
+working...
+run_slurm_LV1: current directory is now:  /scratch/PHM_Simulations/LV1_Forecast/Run
+CompletedProcess(args=['sbatch', '--wait', 'LV1_SLURM.sb'], returncode=128, stdout=b'Submitted batch job 2052\n', stderr=b'')
+subprocess slurm ran correctly? 128 (0=yes)
+run_slurm_LV1: run command:  ['sbatch', '--wait', 'LV1_SLURM.sb']
+...done.
+this took:
+0:00:42.024642
+
+
+not all pickle files in the time range  2024101200  to  2024101300  were found.
+Please supply a time range with pickle files. Exiting!!!
+interpolating z with normal loops.
+OCN_LV 2 _BC dict saved with pickle to:  /scratch/PHM_Simulations/LV2_Forecast/Forc/BC_LV2_tmp_file.pkl
+OCN_BC dict loaded with pickle
+
+max and min of data in ROMS BC file (iz is bottom [0] to top [39]):
+max zeta_north =  0.688 m          at  ( it, ilon)     =  (  0,  59)
+min zeta_north = -0.921 m          at  ( it, ilon)     =  (  7, 155)
+max zeta_south =  0.685 m          at  ( it, ilon)     =  ( 24, 245)
+min zeta_south = -0.870 m          at  ( it, ilon)     =  (  7, 134)
+max zeta_west  =  0.688 m          at  ( it, ilat)     =  ( 24,  80)
+min zeta_west  = -0.879 m          at  ( it, ilat)     =  (  7, 397)
+max ubar_north =  0.100 m/s        at  ( it, ilon)     =  ( 20,  44)
+min ubar_north = -0.061 m/s        at  ( it, ilon)     =  ( 13,  29)
+max ubar_south =  0.060 m/s        at  ( it, ilon)     =  (  0, 244)
+min ubar_south = -0.140 m/s        at  ( it, ilon)     =  (  8, 255)
+max ubar_west  =  0.169 m/s        at  ( it, ilat)     =  (  2, 338)
+min ubar_west  = -0.250 m/s        at  ( it, ilat)     =  (  5, 338)
+max vbar_north =  0.132 m/s        at  ( it, ilon)     =  ( 16,  26)
+min vbar_north = -0.176 m/s        at  ( it, ilon)     =  (  6, 147)
+max vbar_south =  0.198 m/s        at  ( it, ilon)     =  ( 23, 236)
+min vbar_south = -0.172 m/s        at  ( it, ilon)     =  (  3, 251)
+max vbar_west  =  0.205 m/s        at  ( it, ilat)     =  ( 24, 331)
+min vbar_west  = -0.042 m/s        at  ( it, ilat)     =  (  6, 186)
+max u_north    =  0.314 m/s        at  ( it, iz, ilon) =  (  0,  39, 150)
+min u_north    = -0.202 m/s        at  ( it, iz, ilon) =  ( 21,   0,  27)
+max u_south    =  0.323 m/s        at  ( it, iz, ilon) =  (  1,   0,  73)
+min u_south    = -0.374 m/s        at  ( it, iz, ilon) =  (  6,  39, 231)
+max u_west     =  0.829 m/s        at  ( it, iz, ilat) =  (  1,   0, 338)
+min u_west     = -1.478 m/s        at  ( it, iz, ilat) =  (  5,   0, 338)
+max v_north    =  0.395 m/s        at  ( it, iz, ilon) =  ( 12,   0,  23)
+min v_north    = -0.373 m/s        at  ( it, iz, ilon) =  (  4,  39, 146)
+max v_south    =  0.347 m/s        at  ( it, iz, ilon) =  ( 12,  38, 233)
+min v_south    = -0.469 m/s        at  ( it, iz, ilon) =  (  2,  39,  47)
+max v_west     =  0.632 m/s        at  ( it, iz, ilat) =  ( 17,   0, 318)
+min v_west     = -0.410 m/s        at  ( it, iz, ilat) =  ( 20,   0, 317)
+max temp_north = 20.124 C          at  ( it, iz, ilon) =  (  0,  39, 140)
+min temp_north =  3.973 C          at  ( it, iz, ilon) =  (  0,   2,   2)
+max temp_south = 20.438 C          at  ( it, iz, ilon) =  (  0,  38,  65)
+min temp_south =  2.174 C          at  ( it, iz, ilon) =  (  7,   0,   0)
+max temp_west  = 20.265 C          at  ( it, iz, ilat) =  (  0,  37, 281)
+min temp_west  =  1.846 C          at  ( it, iz, ilat) =  ( 19,   0,  24)
+max salt_north = 34.663 psu        at  ( it, iz, ilon) =  (  2,   0,   2)
+min salt_north = 33.381 psu        at  ( it, iz, ilon) =  (  8,  25,  71)
+max salt_south = 34.603 psu        at  ( it, iz, ilon) =  (  7,   0,   0)
+min salt_south = 33.366 psu        at  ( it, iz, ilon) =  (  3,  23,  11)
+max salt_west  = 34.661 psu        at  ( it, iz, ilat) =  ( 23,   0, 392)
+min salt_west  = 33.331 psu        at  ( it, iz, ilat) =  (  0,  24,  65)
+going to restart LV2 from
+2024-10-12 00:00:00
+['/scratch/PHM_Simulations/restart_data/LV2_ocean_rst_202410120000_202410130000.nc', '/scratch/PHM_Simulations/restart_data/LV2_ocean_rst_202410110000_202410120000.nc']
+found the time index!
+going to restart using /scratch/PHM_Simulations/restart_data/LV2_ocean_rst_202410110000_202410120000.nc and python-index 3
+PFM info was edited and resaved
+we are now putting the hind atm data on the roms LV2 grid...
+return code: 0 (0=good)
+...done.
+this took:
+0:00:00.851850
+
+
+we are now saving ATM LV2 to /scratch/PHM_Simulations/LV2_Forecast/Forc/LV2_ATM_FORCING.nc ...
+return code: 0 (0=good)
+...done.
+this took:
+0:00:00.962036
+
+
+driver_run_forcast_LV2: saving LV2_OCN_BC pickle file
+return code: 0 (0=good)
+driver_run_forecast_LV2:  done with writing LV2_OCN_BC.pkl file.
+this took:
+0:00:58.859060
+
+
+driver_run_forcast_LV2: saving LV2_OCN_BC netcdf file
+return code: 0 (0=good)
+driver_run_forecast_L21:  done with writing LV2_OCN_BC.nc file.
+this took:
+0:00:00.964258
+
+
+going to use a restart file for the LV2 IC. Setting this up...
+...done setting up for restart.
+this took:
+0:00:00.822517
+
+Going to use the file LV2_ocean_rst_202410110000_202410120000.nc to restart the simulation
+with time index 4
+
+
+making .in and .sb...
+ --- making dot_in and dot_sb --- 
+for this LV2 simulation
+history file made will be:
+/scratch/PHM_Simulations/LV2_Forecast/His/LV2_ocean_his_202410120000.nc
+restart file made will be:
+/scratch/PHM_Simulations/restart_data/LV2_ocean_rst_202410120000_202410130000.nc
+the ini file used is:
+/scratch/PHM_Simulations/restart_data/LV2_ocean_rst_202410110000_202410120000.nc
+we are using
+/scratch/PFM_Simulations/executables/LV3_romsM_INTEL
+...done
+now running roms LV2 with slurm.
+using 6 nodes.
+Ni = 9, NJ = 24
+working...
+run_slurm_LV2: current directory is now:  /scratch/PHM_Simulations/LV2_Forecast/Run
+CompletedProcess(args=['sbatch', '--wait', 'LV2_SLURM.sb'], returncode=128, stdout=b'Submitted batch job 2053\n', stderr=b'')
+run_slurm_LV2: run command:  ['sbatch', '--wait', 'LV2_SLURM.sb']
+subprocess slurm ran correctly? 128 (0=yes)
+running ROMS took:
+0:00:10.023241
+
+
+not all pickle files in the time range  2024101200  to  2024101300  were found.
+Please supply a time range with pickle files. Exiting!!!
+interpolating z with normal loops.
+OCN_LV 3 _BC dict saved with pickle to:  /scratch/PHM_Simulations/LV3_Forecast/Forc/BC_LV3_tmp_file.pkl
+OCN_BC dict loaded with pickle
+
+max and min of data in ROMS BC file (iz is bottom [0] to top [39]):
+max zeta_north =  0.684 m          at  ( it, ilon)     =  ( 24, 240)
+min zeta_north = -0.823 m          at  ( it, ilon)     =  (  7, 218)
+max zeta_south =  0.685 m          at  ( it, ilon)     =  ( 24, 185)
+min zeta_south = -0.827 m          at  ( it, ilon)     =  (  7,  50)
+max zeta_west  =  0.684 m          at  ( it, ilat)     =  ( 24, 389)
+min zeta_west  = -0.825 m          at  ( it, ilat)     =  (  7,   0)
+max ubar_north =  0.142 m/s        at  ( it, ilon)     =  (  4, 239)
+min ubar_north = -0.111 m/s        at  ( it, ilon)     =  (  7, 248)
+max ubar_south =  0.080 m/s        at  ( it, ilon)     =  ( 20, 191)
+min ubar_south = -0.181 m/s        at  ( it, ilon)     =  (  6, 194)
+max ubar_west  =  0.065 m/s        at  ( it, ilat)     =  (  4, 404)
+min ubar_west  = -0.079 m/s        at  ( it, ilat)     =  ( 16, 145)
+max vbar_north =  0.308 m/s        at  ( it, ilon)     =  ( 23, 234)
+min vbar_north = -0.209 m/s        at  ( it, ilon)     =  (  3, 248)
+max vbar_south =  0.262 m/s        at  ( it, ilon)     =  ( 15, 119)
+min vbar_south = -0.102 m/s        at  ( it, ilon)     =  (  6, 101)
+max vbar_west  =  0.023 m/s        at  ( it, ilat)     =  ( 24,   0)
+min vbar_west  = -0.139 m/s        at  ( it, ilat)     =  (  6, 303)
+max u_north    =  0.232 m/s        at  ( it, iz, ilon) =  (  0,  39,   9)
+min u_north    = -0.216 m/s        at  ( it, iz, ilon) =  (  5,  39, 168)
+max u_south    =  0.295 m/s        at  ( it, iz, ilon) =  (  8,   0, 132)
+min u_south    = -0.279 m/s        at  ( it, iz, ilon) =  (  6,  39, 117)
+max u_west     =  0.287 m/s        at  ( it, iz, ilat) =  ( 15,   0, 117)
+min u_west     = -0.394 m/s        at  ( it, iz, ilat) =  (  8,  38,  56)
+max v_north    =  0.446 m/s        at  ( it, iz, ilon) =  ( 23,  33, 236)
+min v_north    = -0.347 m/s        at  ( it, iz, ilon) =  (  3,  39,   2)
+max v_south    =  0.369 m/s        at  ( it, iz, ilon) =  ( 15,  10, 116)
+min v_south    = -0.425 m/s        at  ( it, iz, ilon) =  (  4,   0, 133)
+max v_west     =  0.361 m/s        at  ( it, iz, ilat) =  (  2,   0, 309)
+min v_west     = -0.381 m/s        at  ( it, iz, ilat) =  (  4,  39, 273)
+max temp_north = 20.432 C          at  ( it, iz, ilon) =  ( 22,  39,   5)
+min temp_north =  4.392 C          at  ( it, iz, ilon) =  (  2,   0,   0)
+max temp_south = 18.834 C          at  ( it, iz, ilon) =  (  0,  39,   5)
+min temp_south =  3.155 C          at  ( it, iz, ilon) =  ( 20,   0,   0)
+max temp_west  = 20.445 C          at  ( it, iz, ilat) =  ( 22,  39, 398)
+min temp_west  =  3.017 C          at  ( it, iz, ilat) =  ( 24,   0,  16)
+max salt_north = 34.614 psu        at  ( it, iz, ilon) =  (  0,   0,  36)
+min salt_north = 33.263 psu        at  ( it, iz, ilon) =  (  0,  25, 149)
+max salt_south = 34.558 psu        at  ( it, iz, ilon) =  ( 19,   0,   0)
+min salt_south = 33.425 psu        at  ( it, iz, ilon) =  ( 20,  26,  59)
+max salt_west  = 34.631 psu        at  ( it, iz, ilat) =  ( 23,   0, 344)
+min salt_west  = 33.252 psu        at  ( it, iz, ilat) =  (  1,  26, 120)
+going to restart LV3 from
+2024-10-12 00:00:00
+['/scratch/PHM_Simulations/restart_data/LV3_ocean_rst_202410110000_202410120000.nc', '/scratch/PHM_Simulations/restart_data/LV3_ocean_rst_202410120000_202410130000.nc']
+found the time index!
+going to restart using /scratch/PHM_Simulations/restart_data/LV3_ocean_rst_202410110000_202410120000.nc and python-index 3
+PFM info was edited and resaved
+we are now putting the hind atm data on the roms LV3 grid...
+return code: 0 (0=good)
+...done.
+this took:
+0:00:00.875550
+
+
+we are now saving ATM LV2 to /scratch/PHM_Simulations/LV3_Forecast/Forc/LV3_ATM_FORCING.nc ...
+return code: 0 (0=good)
+...done.
+this took:
+0:00:00.982991
+
+
+driver_run_forcast_LV3: saving LV3_OCN_BC pickle file
+return code: 0 (0=good)
+driver_run_forecast_LV3:  done with writing LV3_OCN_BC.pkl file.
+this took:
+0:01:02.743950
+
+
+driver_run_forcast_LV3: saving LV3_OCN_BC netcdf file
+return code: 0 (0=good)
+driver_run_forecast_LV3:  done with writing LV3_OCN_BC.nc file.
+this took:
+0:00:00.961003
+
+
+going to use a restart file for the LV3 IC. Setting this up...
+...done setting up for restart.
+this took:
+0:00:00.837840
+
+Going to use the file LV3_ocean_rst_202410110000_202410120000.nc to restart the simulation
+with time index 4
+
+
+making .in and .sb...
+ --- making dot_in and dot_sb --- 
+for this LV3 simulation
+history file made will be:
+/scratch/PHM_Simulations/LV3_Forecast/His/LV3_ocean_his_202410120000.nc
+restart file made will be:
+/scratch/PHM_Simulations/restart_data/LV3_ocean_rst_202410120000_202410130000.nc
+the ini file used is:
+/scratch/PHM_Simulations/restart_data/LV3_ocean_rst_202410110000_202410120000.nc
+we are using
+/scratch/PFM_Simulations/executables/LV3_romsM_INTEL
+...done
+now running roms LV3 with slurm.
+using 10 nodes.
+Ni = 12, NJ = 30
+working...
+run_slurm_LV3: current directory is now:  /scratch/PHM_Simulations/LV3_Forecast/Run
+CompletedProcess(args=['sbatch', '--wait', 'LV3_SLURM.sb'], returncode=128, stdout=b'Submitted batch job 2054\n', stderr=b'')
+run_slurm_LV3: run command:  ['sbatch', '--wait', 'LV3_SLURM.sb']
+subprocess slurm ran correctly? 128 (0=yes)
+running ROMS took:
+0:00:42.033696
+
+
+first, we need all the model information.
+from /home/mspydell/models/PFM_root/PFM/sdpm_py_util/phm_model_info_devel.py
+we create a dictionary of model info
+the model_info dictionary is saved to /scratch/PHM_Simulations/hindcast_pfile.pkl
+this file dictates how the model is run, where files are saved, etc.
+------------------------------------------------------------
+                        Model Set Up                        
+------------------------------------------------------------
+hindcast                                                    
+from           : 2024-10-11 00:00                           
+to             : 2024-10-13 00:00                           
+in             : 1.0 day chunks (if hindcast)               
+we will do     : 2 separate 1.0 day sims                    
+atm model      : nam_analysis                               
+ocean_model    : hycom_hind_wtide                           
+running levels : LV1, LV2, LV3                              
+PFM info was edited and resaved
+the model_info dictionary was resaved to /scratch/PHM_Simulations/hindcast_pfile.pkl
+with properly time stamped output file names
+
+
+============================================================
+doing a sub simulation from 2024101100 to 2024101200
+------------------------------------------------------------
+starting LV1
+done with LV1
+LV1 hind ran correctly? 0 (0=yes)
+this took 
+0:03:28.987958
+------------------------------------------------------------
+starting LV2
+done with LV2
+LV1 hind ran correctly? 0 (0=yes)
+this took 
+0:04:51.571801
+------------------------------------------------------------
+starting LV3
+done with LV3
+LV1 hind ran correctly? 0 (0=yes)
+this took 
+0:05:28.559524
+------------------------------------------------------------
+done with the 2024101100 to 2024101200 sub simulation
+this took
+0:13:49.119338
+============================================================
+PFM info was edited and resaved
+done with a 1 day LV1 hindcast, going to the next day.
+
+PFM info was edited and resaved
+the model_info dictionary was resaved to /scratch/PHM_Simulations/hindcast_pfile.pkl
+with properly time stamped output file names
+
+
+============================================================
+doing a sub simulation from 2024101200 to 2024101300
+------------------------------------------------------------
+starting LV1
+done with LV1
+LV1 hind ran correctly? 0 (0=yes)
+this took 
+0:01:47.730077
+------------------------------------------------------------
+starting LV2
+done with LV2
+LV1 hind ran correctly? 0 (0=yes)
+this took 
+0:01:13.307885
+------------------------------------------------------------
+starting LV3
+done with LV3
+LV1 hind ran correctly? 0 (0=yes)
+this took 
+0:01:49.268147
+------------------------------------------------------------
+done with the 2024101200 to 2024101300 sub simulation
+this took
+0:04:50.306164
+============================================================
+PFM info was edited and resaved
+done with a 1 day LV1 hindcast, going to the next day.
+
+
+
+============================================================
+done with full simulation. this took
+0:18:40.119261
+each sub simulation took:
+[datetime.timedelta(seconds=829, microseconds=119338), datetime.timedelta(seconds=290, microseconds=306164)]

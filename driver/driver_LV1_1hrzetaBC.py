@@ -175,7 +175,6 @@ ret1 = subprocess.run(cmd_list)
 os.chdir('../driver')
 print('subprocess return code? ' + str(ret1.returncode) +  ' (0=good)')
 
-
 cmd_list = ['python','-W','ignore','ocn_functions.py','print_maxmin_HYrm_pickles']
 os.chdir('../sdpm_py_util')
 ret1 = subprocess.run(cmd_list)     
@@ -282,7 +281,6 @@ print('this took:')
 print(t02-t01)
 print('\n')
 
-
 print('making BC nc file from pickled BC: '+ bc_file_out)
 t01 = datetime.now()
 cmd_list = ['python','-W','ignore','ocn_functions.py','ocn_roms_BC_dict_to_netcdf_pckl_1hrzeta',ocnBC_pckl,bc_file_out]
@@ -290,7 +288,6 @@ os.chdir('../sdpm_py_util')
 ret5 = subprocess.run(cmd_list)     
 os.chdir('../driver')
 print('OCN BC nc data saved, correctly? ' + str(ret5.returncode) + ' (0=yes)')
-
 print('done makeing BC nc file.')
 t02 = datetime.now()
 print('this took:')

@@ -1,19 +1,20 @@
 import sys
 import os
 import subprocess
-import numpy as np
 from datetime import datetime, timedelta
 
 sys.path.append('../sdpm_py_util')
 import init_funs as initfuns
+sys.path.append('../driver')
+
 
 def driver_run_hind_LV123( input_py_full, pkl_fnm ):
     t00 = datetime.now()
     # upon initialization, make the model_info.pkl file
-    initfuns.initialize_model( input_py_full, pkl_fnm )
+    #initfuns.initialize_model( input_py_full, pkl_fnm )
     
     # print info from pickle file
-    initfuns.print_initial_model_info( pkl_fnm )
+    # initfuns.print_initial_model_info( pkl_fnm )
     
     # get model information
     MI = initfuns.get_model_info( pkl_fnm )
@@ -51,6 +52,7 @@ def driver_run_hind_LV123( input_py_full, pkl_fnm ):
             t0_lvl = datetime.now()
             print('starting ' + lvl)
 #            cmd_list = ['python','-W','ignore','driver_functions.py','run_hind_simulation',time1,lvl,pkl_fnm]
+            os.chdir('../driver')
             cmd_list = ['python','driver_functions.py','run_hind_simulation',time1,lvl,pkl_fnm]
             ret1 = subprocess.run(cmd_list)     
             print('done with ' + lvl)
@@ -88,3 +90,10 @@ def driver_run_hind_LV123( input_py_full, pkl_fnm ):
     print('each sub simulation took:')
     print(time_tots)
 
+if __name__ == "__main__":
+    if len(sys.argv) == 3:
+        arg1 = sys.argv[1]
+        arg2 = sys.argv[2]
+        driver_run_hind_LV123(arg1, arg2)
+    else:
+        print("something went wrong!")

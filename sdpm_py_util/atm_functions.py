@@ -9,7 +9,6 @@ import numpy as np
 import xarray as xr
 import netCDF4 as nc
 sys.path.append('../sdpm_py_util')
-import init_funs as initfuns
 import grid_functions as grdfuns
 import subprocess
 import cfgrib
@@ -48,9 +47,10 @@ def delete_files_by_pattern(directory, pattern):
         except OSError as e:
             print(f"Error deleting {file_path}: {e}")
 
-def get_atm_data_as_dict():
-    
-    PFM        = get_PFM_info()   
+def get_atm_data_as_dict(pkl_fnm):
+
+    import init_funs_forecast as initfuns_fore
+    PFM        = initfuns_fore.get_model_info(pkl_fnm)   
     ftime = PFM['fetch_time']
     yyyymmdd = "%d%02d%02d" % (ftime.year, ftime.month, ftime.day)
 
@@ -65,7 +65,7 @@ def get_atm_data_as_dict():
             yyyymmddhh0 = PFM['fetch_time'].strftime("%Y%m%d%H")
             print('getting the ecmwf data from cdip for the ' + yyyymmddhh0 + ' forecast...')
             # download the ecmwf data...
-            cmd_list = ['python','-W','ignore','atm_functions.py','get_ecmwf_forecast_grbs',yyyymmddhh0]
+            cmd_list = ['python','-W','ignore','atm_functions.py','get_ecmwf_forecast_grbs',yyyymmddhh0,pkl_fnm]
             os.chdir('../sdpm_py_util')
             ret5 = subprocess.run(cmd_list)   
             print('return code: ' + str(ret5.returncode) + ' (0=good)')  
@@ -88,12 +88,12 @@ def get_atm_data_as_dict():
                 yyyymmddhh0 = tfore0.strftime("%Y%m%d%H")
                 print('getting the ecmwf data from cdip for the ' + yyyymmddhh0 + ' forecast...')
                 # download the ecmwf data...
-                cmd_list = ['python','-W','ignore','atm_functions.py','get_ecmwf_forecast_grbs_v2',yyyymmddhh0,tstart_str]
+                cmd_list = ['python','-W','ignore','atm_functions.py','get_ecmwf_forecast_grbs_v2',yyyymmddhh0,tstart_str,pkl_fnm]
                 os.chdir('../sdpm_py_util')
                 ret5 = subprocess.run(cmd_list)   
                 print('return code: ' + str(ret5.returncode) + ' (0=good)')  
                 print('did we get the ecmwf data?')
-                got_files = got_ecmwf_files(yyyymmddhh0,tstart_str)
+                got_files = got_ecmwf_files(yyyymmddhh0,tstart_str,pkl_fnm)
                 if got_files == 0:
                     print('we got the files from the ecmwf forecast ',yyyymmddhh0)
                     print('to do the PFM forecast starting on ', tstart_str)
@@ -106,7 +106,7 @@ def get_atm_data_as_dict():
             print('...done.') 
 
             print('\nputting all grib data into a single pickle file...')
-            cmd_list = ['python','-W','ignore','atm_functions.py','ecmwf_grib_2_dict_all_v2',yyyymmddhh0, tstart_str]
+            cmd_list = ['python','-W','ignore','atm_functions.py','ecmwf_grib_2_dict_all_v2',yyyymmddhh0, tstart_str,pkl_fnm]
             ret5 = subprocess.run(cmd_list)   
             print('return code: ' + str(ret5.returncode) + ' (0=good)')  
             print('...done.') 
@@ -131,7 +131,6 @@ def get_atm_data_as_dict():
 
     fname_out  = PFM['lv1_forc_dir'] + '/' + PFM['atm_tmp_pckl_file']
     # import pygrib
-
     # this function will returm ATM, a dict of all atmospheric fields ROMS requires
     # keys will be the ROMS .nc variable names.
     # they will be on the atm grid (not roms grid)
@@ -139,7 +138,6 @@ def get_atm_data_as_dict():
     # be returned. atm_mod is the type of atm models used, one of:
     # 'nams_nest', 'nam_1hr', or 'hrrr', or 'gfs'
     # get_method, is the type of method used, either 'open_dap' or 'grib_download'
-
     # the code in here goes from the start date to all forecast dates
     #d1=datetime(2024,6,17) # a datetime object, the date is the date of forecast
 
@@ -503,12 +501,13 @@ def load_atm():
     return ATM
 
 
-def get_atm_data_on_roms_grid(lv):
+def get_atm_data_on_roms_grid(lv,pkl_fnm):
     # this function takes the ATM data, in a dict, and the roms grid, as a dict
     # and returns the ATM data but on the roms grid. It returns atm2
     # the wind directions in atm2 are rotated to be in ROMS xi,eta directions.
-    
-    PFM=get_PFM_info()
+    import init_funs_forecast as initfuns
+
+    PFM=initfuns.get_model_info(pkl_fnm)
     fname_atm  = PFM['lv1_forc_dir'] + '/' + PFM['atm_tmp_pckl_file']
     with open(fname_atm,'rb') as fp:
         print('loading ' + fname_atm + ' ...')
@@ -1036,7 +1035,12 @@ def append_to_atm_dotnc(fld,lv):
     ds.to_netcdf(fname_out, mode='a')
 
 
-def atm_roms_dict_to_netcdf(lv,pkl_fnm):
+def atm_roms_dict_to_netcdf(lv,pkl_fnm,mod_type):
+    
+    if mod_type == 'hind':
+        import init_funs as initfuns
+    else:
+        import init_funs_forecast as initfuns
 
     PFM=initfuns.get_model_info(pkl_fnm)
 
@@ -1092,8 +1096,11 @@ def ecmwf_grabber(cmd_lst):
     ret1 = subprocess.call(cmd_lst)
 
 
-def get_ecmwf_grib_files_lists(yyyymmddhh0):
+def get_ecmwf_grib_files_lists(yyyymmddhh0,pkl_fnm):
     # this gets the ecmwf grib files from the cdip server for the forecast starting at yyyymmddhh
+
+    import init_funs_forecast as initfuns
+
     yyyy0 = yyyymmddhh0[0:4]
     mm0 = yyyymmddhh0[4:6]
     dd0 = yyyymmddhh0[6:8]
@@ -1108,7 +1115,8 @@ def get_ecmwf_grib_files_lists(yyyymmddhh0):
 
     txt2 = 'T1' + txt1 + mm0 + dd0 + hh0
 
-    PFM = get_PFM_info()
+
+    PFM = initfuns.get_model_info(pkl_fnm)
     # stuff to be set with PFM structure.
     #PFM['forecast_days'] = 5.0
     #PFM['ecmwf_dir'] =  '/scratch/PFM_Simulations/ecmwf_data/'
@@ -1162,9 +1170,9 @@ def check_file_exists_and_is_not_empty(file_path):
     else:
         return 1
     
-def got_ecmwf_files(yyyymmddhh0,t0_str):
+def got_ecmwf_files(yyyymmddhh0,t0_str,pkl_fnm):
     # get the list of file names
-    _, _, fns_out, _ = get_ecmwf_grib_files_lists_v2(yyyymmddhh0,t0_str)
+    _, _, fns_out, _ = get_ecmwf_grib_files_lists_v2(yyyymmddhh0,t0_str,pkl_fnm)
     got_all_files = 0
     # loop through file names
     for fn in fns_out:
@@ -1174,9 +1182,11 @@ def got_ecmwf_files(yyyymmddhh0,t0_str):
 
     return got_all_files
 
-def get_ecmwf_grib_files_lists_v2(yyyymmddhh0,t0_str):
+def get_ecmwf_grib_files_lists_v2(yyyymmddhh0,t0_str,pkl_fnm):
     # this gets the ecmwf grib files from the cdip server for the forecast starting at yyyymmddhh0
     # but we are now only going to get data from t0 to t0+PFM['forecast_days']
+
+    import init_funs_forecast as initfuns
 
     # the forecast time stamp
     yyyy0 = yyyymmddhh0[0:4]
@@ -1194,7 +1204,7 @@ def get_ecmwf_grib_files_lists_v2(yyyymmddhh0,t0_str):
     # this is the string associated with the forecast time stamp
     txt2 = 'T1' + txt1 + mm0 + dd0 + hh0
 
-    PFM = get_PFM_info()
+    PFM = initfuns.get_model_info(pkl_fnm)
 
     dir_out = PFM['ecmwf_dir']
     
@@ -1259,8 +1269,8 @@ def get_ecmwf_forecast_grbs(yyyymmddhh0):
             result2.append(result)
             # report the result
 
-def get_ecmwf_forecast_grbs_v2(yyyymmddhh0,t0_str):
-    _, _, _, cmd_list = get_ecmwf_grib_files_lists_v2(yyyymmddhh0,t0_str)
+def get_ecmwf_forecast_grbs_v2(yyyymmddhh0,t0_str,pkl_fnm):
+    _, _, _, cmd_list = get_ecmwf_grib_files_lists_v2(yyyymmddhh0,t0_str,pkl_fnm)
 
    # create parallel executor
     with ThreadPoolExecutor() as executor:
@@ -1280,7 +1290,6 @@ def get_ecmwf_forecast_grbs_v2(yyyymmddhh0,t0_str):
             result = future.result()
             result2.append(result)
             # report the result
-
 
 
 def ecmwf_grib_2_dict(fn_in):
@@ -1328,11 +1337,12 @@ def ecmwf_grib_2_dict(fn_in):
 
 #    return Aout
 
-def ecmwf_grib_2_dict_all_v2(yyyymmddhh0,t0_str):
+def ecmwf_grib_2_dict_all_v2(yyyymmddhh0,t0_str,pkl_fnm):
     # this saves the ecmwf grib data as a dictionary pkl file. Variables will be in ROMS units with ROMS
     # variable names, but on the ecmwf grid
+    import init_funs_forecast as initfuns
 
-    _, _, fn_grbs, _ = get_ecmwf_grib_files_lists_v2(yyyymmddhh0,t0_str)
+    _, _, fn_grbs, _ = get_ecmwf_grib_files_lists_v2(yyyymmddhh0,t0_str,pkl_fnm)
     nt = len(fn_grbs) # the number of files is the number of time stamps (101 for a 5 day ecmwf forecast)
     print('there are ' + str(nt) + ' ecmwf grib files to stack in time.')
     
@@ -1364,7 +1374,7 @@ def ecmwf_grib_2_dict_all_v2(yyyymmddhh0,t0_str):
         cnt = cnt+1
     
     ATM['lat'] = np.flipud( ATM['lat'] )
-    PFM = get_PFM_info()
+    PFM = initfuns.get_PFM_info(pkl_fnm)
     # stuff to be set with PFM structure.
 
     #PFM['ecmwf_dir'] = '/scratch/PFM_Simulations/ecmwf_data/'
@@ -1445,9 +1455,11 @@ def datetime_to_romstime(tdt):
 
     return t_rom2
 
-def ecmwf_to_roms_vars(fn_in):
+def ecmwf_to_roms_vars(fn_in,pkl_fnm):
 
-    PFM = get_PFM_info()
+    import init_funs_forecast as initfuns_fore
+
+    PFM = initfuns_fore.get_model_info(pkl_fnm)
 
     with open(fn_in,'rb') as fp:
         ATM_0 = pickle.load(fp)

@@ -11,8 +11,7 @@ import netCDF4
 import cftime
 
 sys.path.append('../sdpm_py_util')
-import ocn_functions as ocnfuns
-
+import ocn_funs_forecast as ocnfuns
 
 
 def evaluate_function_from_file(file_path, function_name, *args):
@@ -155,7 +154,7 @@ def print_initial_model_info(pkl_fnm):
     t1str = t1.strftime('%Y-%m-%d %H:%M') 
     t2str = t2.strftime('%Y-%m-%d %H:%M') 
     dtstr = str(MI['forecast_days'])
-    nsims = len(MI['start_times_str'])
+    #nsims = len(MI['start_times_str'])
     lvlstr = ', '.join(MI['levels_to_run'])
 
     nn = 60 # total spaces
@@ -165,9 +164,7 @@ def print_initial_model_info(pkl_fnm):
     print(f"{run_type : <60}")
     print(f"{'from           : ' + t1str : <60}")
     print(f"{'to             : ' + t2str : <60}")
-    print(f"{'in             : ' + dtstr + ' day chunks (if hindcast)' : <60}")
-    if run_type == 'hindcast':
-        print(f"{'we will do     : ' + str(nsims) + ' separate ' + dtstr + ' day sims' : <60}")
+    print(f"{'in a           : ' + dtstr + ' day chunk' : <60}")
     print(f"{'atm model      : ' + MI['atm_model'] : <60}")
     print(f"{'ocean_model    : ' + MI['ocn_model'] : <60}")
     print(f"{'running levels : ' + lvlstr : <60}")
@@ -254,6 +251,8 @@ def initialize_simulation(args):
         for f in glob.glob(PFM['lv4_run_dir'] + '/Err*'):
             os.remove(f)
 
+        print('now making a new PFM.pkl file.')
+        PFM = get_PFM_info()
         if isinstance(args,bool) == False:
             yyyymmdd = args[1]
             print('now changing the start date to: ', yyyymmdd)
