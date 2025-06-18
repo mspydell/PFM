@@ -14,16 +14,22 @@ from foo import bar
 import sys
 from datetime import timedelta
 sys.path.append('../sdpm_py_util')
-import init_funs as initfuns
 import os
 import subprocess
 
 ##############
 
-def  make_LV1_dotin_and_SLURM( pkl_fnm ):
+def  make_LV1_dotin_and_SLURM( pkl_fnm , mod_type ):
     print(' --- making dot_in and dot_sb --- ')  # + Ldir['date_string'])
 
+    if mod_type == 'hind':
+        import init_funs as initfuns
+    else: 
+        import init_funs_forecast as initfuns
+
+    print('loading model info...')
     PFM = initfuns.get_model_info(pkl_fnm)
+    print('...done')
     # initialize dict to hold values that we will substitute into the dot_in file.
     D = dict()
 
@@ -167,7 +173,12 @@ def  make_LV1_dotin_and_SLURM( pkl_fnm ):
 
 
 
-def run_slurm_LV1( pkl_fnm ):
+def run_slurm_LV1( pkl_fnm , mod_type):
+
+    if mod_type == 'hind':
+        import init_funs as initfuns
+    else: 
+        import init_funs_forecast as initfuns
 
     PFM = initfuns.get_model_info( pkl_fnm )
     cwd = os.getcwd()

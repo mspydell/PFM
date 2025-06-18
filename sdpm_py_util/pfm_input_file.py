@@ -59,6 +59,7 @@ def create_model_info_dict():
        pfm_root_dir = '/scratch/PHM_Simulations/'       
    
     PFM = dict()
+    PFM['run_type'] = run_type
     if run_type == 'hindcast': # note hycom with tides starts on 2024-10-10 1200...
         sim_start_time = '2024101100' # the simulation start time is in yyyymmddhh format
         sim_end_time   = '2024101300' # this is the very last time of the full simulation
@@ -319,7 +320,6 @@ def create_model_info_dict():
     OP['L4','his_interval'] = 3600 # how often in sec outut is written to his.nc
     OP['L4','rst_interval'] = 0.25  # how often in days, a restart file is made. 
 
-    PFM['run_type'] = run_type
 
     # first the environment
     PFM['lv1_run_dir']  = lv1_run_dir
@@ -441,10 +441,10 @@ def create_model_info_dict():
     # this is the switch to use restart files
     PFM['restart_files_dir'] =  pfm_root_dir + 'restart_data' 
 
-    PFM['lv1_use_restart']         = 0 # use_restart
-    PFM['lv2_use_restart']         = 0
-    PFM['lv3_use_restart']         = 0
-    PFM['lv4_use_restart']         = 0
+    PFM['lv1_use_restart']         = 1 # 1 == use_restart 
+    PFM['lv2_use_restart']         = 1
+    PFM['lv3_use_restart']         = 1
+    PFM['lv4_use_restart']         = 1
     #PFM['lv4_swan_use_rst']        = 0
     PFM['lv4_swan_use_rst']        = 1
 
@@ -496,6 +496,31 @@ def create_model_info_dict():
         PFM['sim_time_2'] = fetch_time2 + PFM['forecast_days']*timedelta(days=1)
         PFM['sim_start_time'] = PFM['sim_time_1']
         PFM['sim_end_time'] = PFM['sim_time_2']
+        
+        yyyymmddhhmm = PFM['sim_start_time'].strftime("%Y%m%d") + '0000'
+        end_str = PFM['sim_end_time'].strftime("%Y%m%d") + '0000'
+        PFM['lv1_his_name'] = 'LV1_ocean_his_' + yyyymmddhhmm + '.nc'
+        PFM['lv1_rst_name'] = 'LV1_ocean_rst_' + yyyymmddhhmm + '_' + end_str + '.nc' 
+        PFM['lv1_his_name_full'] = PFM['lv1_his_dir'] + '/' + PFM['lv1_his_name']
+        PFM['lv1_rst_name_full'] = PFM['restart_files_dir'] + '/' + PFM['lv1_rst_name']
+        PFM['lv2_his_name'] = 'LV2_ocean_his_' + yyyymmddhhmm + '.nc'
+        PFM['lv2_rst_name'] = 'LV2_ocean_rst_' + yyyymmddhhmm + '_' + end_str + '.nc' 
+        PFM['lv2_his_name_full'] = PFM['lv2_his_dir'] + '/' + PFM['lv2_his_name']
+        PFM['lv2_rst_name_full'] = PFM['restart_files_dir'] + '/' + PFM['lv2_rst_name']
+        PFM['lv3_his_name'] = 'LV3_ocean_his_' + yyyymmddhhmm + '.nc'
+        PFM['lv3_rst_name'] = 'LV3_ocean_rst_' + yyyymmddhhmm + '_' + end_str + '.nc' 
+        PFM['lv3_his_name_full'] = PFM['lv3_his_dir'] + '/'  + PFM['lv3_his_name']
+        PFM['lv3_rst_name_full'] = PFM['restart_files_dir'] + '/' + PFM['lv3_rst_name']
+        PFM['lv4_his_name'] = 'LV4_ocean_his_' + yyyymmddhhmm + '.nc'
+        PFM['lv4_rst_name'] = 'LV4_ocean_rst_' + yyyymmddhhmm + '_' + end_str + '.nc' 
+        PFM['lv4_swan_rst_name']  = 'LV4_swan_rst_' + yyyymmddhhmm + '.dat' 
+        PFM['lv4_his_name_full'] = PFM['lv4_his_dir'] + '/'  + PFM['lv4_his_name']
+        PFM['lv4_rst_name_full'] = PFM['restart_files_dir'] + '/' + PFM['lv4_rst_name']
+        PFM['lv4_swan_rst_name_full'] = PFM['restart_files_dir'] + '/' + PFM['lv4_swan_rst_name']
+    #     # get how often swan files are written. The 0.2 makes sure we check 5 times between 
+    #     # approximate writing times. based on CURRENT (12/13/24) coawst tiling!!! if 
+    #     # tiling changes this needs to change too!
+        PFM['lv4_swan_check_freq_sec'] = int( np.round( 0.2 * OP['L4','rst_interval'] * 2 * 3600 / 2.5 ) ) 
     else:
         fetch_time2 = PFM['sim_time_1']
         
@@ -504,9 +529,6 @@ def create_model_info_dict():
     end_time = fetch_time2 + PFM['forecast_days'] * timedelta(days=1)
     PFM['fore_end_time'] = end_time # the end time of the forecast
 
-    PFM['lv4_swan_check_freq_sec'] = int( np.round( 0.2 * OP['L4','rst_interval'] * 2 * 3600 / 2.5 ) ) 
-
-       
     return PFM
 
 

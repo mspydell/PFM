@@ -1,4 +1,5 @@
 import sys
+import os
 import subprocess
 from datetime import datetime
 
@@ -19,7 +20,8 @@ def driver_run_fore_LV1234( input_py_full, pkl_fnm ):
 
     # this is the loop over the levels to run
     for lvl in MI['levels_to_run']:
-        print('starting ' + lvl)
+        print('\nstarting ' + lvl)
+        os.chdir('../driver')
         cmd_list = ['python','driver_functions.py','run_fore_simulation',lvl,pkl_fnm]
         ret1 = subprocess.run(cmd_list)     
         print('done with ' + lvl)

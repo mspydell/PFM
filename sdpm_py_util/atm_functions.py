@@ -118,7 +118,7 @@ def get_atm_data_as_dict(pkl_fnm):
 
         print('\ngoing from ecmwf variables to roms variables...')
         atmpkl = PFM['ecmwf_dir'] + PFM['ecmwf_all_pkl_name']
-        cmd_list = ['python','-W','ignore','atm_functions.py','ecmwf_to_roms_vars',atmpkl]
+        cmd_list = ['python','-W','ignore','atm_functions.py','ecmwf_to_roms_vars',atmpkl,pkl_fnm]
         ret5 = subprocess.run(cmd_list)   
         print('return code: ' + str(ret5.returncode) + ' (0=good)')  
         print('...done.') 
@@ -491,8 +491,8 @@ def get_atm_data_as_dict(pkl_fnm):
         pickle.dump(ATM,fp)
         print('\nATM dict saved with pickle.')
 
-def load_atm():
-    PFM        = get_PFM_info()   
+def load_atm(pkl_fnm):
+    PFM        = initfuns.get_model_info(pkl_fnm)   
     fname_atm  = PFM['lv1_forc_dir'] + '/' + PFM['atm_tmp_pckl_file']
 
     with open(fname_atm,'rb') as fp:
@@ -784,7 +784,7 @@ def get_atm_data_on_roms_grid_v2(lv):
         print('\nATM on roms grid dict saved with pickle.')
 
 
-def get_atm_data_on_roms_grid_to_atmnc(lv):
+def get_atm_data_on_roms_grid_to_atmnc(lv,pkl_fnm):
     # this function takes the ATM data, in a dict, and the roms grid, as a dict
     # and save the ATM data dict on the roms grid. 
     # winds are rotated to be in ROMS xi,eta directions.
@@ -813,7 +813,7 @@ def get_atm_data_on_roms_grid_to_atmnc(lv):
      
     # these are the 2d fields that need to be interpreted onto the roms grid
     # dimensions of all fields are [ntime,nlat,nlon]
-    PFM=get_PFM_info()
+    PFM=get_model_info(pkl_fnm)
     fname_atm  = PFM['lv1_forc_dir'] + '/' + PFM['atm_tmp_pckl_file']    
     # load the atm data on the original grid
     # this has a ton of stuf in it that needs to go into the .nc
@@ -1374,7 +1374,7 @@ def ecmwf_grib_2_dict_all_v2(yyyymmddhh0,t0_str,pkl_fnm):
         cnt = cnt+1
     
     ATM['lat'] = np.flipud( ATM['lat'] )
-    PFM = initfuns.get_PFM_info(pkl_fnm)
+    PFM = initfuns.get_model_info(pkl_fnm)
     # stuff to be set with PFM structure.
 
     #PFM['ecmwf_dir'] = '/scratch/PFM_Simulations/ecmwf_data/'
@@ -1443,8 +1443,10 @@ def ecmwf_grib_2_dict_all(yyyymmddhh0):
 
     #return ATM    
 
-def datetime_to_romstime(tdt):
-    PFM = get_PFM_info()
+def datetime_to_romstime(tdt,pkl_fnm):
+    import init_funs_forecast as initfuns
+
+    PFM = initfuns.get_model_info(pkl_fnm)
     t_ref = PFM['modtime0'] 
     nt = len(tdt)
     t_rom2 = np.zeros((nt))
@@ -1470,7 +1472,7 @@ def ecmwf_to_roms_vars(fn_in,pkl_fnm):
     nlat = len(ATM['lat'])
     nlon = len(ATM['lon'])
 
-    t_rom = datetime_to_romstime(ATM_0['time']) # this is in days past 1999-1-1
+    t_rom = datetime_to_romstime(ATM_0['time'],pkl_fnm) # this is in days past 1999-1-1
     nt = len(t_rom)
 
     ATM['ocean_time'] = t_rom

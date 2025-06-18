@@ -269,7 +269,7 @@ def hycom_grabber_v2(url,dtff,vnm,fn_out):
     ret1 = subprocess.call(cmd_list,stderr=subprocess.DEVNULL,stdout=subprocess.DEVNULL)
     return ret1
 
-def hycom_grabber_v3(url,dtff,vnm,fn_out):
+def hycom_grabber_v3(url,dtff,vnm,fn_out,pkl_fnm):
     # this is the function that is parallelized
     # the input is url: the hycom url to get data from
     # dtff: the time stamp of the forecast, ie, the file we want
@@ -278,7 +278,7 @@ def hycom_grabber_v3(url,dtff,vnm,fn_out):
     # dstr_ft: the date string of the forecast model run. ie. the first
     #          time stamp of the forecast
     
-    PFM = get_PFM_info()
+    PFM = initfuns.get_model_info(pkl_fnm)
 
     south = PFM['latlonbox']['L1'][0]
     north = PFM['latlonbox']['L1'][1]
@@ -658,6 +658,10 @@ def get_hycom_foretime_v2(t1str,t2str,pkl_fnm):
     t0 =  datetime.strptime(tend,"%Y-%m-%d")
     t0 = t0 + timedelta(days=1) # this is one day after the last day we have data,
                                 # we have no data for this day.
+    if t0 >= tnow - 1.0 * timedelta(days = 1):
+        print('no need to get a new forecast. We are up to date.')
+
+    # !!! Warning this while loop isn't working correctly as of 6/13/25 !!!
     while t0 < tnow - 1.0 * timedelta(days = 1): # get data from t0 to now-1 day
         t0str = t0.strftime('%Y%m%d')
         print('we are trying to get the entire ', t0str, ' hycom forecast in 10 file chunks...')
@@ -955,7 +959,7 @@ def get_hycom_data_fnames_v3(fnames,pkl_fnm):
                     #         https://tds.hycom.org/thredds/dodsC/datasets/ESPC-D-V02/data/forecasts/US058GCOM-OPSnce.espc-d-031-hycom_fcst_glby008_2025021212_t0000_ssh.nc
 
                 dtff = datetime.strptime(file_name[24:40],'%Y-%m-%dT%H:%M')
-                args = [hycom,dtff,bb,ffn]
+                args = [hycom,dtff,bb,ffn,pkl_fnm]
                 kwargs = {} #
                 # start thread by submitting it to the executor
                 #if url_check == 0:
@@ -1225,6 +1229,7 @@ def get_hycom_data_1hr_v2(yyyymmdd,pkl_fnm):
     # this function gets all of the new hycom data as separate files for each field (ssh,temp,salt,u,v) and each time
     # and puts each .nc file in the directory for hycom data
 
+    print('in get_hycom_data_1hr_v2')
 
     PFM = initfuns.get_model_info(pkl_fnm)
 
@@ -1253,12 +1258,13 @@ def get_hycom_data_1hr_v2(yyyymmdd,pkl_fnm):
     t2str = "%d%02d%02d%02d%02d" % (t10.year, t10.month, t10.day, t10.hour, t10.minute)
     
     
-    ncfiles = get_hycom_nc_file_names(yyyymmdd,t1str,t2str) # these are all of the files we are trying to get
+    ncfiles = get_hycom_nc_file_names(yyyymmdd,t1str,t2str,pkl_fnm) # these are all of the files we are trying to get
     print('attempting to get a total of ' + str(len(ncfiles)) + ' hycom nc files ...')
 
     ncfiles2 = list_to_dict_of_chunks(ncfiles) # we are getting chunks of 10 files to get
                                              # trying to adhere to hycom niceness
     
+    print('just before loop')
     for cnt in list(ncfiles2.keys()):     # we will loop through the chunks.
         ncfiles3 = []
         for ncf in ncfiles2[cnt]:
@@ -1672,7 +1678,7 @@ def check_and_redownload_ncfiles(yyyymmdd,pkl_fnm):
 
     t2str = "%d%02d%02d%02d%02d" % (t2.year, t2.month, t2.day, t2.hour, t2.minute)
 
-    nc_in_names = get_hycom_nc_file_names(yyyymmdd,t1str,t2str)
+    nc_in_names = get_hycom_nc_file_names(yyyymmdd,t1str,t2str,pkl_fnm)
     chk = 1
     cnt2 = 0
     while chk==1 and cnt2<3:

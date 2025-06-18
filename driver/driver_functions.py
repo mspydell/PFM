@@ -283,14 +283,13 @@ def run_hind_LV1(t1str,pkl_fnm):
     #yyyymmdd = MI['yyyymmdd']
     #hhmm = MI['hhmm']
     os.chdir('../sdpm_py_util')
-    runfuns.make_LV1_dotin_and_SLURM( pkl_fnm )
+    runfuns.make_LV1_dotin_and_SLURM( pkl_fnm , 'hind' )
     print('...done.\n')
 
     # run command will be
     print('now running roms LV1 with slurm.')
     print('using ' + str(MI['gridinfo']['L1','nnodes']) + ' nodes.')
     print('Ni = ' + str(MI['gridinfo']['L1','ntilei']) + ', NJ = ' + str(MI['gridinfo']['L1','ntilej']))
-    print('working...')
     runfuns.run_slurm_LV1( pkl_fnm )
     print('...done.')
     os.chdir('../driver')
@@ -593,9 +592,10 @@ def run_hind_LV3(t1str,pkl_fnm):
     dt_roms = []
     dt_roms.append(t2-t1)
 
-def run_fore_LV1(t1str,pkl_fnm):
+def run_fore_LV1(pkl_fnm):
     import init_funs_forecast as initfuns_fore
     import ocn_funs_forecast as ocnfuns_fore
+    t01 = datetime.now()
 
     PFM = initfuns_fore.get_model_info(pkl_fnm)
 
@@ -603,6 +603,8 @@ def run_fore_LV1(t1str,pkl_fnm):
     initfuns_fore.initialize_simulation(clean_start)
 
     t1  = PFM['fetch_time']    # this is the first time of the PFM forecast
+    t1str = t1.strftime('%Y%m%d%H%M')
+    print(t1str)
     # now a string of the time to start ROMS (and the 1st atm time too)
     yyyymmddhhmm_pfm = "%d%02d%02d%02d%02d" % (t1.year, t1.month, t1.day, t1.hour, t1.minute)
     t2  = t1 + PFM['forecast_days'] * timedelta(days=1)  # this is the last time of the PFM forecast
@@ -619,12 +621,9 @@ def run_fore_LV1(t1str,pkl_fnm):
     print('getting the hycom forecast time...')
     print('this will clean, download new hycom files, then find the forecast date covering the PFM times.')
     t01 = datetime.now()
-    yyyymmdd_hy = ocnfuns_fore.get_hycom_foretime_v2(yyyymmddhhmm_pfm,t2str)
-
-    t1 = datetime.strptime(t1str,'%Y%m%d%H')
-    t2 = t1 + PFM['forecast_days']*timedelta(days=1)
-    t2str = t2.strftime("%Y%m%d%H")
-
+    yyyymmdd_hy = ocnfuns_fore.get_hycom_foretime_v2(yyyymmddhhmm_pfm,t2str,pkl_fnm)
+    #print(yyyymmdd_hy)
+ 
     start_type = PFM['lv1_use_restart'] # 0=new solution. 1=from a restart file
     lv1_use_restart = start_type
     level = 1
@@ -688,7 +687,7 @@ def run_fore_LV1(t1str,pkl_fnm):
 
     if plot_ocn ==1:
         print('making some plots from: ' + fn_pckl)
-        cmd_list = ['python','-W','ignore','plotting_functions.py','plot_ocn_fields_from_dict_pckl',fn_pckl]
+        cmd_list = ['python','-W','ignore','plotting_functions.py','plot_ocn_fields_from_dict_pckl',fn_pckl,pkl_fnm]
         os.chdir('../sdpm_py_util')
         ret1 = subprocess.run(cmd_list)     
         #pltfuns.plot_ocn_fields_from_dict_pckl(fn_pckl)
@@ -916,15 +915,14 @@ def run_fore_LV1(t1str,pkl_fnm):
     #yyyymmdd = MI['yyyymmdd']
     #hhmm = MI['hhmm']
     os.chdir('../sdpm_py_util')
-    runfuns.make_LV1_dotin_and_SLURM( pkl_fnm )
+    runfuns.make_LV1_dotin_and_SLURM( pkl_fnm , 'fore' )
     print('...done.\n')
 
     # run command will be
     print('now running roms LV1 with slurm.')
     print('using ' + str(PFM['gridinfo']['L1','nnodes']) + ' nodes.')
     print('Ni = ' + str(PFM['gridinfo']['L1','ntilei']) + ', NJ = ' + str(PFM['gridinfo']['L1','ntilej']))
-    print('working...')
-    runfuns.run_slurm_LV1( pkl_fnm )
+    runfuns.run_slurm_LV1( pkl_fnm , 'fore')
     print('...done.')
     os.chdir('../driver')
     t02 = datetime.now()
@@ -944,13 +942,13 @@ def run_hind_simulation(t1str,lvl,pkl_fnm):
     if lvl == 'LV3':
         run_hind_LV3(t1str,pkl_fnm)
 
-def run_fore_simulation(t1str,lvl,pkl_fnm):
+def run_fore_simulation(lvl,pkl_fnm):
     if lvl == 'LV1':
-        run_fore_LV1(t1str,pkl_fnm)
+        run_fore_LV1(pkl_fnm)
     if lvl == 'LV2':
-        run_fore_LV2(t1str,pkl_fnm)
+        run_fore_LV2(pkl_fnm)
     if lvl == 'LV3':
-        run_fore_LV3(t1str,pkl_fnm)
+        run_fore_LV3(pkl_fnm)
 
 
 if __name__ == "__main__":

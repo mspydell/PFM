@@ -848,7 +848,7 @@ def plot_ocn_fields_from_dict_pckl(fname_in, pkl_fnm, fields_to_plot=None, show=
     fields_to_plot (list or str): The fields to plot. If None, plot all fields.
     """
 
-    PFM=initfuns.get_PFM_info(pkl_fnm)
+    PFM=initfuns.get_model_info(pkl_fnm)
     RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
 
     print(fname_in)
