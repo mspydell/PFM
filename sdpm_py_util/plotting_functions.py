@@ -2321,10 +2321,13 @@ def get_history_essential(fn_his,fn_grd):
     Shoreline['Risk']=risk
     
     # PTJ, IB pier, Silver Strand, HdC
-    ln_lab = ['Playas de Tijuana','Imperial Beach pier','Silver Strand','Coronado Avenida del Sol']
+    ln_lab = ['Playas de Tijuana','Imperial Beach pier','Silver Strand','Coronado Avenida Lunar']
     #print(ln_lab)
     Sites['Names'] = ln_lab
-    lts0 = [32.52, 32.58, 32.625, 32.678]
+    #lts0 = [32.52, 32.58, 32.625, 32.678]
+    #                               HdC
+    lts0 = [32.52, 32.58, 32.625, 32.67407]
+    #                               Avineda Lunar
     ipts = np.zeros((len(lts0)),dtype=int)
 
     lat2 = np.zeros(len(lts0))
