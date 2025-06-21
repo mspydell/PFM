@@ -1661,24 +1661,28 @@ def check_and_redownload_ncfiles(yyyymmdd):
             else:
                 mnfsz = 1.5 # for other vars
         
-            if "_ssh_" in fn:
-                data_var = 'surf_el'
-            elif "_s3z_" in fn:
-                data_var = 'sal'
-            elif "_t3z_" in fn:
-                data_var = 'temp'
-            elif "_u3z_" in fn:
-                data_var = 'water_u'
-            elif "_v3z_" in fn:
-                data_var = 'water_v'
+            #if "_ssh_" in fn:
+            #    data_var = 'surf_el' # still 'surf_el'
+            #elif "_s3z_" in fn:
+            #    data_var = 'sal' # now 6/21/25 == 'salinity'
+            #elif "_t3z_" in fn:
+            #    data_var = 'temp' # now == 'water_temp'
+            #elif "_u3z_" in fn:
+            #    data_var = 'water_u' # still 'water_u'
+            #elif "_v3z_" in fn:
+            #    data_var = 'water_v' # still 'water_v'
 
             file_size_mb = os.path.getsize(fn) / (1024*1024)
 
             with nc.Dataset(fn) as ds:
+                vars = list(ds.variables.keys())
+                for var_nm in vars:
+                    if var_nm not in ['depth','lat','lon','tau','time']:
+                        data_var = var_nm # this gets the right key, eg 'salintiy' or 'sal'
                 data = ds.variables[data_var][:]
                 mnd = np.nanmin(data[:])
                 mxd = np.nanmax(data[:])
-            
+                
             bad_data = 0
             if (mnd < -10 or mxd > 100) and ("_s3z_" in fn or "_t3z_" in fn):
                 bad_data = 1
