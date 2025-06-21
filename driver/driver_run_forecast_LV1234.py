@@ -25,7 +25,7 @@ def driver_run_fore_LV1234( input_py_full, pkl_fnm ):
         cmd_list = ['python','driver_functions.py','run_fore_simulation',lvl,pkl_fnm]
         ret1 = subprocess.run(cmd_list)     
         print('done with ' + lvl)
-        print('LV fore ran correctly? ' + str(ret1.returncode) + ' (0=yes)')
+        print(lvl, ' forecast ran correctly? ' + str(ret1.returncode) + ' (0=yes)')
         print('this took ')
         
 if __name__ == "__main__":

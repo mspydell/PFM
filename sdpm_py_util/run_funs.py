@@ -202,7 +202,13 @@ from datetime import datetime, timedelta
 from get_PFM_info import get_PFM_info
 
 
-def  make_LV2_dotin_and_SLURM( pkl_fnm ):
+def  make_LV2_dotin_and_SLURM( pkl_fnm , mod_type ):
+    print(' --- making dot_in and dot_sb --- ')  # + Ldir['date_string'])
+
+    if mod_type == 'hind':
+        import init_funs as initfuns
+    else: 
+        import init_funs_forecast as initfuns
 
     PFM = initfuns.get_model_info(pkl_fnm)
 
@@ -348,7 +354,14 @@ def  make_LV2_dotin_and_SLURM( pkl_fnm ):
     f.close()
     f2.close()
 
-def run_slurm_LV2( pkl_fnm ):
+def run_slurm_LV2( pkl_fnm , mod_type ):
+    print(' --- making dot_in and dot_sb --- ')  # + Ldir['date_string'])
+
+    if mod_type == 'hind':
+        import init_funs as initfuns
+    else: 
+        import init_funs_forecast as initfuns
+
     PFM = initfuns.get_model_info( pkl_fnm )
     cwd = os.getcwd()
     os.chdir(PFM['lv2_run_dir'])
@@ -367,7 +380,14 @@ def run_slurm_LV2( pkl_fnm ):
  
     return proc
 
-def  make_LV3_dotin_and_SLURM( pkl_fnm ):
+def  make_LV3_dotin_and_SLURM( pkl_fnm , mod_type ):
+    print(' --- making dot_in and dot_sb --- ')  # + Ldir['date_string'])
+
+    if mod_type == 'hind':
+        import init_funs as initfuns
+    else: 
+        import init_funs_forecast as initfuns
+
     PFM = initfuns.get_model_info( pkl_fnm )
 
     print(' --- making dot_in and dot_sb --- ')  # + Ldir['date_string'])
@@ -513,7 +533,13 @@ def  make_LV3_dotin_and_SLURM( pkl_fnm ):
 
 
 
-def run_slurm_LV3( pkl_fnm ):
+def run_slurm_LV3( pkl_fnm , mod_type ):
+    print(' --- making dot_in and dot_sb --- ')  # + Ldir['date_string'])
+
+    if mod_type == 'hind':
+        import init_funs as initfuns
+    else: 
+        import init_funs_forecast as initfuns
 
     PFM = initfuns.get_model_info( pkl_fnm )
     cwd = os.getcwd()

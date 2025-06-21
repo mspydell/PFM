@@ -1658,7 +1658,7 @@ def delete_files(file_list):
 def check_and_redownload_ncfiles(yyyymmdd,pkl_fnm):
     # this function checks to see if the hycom.nc file is the right size
     # if it isn't the right size, it removes it, and redownloads it.
-    # it tries this 5 times before returning a bad 0 error code
+    # it tries this 5 times before returning a bad 1 error code
 
     PFM = initfuns.get_model_info(pkl_fnm)
 
