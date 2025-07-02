@@ -6,14 +6,14 @@ import sys
 
 from get_PFM_info import get_PFM_info
 
-def copy_mv_nc_file(nc_type,lvl):
+def copy_mv_nc_file(nc_type,lvl,pkl_fnm):
     # this copies an atm.nc or river.nc file to the archive location
     # nc_type can be ['atm','river']
     # lvl can be ['lv1','lv2','lv3','lv4']
 
     lvl_upper = lvl.upper()
-
-    PFM = get_PFM_info()
+    from init_funs_forecast import get_model_info
+    PFM = get_model_info(pkl_fnm)
     fcdate = PFM['fetch_time'].strftime("%Y%m%d%H")
     dir_out = '/dataSIO/PFM_Simulations/Archive/Forcing/'
     if nc_type == 'atm':
@@ -27,8 +27,9 @@ def copy_mv_nc_file(nc_type,lvl):
     shutil.move(fn_in_full, fn_out_full)
 
 
-def display_timing_info():
-    PFM = get_PFM_info()
+def display_timing_info(pkl_fnm):
+    from init_funs_forecast import get_model_info
+    PFM = get_model_info(pkl_fnm)
     fn_timing = PFM['lv1_run_dir'] + '/LV1_timing_info.pkl'
     with open(fn_timing,'rb') as fout:
         T1 = pickle.load(fout)

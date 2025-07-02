@@ -4,7 +4,6 @@ import pickle
 import numpy as np
 from pathlib import Path
 from datetime import datetime, timezone, timedelta, date
-from get_PFM_info import get_PFM_info
 import glob
 import shutil
 import netCDF4
@@ -91,7 +90,7 @@ def initialize_model(input_py_full,modinfo_pkl_full):
         MINFO['end_times_str'] = t_ends
 
     with open(modinfo_pkl_full,'wb') as fout:
-        pickle.dump(MINFO,fout)
+        pickle.dump(MINFO,fout, protocol=pickle.HIGHEST_PROTOCOL)
         print('the model_info dictionary is saved to ' + modinfo_pkl_full)
         print('this file dictates how the model is run, where files are saved, etc.')
 
@@ -136,7 +135,7 @@ def add_file_names_2MI(yyyymmddhh,pkl_fnm):
     PFM['lv4_swan_rst_name_full'] = PFM['restart_files_dir'] + '/' + PFM['lv4_swan_rst_name']
 
     with open(pkl_fnm,'wb') as fout:
-        pickle.dump(PFM,fout)
+        pickle.dump(PFM,fout, protocol=pickle.HIGHEST_PROTOCOL)
         print('the model_info dictionary was resaved to ' + pkl_fnm)
         print('with properly time stamped output file names')
     
@@ -218,16 +217,14 @@ def determine_hycom_foretime():
     return yyyymmdd
 
 
-def initialize_simulation(args):
-    if isinstance(args,bool) == True:
-        clean_start = args
-    else:
-        clean_start = args[0]
+def initialize_simulation(pkl_fnm):
+    PFM=get_model_info(pkl_fnm)
+    
+    clean_start = PFM['clean_start']
 
     if clean_start:
         print('we are going to start clean...')
         print('getting PFM info...')
-        PFM=get_PFM_info()
 
         dirs=[PFM['lv1_his_dir'],PFM['lv1_plot_dir'],PFM['lv1_forc_dir'],
               PFM['lv2_his_dir'],PFM['lv2_plot_dir'],PFM['lv2_forc_dir'],
@@ -253,8 +250,8 @@ def initialize_simulation(args):
             os.remove(f)
 
         print('now making a new PFM.pkl file.')
-        PFM = get_PFM_info()
-        if isinstance(args,bool) == False:
+        PFM = get_model_info(pkl_fnm)
+        if clean_start == False:
             yyyymmdd = args[1]
             print('now changing the start date to: ', yyyymmdd)
             start_time  = datetime.now()
@@ -269,7 +266,7 @@ def initialize_simulation(args):
             print('fetch_time is now: ', fetch_time)
             print('resaving the PFM.pkl file with specified start time.')
             with open(PFM['info_file'],'wb') as fout:
-                pickle.dump(PFM,fout)
+                pickle.dump(PFM,fout, protocol=pickle.HIGHEST_PROTOCOL)
                 print('PFM info was resaved as ' + PFM['info_file'])
 
     else:
@@ -301,11 +298,11 @@ def remake_PFM_pkl_file(args):
         print('fetch_time is now: ', fetch_time)
         print('resaving the PFM.pkl file with specified start time.')
         with open(PFM['info_file'],'wb') as fout:
-            pickle.dump(PFM,fout)
+            pickle.dump(PFM,fout, protocol=pickle.HIGHEST_PROTOCOL)
             print('PFM info was resaved as ' + PFM['info_file'])
 
-def move_restart_ncs():
-    PFM = get_PFM_info()
+def move_restart_ncs(pkl_fnm):
+    PFM = get_model_info(pkl_fnm)
     PFM['restart_file_dir'] = '/scratch/PFM_Simulations/restart_data'
     rst_dirs = [PFM['lv1_forc_dir'],PFM['lv2_forc_dir'],PFM['lv3_forc_dir'],PFM['lv4_forc_dir']]
     for pp in rst_dirs:
@@ -319,8 +316,8 @@ def move_restart_ncs():
                 fnew = PFM['restart_file_dir'] + '/' + tail
                 shutil.move(f,fnew)
 
-def remove_old_restart_ncs():
-    PFM = get_PFM_info()
+def remove_old_restart_ncs(pkl_fnm):
+    PFM = get_model_info(pkl_fnm)
     #PFM['restart_files_dir'] = '/scratch/PFM_Simulations/restart_data'
     for lvl in ['LV1','LV2','LV3','LV4']:
         rst_files = glob.glob(PFM['restart_files_dir'] + '/' + lvl + '*.nc')
@@ -348,10 +345,10 @@ def find_restart_index(datetime_list, target_datetime):
     ind = -99    
     return ind
 
-def get_swan_restart_file_name():
+def get_swan_restart_file_name(pkl_fnm):
 
     fnm_swan = None
-    PFM = get_PFM_info()
+    PFM = get_model_info(pkl_fnm)
     t_fore = PFM['fetch_time'] 
     print('going to restart swan, forecast start time is')
     print(t_fore)
@@ -447,11 +444,11 @@ def edit_and_save_MI(dict_in,pkl_fnm):
         PFM[ky] = dict_in[ky]
     
     with open(pkl_fnm,'wb') as fout:
-        pickle.dump(PFM,fout)
+        pickle.dump(PFM,fout, protocol=pickle.HIGHEST_PROTOCOL)
         print('PFM info was edited and resaved')
     
-def remove_old_swan_rst():
-    PFM = get_PFM_info()
+def remove_old_swan_rst(pkl_fnm):
+    PFM = get_model_info(pkl_fnm)
     PFM['restart_file_dir'] = '/scratch/PFM_Simulations/restart_data'
     rst_files = glob.glob(PFM['restart_file_dir'] + '/LV4*dat*')
     if len(rst_files)>0:
@@ -464,10 +461,10 @@ def remove_old_swan_rst():
             if tf<told:
                 print('removing old swan restart file:' + rf)
 
-def get_old_restart_files_list(ftype,older_than_days):
+def get_old_restart_files_list(ftype,older_than_days,pkl_fnm):
     # this function returns a list of files for ftype = 'ocean' or 'swan'
     # that are older than now-older_than_days
-    PFM = get_PFM_info()
+    PFM = get_model_info(pkl_fnm)
     
     dt_now = datetime.now()
     dt_test = dt_now - older_than_days * timedelta(days=1)
@@ -497,8 +494,8 @@ def get_old_restart_files_list(ftype,older_than_days):
 
     return file_list
 
-def remove_old_restart_files(ftype,older_than_days):
-    flist = get_old_restart_files_list(ftype,older_than_days)
+def remove_old_restart_files(ftype,older_than_days,pkl_fnm):
+    flist = get_old_restart_files_list(ftype,older_than_days,pkl_fnm)
     if len(flist)>0:
         print('there are ' + str(len(flist)) + ' ' + ftype + ' restart files to remove. Deleting them...')
         for fn in flist:
@@ -507,8 +504,8 @@ def remove_old_restart_files(ftype,older_than_days):
     else:
         print('there were no ' + ftype + ' restart files older than now minus ' + str(older_than_days) + ' days old')
 
-def remove_swan_restarts_eq_foretime():
-    PFM = get_PFM_info()
+def remove_swan_restarts_eq_foretime(pkl_fnm):
+    PFM = get_model_info(pkl_fnm)
     t_fore = PFM['fetch_time']    
     rst_files = glob.glob(PFM['restart_files_dir'] + '/LV4*dat*')
     i1 = 13
@@ -530,10 +527,10 @@ def remove_swan_restarts_eq_foretime():
         print('a previous forecast was run from this start time. Swan restart files from this forecast were deleted.')
 
 
-def remove_swan_rst_nohour():
+def remove_swan_rst_nohour(pkl_fnm):
     # this removes the files swan writes to that do not have hr time stamps, just keeps the restart directory clean.
     # we will call at the beginning of a PFM run.
-    PFM = get_PFM_info()
+    PFM = get_model_info(pkl_fnm)
     fns = glob.glob(PFM['restart_files_dir'] + '/LV4_swan_rst_????????????.dat-*')
     print('going to deleting swan base rst files...')
     if len(fns)>0:
@@ -543,10 +540,10 @@ def remove_swan_rst_nohour():
     else:
         print('...no swan base rst files to delete.')
 
-def remove_swan_rst_incomplete():
+def remove_swan_rst_incomplete(pkl_fnm):
     # we no longer call this function. Not needed.
     # this will delete swan restart files that were made if the simulation didn't complete 
-    PFM = get_PFM_info()
+    PFM = get_model_info(pkl_fnm)
     fns = glob.glob(PFM['restart_files_dir'] + '/LV4_swan_rst_????????????_000.dat-001')
     fores = [] # a list with all of the forecast times
     print('possibly deleting incomplete PFM simulation swan rst files...')
@@ -585,7 +582,7 @@ def restart_setup(lvl,pkl_fnm):
     if lvl == 'LV1':
         if PFM['run_type']=='forecast':
             print('removing ocean restart files older than now - ' + str(older_than_days) + ' days old...')
-            remove_old_restart_files('ocean',older_than_days)
+            remove_old_restart_files('ocean',older_than_days,pkl_fnm)
         key_rec = 'lv1_nrrec'
         key_file = 'lv1_ini_file'
     if lvl == 'LV2':
@@ -597,15 +594,15 @@ def restart_setup(lvl,pkl_fnm):
     if lvl == 'LV4':
         key_rec = 'lv4_nrrec'
         key_file = 'lv4_ini_file'
-        remove_swan_rst_nohour()
+        remove_swan_rst_nohour(pkl_fnm)
         #remove_swan_rst_incomplete()
         print('removing swan restart files older than now - ' + str(older_than_days) + ' days old...')
-        remove_old_restart_files('swan',older_than_days)
+        remove_old_restart_files('swan',older_than_days,pkl_fnm)
         # below ensure that swan looks for a previous forecast to find the correct restart data!
-        remove_swan_restarts_eq_foretime()
+        remove_swan_restarts_eq_foretime(pkl_fnm)
         if PFM['lv4_swan_use_rst'] == 1:
             fn0 = PFM['lv4_swan_rst_name'][0:13]
-            fnm_swan = get_swan_restart_file_name()
+            fnm_swan = get_swan_restart_file_name(pkl_fnm)
             #yyyymmdd_rm = fname1[14:26]
             #t_sw = tindex1 * PFM['lv4_swan_rst_int_hr']
             #t_sw_str = str(t_sw).zfill(3)
@@ -646,7 +643,7 @@ def update_PFM_pkl(t1str,lvl,pkl_fnm):
     PFM2[keystr2] = fname2 
     PFM2[keystr3] = str3
     PFM2[keystr4] = str4
-    edit_and_save_PFM(PFM2,pkl_fnm)
+    edit_and_save_MI(PFM2,pkl_fnm)
    
 if __name__ == "__main__":
     args = sys.argv

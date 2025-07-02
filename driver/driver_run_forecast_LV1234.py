@@ -7,7 +7,7 @@ sys.path.append('../sdpm_py_util')
 import init_funs_forecast as initfuns
 sys.path.append('../driver')
 
-def driver_run_fore_LV1234( input_py_full, pkl_fnm ):
+def driver_run_forecast_LV1234( input_py_full, pkl_fnm ):
     t00 = datetime.now()
     # upon initialization, make the model_info.pkl file
     # initfuns.initialize_model( input_py_full, pkl_fnm )
@@ -29,9 +29,13 @@ def driver_run_fore_LV1234( input_py_full, pkl_fnm ):
         print('this took ')
         
 if __name__ == "__main__":
-    if len(sys.argv) == 3:
-        arg1 = sys.argv[1]
-        arg2 = sys.argv[2]
-        driver_run_fore_LV1234(arg1, arg2)
-    else:
-        print("something went wrong!")
+    args = sys.argv
+    # args[0] = current file
+    # args[1] = function name
+    # args[2:] = function args : (*unpacked)
+    globals()[args[1]](*args[2:])
+#    if len(sys.argv) == 3:
+#        arg1 = sys.argv[1]
+#        arg2 = sys.argv[2]
+#    else:
+#        print("something went wrong!")

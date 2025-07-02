@@ -370,8 +370,12 @@ def grb2_to_pickle(fn_in,fn_out,pkl_fnm):
                     'coordinates':'lat,lon',
                     'time':'wind_time',
                     'note':'these velocity velocities are in earth coordinate'}
+    
+    # if the pickle file exists, to avoid permission issue, remove it...
+    if os.path.exists(fn_out):
+        os.remove(fn_out)
 
-
+    # write the pickle file
     with open(fn_out,'wb') as fp:
         pickle.dump(ATM,fp)
         print('ATM grb2 file ' + fn_in + ' saved to pickle.')

@@ -1,10 +1,7 @@
 from datetime import datetime
 from datetime import timedelta
 import time
-import gc
-import resource
 import pickle
-import grid_functions as grdfuns
 import os
 import os.path
 import pickle
@@ -13,11 +10,11 @@ import glob
 import shutil
 
 #sys.path.append('../sdpm_py_util')
-from get_PFM_info import get_PFM_info
-
 import numpy as np
 import xarray as xr
 import netCDF4 as nc
+
+import init_funs_forecast as initfuns
 
 from scipy.interpolate import RegularGridInterpolator, LinearNDInterpolator
 from scipy.interpolate import interp1d
@@ -59,8 +56,8 @@ def mk_swan_bot_file(hb,fout):
                 f.write('\t')
             f.write('\n')
 
-def mk_swan_wnd_file(fout):
-    PFM = get_PFM_info()
+def mk_swan_wnd_file(fout,pkl_fnm):
+    PFM = initfuns.get_model_info(pkl_fnm)
     fin = PFM['lv4_forc_dir'] + '/' + PFM['lv4_atm_file']
     ds  = nc.Dataset(fin)
     U   = ds['Uwind'][:]
@@ -97,9 +94,9 @@ def mk_swan_wnd_file(fout):
                     f.write('\n')
 
 
-def mk_swan_bnd_file(fout):
+def mk_swan_bnd_file(fout,pkl_fnm):
 
-    PFM = get_PFM_info()
+    PFM = initfuns.get_model_info(pkl_fnm)
     fn_in = PFM['lv4_forc_dir'] + '/' + PFM['lv4_swan_pckl_file']
     with open(fn_in,'rb') as fp:
         cdip = pickle.load(fp)
@@ -171,11 +168,11 @@ def cdip_wave_grabber(fin,vars,fout):
     return ret1
 
 
-def get_cdip_data():
+def get_cdip_data(pkl_fnm):
     # this function gets all of the new hycom data as separate files for each field (ssh,temp,salt,u,v) and each time
     # and puts each .nc file in the directory for hycom data
 
-    PFM=get_PFM_info()
+    PFM=initfuns.get_model_info(pkl_fnm)
 
     yyyymmddhh = PFM['fetch_time'].strftime("%Y%m%d%H")
 
@@ -211,16 +208,16 @@ def get_cdip_data():
                 # report the result        
 
 
-def cdip_ncs_to_dict(refresh):
+def cdip_ncs_to_dict(refresh,pkl_fnm):
     
-    PFM=get_PFM_info()
+    PFM=initfuns.get_model_info(pkl_fnm)
     cdip_dir = PFM['cdip_data_dir']
     if refresh == 'refresh':
         print('removing previous cdip .nc files...')
         for f in glob.glob(cdip_dir + '/*.nc'):
             os.remove(f)        
         print('...done. getting new cdip .nc files...')
-        get_cdip_data()
+        get_cdip_data(pkl_fnm)
     else:
         print('using the existing cdip .nc data.')
 
@@ -320,8 +317,8 @@ def cdip_ncs_to_dict(refresh):
         pickle.dump(cdip,fp)
         print('\nCDIP data saved as pickle file')
 
-def check_and_move(fname,dt_sec,nfiles):
-    PFM = get_PFM_info()
+def check_and_move(fname,dt_sec,nfiles,pkl_fnm):
+    PFM = initfuns.get_model_info(pkl_fnm)
     #PFM['lv4_swan_rst_name']  = 'LV4_swan_rst_' + yyyymmdd + hhmm + '.dat' 
                     # becomes: LV4_swan_rst_202412010600.dat-001 etc
 
@@ -367,6 +364,9 @@ def check_and_move(fname,dt_sec,nfiles):
                     #print('the new file name is:')
                     #print(fnew)
                     #print(f"File '{fname_full}' modified. Copying to '{fnew}'")
+                    if os.path.exists(fnew): # remove the fnew file if it exists, avoiding a permission issue.
+                        # If it exists, you can choose to remove it before copying
+                        os.remove(fnew)
                     shutil.copy2(fname_full, fnew)  # Use shutil.copy2 to preserve metadata
                     last_modified_time[cnt] = current_modified_time
                     thr[cnt] = thr[cnt] + dtf
@@ -383,8 +383,8 @@ def check_and_move(fname,dt_sec,nfiles):
         time.sleep(dt_sec)  # Check every dt_sec second
 
 
-def manage_swan_restart_files():
-    PFM = get_PFM_info()
+def manage_swan_restart_files(pkl_fnm):
+    PFM = initfuns.get_model_info(pkl_fnm)
     fn0 = PFM['lv4_swan_rst_name']
     ncpu = PFM['gridinfo']['L4','np_swan']
     fns = [] # this will be a list of the swan restart file names

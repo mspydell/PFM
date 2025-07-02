@@ -488,7 +488,7 @@ def get_atm_data_as_dict(pkl_fnm):
                         'note':'these velocity velocities are in earth coordinate'}
 
     with open(fname_out,'wb') as fp:
-        pickle.dump(ATM,fp)
+        pickle.dump(ATM,fp, protocol=pickle.HIGHEST_PROTOCOL)
         print('\nATM dict saved with pickle.')
 
 def load_atm(pkl_fnm):
@@ -565,7 +565,7 @@ def get_atm_data_on_roms_grid(lv,pkl_fnm):
     atm2['ocean_time_ref'] = ATM['ocean_time_ref']
 
     # this for loop puts the ATM fields onto the ROMS grid
-    print('interpolating to ' + lv + ' grid...')
+    print('interpolating to LV' + lv + ' grid...')
     for a in field_names:
         f1 = ATM[a]
         nt, _, _ = np.shape(f1) # added Feb 6, 2025 due to ecmwf radiation and rain 
@@ -587,24 +587,38 @@ def get_atm_data_on_roms_grid(lv,pkl_fnm):
     print('... done.')
     print('rotating velocities to LV ' + lv + ' roms directions...')
 
-
     # atm2 is now has velocities on the roms grid. but we need to rotate the winds from N-S, E-W to ROMS (xi,eta)
     angr = RMG['angle']
     cosang = np.cos(angr)
     sinang = np.sin(angr)
-    Cosang = np.tile(cosang,(nt,1,1))
-    Sinang = np.tile(sinang,(nt,1,1))
-    ur = Cosang * atm2['Uwind'] + Sinang * atm2['Vwind']
-    vr = Cosang * atm2['Vwind'] - Sinang * atm2['Uwind']
+
+    use_loops = 1
+    if use_loops == 1:
+        #print('attempting to rotating in a loop over time...')
+        for a in np.arange(nt):
+            ur = cosang * np.squeeze(atm2['Uwind'][a,:,:]) + sinang * np.squeeze(atm2['Vwind'][a,:,:])
+            vr = cosang * np.squeeze(atm2['Vwind'][a,:,:]) - sinang * np.squeeze(atm2['Uwind'][a,:,:])
+            atm2['Uwind'][a,:,:] = ur
+            atm2['Vwind'][a,:,:] = vr
+        #print('...done')
+    else:
+        Cosang = np.tile(cosang,(nt,1,1))
+        Sinang = np.tile(sinang,(nt,1,1))
+        print('made nt,nlat,nlon cos and sin angles. Making velocities for roms...')
+
+        ur = Cosang * atm2['Uwind'] + Sinang * atm2['Vwind']
+        vr = Cosang * atm2['Vwind'] - Sinang * atm2['Uwind']
+        print('made rotated velocities. Now putting them in dictionry...')
+
+        atm2['Uwind'] = ur 
+        atm2['Vwind'] = vr
  
-    atm2['Uwind'] = ur
-    atm2['Vwind'] = vr
         
-    print('... done.')
-    print('saving to ' + lv + ' pkl file.')
+    print('...done.')
+    print('saving atm to LV' + lv + ' pkl file...')
 
     with open(fname_out,'wb') as fp:
-        pickle.dump(atm2,fp)
+        pickle.dump(atm2,fp, protocol=pickle.HIGHEST_PROTOCOL)
         print('\nATM on roms grid dict saved with pickle.')
 
 def save_individual_dicts(lv,fld):
@@ -654,7 +668,7 @@ def save_individual_dicts(lv,fld):
     print(fname_out)
 
     with open(fname_out,'wb') as fp:
-        pickle.dump(atm2,fp)
+        pickle.dump(atm2,fp, protocol=pickle.HIGHEST_PROTOCOL)
         print('...done.')
 
 def rotate_dict_velocity(lv):
@@ -693,7 +707,7 @@ def rotate_dict_velocity(lv):
         atm3 = dict()
         atm3[fld]=atm2[fld]
         with open(fname_out,'wb') as fp:
-            pickle.dump(atm3,fp)
+            pickle.dump(atm3,fp, protocol=pickle.HIGHEST_PROTOCOL)
     
     print('...done.')
 
@@ -780,7 +794,7 @@ def get_atm_data_on_roms_grid_v2(lv):
 
     with open(fname_out,'wb') as fp:
         print(fname_out)
-        pickle.dump(atm2,fp)
+        pickle.dump(atm2,fp, protocol=pickle.HIGHEST_PROTOCOL)
         print('\nATM on roms grid dict saved with pickle.')
 
 
@@ -1385,7 +1399,7 @@ def ecmwf_grib_2_dict_all_v2(yyyymmddhh0,t0_str,pkl_fnm):
     fname_out = dir_out + fn_out
     
     with open(fname_out,'wb') as fp:
-        pickle.dump(ATM,fp)
+        pickle.dump(ATM,fp, protocol=pickle.HIGHEST_PROTOCOL)
         print('\necmwf 1st ATM dict saved with pickle.')
 
     #return ATM    
@@ -1438,7 +1452,7 @@ def ecmwf_grib_2_dict_all(yyyymmddhh0):
     fname_out = dir_out + fn_out
     
     with open(fname_out,'wb') as fp:
-        pickle.dump(ATM,fp)
+        pickle.dump(ATM,fp, protocol=pickle.HIGHEST_PROTOCOL)
         print('\necmwf 1st ATM dict saved with pickle.')
 
     #return ATM    
@@ -1611,7 +1625,7 @@ def ecmwf_to_roms_vars(fn_in,pkl_fnm):
 
     fname_out  = PFM['lv1_forc_dir'] + '/' + PFM['atm_tmp_pckl_file']
     with open(fname_out,'wb') as fp:
-        pickle.dump(ATM,fp)
+        pickle.dump(ATM,fp, protocol=pickle.HIGHEST_PROTOCOL)
         print('\necmwf ATM dict roms vars saved with pickle.')
 
     #return ATM

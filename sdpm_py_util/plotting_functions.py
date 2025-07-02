@@ -1771,11 +1771,11 @@ def plot_lv4_coawst_his_v2(fn,It,Iz,sv_fig,lvl,var_name,cmn,cmx,fn_grd,dir_out):
     else:
         plt.show()
 
-def plot_lv4_coawst_his(fn,It,Iz,sv_fig,lvl,var_name,cmn,cmx):
+def plot_lv4_coawst_his(fn,It,Iz,sv_fig,lvl,var_name,cmn,cmx,pkl_fnm):
 
     cmn = np.floor(10*float(cmn)) / 10 # get to the nearest .1
     cmx = np.ceil(10*float(cmx)) / 10
-    PFM=get_PFM_info()
+    PFM=initfuns.get_model_info(pkl_fnm)
     RMG = grdfuns.roms_grid_to_dict(PFM['lv4_grid_file'])
     #lt = his_ds.variables['lat_rho'][:]
     lt = RMG['lat_rho'][:]
@@ -1971,11 +1971,11 @@ def make_all_his_figures(lvl,pkl_fnm):
         #plot_his_temps_wuv(fn,It,iz,sv_fig,lvl)
         if PFM['lv4_model'] == 'COAWST' and lvl == 'LV4':
             #print(It)
-            cmd_list = ['python','-W','ignore','plotting_functions.py','plot_lv4_coawst_his',fn,str(It),str(iz),str(sv_fig),lvl,'dye_01','0','1'] 
+            cmd_list = ['python','-W','ignore','plotting_functions.py','plot_lv4_coawst_his',fn,str(It),str(iz),str(sv_fig),lvl,'dye_01','0','1',pkl_fnm] 
             ret1 = subprocess.Popen(cmd_list)     
-            cmd_list = ['python','-W','ignore','plotting_functions.py','plot_lv4_coawst_his',fn,str(It),str(iz),str(sv_fig),lvl,'dye_02','0','1'] 
+            cmd_list = ['python','-W','ignore','plotting_functions.py','plot_lv4_coawst_his',fn,str(It),str(iz),str(sv_fig),lvl,'dye_02','0','1',pkl_fnm] 
             ret1 = subprocess.Popen(cmd_list)     
-            cmd_list = ['python','-W','ignore','plotting_functions.py','plot_lv4_coawst_his',fn,str(It),str(iz),str(sv_fig),lvl,'Hwave',str(cmnH),str(cmxH)] 
+            cmd_list = ['python','-W','ignore','plotting_functions.py','plot_lv4_coawst_his',fn,str(It),str(iz),str(sv_fig),lvl,'Hwave',str(cmnH),str(cmxH),pkl_fnm] 
             if It<pfm_hrs:
                 ret1 = subprocess.run(cmd_list)     
             else:
@@ -2382,9 +2382,9 @@ def get_shoreline_data(fn_grd):
     return DD
 
 
-def make_dye_plots(fn_grd,fn_his):
+def make_dye_plots(fn_grd,fn_his,pkl_fnm):
     # this function makes dye plots for a given history file, and associated grid file
-    PFM = get_PFM_info()
+    PFM = initfuns.get_model_info(pkl_fnm)
     yyyymmddhh = PFM['fetch_time'].strftime('%Y%m%d%H')
 
     fn1 = PFM['lv4_plot_dir'] + '/' + 'dye_01_hov_' + yyyymmddhh + '.png'

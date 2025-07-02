@@ -1507,7 +1507,7 @@ def hycom_cat_to_pickles(yyyymmdd):
     gc.collect()
     fn_out = PFM['lv1_forc_dir'] + '/' + PFM['lv1_ocn_tmp_pckl_file']
     with open(fn_out,'wb') as fp:
-        pickle.dump(OCN,fp)
+        pickle.dump(OCN,fp, protocol=pickle.HIGHEST_PROTOCOL)
         print('\nHycom OCN dict saved with pickle')
 
 def hycom_cats_to_pickle(yyyymmdd):
@@ -1618,7 +1618,7 @@ def hycom_cats_to_pickle(yyyymmdd):
     gc.collect()
     fn_out = PFM['lv1_forc_dir'] + '/' + PFM['lv1_ocn_tmp_pckl_file']
     with open(fn_out,'wb') as fp:
-        pickle.dump(OCN,fp)
+        pickle.dump(OCN,fp, protocol=pickle.HIGHEST_PROTOCOL)
         print('\nHycom OCN dict saved with pickle')
 
 
@@ -1953,7 +1953,7 @@ def hycom_ncfiles_to_pickle(yyyymmdd,pkl_fnm):
     gc.collect()
     fn_out = PFM['lv1_forc_dir'] + '/' + PFM['lv1_ocn_tmp_pckl_file']
     with open(fn_out,'wb') as fp:
-        pickle.dump(OCN,fp)
+        pickle.dump(OCN,fp, protocol=pickle.HIGHEST_PROTOCOL)
         print('\nHycom OCN dict saved with pickle')
 
 
@@ -2117,7 +2117,7 @@ def hycom_hind_ncfiles_to_pickle(pkl_fnm):
     fn_out = PFM['lv1_forc_dir'] + '/' + PFM['lv1_ocn_tmp_pckl_file']
     print('\ngoing to save a hycom pickle file to ' + fn_out)
     with open(fn_out,'wb') as fp:
-        pickle.dump(OCN,fp)
+        pickle.dump(OCN,fp, protocol=pickle.HIGHEST_PROTOCOL)
         print('Hycom OCN dict saved with pickle.')
 
 
@@ -2642,7 +2642,7 @@ def get_ocn_data_as_dict_pckl(yyyymmdd,run_type,ocn_mod,get_method):
     gc.collect()
     fn_out = PFM['lv1_forc_dir'] + '/' + PFM['lv1_ocn_tmp_pckl_file']
     with open(fn_out,'wb') as fp:
-        pickle.dump(OCN,fp)
+        pickle.dump(OCN,fp, protocol=pickle.HIGHEST_PROTOCOL)
         print('\nHycom OCN dict saved with pickle')
 
 
@@ -3279,7 +3279,7 @@ def hycom_to_roms_latlon_pckl(fname_in):
     for nm in ork:
         fn_temp = PFM['lv1_forc_dir'] + '/tmp_' + nm + '.pkl'
         with open(fn_temp,'wb') as fp:
-            pickle.dump(HYrm[nm],fp)
+            pickle.dump(HYrm[nm],fp, protocol=pickle.HIGHEST_PROTOCOL)
             print('saved pickle file: ' + fn_temp)
 
 #    return HYrm
@@ -3320,11 +3320,12 @@ def make_all_tmp_pckl_ocnR_files_1hrzeta(pkl_fnm):
     rctot = 0
 
     for aa in ork:
-        cmd_list = ['python','-W','ignore','ocn_functions.py','make_tmp_hy_on_rom_pckl_files_1hrzeta',fname_in,aa,pkl_fnm]
+        cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','make_tmp_hy_on_rom_pckl_files_1hrzeta',fname_in,aa,pkl_fnm]
         ret1 = subprocess.run(cmd_list )     
         rctot = rctot + ret1.returncode
         if ret1.returncode != 0:
             print('the ' + aa + ' pickle file was not made correctly')
+            print(ret1)
 
     if rctot == 0: 
         print('...done. \nall 18 ocnR pickle files were made correctly')
@@ -3528,10 +3529,61 @@ def make_tmp_hy_on_rom_pckl_files_1hrzeta(fname_in,var_name,pkl_fnm):
     elif var_name == 'ubar':
         HYrm[var_name] = np.zeros((NT,NR,NC-1))    
 
-    with open(fn_temp,'wb') as fp:
-        pickle.dump(HYrm[var_name],fp)
+    print(var_name, 'shape')
+    print(np.shape(HYrm[var_name]))
 
+    #if var_name in ['ocean_time_ref','vinfo']:
+    #    mkpkl = 1
+    #else:
+    #    mkpkl = 0
+    mkpkl = 1
 
+    if mkpkl == 1:
+        try:
+            with open(fn_temp,'wb') as fp:
+                pickle.dump(HYrm[var_name],fp, protocol=pickle.HIGHEST_PROTOCOL)
+                print('made pickle file')
+        except MemoryError:
+            print("memory error while pickling")        
+        except pickle.PicklingError:
+            print("Error: PicklingError.")
+        except pickle.PickleError as e:
+            print("Error: PickleError.")
+            print(e)
+        finally:
+            # This block will execute regardless of whether an exception occurred
+            print("Pickling process completed.")    
+    else:
+        print('trying to make a tmp .nc file rather than .pkl...')
+        with Dataset(fn_temp + '.nc', 'w', format='NETCDF4') as nc_file:
+            # Define dimensions
+            ndim = HYrm[var_name].ndim
+            if ndim == 1:
+                nc_file.createDimension('time_or_nz', len(HYrm[var_name]))
+                temp_var = nc_file.createVariable(var_name, 'f4', ('time_or_nz'))
+                temp_var[:] = HYrm[var_name]
+            elif ndim == 2:
+                nlat,nlon = np.shape(HYrm[var_name])
+                nc_file.createDimension('nlat', nlat)
+                nc_file.createDimension('nlon', nlon)
+                temp_var = nc_file.createVariable(var_name, 'f4', ('nlat','nlon'))
+                temp_var[:] = HYrm[var_name]
+            elif ndim == 3:
+                nt,nlat,nlon = np.shape(HYrm[var_name])
+                nc_file.createDimension('nt', nt)
+                nc_file.createDimension('nlat', nlat)
+                nc_file.createDimension('nlon', nlon)
+                temp_var = nc_file.createVariable(var_name, 'f4', ('nt','nlat','nlon'))
+                temp_var[:] = HYrm[var_name]
+            elif ndim == 4:
+                nt,nz,nlat,nlon = np.shape(HYrm[var_name])
+                nc_file.createDimension('nt', nt)
+                nc_file.createDimension('nz', nz)
+                nc_file.createDimension('nlat', nlat)
+                nc_file.createDimension('nlon', nlon)
+                temp_var = nc_file.createVariable(var_name, 'f4', ('nt','nz','nlat','nlon'))
+                temp_var[:] = HYrm[var_name]
+             
 
 
 def make_tmp_hy_on_rom_pckl_files(fname_in,var_name):
@@ -3689,14 +3741,14 @@ def make_tmp_hy_on_rom_pckl_files(fname_in,var_name):
 
     try:
         with open(fn_temp, 'wb') as file:
-            pickle.dump(HYrm[var_name], file)
+            pickle.dump(HYrm[var_name], file, protocol=pickle.HIGHEST_PROTOCOL)
     except pickle.PicklingError as e:
         print(f"Pickling error: {e}")
     except RecursionError:
         print("RecursionError: the object is too deeply nested")
         sys.setrecursionlimit(10000) # Increase recursion limit if needed
         with open(fn_temp, 'wb') as file:
-            pickle.dump(HYrm[var_name], file)
+            pickle.dump(HYrm[var_name], file, protocol=pickle.HIGHEST_PROTOCOL)
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
 
@@ -3945,7 +3997,7 @@ def ocn_r_2_ICdict_pckl(fname_out):
 
 
     with open(fname_out,'wb') as fout:
-        pickle.dump(OCN_IC,fout)
+        pickle.dump(OCN_IC,fout, protocol=pickle.HIGHEST_PROTOCOL)
         print('OCN_IC dict saved with pickle')
 
 #    return OCN_IC
@@ -4168,7 +4220,7 @@ def ocnr_2_ICdict_from_tmppkls(fname_out,pkl_fnm):
 
 
     with open(fname_out,'wb') as fout:
-        pickle.dump(OCN_IC,fout)
+        pickle.dump(OCN_IC,fout, protocol=pickle.HIGHEST_PROTOCOL)
         print('OCN_IC dict saved with pickle')
 
 #    return OCN_IC
@@ -4694,7 +4746,7 @@ def make_temp_rom_depth_files(fname_out):
 
 
     with open(fname_out,'wb') as fout:
-        pickle.dump(Zrm,fout)
+        pickle.dump(Zrm,fout, protocol=pickle.HIGHEST_PROTOCOL)
         print('ROMS depths for IC/BC saved with pickle to ' + fname_out)
 
 def make_temp_rom_depth_files_1hrzeta(fname_out,pkl_fnm):
@@ -4770,7 +4822,7 @@ def make_temp_rom_depth_files_1hrzeta(fname_out,pkl_fnm):
 
 
     with open(fname_out,'wb') as fout:
-        pickle.dump(Zrm,fout)
+        pickle.dump(Zrm,fout, protocol=pickle.HIGHEST_PROTOCOL)
         print('ROMS depths for IC/BC saved with pickle to ' + fname_out)
 
 
@@ -5086,7 +5138,7 @@ def ocn_r_2_BCdict_pckl_new(fname_out):
     OCN_BC['temp_west'] = seawater.ptmp(np.squeeze(OCN_BC['salt_west']), np.squeeze(TMP['temp_west']),np.squeeze(pdb))  
 
     with open(fname_out,'wb') as fout:
-        pickle.dump(OCN_BC,fout)
+        pickle.dump(OCN_BC,fout, protocol=pickle.HIGHEST_PROTOCOL)
         print('OCN_BC dict saved with pickle')
 
 
@@ -5359,7 +5411,7 @@ def ocn_r_2_BCdict_pckl_new_1hrzeta(fname_out):
     OCN_BC['temp_west'] = seawater.ptmp(np.squeeze(OCN_BC['salt_west']), np.squeeze(TMP['temp_west']),np.squeeze(pdb))  
 
     with open(fname_out,'wb') as fout:
-        pickle.dump(OCN_BC,fout)
+        pickle.dump(OCN_BC,fout, protocol=pickle.HIGHEST_PROTOCOL)
         print('OCN_BC dict saved with pickle')
 
 
@@ -5653,7 +5705,7 @@ def ocnr_2_BCdict_1hrzeta_from_tmppkls(fname_out,pkl_fnm):
     OCN_BC['temp_west'] = seawater.ptmp(np.squeeze(OCN_BC['salt_west']), np.squeeze(TMP['temp_west']),np.squeeze(pdb))  
 
     with open(fname_out,'wb') as fout:
-        pickle.dump(OCN_BC,fout)
+        pickle.dump(OCN_BC,fout, protocol=pickle.HIGHEST_PROTOCOL)
         print('OCN_BC dict saved with pickle')
 
 
@@ -6104,7 +6156,7 @@ def ocn_r_2_BCdict_pckl(fname_out):
     OCN_BC['temp_west'] = seawater.ptmp(np.squeeze(OCN_BC['salt_west']), np.squeeze(TMP['temp_west']),np.squeeze(pdb))  
 
     with open(fname_out,'wb') as fout:
-        pickle.dump(OCN_BC,fout)
+        pickle.dump(OCN_BC,fout, protocol=pickle.HIGHEST_PROTOCOL)
         print('OCN_BC dict saved with pickle')
 
 def get_child_xi_eta_interp(ln1,lt1,ln2,lt2,vnm):
@@ -6552,7 +6604,7 @@ def mk_LV2_BC_dict(lvl):
     #fn_out = '/scratch/PFM_Simulations/LV3_Forecast/Forc/test_BC_LV3.pkl'
 
     with open(fn_out,'wb') as fout:
-        pickle.dump(OCN_BC,fout)
+        pickle.dump(OCN_BC,fout, protocol=pickle.HIGHEST_PROTOCOL)
         print('OCN_LV',lvl,'_BC dict saved with pickle to: ',fn_out)
 
     #return OCN_BC
@@ -7128,7 +7180,7 @@ def mk_LV2_BC_dict_edges(lvl,pkl_fnm):
                     'field':'dye_time, scalar, series'}
 
     with open(fn_out,'wb') as fout:
-        pickle.dump(OCN_BC,fout)
+        pickle.dump(OCN_BC,fout, protocol=pickle.HIGHEST_PROTOCOL)
         print('OCN_LV',lvl,'_BC dict saved with pickle to: ',fn_out)
 
 
@@ -7480,7 +7532,7 @@ def mk_LV2_BC_dict_1hrzeta(lvl):
     #fn_out = '/scratch/PFM_Simulations/LV3_Forecast/Forc/test_BC_LV3.pkl'
 
     with open(fn_out,'wb') as fout:
-        pickle.dump(OCN_BC,fout)
+        pickle.dump(OCN_BC,fout, protocol=pickle.HIGHEST_PROTOCOL)
         print('OCN_LV',lvl,'_BC dict saved with pickle to: ',fn_out)
 
 
@@ -7952,7 +8004,7 @@ def mk_LV2_IC_dict(lvl,pkl_fnm):
 
 
     with open(fn_out,'wb') as fout:
-        pickle.dump(OCN_IC,fout)
+        pickle.dump(OCN_IC,fout, protocol=pickle.HIGHEST_PROTOCOL)
         print('OCN_LV'+lvl+'_IC dict saved with pickle')
 
 
@@ -8503,8 +8555,8 @@ def LV4grid_to_new_dotnc(fn_out):
     ds.close()
 
 
-def mk_lv4_clm_nc():
-    PFM = get_PFM_info()
+def mk_lv4_clm_nc(pkl_fnm):
+    PFM = initfuns.get_model_info(pkl_fnm)
     Grd = grdfuns.roms_grid_to_dict(PFM['lv4_grid_file'])
     nlt,nln = np.shape( Grd['lat_rho'] )
 
@@ -8631,8 +8683,8 @@ def mk_lv4_clm_nc():
     ds.close()
 
 
-def mk_lv4_nud_nc():
-    PFM = get_PFM_info()
+def mk_lv4_nud_nc(pkl_fnm):
+    PFM = initfuns.get_model_info(pkl_fnm)
     Grd = grdfuns.roms_grid_to_dict(PFM['lv4_grid_file'])
     nlt,nln = np.shape( Grd['lat_rho'] )
    
@@ -8696,9 +8748,9 @@ def mk_lv4_nud_nc():
 
 
 
-def mk_lv4_river_nc():
+def mk_lv4_river_nc(pkl_fnm):
     print('making river tracer dictionary')
-    PFM = get_PFM_info()
+    PFM = initfuns.get_model_info(pkl_fnm)
     Grd = grdfuns.roms_grid_to_dict(PFM['lv4_grid_file'])
 #    vns = ( ['theta_s','theta_b','Tcline','hc','Cs_r','sc_r','Cs_w','sc_w','river','river_time',
 #           'river_Xposition','river_Eposition','river_direction','river_Vshape','river_transport',
@@ -8755,14 +8807,14 @@ def mk_lv4_river_nc():
     triv = np.arange(t0_days,t0_days+nday+2/24,1/24) # the .5/24 is required to end on the last time step.
 
     print('making the river discharge pickle file')
-    tnwm = t0 - 6 * timedelta(hours = 1)
+    tnwm = t0 - 6 * timedelta(hours = 1) # river is always 6 hours before forecast start.
     tnwm_str = tnwm.strftime('%Y%m%d%H')
     tpfm_str = t0.strftime('%Y%m%d%H')
     print('using the nwm river forecast from the start time:')
     print(tnwm_str)
     print('to ensure that the forecast can be found on their server')
     #print(tpfm_str)
-    rivfuns.get_river_flow_nwm(tnwm_str,tpfm_str)
+    rivfuns.get_river_flow_nwm(tnwm_str,tpfm_str,pkl_fnm)
 
     print('loading the river discharge pickle file...')
     file_in= PFM['river_pckl_file_full']
@@ -8797,6 +8849,8 @@ def mk_lv4_river_nc():
     # but Liden also said that this is good for dry weather, wet weather flow gets
     # diverted and at PB Qww = 0.175 m3/s, Qfw 0.79 m3/s, Qtot = 0.965 m3/s, and 
     # dye_01 = 0.175 / 0.965 = 0.1818. NOT IMPLEMENTED!!!! 
+    PFM['Q_PB'] = -2.0
+    PFM['dye_PB'] = 0.5
     D['river_transport'][:,5] = PFM['Q_PB'] + D['river_transport'][:,5] # this is PB. 5/2/25 value
     # based on FF email with Liden
 
@@ -8822,7 +8876,7 @@ def mk_lv4_river_nc():
     #Temp_riv = 20.0
     print('getting the river temperature. For each river, each time, and depth,')
     print('      it is the mean air temp over the LV4 land domain...')
-    Temp_riv, temp_riv_time = rivfuns.get_river_temp()
+    _, Temp_riv = rivfuns.get_river_temp(pkl_fnm)
     #ntra = len(temp_riv_time)
 
     #print('all 3 river temperatures are')
@@ -8831,9 +8885,10 @@ def mk_lv4_river_nc():
 
     D['river_temp'] = np.zeros((nt,Nz,9))
     for aa in np.arange(nt):
-        D['river_temp'][aa,:,:] = temp_riv_time[aa]
-        
-    #print(D['river_temp'][:,0,0])
+        D['river_temp'][aa,:,:] = Temp_riv[aa]
+
+    print('the river temperature[0:10] is:')    
+    print(D['river_temp'][0:10,0,0])
 
     #D['river_temp'] = Temp_riv + D['river_temp'] # how should this get set?
     D['vinfo']['river_temp'] = {'long_name':'river runoff potential temperature',

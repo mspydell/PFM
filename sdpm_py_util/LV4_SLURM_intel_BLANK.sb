@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # job name
-#SBATCH --job-name=LV4_FORECAST
+#SBATCH --job-name=LV4_$mod_type$
 
 # slurm job output file
 #SBATCH --output=%j.out

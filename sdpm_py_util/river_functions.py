@@ -1,28 +1,28 @@
 # library of river functions
+import sys
 from datetime import datetime, timedelta
 from scipy.interpolate import RegularGridInterpolator
 from scipy.interpolate import interp1d
 
-import sys
 import pickle
 import matplotlib.pyplot as plt
 import numpy as np
-import xarray as xr
 import requests
 import netCDF4 as nc
 from netCDF4 import num2date
-from get_PFM_info import get_PFM_info
+sys.path.append('../sdpm_py_util')
 import grid_functions as grdfuns
+import init_funs_forecast as initfuns
 
 #from pydap.client import open_url
 
-def get_river_flow_nwm(yyyymmddhh,t_pfm_str):
+def get_river_flow_nwm(yyyymmddhh,t_pfm_str,pkl_fnm):
     # yyyymmddhh is the start time of the river forecast
     # t_pfm_str [in yyyymmddhh] is the start time of the PFM forecast
     # this is coded to work only if t_pfm is larger than yyyymmddhh, the river forecast start time
     # we will typically use t_fore = yyyymmddhh + 6 hr. Using the previous river forecast ensures 
     # that the river forecast is posted to their server
-    PFM = get_PFM_info()
+    PFM = initfuns.get_model_info(pkl_fnm)
     file_out = PFM['river_pckl_file_full']
     #file_out = '/scratch/PFM_Simulations/LV4_Forecast/Forc/river_Q.pkl'
     # this function gets the river discharge for Sweetwater, Otay, and TJR from 
@@ -117,12 +117,12 @@ def get_river_flow_nwm(yyyymmddhh,t_pfm_str):
     QQ['readme'] = 'discharge is in m3/s. reach_ids correspond to Sweetwater, Otay, TJR. they are the columns of discharge'
 
     with open(file_out,'wb') as fp:
-        pickle.dump(QQ,fp)
+        pickle.dump(QQ,fp, protocol=pickle.HIGHEST_PROTOCOL)
         print('\nriver discharge data saved as pickle file')
 
 
-def get_river_temp():
-    PFM = get_PFM_info()
+def get_river_temp(pkl_fnm):
+    PFM = initfuns.get_model_info(pkl_fnm)
     fatm = PFM['lv4_forc_dir'] + '/' + PFM['lv4_atm_file'] 
     RMG = grdfuns.roms_grid_to_dict(PFM['lv4_grid_file'])
     #print(RMG.keys())
@@ -132,7 +132,7 @@ def get_river_temp():
     msk2d = RMG['mask_rho']
     msk3d = np.broadcast_to( msk2d==0 , temp_air.shape)
     temp_river = np.mean(temp_air[msk3d])
-    nt,ny,nx = np.shape(temp_air)
+    nt,_,_ = np.shape(temp_air)
 
     t_air = np.arange(0,3*nt, 3)
     temp_river_time0 = np.zeros(nt)
@@ -156,7 +156,8 @@ def get_river_temp():
         fn_out = PFM['lv4_plot_dir'] + '/river_temperature_' + PFM['yyyymmdd'] + PFM['hhmm'] + '.png'
         plt.savefig(fn_out, dpi=300)
 
-
+    # temp_river is the mean over land and time
+    # temp_river_time is the mean over land at each time stamp.
     return temp_river, temp_river_time
 
     

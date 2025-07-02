@@ -91,9 +91,15 @@ def driver_run_hind_LV123( input_py_full, pkl_fnm ):
     print(time_tots)
 
 if __name__ == "__main__":
-    if len(sys.argv) == 3:
-        arg1 = sys.argv[1]
-        arg2 = sys.argv[2]
-        driver_run_hind_LV123(arg1, arg2)
-    else:
-        print("something went wrong!")
+    args = sys.argv
+    # args[0] = current file
+    # args[1] = function name
+    # args[2:] = function args : (*unpacked)
+    globals()[args[1]](*args[2:])
+
+#    if len(sys.argv) == 3:
+#        arg1 = sys.argv[1]
+#        arg2 = sys.argv[2]
+#        driver_run_hind_LV123(arg1, arg2)
+#    else:
+#        print("something went wrong!")

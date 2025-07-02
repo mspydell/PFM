@@ -87,7 +87,8 @@ def create_model_info_dict():
         ocn_model = 'hycom_new' # worked with 'hycom' but that is now (9/13/24) depricated      
         PFM['clean_start']=True
         PFM['hycom_dir'] = '/scratch/PFM_Simulations/hycom_data/'
-
+        PFM['Q_PB'] = -2.0 # m3/s flow at Punta Bandera
+        PFM['dye_PB'] = 0.5 # fraction of Q_PB that is raw WW
 
     if ocn_model == 'hycom_new' or ocn_model == 'hycom_hind_wtide':
         add_tides=0 # the new version of hycom has tides, we don't need to add them
@@ -379,6 +380,12 @@ def create_model_info_dict():
     PFM['lv1_executable']          = 'LV3_romsM_INTEL'
     PFM['lv2_executable']          = 'LV3_romsM_INTEL'
     PFM['lv3_executable']          = 'LV3_romsM_INTEL'
+    #PFM['lv1_executable']          = 'LV3_romsM_INTEL_new'
+    #PFM['lv2_executable']          = 'LV3_romsM_INTEL_new'
+    #PFM['lv3_executable']          = 'LV3_romsM_INTEL_new'
+    #PFM['lv1_executable']          = 'romsM_INTEL'
+    #PFM['lv2_executable']          = 'romsM_INTEL'
+    #PFM['lv3_executable']          = 'romsM_INTEL'
 
     if add_tides==1:
         PFM['lv1_adding_tides'] = 'yes'
@@ -497,8 +504,8 @@ def create_model_info_dict():
         PFM['sim_start_time'] = PFM['sim_time_1']
         PFM['sim_end_time'] = PFM['sim_time_2']
         
-        yyyymmddhhmm = PFM['sim_start_time'].strftime("%Y%m%d") + '0000'
-        end_str = PFM['sim_end_time'].strftime("%Y%m%d") + '0000'
+        yyyymmddhhmm = PFM['sim_start_time'].strftime("%Y%m%d%H") + '00'
+        end_str = PFM['sim_end_time'].strftime("%Y%m%d%H") + '00'
         PFM['lv1_his_name'] = 'LV1_ocean_his_' + yyyymmddhhmm + '.nc'
         PFM['lv1_rst_name'] = 'LV1_ocean_rst_' + yyyymmddhhmm + '_' + end_str + '.nc' 
         PFM['lv1_his_name_full'] = PFM['lv1_his_dir'] + '/' + PFM['lv1_his_name']
