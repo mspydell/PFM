@@ -38,9 +38,7 @@ def get_river_flow_nwm(yyyymmddhh,t_pfm_str,pkl_fnm):
     delta_t_hr = delta_t.total_seconds() / 3600 # this should be an integer 6
 
     yyyymmdd = yyyymmddhh[0:8]
-    #print(yyyymmdd)
     hh = yyyymmddhh[8:]
-    #print(hh)
     fore_type = 'medium_range_blend' # short_range, long_range, etc.
     nhr = 24 * PFM['forecast_days']
     hrs = delta_t_hr + np.arange(0,nhr+3,1) # data is at 1 hr intervals, we will loop through this to get the data...
@@ -55,14 +53,9 @@ def get_river_flow_nwm(yyyymmddhh,t_pfm_str,pkl_fnm):
     Q = np.zeros((len(hrs),3))
     cnt1 = 0
     for hr in hrs:
-    
         hr_str = str(int(hr)).zfill(3)
-    #    print(hr_str)
         fn = fname[0] + hh + fname[1] + hr_str + fname[2]
         url_tot = url + '/' + fn
-        
-    #    print(url_tot)
-    #    ds = xr.open_dataset(url_tot)
         response = requests.get(url_tot)
 
         # Check if the request was successful
@@ -82,18 +75,17 @@ def get_river_flow_nwm(yyyymmddhh,t_pfm_str,pkl_fnm):
                               hour=date.hour, minute=date.minute, second=date.second) for date in t2])
                 t3[cnt1] = t2
     
-        #rids = ds['feature_id'][:]
-
         # ds = nc.Dataset(url_tot) DOESNT WORK. NOT the right server type on their end?
         
+        # note, this block of code is in the hour loop and grabs only the data for the rivers we want.
         ig = [None]*3
-        cnt=0
+        cnt=0 # this is the reach_id index counter
         for rids0 in reach_ids:
             ig= np.argwhere(rids==rids0)
             Q[cnt1,cnt] = qq[ig]
             cnt=cnt+1
 
-        cnt1 = cnt1+1
+        cnt1 = cnt1+1 # this is the hour index counter
         
     plot_it = 1
     if plot_it == 1:

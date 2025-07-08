@@ -31,22 +31,6 @@ def delete_files_by_pattern(directory, pattern):
         except OSError as e:
             print(f"Error deleting {file_path}: {e}")
 
-def delete_files_by_pattern(directory, pattern):
-    """Deletes files in a directory matching a given pattern.
-
-    Args:
-        directory: The directory to search in.
-        pattern: The pattern to match (e.g., "*.txt", "file_??.log").
-    """
-    files_to_delete = glob.glob(os.path.join(directory, pattern))
-    print('deleting ', str(len(files_to_delete)),' files...')
-    for file_path in files_to_delete:
-        try:
-            os.remove(file_path)
-            #print(f"Deleted: {file_path}")
-        except OSError as e:
-            print(f"Error deleting {file_path}: {e}")
-
 def get_atm_data_as_dict(pkl_fnm):
 
     import init_funs_forecast as initfuns_fore

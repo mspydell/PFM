@@ -20,7 +20,6 @@ import subprocess
 ##############
 
 def  make_LV1_dotin_and_SLURM( pkl_fnm , mod_type ):
-    print(' --- making dot_in and dot_sb --- ')  # + Ldir['date_string'])
 
     if mod_type == 'hind':
         import init_funs as initfuns
@@ -208,7 +207,6 @@ from get_PFM_info import get_PFM_info
 
 
 def  make_LV2_dotin_and_SLURM( pkl_fnm , mod_type ):
-    print(' --- making dot_in and dot_sb --- ')  # + Ldir['date_string'])
 
     if mod_type == 'hind':
         import init_funs as initfuns
@@ -390,7 +388,6 @@ def run_slurm_LV2( pkl_fnm , mod_type ):
     return proc
 
 def  make_LV3_dotin_and_SLURM( pkl_fnm , mod_type ):
-    print(' --- making dot_in and dot_sb --- ')  # + Ldir['date_string'])
 
     if mod_type == 'hind':
         import init_funs as initfuns
@@ -580,7 +577,6 @@ def  make_LV4_coawst_dotins_dotsb(pkl_fnm,mod_type):
     else: 
         import init_funs_forecast as initfuns
 
-    print(' --- making LV4 dot_in and dot_sb --- ')  # + Ldir['date_string'])
     PFM = initfuns.get_model_info(pkl_fnm)
     yyyymmddhhmm = PFM['yyyymmdd'] + PFM['hhmm']
 
@@ -742,7 +738,6 @@ def  make_LV4_coawst_dotins_dotsb(pkl_fnm,mod_type):
     fn_in = PFM['lv4_forc_dir'] + '/' + PFM['lv4_swan_pckl_file']
     with open(fn_in,'rb') as fp:
         cdip = pickle.load(fp)
-        print('\nCDIP pickle file loaded')
 
     D['freq_min'] = np.min(cdip['f'])    
     D['freq_max'] = np.max(cdip['f'])    

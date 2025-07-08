@@ -3532,9 +3532,6 @@ def make_tmp_hy_on_rom_pckl_files_1hrzeta(fname_in,var_name,pkl_fnm):
     elif var_name == 'ubar':
         HYrm[var_name] = np.zeros((NT,NR,NC-1))    
 
-    print(var_name, 'shape')
-    print(np.shape(HYrm[var_name]))
-
     #if var_name in ['ocean_time_ref','vinfo']:
     #    mkpkl = 1
     #else:
@@ -3553,9 +3550,9 @@ def make_tmp_hy_on_rom_pckl_files_1hrzeta(fname_in,var_name,pkl_fnm):
         except pickle.PickleError as e:
             print("Error: PickleError.")
             print(e)
-        finally:
+        #finally:
             # This block will execute regardless of whether an exception occurred
-            print("Pickling process completed.")    
+            #print("Pickling process completed.")    
     else:
         print('trying to make a tmp .nc file rather than .pkl...')
         with Dataset(fn_temp + '.nc', 'w', format='NETCDF4') as nc_file:
@@ -4658,9 +4655,7 @@ def make_rom_depths(fname_depths_pickle):
 def make_rom_depths_1hrzeta(fname_depths_pickle,pkl_fnm):
 
     if os.path.isfile(fname_depths_pickle) == False: # might need to make the file if it doesn't exist...
-        print('making roms depth pickle file ' + fname_depths_pickle + '...')
         make_temp_rom_depth_files_1hrzeta(fname_depths_pickle,pkl_fnm)
-        print('...done makeing depth pickle file.')
     else:
         print('depth pickle file ' + fname_depths_pickle + 'already exists.')
 
@@ -5709,7 +5704,6 @@ def ocnr_2_BCdict_1hrzeta_from_tmppkls(fname_out,pkl_fnm):
 
     with open(fname_out,'wb') as fout:
         pickle.dump(OCN_BC,fout, protocol=pickle.HIGHEST_PROTOCOL)
-        print('OCN_BC dict saved with pickle')
 
 
 def ocn_r_2_BCdict_pckl(fname_out):
@@ -8889,9 +8883,6 @@ def mk_lv4_river_nc(pkl_fnm):
     D['river_temp'] = np.zeros((nt,Nz,9))
     for aa in np.arange(nt):
         D['river_temp'][aa,:,:] = Temp_riv[aa]
-
-    print('the river temperature[0:10] is:')    
-    print(D['river_temp'][0:10,0,0])
 
     #D['river_temp'] = Temp_riv + D['river_temp'] # how should this get set?
     D['vinfo']['river_temp'] = {'long_name':'river runoff potential temperature',

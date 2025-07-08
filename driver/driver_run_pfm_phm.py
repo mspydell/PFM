@@ -21,21 +21,22 @@ def driver_run_pfm_phm( input_py_full, pkl_fnm ):
     if run_type == 'hindcast':
         #from driver_run_hind_LV123 import driver_run_hind_LV123
         os.chdir('../driver')
-        print('starting hindcast with subprocess...')
-        cmd_list = ['python','driver_run_hind_LV123.py','driver_run_hind_LV123',input_py_full,pkl_fnm]
+        print('\n===========================')
+        print('!!!starting the hindcast with subprocess!!!')
+        print('\n===========================')
+        cmd_list = ['python','-u','-W','driver_run_hind_LV123.py','driver_run_hind_LV123',input_py_full,pkl_fnm]
         ret1 = subprocess.run(cmd_list)
-        print('...finished hindcast subprocess.')
+        print('\n!Finished the hindcast subprocess!\n')
         print('return code:',str(ret1.returncode),' (0=good)')     
-        #driver_run_hind_LV123( input_py_full, pkl_fnm )
     else:
-        #from driver_run_forecast_LV1234 import driver_run_fore_LV1234
         os.chdir('../driver')
-        print('starting forecast with subprocess...')
-        cmd_list = ['python','driver_run_forecast_LV1234.py','driver_run_forecast_LV1234',input_py_full,pkl_fnm]
+        print('\n===========================')
+        print('!!!starting the forecast with subprocess!!!')
+        print('\n===========================')
+        cmd_list = ['python','-u','-W','driver_run_forecast_LV1234.py','driver_run_forecast_LV1234',input_py_full,pkl_fnm]
         ret1 = subprocess.run(cmd_list)     
-        print('...finished forecast subprocess.')
+        print('\n!Finished the forecast subprocess!\n')
         print('return code:',str(ret1.returncode),' (0=good)')     
-        #driver_run_fore_LV1234( input_py_full, pkl_fnm )
         utilfuns.display_timing_info(pkl_fnm)
 
 

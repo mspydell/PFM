@@ -2,16 +2,13 @@ import os
 import sys
 import pickle
 import numpy as np
-from pathlib import Path
+import netCDF4
 from datetime import datetime, timezone, timedelta, date
 import glob
 import shutil
-import netCDF4
-import cftime
 
 sys.path.append('../sdpm_py_util')
 import ocn_funs_forecast as ocnfuns
-
 
 def evaluate_function_from_file(file_path, function_name, *args):
     """
@@ -76,12 +73,11 @@ def get_hindcast_days(t1,tend,dt):
 def initialize_model(input_py_full,modinfo_pkl_full):
     # this makes the pickle file from the model_input_dictionary
     # first return the dictionary of model info
-    print('first, we need all the model information.')
-    print('from ' + input_py_full)
-    print('we create a dictionary of model info')
+    print('The model information in:')
+    print(input_py_full)
+    print('is turned into a .pkl file of model info.')
     MINFO = evaluate_function_from_file( input_py_full , 'create_model_info_dict')
     # now we save the MINFO dict to a pickle file
-    print(MINFO['run_type'])
 
     if MINFO['run_type'] == 'hindcast':
         # get list of strings start and end days for the simulation
@@ -91,8 +87,8 @@ def initialize_model(input_py_full,modinfo_pkl_full):
 
     with open(modinfo_pkl_full,'wb') as fout:
         pickle.dump(MINFO,fout, protocol=pickle.HIGHEST_PROTOCOL)
-        print('the model_info dictionary is saved to ' + modinfo_pkl_full)
-        print('this file dictates how the model is run, where files are saved, etc.')
+        print('The model_info dictionary is saved to ' + modinfo_pkl_full)
+        print('This file dictates how the model is run, where files are saved, etc.\n')
 
 
 def get_model_info(pkl_fnm):
@@ -169,53 +165,6 @@ def print_initial_model_info(pkl_fnm):
     print(f"{'ocean_model    : ' + MI['ocn_model'] : <60}")
     print(f"{'running levels : ' + lvlstr : <60}")
 
-def determine_hycom_foretime():
-    PFM=get_PFM_info()
-    # return the hycom forecast date based on the PFM simulation times
-
-    fetch_time = PFM['fetch_time'] # the start of the PFM forecast
-    hy_time = datetime(fetch_time.year,fetch_time.month,fetch_time.day)
-    hy_time = hy_time - timedelta(days=1)
-    yyyymmdd = "%d%02d%02d" % (hy_time.year, hy_time.month, hy_time.day)
-
-    # these times do not change!!!
-    t1  = fetch_time                                     # this is the first time of the PFM forecast
-    t2  = t1 + PFM['forecast_days'] * timedelta(days=1)  # this is the last time of the PFM forecast
-
-    print('making a PFM simulation starting from')
-    print(t1)
-    print('and ending at')
-    print(t2)
-    print('getting the right hycom data...')
-    # make stuff below this into a function...
-    # n0 is the number of files we should have
-    # num_missing is the number of files we are missing
-    num_missing = 10
-    days_off = 1
-    while num_missing > 0:
-        n0, num_missing = ocnfuns.check_hycom_data(yyyymmdd,[t1,t2])
-        print('there should be ' + str(n0) + ' files.')
-        print('there are ' + str(num_missing) + ' missing files.')
-
-        if num_missing > 0:
-            # try downloading all of the data again
-            print('we did not have the files from the ' + yyyymmdd + ' hycom forecast')
-            print('but we will try getting that data again. Maybe hycom filled in their .nc files?')
-            ocnfuns.get_hycom_data(yyyymmdd)
-            n02, num_missing2 = ocnfuns.check_hycom_data(yyyymmdd,[t1,t2])
-            if num_missing2 == 0:
-                num_missing = 0
-            else:
-                print('we need the change the date of the hycom forecast (but not change the dates of the PFM forecast)')
-                hy_time = hy_time - timedelta(days=1)
-                yyyymmdd = "%d%02d%02d" % (hy_time.year, hy_time.month, hy_time.day)
-                days_off = days_off + 1
-                if days_off > 4:
-                    num_missing = -10
-                    return num_missing
-
-    return yyyymmdd
-
 
 def initialize_simulation(pkl_fnm):
     PFM=get_model_info(pkl_fnm)
@@ -223,8 +172,7 @@ def initialize_simulation(pkl_fnm):
     clean_start = PFM['clean_start']
 
     if clean_start:
-        print('we are going to start clean...')
-        print('getting PFM info...')
+        print('We are starting clean.')
 
         dirs=[PFM['lv1_his_dir'],PFM['lv1_plot_dir'],PFM['lv1_forc_dir'],
               PFM['lv2_his_dir'],PFM['lv2_plot_dir'],PFM['lv2_forc_dir'],
@@ -233,7 +181,7 @@ def initialize_simulation(pkl_fnm):
 
         runl = ['/*.out','/*.sb','/*.log','/*.in','*_timing_info.pkl']
 
-        print('cleaning out directories...')
+        print('Removing files from directories...')
         for dd in dirs: # for everything but run dir
             if 'Forc' in dd or 'His' in dd:
                 ddd = dd + '/*.*'
@@ -249,9 +197,10 @@ def initialize_simulation(pkl_fnm):
         for f in glob.glob(PFM['lv4_run_dir'] + '/Err*'):
             os.remove(f)
 
-        print('now making a new PFM.pkl file.')
+        print('...done.')
         PFM = get_model_info(pkl_fnm)
         if clean_start == False:
+            print('we are NOT starting clean. Setting up simulation times etc...')
             yyyymmdd = args[1]
             print('now changing the start date to: ', yyyymmdd)
             start_time  = datetime.now()
@@ -264,7 +213,7 @@ def initialize_simulation(pkl_fnm):
             PFM['start_time'] = start_time
             PFM['utc_time']   = utc_time
             print('fetch_time is now: ', fetch_time)
-            print('resaving the PFM.pkl file with specified start time.')
+            print('resaving the PFM.pkl file with specified start time...')
             with open(PFM['info_file'],'wb') as fout:
                 pickle.dump(PFM,fout, protocol=pickle.HIGHEST_PROTOCOL)
                 print('PFM info was resaved as ' + PFM['info_file'])
@@ -272,34 +221,6 @@ def initialize_simulation(pkl_fnm):
     else:
         print('we are NOT starting clean.')
         print('NO files are being deleted.')        
-
-
-def remake_PFM_pkl_file(args):
-    print('we are remaking the PFM.pkl file...')
-    print('getting PFM info...')
-    PFM=get_PFM_info()
-
-    print('removing PFM info file...')
-    os.remove(PFM['info_file'])
-
-    PFM=get_PFM_info()
- 
-    if args != 0:
-        yyyymmdd = args
-        print('now changing the start date to: ', yyyymmdd)
-        start_time  = datetime.now()
-        utc_time    = datetime.now(timezone.utc)
-        fetch_time  = date(int(yyyymmdd[0:4]),int(yyyymmdd[4:6]),int(yyyymmdd[6:8]))
-        PFM['yyyymmdd']   = yyyymmdd
-        PFM['hhmm']       = '1200'
-        PFM['fetch_time'] = fetch_time
-        PFM['start_time'] = start_time
-        PFM['utc_time']   = utc_time
-        print('fetch_time is now: ', fetch_time)
-        print('resaving the PFM.pkl file with specified start time.')
-        with open(PFM['info_file'],'wb') as fout:
-            pickle.dump(PFM,fout, protocol=pickle.HIGHEST_PROTOCOL)
-            print('PFM info was resaved as ' + PFM['info_file'])
 
 def move_restart_ncs(pkl_fnm):
     PFM = get_model_info(pkl_fnm)
@@ -400,7 +321,6 @@ def get_restart_file_and_index(lvl,pkl_fnm):
     print('going to restart ' + lvl + ' from')
     print(t_fore)
     rst_files = glob.glob(PFM['restart_files_dir'] + '/' + lvl + '*.nc')
-    print(rst_files)
     dts = []
     for rf in rst_files:
         head, tail = os.path.split(rf)
@@ -534,8 +454,8 @@ def remove_swan_rst_nohour(pkl_fnm):
     fns = glob.glob(PFM['restart_files_dir'] + '/LV4_swan_rst_????????????.dat-*')
     print('going to deleting swan base rst files...')
     if len(fns)>0:
+        print('deleting some files...')
         for fn in fns:
-            print('...deleting: ' + fn)
             os.remove(fn)
     else:
         print('...no swan base rst files to delete.')
