@@ -3,6 +3,7 @@ import os
 import subprocess
 sys.path.append('../sdpm_py_util')
 import init_funs_forecast as initfuns
+import util_functions as utilfuns
 sys.path.append('../driver')
 
 def driver_run_pfm_phm( input_py_full, pkl_fnm ):
@@ -35,6 +36,7 @@ def driver_run_pfm_phm( input_py_full, pkl_fnm ):
         print('...finished forecast subprocess.')
         print('return code:',str(ret1.returncode),' (0=good)')     
         #driver_run_fore_LV1234( input_py_full, pkl_fnm )
+        utilfuns.display_timing_info(pkl_fnm)
 
 
 if __name__ == "__main__":

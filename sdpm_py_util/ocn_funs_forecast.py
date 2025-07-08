@@ -930,6 +930,9 @@ def get_hycom_data_fnames_v3(fnames,pkl_fnm):
     PFM = initfuns.get_model_info(pkl_fnm)
     fnames2 = list_to_dict_of_chunks(fnames) # we are getting chunks of 10 files to get
                                              # trying to adhere to hycom niceness
+                                             # ALSO. hycom is maintained at 2-3 am EST / EDT
+                                             # and 12-1 pm EST / EDT.
+                                             # 11 pm and 9 am (PST / PDT) are bad times to use hycom
     for fnames3 in list(fnames2.keys()):     # we will loop through the chunks.
         print('getting <=10 hycom files... ', end="")
         with ThreadPoolExecutor() as executor: 

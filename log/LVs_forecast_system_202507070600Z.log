@@ -1,0 +1,38 @@
+initializing model and making the info.pkl file.
+first, we need all the model information.
+from /home/mspydell/models/PFM_root/PFM/sdpm_py_util/pfm_input_v2p0.py
+we create a dictionary of model info
+forecast
+the model_info dictionary is saved to /scratch/matt/PFM_Simulations_v2/forecast_info.pkl
+this file dictates how the model is run, where files are saved, etc.
+------------------------------------------------------------
+                        Model Set Up                        
+------------------------------------------------------------
+forecast                                                    
+from           : 2025-07-07 12:00                           
+to             : 2025-07-12 12:00                           
+in a           : 5.0 day chunk                              
+atm model      : ecmwf                                      
+ocean_model    : hycom_new                                  
+running levels : LV1, LV2, LV3, LV4                         
+starting forecast with subprocess...
+we are going to start clean...
+getting PFM info...
+cleaning out directories...
+now making a new PFM.pkl file.
+202507071200
+
+Going to do a PFM forecast from
+2025-07-07 12:00:00
+to
+2025-07-12 12:00:00
+
+
+getting the hycom forecast time...
+this will clean, download new hycom files, then find the forecast date covering the PFM times.
+we currently have hycom forecasts starting from:
+['2025-07-05', '2025-07-06']
+checking to see if we are missing any files...
+we are missing 187 files from these forecasts.
+attempting to get these files ...
+getting <=10 hycom files... 

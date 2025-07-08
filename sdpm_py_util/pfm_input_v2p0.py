@@ -40,26 +40,26 @@ def get_llbox(fname):
 # the function below MUST be called create_model_info_dict!!!
 def create_model_info_dict():
 
+    #run_type determines whether we do a forecast or a hindcast 
     #run_type = 'hindcast'
     run_type = 'forecast'
 
-    HOME = Path.home()
-    try:
-        HOSTNAME = os.environ['HOSTNAME']
-    except KeyError:
-        HOSTNAME = 'BLANK'
+    # is this needed...
+    #HOME = Path.home()
+    #try:
+    #    HOSTNAME = os.environ['HOSTNAME']
+    #except KeyError:
+    #    HOSTNAME = 'BLANK'
 
-    #run_type = 'forecast' # this is the switch to go from forecasting to hindcasting...
+    # PFM is the dictionary that contains all of the model information
+    PFM = dict()
+    PFM['run_type'] = run_type
 
     pfm_dir = '/scratch/PFM_Simulations/' # this stays fixed for Grids and executables
                                          # both forecasting and hindcasting use the same ones.
-    if run_type == 'forecast':
-       pfm_root_dir = '/scratch/PFM_Simulations/'       
-    else:
-       pfm_root_dir = '/scratch/PHM_Simulations/'       
-   
-    PFM = dict()
-    PFM['run_type'] = run_type
+    
+    model_root_dir = '/scratch/matt/PFM_Simulations_v2/'          
+    
     if run_type == 'hindcast': # note hycom with tides starts on 2024-10-10 1200...
         sim_start_time = '2024101100' # the simulation start time is in yyyymmddhh format
         sim_end_time   = '2024101300' # this is the very last time of the full simulation
@@ -86,10 +86,11 @@ def create_model_info_dict():
         # hycom_new is the only forecast option
         ocn_model = 'hycom_new' # worked with 'hycom' but that is now (9/13/24) depricated      
         PFM['clean_start']=True
+        # where do we find, and save, the raw hycom data to...
         PFM['hycom_dir'] = pfm_dir + 'hycom_data/'
         PFM['Q_PB'] = -2.0 # m3/s flow at Punta Bandera
         PFM['dye_PB'] = 0.5 # fraction of Q_PB that is raw WW
-        # this is where PFM saves atm forcing and river discharge to at end of PFM simulation
+       # this is where PFM saves atm forcing and river discharge to at end of PFM simulation
         PFM['archive_dir'] = '/dataSIO/PFM_Simulations/Archive/Forcing/'
 
     if ocn_model == 'hycom_new' or ocn_model == 'hycom_hind_wtide':
@@ -97,15 +98,15 @@ def create_model_info_dict():
 
     PFM['executable_dir'] = pfm_dir + 'executables/'   # we will not make copies of executables and 
     pfm_grid_dir =  pfm_dir +  'Grids'                 # grids. PHM will use the ones in pfm_dir
-    lv1_root_dir =  pfm_root_dir +  'LV1_Forecast/'
-    lv2_root_dir =  pfm_root_dir +  'LV2_Forecast/'
-    lv3_root_dir =  pfm_root_dir +  'LV3_Forecast/'
-    lv4_root_dir =  pfm_root_dir +  'LV4_Forecast/'
+    lv1_root_dir =  model_root_dir +  'LV1/'
+    lv2_root_dir =  model_root_dir +  'LV2/'
+    lv3_root_dir =  model_root_dir +  'LV3/'
+    lv4_root_dir =  model_root_dir +  'LV4/'
 
     lv1_run_dir  = lv1_root_dir + 'Run'
     lv1_his_dir  = lv1_root_dir + 'His'
     lv1_forc_dir = lv1_root_dir + 'Forc'
-    lv1_tide_dir = lv1_root_dir + 'Tides'
+    lv1_tide_dir = pfm_dir + 'tide_data'
     lv1_plot_dir = lv1_root_dir + 'Plots'          
 
     lv2_run_dir  = lv2_root_dir + 'Run'
@@ -187,7 +188,7 @@ def create_model_info_dict():
             PFM['forecast_days'] = 5.0 #is the target 
             PFM['atm_dt_hr'] = 1
     
-    PFM['ecmwf_dir'] = '/scratch/PFM_Simulations/ecmwf_data/'
+    PFM['ecmwf_dir'] = pfm_dir + 'ecmwf_data/' # this is where the forecast ecmwf data goes
     PFM['ecmwf_all_pkl_name'] = 'ecmwf_all.pkl'
     PFM['ecmwf_pkl_roms_vars'] = 'ecmwf_roms_vars.pkl'
     PFM['ecmwf_pkl_on_roms_grid'] = 'ecmwf_on_romsgrid.pkl'
@@ -361,7 +362,8 @@ def create_model_info_dict():
     else:
         PFM['hycom_data_dir'] = '/dataSIO/PHM_Simulations/raw_download/hycom_nc/'
 
-    PFM['cdip_data_dir'] = pfm_root_dir + 'cdip_data'
+    # location of the forecast cdip data !!!
+    PFM['cdip_data_dir'] = pfm_dir + 'cdip_data' 
 
     PFM['lv1_tides_file']          = 'ocean_tide.nc'
     PFM['atm_tmp_pckl_file']       = 'atm_tmp_pckl_file.pkl'
@@ -448,7 +450,9 @@ def create_model_info_dict():
     PFM['outputinfo']     = OP
 
     # this is the switch to use restart files
-    PFM['restart_files_dir'] =  pfm_root_dir + 'restart_data' 
+    # restart_files_dir is where the restart file is saved
+    # and where the restart files are read from.
+    PFM['restart_files_dir'] =  pfm_dir + 'restart_data' 
 
     PFM['lv1_use_restart']         = 1 # 1 == use_restart 
     PFM['lv2_use_restart']         = 1

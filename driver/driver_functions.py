@@ -1,6 +1,7 @@
 import os
 import sys
 import subprocess
+import pickle
 sys.path.append('../sdpm_py_util')
 from datetime import datetime, timedelta
 import run_funs as runfuns 
@@ -1430,7 +1431,6 @@ def run_fore_LV4(pkl_fnm):
     print('now making LV4 dye plots...')
     fn_gr = MI['lv4_grid_file']
     fn_hs = MI['lv4_his_name_full']
-    t01=datetime.now()
     cmd_list = ['python','-W','ignore','plotting_functions.py','make_dye_plots',fn_gr,fn_hs,pkl_fnm]
     os.chdir('../sdpm_py_util')
     ret6 = subprocess.run(cmd_list)   
@@ -1438,18 +1438,41 @@ def run_fore_LV4(pkl_fnm):
     os.chdir('../driver')
     print('this took:')
     print(datetime.now()-t01)
+    dt_plotting = []
+    dt_plotting.append(datetime.now()-t01)
+
 
     print('\nmoving LV4 atm and river files to Archive...')
     copy_mv_nc_file('atm','lv4',pkl_fnm)
     copy_mv_nc_file('river','lv4',pkl_fnm)
     print('...done')
 
+    t01 = datetime.now()
     print('making the web netcdf file...')
     cmd_list = ['python','-W','ignore','web_functions.py','full_his_to_essential',fn_hs,fn_gr]
     os.chdir('../web_util')
     ret6 = subprocess.run(cmd_list)   
     print('...done making web nc file: ' + str(ret6.returncode) + ' (0=good)')  
     os.chdir('../driver')
+    t02 = datetime.now()
+    print('this took:')
+    print(t02-t01)
+    dt_web = []
+    dt_web.append(t02-t01)
+
+    dt_LV4 = {}
+    dt_LV4['roms'] = dt_roms
+    dt_LV4['ic'] = dt_ic
+    dt_LV4['bc'] = dt_bc
+    dt_LV4['atm'] = dt_atm
+    dt_LV4['plotting'] = dt_plotting
+    dt_LV4['swan'] = dt_sw
+    dt_LV4['web'] = dt_web
+
+    fn_timing = MI['lv4_run_dir'] + '/LV4_timing_info.pkl'
+    with open(fn_timing,'wb') as fout:
+        pickle.dump(dt_LV4,fout)
+        print('OCN_LV4 timing info dict saved with pickle to: ',fn_timing)
 
 
 def run_hind_simulation(t1str,lvl,pkl_fnm):
@@ -1482,7 +1505,7 @@ def run_fore_simulation(lvl,pkl_fnm):
     if lvl == 'LV1':
         os.chdir('../driver')
         print('starting LV1 forecast with subprocess...')
-        cmd_list = ['python','-W','ignore','driver_functions.py','run_fore_LV1',pkl_fnm]
+        cmd_list = ['python','-u','-W','ignore','driver_functions.py','run_fore_LV1',pkl_fnm]
         ret1 = subprocess.run(cmd_list)   
         print('...finished LV1 forecast.')
         print('return code: ' + str(ret1.returncode) + ' (0=good)')  
@@ -1490,7 +1513,7 @@ def run_fore_simulation(lvl,pkl_fnm):
     if lvl == 'LV2':
         os.chdir('../driver')
         print('starting LV2 forecast with subprocess...')
-        cmd_list = ['python','-W','ignore','driver_functions.py','run_fore_LV2',pkl_fnm]
+        cmd_list = ['python','-u','-W','ignore','driver_functions.py','run_fore_LV2',pkl_fnm]
         ret1 = subprocess.run(cmd_list)   
         print('...finished LV2 forecast.')
         print('return code: ' + str(ret1.returncode) + ' (0=good)')  
@@ -1498,7 +1521,7 @@ def run_fore_simulation(lvl,pkl_fnm):
     if lvl == 'LV3':
         os.chdir('../driver')
         print('starting LV3 forecast with subprocess...')
-        cmd_list = ['python','-W','ignore','driver_functions.py','run_fore_LV3',pkl_fnm]
+        cmd_list = ['python','-u','-W','ignore','driver_functions.py','run_fore_LV3',pkl_fnm]
         ret1 = subprocess.run(cmd_list)   
         print('...finished LV3 forecast.')
         print('return code: ' + str(ret1.returncode) + ' (0=good)')  
@@ -1506,7 +1529,7 @@ def run_fore_simulation(lvl,pkl_fnm):
     if lvl == 'LV4':
         os.chdir('../driver')
         print('starting LV4 forecast with subprocess...')
-        cmd_list = ['python','-W','ignore','driver_functions.py','run_fore_LV4',pkl_fnm]
+        cmd_list = ['python','-u','-W','ignore','driver_functions.py','run_fore_LV4',pkl_fnm]
         ret1 = subprocess.run(cmd_list)   
         print('...finished LV4 forecast.')
         print('return code: ' + str(ret1.returncode) + ' (0=good)')  
