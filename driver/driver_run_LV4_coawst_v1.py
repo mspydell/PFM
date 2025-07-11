@@ -291,8 +291,8 @@ print('this took:')
 print(datetime.now()-t01)
 
 print('\nmoving LV4 atm and river files to Archive...')
-#copy_mv_nc_file('atm','lv4')  ## FF changed this
-#copy_mv_nc_file('river','lv4') ## FF changed this
+copy_mv_nc_file('atm','lv4')  ## FF changed this
+copy_mv_nc_file('river','lv4') ## FF changed this
 print('...done')
 
 print('making the web netcdf file...')

@@ -1,3 +1,4 @@
+#!/bin/bash
 # new comment
 
 #script to run LV1 and LV2 and copy figs over.
@@ -28,6 +29,7 @@ cp -f  /scratch/PFM_Simulations/LV2_Forecast/His/*.nc     /dataSIO/PFM_Simulatio
 cp -f  /scratch/PFM_Simulations/LV3_Forecast/His/*.nc     /dataSIO/PFM_Simulations/Archive/LV3_His
 cp -f  /scratch/PFM_Simulations/LV4_Forecast/His/LV4*.nc     /dataSIO/PFM_Simulations/Archive/LV4_His
 
+#cp -f  /scratch/PFM_Simulations/LV4_Forecast/Forcing/*.nc     /dataSIO/PFM_Simulations/Archive/Forcing
 
 ## copy the log files to /dataSIO
 

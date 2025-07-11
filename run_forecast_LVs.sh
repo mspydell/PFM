@@ -22,8 +22,8 @@ fsterr=../log/LVs_forecast_system_${dateZ}0600Z_ERROR.log
 cd driver
 python  -u -W "ignore" driver_run_forecast_all_LVs.py > ${fstdout}  2> >(tee -a ${fstderr} >&2)
 
-
-copy_forecast_to_dataSIO.sh
+cd /home/ffeddersen/PFM
+./copy_forecast_to_dataSIO.sh
 
 
 ##  first delete netcdf files on website
