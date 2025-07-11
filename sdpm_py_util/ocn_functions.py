@@ -8835,7 +8835,7 @@ def mk_lv4_nud_nc():
         if vn in ['temp_NudgeCoef','salt_NudgeCoef']:
             D[vn] = 9.9e36 + D[vn]
         else:
-            D[vn] = 0.1 + D[vn]
+            D[vn] = 0.143 + D[vn] # was 0.1 (=1/10) before 7/11/25. after 0.143 (=1/7)
 
     D['vinfo']['temp_NudgeCoef'] = {'long_name':'temp inverse nudging coefficient',
                         'units':'day-1',
