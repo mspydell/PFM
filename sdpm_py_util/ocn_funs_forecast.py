@@ -3542,7 +3542,7 @@ def make_tmp_hy_on_rom_pckl_files_1hrzeta(fname_in,var_name,pkl_fnm):
         try:
             with open(fn_temp,'wb') as fp:
                 pickle.dump(HYrm[var_name],fp, protocol=pickle.HIGHEST_PROTOCOL)
-                print('made pickle file')
+                #print('made pickle file')
         except MemoryError:
             print("memory error while pickling")        
         except pickle.PicklingError:
@@ -8708,7 +8708,7 @@ def mk_lv4_nud_nc(pkl_fnm):
         if vn in ['temp_NudgeCoef','salt_NudgeCoef']:
             D[vn] = 9.9e36 + D[vn]
         else:
-            D[vn] = 0.1 + D[vn]
+            D[vn] = 0.143 + D[vn] # was 0.1 before 7/11/25. after 0.143
 
     D['vinfo']['temp_NudgeCoef'] = {'long_name':'temp inverse nudging coefficient',
                         'units':'day-1',
@@ -8846,8 +8846,8 @@ def mk_lv4_river_nc(pkl_fnm):
     # but Liden also said that this is good for dry weather, wet weather flow gets
     # diverted and at PB Qww = 0.175 m3/s, Qfw 0.79 m3/s, Qtot = 0.965 m3/s, and 
     # dye_01 = 0.175 / 0.965 = 0.1818. NOT IMPLEMENTED!!!! 
-    PFM['Q_PB'] = -2.0
-    PFM['dye_PB'] = 0.5
+    #PFM['Q_PB'] = -2.0
+    #PFM['dye_PB'] = 0.5
     D['river_transport'][:,5] = PFM['Q_PB'] + D['river_transport'][:,5] # this is PB. 5/2/25 value
     # based on FF email with Liden
 

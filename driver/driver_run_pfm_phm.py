@@ -1,6 +1,7 @@
 import sys
 import os
 import subprocess
+from datetime import datetime
 sys.path.append('../sdpm_py_util')
 import init_funs_forecast as initfuns
 import util_functions as utilfuns
@@ -23,8 +24,8 @@ def driver_run_pfm_phm( input_py_full, pkl_fnm ):
         os.chdir('../driver')
         print('\n===========================')
         print('!!!starting the hindcast with subprocess!!!')
-        print('\n===========================')
-        cmd_list = ['python','-u','-W','driver_run_hind_LV123.py','driver_run_hind_LV123',input_py_full,pkl_fnm]
+        print('===========================')
+        cmd_list = ['python','-u','-W','ignore','driver_run_hind_LV123.py','driver_run_hind_LV123',input_py_full,pkl_fnm]
         ret1 = subprocess.run(cmd_list)
         print('\n!Finished the hindcast subprocess!\n')
         print('return code:',str(ret1.returncode),' (0=good)')     
@@ -32,8 +33,19 @@ def driver_run_pfm_phm( input_py_full, pkl_fnm ):
         os.chdir('../driver')
         print('\n===========================')
         print('!!!starting the forecast with subprocess!!!')
-        print('\n===========================')
-        cmd_list = ['python','-u','-W','driver_run_forecast_LV1234.py','driver_run_forecast_LV1234',input_py_full,pkl_fnm]
+        print('current time is: ',datetime.now())
+        print('===========================')
+
+        #current_directory = os.getcwd()
+        #print("Current Working Directory:", current_directory)
+        # Get a list of all files and directories in the current working directory
+        #contents = os.listdir('.')
+        # Print each item in the list
+        #print('items in this directory are:')
+        #for item in contents:
+        #    print(item)    
+
+        cmd_list = ['python','-u','-W','ignore','driver_run_forecast_LV1234.py','driver_run_forecast_LV1234',pkl_fnm]
         ret1 = subprocess.run(cmd_list)     
         print('\n!Finished the forecast subprocess!\n')
         print('return code:',str(ret1.returncode),' (0=good)')     

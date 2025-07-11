@@ -7,13 +7,13 @@ sys.path.append('../sdpm_py_util')
 import init_funs_forecast as initfuns
 sys.path.append('../driver')
 
-def driver_run_forecast_LV1234( input_py_full, pkl_fnm ):
+def driver_run_forecast_LV1234( pkl_fnm ):
     t00 = datetime.now()
     # upon initialization, make the model_info.pkl file
-    initfuns.initialize_model( input_py_full, pkl_fnm )
+    #initfuns.initialize_model( input_py_full, pkl_fnm )
     
     # print info from pickle file
-    initfuns.print_initial_model_info( pkl_fnm )
+    #initfuns.print_initial_model_info( pkl_fnm )
     
     # get model information
     MI = initfuns.get_model_info( pkl_fnm )
@@ -25,7 +25,7 @@ def driver_run_forecast_LV1234( input_py_full, pkl_fnm ):
         print('\n--------------------------')
         print('starting ' + lvl)
         os.chdir('../driver')
-        cmd_list = ['python','-u','-W','driver_functions.py','run_fore_simulation',lvl,pkl_fnm]
+        cmd_list = ['python','-u','-W','ignore','driver_functions.py','run_fore_simulation',lvl,pkl_fnm]
         ret1 = subprocess.run(cmd_list)     
         print('done with ' + lvl)
         print(lvl, ' forecast ran correctly? ' + str(ret1.returncode) + ' (0=yes)')

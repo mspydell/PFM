@@ -1,5 +1,7 @@
 #!/bin/bash
 #script to run PFMv2
+cd /home/mspydell/models/PFM_root/PFM
+source /home/mspydell/.bashrc
 
 # check to see what git branch we are on
 EXPECTED_BRANCH="PHM_development" # Or "master", "develop", etc.
@@ -17,7 +19,6 @@ if [ "$current_branch" != "$EXPECTED_BRANCH" ]; then
 fi
 echo "Successfully on the '$EXPECTED_BRANCH' branch. Proceeding with script..."
 
-echo "starting the run_forecast_LVs.sh script"
 cd /home/mspydell/models/PFM_root/PFM/driver
 
 #########
