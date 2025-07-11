@@ -623,6 +623,9 @@ def run_fore_LV1(pkl_fnm):
     yyyymmdd_hy = ocnfuns_fore.get_hycom_foretime_v2(yyyymmddhhmm_pfm,t2str,pkl_fnm)
     #print(yyyymmdd_hy)
  
+    dt_download_ocn = []
+    dt_download_ocn.append(datetime.now()-t01)
+    
     start_type = PFM['lv1_use_restart'] # 0=new solution. 1=from a restart file
     lv1_use_restart = start_type
     level = 1
@@ -927,6 +930,23 @@ def run_fore_LV1(pkl_fnm):
     dt_roms = []
     dt_roms.append(t02-t01)
 
+    dt_LV1 = {}
+    dt_LV1['roms'] = dt_roms
+    dt_LV1['ic'] = dt_ic
+    dt_LV1['bc'] = dt_bc
+    dt_LV1['atm'] = dt_atm
+    dt_LV1['plotting'] = dt_plotting
+    dt_LV1['process'] = dt_process
+    dt_LV1['download_atm'] = dt_download_atm
+    dt_LV1['download_ocn'] = dt_download_ocn
+    dt_LV1['hycom_t0'] = yyyymmdd_hy
+
+    fn_timing = PFM['lv1_run_dir'] + '/LV1_timing_info.pkl'
+    with open(fn_timing,'wb') as fout:
+        pickle.dump(dt_LV1,fout)
+        print('OCN_LV1 timing info dict saved with pickle to: ',fn_timing)
+
+
 def run_fore_LV2(pkl_fnm):
     import init_funs_forecast as initfuns
     MI = initfuns.get_model_info(pkl_fnm)
@@ -1069,6 +1089,22 @@ def run_fore_LV2(pkl_fnm):
     print('\n')
     dt_roms = []
     dt_roms.append(t2-t1)
+
+    dt_plotting = []
+    dt_plotting.append(0)
+
+    dt_LV2 = {}
+    dt_LV2['roms'] = dt_roms
+    dt_LV2['ic'] = dt_ic
+    dt_LV2['bc'] = dt_bc
+    dt_LV2['atm'] = dt_atm
+    dt_LV2['plotting'] = dt_plotting
+
+    fn_timing = MI['lv2_run_dir'] + '/LV2_timing_info.pkl'
+    with open(fn_timing,'wb') as fout:
+        pickle.dump(dt_LV2,fout)
+        print('OCN_LV2 timing info dict saved with pickle to: ',fn_timing)
+
 
 def run_fore_LV3(pkl_fnm):
     import init_funs_forecast as initfuns
@@ -1213,6 +1249,22 @@ def run_fore_LV3(pkl_fnm):
     print('\n')
     dt_roms = []
     dt_roms.append(t2-t1)
+
+    dt_plotting = []
+    dt_plotting.append(0)
+
+    dt_LV3 = {}
+    dt_LV3['roms'] = dt_roms
+    dt_LV3['ic'] = dt_ic
+    dt_LV3['bc'] = dt_bc
+    dt_LV3['atm'] = dt_atm
+    dt_LV3['plotting'] = dt_plotting
+
+    fn_timing = MI['lv3_run_dir'] + '/LV3_timing_info.pkl'
+    with open(fn_timing,'wb') as fout:
+        pickle.dump(dt_LV3,fout)
+        print('OCN_LV3 timing info dict saved with pickle to: ',fn_timing)
+
 
 def run_fore_LV4(pkl_fnm):
     import init_funs_forecast as initfuns
