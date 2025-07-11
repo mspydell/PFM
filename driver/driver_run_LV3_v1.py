@@ -211,7 +211,7 @@ print('... moving on.')
 dt_plotting.append(datetime.now()-t01)
 
 print('\nmoving LV3 atm file to Archive2.5...')
-copy_mv_nc_file('atm','lv3')
+#copy_mv_nc_file('atm','lv3')  ## FF changed this
 print('...done')
 
 

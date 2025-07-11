@@ -429,7 +429,7 @@ os.chdir('../driver')
 #print(t02-t01)
 #print('\n')
 print('\nmoving LV1 atm file to Archive...')
-copy_mv_nc_file('atm','lv1')
+#copy_mv_nc_file('atm','lv1') # FF changed June 8th
 print('...done')
 
 dt_plotting.append(datetime.now()-t01)
