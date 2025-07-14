@@ -1090,8 +1090,10 @@ def run_fore_LV2(pkl_fnm):
     dt_roms = []
     dt_roms.append(t2-t1)
 
-    dt_plotting = []
-    dt_plotting.append(0)
+    dt_plotting=[]
+    t11=datetime.now()
+    t22=datetime.now()
+    dt_plotting.append(t22-t11)
 
     dt_LV2 = {}
     dt_LV2['roms'] = dt_roms
@@ -1251,7 +1253,9 @@ def run_fore_LV3(pkl_fnm):
     dt_roms.append(t2-t1)
 
     dt_plotting = []
-    dt_plotting.append(0)
+    t11=datetime.now()
+    t22=datetime.now()
+    dt_plotting.append(t22-t11)
 
     dt_LV3 = {}
     dt_LV3['roms'] = dt_roms

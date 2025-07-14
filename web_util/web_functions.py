@@ -61,7 +61,7 @@ def full_his_to_essential(his_fname,grd_fname):
         )
 
     yyyymmddhh = times[0].strftime('%Y%m%d%H')
-    fname_out = '/scratch/PFM_Simulations/LV4_Forecast/His/web_data_'+yyyymmddhh+'.nc'
+    fname_out = '/scratch/matt/PFM_Simulations_v2/LV4/His/web_data_'+yyyymmddhh+'.nc'
 #    fname_out = '/scratch/PFM_Simulations/LV4_Forecast/His/web_data_latest.nc'
 
     #print(ds.attrs)
