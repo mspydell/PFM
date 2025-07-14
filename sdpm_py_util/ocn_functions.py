@@ -1321,6 +1321,7 @@ def get_hycom_nc_file_names(yyyymmdd,t1str,t2str):
             ncfiles.append(ffn)
             dtff = dtff + dhr * one_hr
 
+    print('\n *** done with hycom_get_nc_file_names() *** \n')
     return ncfiles
 
 
@@ -1653,6 +1654,8 @@ def check_and_redownload_ncfiles(yyyymmdd):
     # if it isn't the right size, it removes it, and redownloads it.
     # it tries this 5 times before returning a bad 0 error code
 
+    print('\n *** in check_and_redownload_ncfiles() *** \n')
+    
     PFM = get_PFM_info()
 
     hydir = PFM['hycom_data_dir']
@@ -1672,36 +1675,47 @@ def check_and_redownload_ncfiles(yyyymmdd):
     t2str = "%d%02d%02d%02d%02d" % (t2.year, t2.month, t2.day, t2.hour, t2.minute)
 
     nc_in_names = get_hycom_nc_file_names(yyyymmdd,t1str,t2str)
+
+    print('\n *** done with: nc_in_names = get_hycom_nc_file_names(yyyymmdd,t1str,t2str) ***')
     chk = 1
     cnt2 = 0
     eecode = 1 # assume there are bad files...
+
+    print('\n ** checking for bad files **\n')
     while chk==1 and cnt2<3:
         bad_files = []
         urls = []
         for fn in nc_in_names:
+            print(fn)
             if "_ssh_" in fn:
                 mnfsz = 0.4 # this is the minimum filesize for ssh in Mb
             else:
                 mnfsz = 1.5 # for other vars
         
-            if "_ssh_" in fn:
-                data_var = 'surf_el'
-            elif "_s3z_" in fn:
-                data_var = 'sal'
-            elif "_t3z_" in fn:
-                data_var = 'temp'
-            elif "_u3z_" in fn:
-                data_var = 'water_u'
-            elif "_v3z_" in fn:
-                data_var = 'water_v'
+            #if "_ssh_" in fn:
+            #    data_var = 'surf_el' # still 'surf_el'
+            #elif "_s3z_" in fn:
+            #    data_var = 'sal' # now 6/21/25 == 'salinity'
+            #elif "_t3z_" in fn:
+            #    data_var = 'temp' # now == 'water_temp'
+            #elif "_u3z_" in fn:
+            #    data_var = 'water_u' # still 'water_u'
+            #elif "_v3z_" in fn:
+            #    data_var = 'water_v' # still 'water_v'
 
             file_size_mb = os.path.getsize(fn) / (1024*1024)
-
+            print(' ** done with file_size_mb = ... **\n')
             with nc.Dataset(fn) as ds:
+                vars = list(ds.variables.keys())
+                for var_nm in vars:
+                    if var_nm not in ['depth','lat','lon','tau','time']:
+                        data_var = var_nm # this gets the right key, eg 'salintiy' or 'sal'
                 data = ds.variables[data_var][:]
                 mnd = np.nanmin(data[:])
                 mxd = np.nanmax(data[:])
-            
+
+            print(' ** done with nc.Dataset(fn) as ds: ')
+
             bad_data = 0
             if (mnd < -10 or mxd > 100) and ("_s3z_" in fn or "_t3z_" in fn):
                 bad_data = 1
@@ -1710,7 +1724,12 @@ def check_and_redownload_ncfiles(yyyymmdd):
 
             if file_size_mb < mnfsz or bad_data == 1:
                 bad_files.append(fn)
+                print('** ran bad_files.append(fn) for')
+                print(fn)
+                print(' **\n')
 
+                
+        print('\n ** done with checking for bad files **\n')                
         if len(bad_files) == 0:
             print('all hycom nc files are the correct size, moving on!')
             chk = 0 # we don't need to check anymore, all files are good
@@ -1757,6 +1776,8 @@ def check_and_redownload_ncfiles(yyyymmdd):
             print('...done') 
         cnt2 = cnt2 + 1
 
+    print('\n *** done with check and redownload hycom files () \n')
+    
     #remove_files_by_pattern(hydir,'*.tmp')
     return eecode
 
@@ -1784,7 +1805,8 @@ def hycom_ncfiles_to_pickle(yyyymmdd):
     t2str = "%d%02d%02d%02d%02d" % (t2.year, t2.month, t2.day, t2.hour, t2.minute)
 
     nc_in_names = get_hycom_nc_file_names(yyyymmdd,t1str,t2str)
-
+    print('\n  ** done with get_hycome_nc_file_names() ****')
+    
     # get lists of file names for each variable. I think they are sorted?
     fn_ssh = [s for s in nc_in_names if "_ssh_" in s]
     fn_t3z = [s for s in nc_in_names if "_t3z_" in s]
@@ -1798,7 +1820,7 @@ def hycom_ncfiles_to_pickle(yyyymmdd):
 
     #dss = xr.open_dataset(fn_ssh[0])
     dss = xr.open_dataset(fn_ssh[0],decode_times=False)
-    
+    print('\n  ** done with dss = xr.open_dataset(fn_ssh[0],decode_times=False) ***')
     lat = dss.lat.values
     lon = dss.lon.values
     dss.close()
@@ -1819,6 +1841,7 @@ def hycom_ncfiles_to_pickle(yyyymmdd):
         print('something is wrong with on or more of the hycom nc files. Aborting.')
         sys.exit(1)    
 
+    print('\n  ** done with eecode = check_and_redownload_ncfiles(yyyymmdd) **')        
     for fn in fn_ssh:
         #dss = xr.open_dataset(fn)
         dss = xr.open_dataset(fn,decode_times=False)
@@ -1841,7 +1864,8 @@ def hycom_ncfiles_to_pickle(yyyymmdd):
         eta[cnt,:,:] = dss.surf_el.values
         dss.close()
         cnt=cnt+1
-
+        
+    print('\n ** done with for fn in fn_ssh loop ** \n ')
     #etamx = np.nanmax( np.abs(eta[:]) )
     #print(etamx)
     #if etamx > 5.0:
@@ -1862,6 +1886,8 @@ def hycom_ncfiles_to_pickle(yyyymmdd):
     temp = np.zeros((nt,nz,nlt,nln))
     t_rom = np.zeros((nt))
 
+    print('\n ** done with dss = xr.open_dataset(fn_t3z[0],...)  ** \n ')
+    
     cnt = 0
     for fn in fn_t3z:
         dss = xr.open_dataset(fn,decode_times=False)
@@ -8675,7 +8701,7 @@ def mk_lv4_nud_nc():
         if vn in ['temp_NudgeCoef','salt_NudgeCoef']:
             D[vn] = 9.9e36 + D[vn]
         else:
-            D[vn] = 0.1 + D[vn]
+            D[vn] = 0.143 + D[vn] # was 0.1 (=1/10) before 7/11/25. after 0.143 (=1/7)
 
     D['vinfo']['temp_NudgeCoef'] = {'long_name':'temp inverse nudging coefficient',
                         'units':'day-1',
