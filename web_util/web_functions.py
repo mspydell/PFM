@@ -6,11 +6,13 @@ import subprocess
 from datetime import datetime
 sys.path.append('../sdpm_py_util')
 import plotting_functions as pltfuns
+import init_funs_forecast as initfuns
 #import grid_functions as grdfuns
 
 
-def full_his_to_essential(his_fname,grd_fname):
+def full_his_to_essential(his_fname,grd_fname,pkl_fnm):
 
+    PFM = initfuns.get_model_info(pkl_fnm)
     # return the essential data from the history file
     # dye has dye[time,lat,lon]
     # shoreline has dye[time,position] and risk
@@ -60,18 +62,11 @@ def full_his_to_essential(his_fname,grd_fname):
             },
         )
 
-    yyyymmddhh = times[0].strftime('%Y%m%d%H')
-    fname_out = '/scratch/matt/PFM_Simulations_v2/LV4/His/web_data_'+yyyymmddhh+'.nc'
-#    fname_out = '/scratch/PFM_Simulations/LV4_Forecast/His/web_data_latest.nc'
-
-    #print(ds.attrs)
-    #print('out to dotnc')
+#    yyyymmddhh = times[0].strftime('%Y%m%d%H')
+#    fname_out = '/scratch/matt/PFM_Simulations_v2/LV4/His/web_data_'+yyyymmddhh+'.nc'
+    fname_out = PFM['lv4_web_name_full'] 
     ds.to_netcdf(fname_out)
 
-
-    #file_made_code=1
-    #return file_made_code
-    #return dye, shore, sites
 
 def plot_his_figures_fromnc(*args):
     # this function is a wrapper to plot all of the history file plots with the input being: 

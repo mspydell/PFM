@@ -1,10 +1,10 @@
+import os
+import glob
 import numpy as np
 import warnings
 import pickle
 import shutil
 import sys
-
-from get_PFM_info import get_PFM_info
 
 def copy_mv_nc_file(nc_type,lvl,pkl_fnm):
     # this copies an atm.nc or river.nc file to the archive location
@@ -25,6 +25,93 @@ def copy_mv_nc_file(nc_type,lvl,pkl_fnm):
 
     fn_out_full = dir_out + fn_out
     shutil.move(fn_in_full, fn_out_full)
+
+def delete_files_by_extension(directory_path, extension):
+    """
+    Deletes all files with a specific extension within a given directory.
+
+    Args:
+        directory_path (str): The path to the directory.
+        extension (str): The file extension to target (e.g., ".txt", ".log").
+    """
+    try:
+        for filename in os.listdir(directory_path):
+            if filename.endswith(extension):
+                file_path = os.path.join(directory_path, filename)
+                os.remove(file_path)
+                print(f"Deleted: {file_path}")
+    except FileNotFoundError:
+        print(f"Error: Directory not found at {directory_path}")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+def get_files_matching_pattern(directory_path, pattern):
+    """
+    Returns a list of file paths in a given directory that match a specified pattern.
+
+    Args:
+        directory_path (str): The path to the directory to search.
+        pattern (str): The pattern to match against filenames (e.g., '*.txt', 'image_*.png').
+
+    Returns:
+        list: A list of full file paths matching the pattern.
+    """
+    full_pattern = os.path.join(directory_path, pattern)
+    matching_files = glob.glob(full_pattern)
+    return matching_files
+
+
+def end_of_sim_housekeeping(pkl_fnm):
+    
+    from init_funs_forecast import get_model_info
+    PFM = get_model_info(pkl_fnm)
+    yyyymmdd = PFM['yyyymmdd']
+    ##  first delete previous netcdf files on website directory
+    web_dir = PFM['lv4_his_web_dir']
+    archive_web_dir = PFM['archive_web_dir']
+    delete_files_by_extension(web_dir, ".nc")
+    ## copy web.nc file to website and Archive
+    shutil.copy(PFM['lv4_web_name_full'],web_dir)
+    shutil.copy(PFM['lv4_web_name_full'],archive_web_dir)    
+    # Rename the web.nc file on website
+    original_name_in_dest = os.path.join(web_dir, os.path.basename(PFM['lv4_web_name_full']))
+    new_path_in_dest = os.path.join(web_dir, 'web_data_latest.nc')
+    shutil.move(original_name_in_dest, new_path_in_dest)
+
+    # copy all plots to dataSIO
+    pattern = "his*.png"
+    for dir in [PFM['lv1_plot_dir'],PFM['lv2_plot_dir'],PFM['lv3_plot_dir'],PFM['lv4_plot_dir']]:
+        files = get_files_matching_pattern(dir, pattern)
+        for file in files:
+            shutil.copy(file,PFM['dataSIO_plot_dir'])            
+    # now for dye plots
+    files = get_files_matching_pattern(PFM['lv4_plot_dir'], "dye*png")
+    for file in files:
+        shutil.copy(file,PFM['dataSIO_plot_dir'])            
+    # now for history files
+    pattern = "*.nc"
+    list1 = [PFM['lv1_his_dir'],PFM['lv2_his_dir'],PFM['lv3_his_dir']]
+    list2 = [PFM['lv1_archive_his_dir'],PFM['lv2_archive_his_dir'],PFM['lv3_archive_his_dir']]
+    for dir1, dir2 in zip(list1,list2):
+        files = get_files_matching_pattern(dir1, pattern)
+        for file in files:
+            shutil.copy(file,dir2)            
+    # now for lv4 history file
+    pattern = "LV4*.nc"
+    files = get_files_matching_pattern(PFM['lv4_his_dir'], pattern)
+    for file in files:
+        shutil.copy(file,PFM['lv4_archive_his_dir'])            
+    # copy the log files...
+    pattern = "*.log"
+    for dir in [PFM['lv1_run_dir'],PFM['lv2_run_dir'],PFM['lv3_run_dir'],PFM['lv4_run_dir']]:
+        file0 = get_files_matching_pattern(PFM['lv4_his_dir'], pattern)
+        shutil.copy(file0,PFM['log_archive_dir'])
+        file2 = PFM['log_archive_dir'] + os.path.basename(file0)
+        # modify file name as it doesn't have a date
+        file = file2.replace('.log',yyyymmdd+'.log')
+        shutil.copy(file2,file)
+
+    ### Note this should work up to dealing with web plots in the .sh file.
 
 
 def display_timing_info(pkl_fnm):

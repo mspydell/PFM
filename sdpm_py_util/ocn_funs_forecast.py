@@ -3,7 +3,6 @@ import sys
 from datetime import datetime
 from datetime import timedelta
 import time
-import re
 import gc
 import resource
 import pickle
@@ -12,7 +11,6 @@ sys.path.append('../sdpm_py_util')
 import init_funs_forecast as initfuns
 import grid_functions as grdfuns
 import river_functions as rivfuns
-#import hind_functions as hindfuns
 import os
 import os.path
 import pickle
@@ -29,7 +27,8 @@ from netCDF4 import Dataset
 from scipy.interpolate import RegularGridInterpolator, LinearNDInterpolator
 from scipy.interpolate import interp1d
 
-import seawater
+#import seawater
+import gsw
 import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -3992,7 +3991,8 @@ def ocn_r_2_ICdict_pckl(fname_out):
     # ROMS wants potential temperature, not temperature
     # this needs the seawater package, conda install seawater, did this for me
     pdb = -zr # pressure in dbar
-    OCN_IC['temp'][0,:,:,:] = seawater.ptmp(np.squeeze(OCN_IC['salt']), np.squeeze(TMP['temp']),np.squeeze(pdb))  
+#    OCN_IC['temp'][0,:,:,:] = seawater.ptmp(np.squeeze(OCN_IC['salt']), np.squeeze(TMP['temp']),np.squeeze(pdb))  
+    OCN_IC['temp'][0,:,:,:] = gsw.pt_from_t(np.squeeze(OCN_IC['salt']), np.squeeze(TMP['temp']),np.squeeze(pdb),0)  
 
 
 
@@ -4216,8 +4216,8 @@ def ocnr_2_ICdict_from_tmppkls(fname_out,pkl_fnm):
     # ROMS wants potential temperature, not temperature
     # this needs the seawater package, conda install seawater, did this for me
     pdb = -zr # pressure in dbar
-    OCN_IC['temp'][0,:,:,:] = seawater.ptmp(np.squeeze(OCN_IC['salt']), np.squeeze(TMP['temp']),np.squeeze(pdb))  
-
+    #OCN_IC['temp'][0,:,:,:] = seawater.ptmp(np.squeeze(OCN_IC['salt']), np.squeeze(TMP['temp']),np.squeeze(pdb))  
+    OCN_IC['temp'][0,:,:,:] = gsw.pt_from_t(np.squeeze(OCN_IC['salt']), np.squeeze(TMP['temp']),np.squeeze(pdb),0)  
 
     with open(fname_out,'wb') as fout:
         pickle.dump(OCN_IC,fout, protocol=pickle.HIGHEST_PROTOCOL)
@@ -4635,11 +4635,14 @@ def ocn_r_2_BCdict(OCN_R,RMG,PFM):
     # ROMS wants potential temperature, not temperature
     # this needs the seawater package, conda install seawater, did this for me
     pdb = -zr_s # pressure in dbar
-    OCN_BC['temp_south'] = seawater.ptmp(np.squeeze(OCN_BC['salt_south']), np.squeeze(TMP['temp_south']),np.squeeze(pdb))  
+    #OCN_BC['temp_south'] = seawater.ptmp(np.squeeze(OCN_BC['salt_south']), np.squeeze(TMP['temp_south']),np.squeeze(pdb))  
+    OCN_BC['temp_south'] = gsw.pt_from_t(np.squeeze(OCN_BC['salt_south']), np.squeeze(TMP['temp_south']),np.squeeze(pdb),0)  
     pdb = -zr_n # pressure in dbar
-    OCN_BC['temp_north'] = seawater.ptmp(np.squeeze(OCN_BC['salt_north']), np.squeeze(TMP['temp_north']),np.squeeze(pdb))  
+    #OCN_BC['temp_north'] = seawater.ptmp(np.squeeze(OCN_BC['salt_north']), np.squeeze(TMP['temp_north']),np.squeeze(pdb))  
+    OCN_BC['temp_north'] = gsw.pt_from_t(np.squeeze(OCN_BC['salt_north']), np.squeeze(TMP['temp_north']),np.squeeze(pdb),0)  
     pdb = -zr_w # pressure in dbar
-    OCN_BC['temp_west'] = seawater.ptmp(np.squeeze(OCN_BC['salt_west']), np.squeeze(TMP['temp_west']),np.squeeze(pdb))  
+    #OCN_BC['temp_west'] = seawater.ptmp(np.squeeze(OCN_BC['salt_west']), np.squeeze(TMP['temp_west']),np.squeeze(pdb))  
+    OCN_BC['temp_west'] = gsw.pt_from_t(np.squeeze(OCN_BC['salt_west']), np.squeeze(TMP['temp_west']),np.squeeze(pdb),0)  
 
     return OCN_BC
 
@@ -5129,11 +5132,14 @@ def ocn_r_2_BCdict_pckl_new(fname_out):
     # ROMS wants potential temperature, not temperature, Parker does this in LO.
     # this needs the seawater package, conda install seawater, did this for me
     pdb = -zr_s # pressure in dbar
-    OCN_BC['temp_south'] = seawater.ptmp(np.squeeze(OCN_BC['salt_south']), np.squeeze(TMP['temp_south']),np.squeeze(pdb))  
+    #OCN_BC['temp_south'] = seawater.ptmp(np.squeeze(OCN_BC['salt_south']), np.squeeze(TMP['temp_south']),np.squeeze(pdb))  
+    OCN_BC['temp_south'] = gsw.pt_from_t(np.squeeze(OCN_BC['salt_south']), np.squeeze(TMP['temp_south']),np.squeeze(pdb),0)  
     pdb = -zr_n # pressure in dbar
-    OCN_BC['temp_north'] = seawater.ptmp(np.squeeze(OCN_BC['salt_north']), np.squeeze(TMP['temp_north']),np.squeeze(pdb))  
+    #OCN_BC['temp_north'] = seawater.ptmp(np.squeeze(OCN_BC['salt_north']), np.squeeze(TMP['temp_north']),np.squeeze(pdb))  
+    OCN_BC['temp_north'] = gsw.pt_from_t(np.squeeze(OCN_BC['salt_north']), np.squeeze(TMP['temp_north']),np.squeeze(pdb),0)  
     pdb = -zr_w # pressure in dbar
-    OCN_BC['temp_west'] = seawater.ptmp(np.squeeze(OCN_BC['salt_west']), np.squeeze(TMP['temp_west']),np.squeeze(pdb))  
+    #OCN_BC['temp_west'] = seawater.ptmp(np.squeeze(OCN_BC['salt_west']), np.squeeze(TMP['temp_west']),np.squeeze(pdb))  
+    OCN_BC['temp_west'] = gsw.pt_from_t(np.squeeze(OCN_BC['salt_west']), np.squeeze(TMP['temp_west']),np.squeeze(pdb),0)  
 
     with open(fname_out,'wb') as fout:
         pickle.dump(OCN_BC,fout, protocol=pickle.HIGHEST_PROTOCOL)
@@ -5402,11 +5408,14 @@ def ocn_r_2_BCdict_pckl_new_1hrzeta(fname_out):
     # ROMS wants potential temperature, not temperature, Parker does this in LO.
     # this needs the seawater package, conda install seawater, did this for me
     pdb = -zr_s # pressure in dbar
-    OCN_BC['temp_south'] = seawater.ptmp(np.squeeze(OCN_BC['salt_south']), np.squeeze(TMP['temp_south']),np.squeeze(pdb))  
+    #OCN_BC['temp_south'] = seawater.ptmp(np.squeeze(OCN_BC['salt_south']), np.squeeze(TMP['temp_south']),np.squeeze(pdb))  
+    OCN_BC['temp_south'] = gsw.pt_from_t(np.squeeze(OCN_BC['salt_south']), np.squeeze(TMP['temp_south']),np.squeeze(pdb),0)  
     pdb = -zr_n # pressure in dbar
-    OCN_BC['temp_north'] = seawater.ptmp(np.squeeze(OCN_BC['salt_north']), np.squeeze(TMP['temp_north']),np.squeeze(pdb))  
+    #OCN_BC['temp_north'] = seawater.ptmp(np.squeeze(OCN_BC['salt_north']), np.squeeze(TMP['temp_north']),np.squeeze(pdb))  
+    OCN_BC['temp_north'] = gsw.pt_from_t(np.squeeze(OCN_BC['salt_north']), np.squeeze(TMP['temp_north']),np.squeeze(pdb),0)  
     pdb = -zr_w # pressure in dbar
-    OCN_BC['temp_west'] = seawater.ptmp(np.squeeze(OCN_BC['salt_west']), np.squeeze(TMP['temp_west']),np.squeeze(pdb))  
+    #OCN_BC['temp_west'] = seawater.ptmp(np.squeeze(OCN_BC['salt_west']), np.squeeze(TMP['temp_west']),np.squeeze(pdb))  
+    OCN_BC['temp_west'] = gsw.pt_from_t(np.squeeze(OCN_BC['salt_west']), np.squeeze(TMP['temp_west']),np.squeeze(pdb),0)  
 
     with open(fname_out,'wb') as fout:
         pickle.dump(OCN_BC,fout, protocol=pickle.HIGHEST_PROTOCOL)
@@ -5696,11 +5705,14 @@ def ocnr_2_BCdict_1hrzeta_from_tmppkls(fname_out,pkl_fnm):
     # ROMS wants potential temperature, not temperature, Parker does this in LO.
     # this needs the seawater package, conda install seawater, did this for me
     pdb = -zr_s # pressure in dbar
-    OCN_BC['temp_south'] = seawater.ptmp(np.squeeze(OCN_BC['salt_south']), np.squeeze(TMP['temp_south']),np.squeeze(pdb))  
+    #OCN_BC['temp_south'] = seawater.ptmp(np.squeeze(OCN_BC['salt_south']), np.squeeze(TMP['temp_south']),np.squeeze(pdb))  
+    OCN_BC['temp_south'] = gsw.pt_from_t(np.squeeze(OCN_BC['salt_south']), np.squeeze(TMP['temp_south']),np.squeeze(pdb),0)  
     pdb = -zr_n # pressure in dbar
-    OCN_BC['temp_north'] = seawater.ptmp(np.squeeze(OCN_BC['salt_north']), np.squeeze(TMP['temp_north']),np.squeeze(pdb))  
+    #OCN_BC['temp_north'] = seawater.ptmp(np.squeeze(OCN_BC['salt_north']), np.squeeze(TMP['temp_north']),np.squeeze(pdb))  
+    OCN_BC['temp_north'] = gsw.pt_from_t(np.squeeze(OCN_BC['salt_north']), np.squeeze(TMP['temp_north']),np.squeeze(pdb),0)  
     pdb = -zr_w # pressure in dbar
-    OCN_BC['temp_west'] = seawater.ptmp(np.squeeze(OCN_BC['salt_west']), np.squeeze(TMP['temp_west']),np.squeeze(pdb))  
+    #OCN_BC['temp_west'] = seawater.ptmp(np.squeeze(OCN_BC['salt_west']), np.squeeze(TMP['temp_west']),np.squeeze(pdb))  
+    OCN_BC['temp_west'] = gsw.pt_from_t(np.squeeze(OCN_BC['salt_west']), np.squeeze(TMP['temp_west']),np.squeeze(pdb),0)  
 
     with open(fname_out,'wb') as fout:
         pickle.dump(OCN_BC,fout, protocol=pickle.HIGHEST_PROTOCOL)
@@ -6144,13 +6156,15 @@ def ocn_r_2_BCdict_pckl(fname_out):
 
 
     # ROMS wants potential temperature, not temperature
-    # this needs the seawater package, conda install seawater, did this for me
     pdb = -zr_s # pressure in dbar
-    OCN_BC['temp_south'] = seawater.ptmp(np.squeeze(OCN_BC['salt_south']), np.squeeze(TMP['temp_south']),np.squeeze(pdb))  
+    #OCN_BC['temp_south'] = seawater.ptmp(np.squeeze(OCN_BC['salt_south']), np.squeeze(TMP['temp_south']),np.squeeze(pdb))  
+    OCN_BC['temp_south'] = gsw.pt_from_t(np.squeeze(OCN_BC['salt_south']), np.squeeze(TMP['temp_south']),np.squeeze(pdb),0)  
     pdb = -zr_n # pressure in dbar
-    OCN_BC['temp_north'] = seawater.ptmp(np.squeeze(OCN_BC['salt_north']), np.squeeze(TMP['temp_north']),np.squeeze(pdb))  
+    #OCN_BC['temp_north'] = seawater.ptmp(np.squeeze(OCN_BC['salt_north']), np.squeeze(TMP['temp_north']),np.squeeze(pdb))  
+    OCN_BC['temp_north'] = gsw.pt_from_t(np.squeeze(OCN_BC['salt_north']), np.squeeze(TMP['temp_north']),np.squeeze(pdb),0)  
     pdb = -zr_w # pressure in dbar
-    OCN_BC['temp_west'] = seawater.ptmp(np.squeeze(OCN_BC['salt_west']), np.squeeze(TMP['temp_west']),np.squeeze(pdb))  
+    #OCN_BC['temp_west'] = seawater.ptmp(np.squeeze(OCN_BC['salt_west']), np.squeeze(TMP['temp_west']),np.squeeze(pdb))  
+    OCN_BC['temp_west'] = gsw.pt_from_t(np.squeeze(OCN_BC['salt_west']), np.squeeze(TMP['temp_west']),np.squeeze(pdb),0)  
 
     with open(fname_out,'wb') as fout:
         pickle.dump(OCN_BC,fout, protocol=pickle.HIGHEST_PROTOCOL)

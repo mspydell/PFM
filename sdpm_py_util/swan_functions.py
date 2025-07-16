@@ -19,7 +19,6 @@ import init_funs_forecast as initfuns
 from scipy.interpolate import RegularGridInterpolator, LinearNDInterpolator
 from scipy.interpolate import interp1d
 
-import seawater
 import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
 

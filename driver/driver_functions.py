@@ -646,6 +646,8 @@ def run_fore_LV1(pkl_fnm):
     ret1 = subprocess.run(cmd_list)     
     os.chdir('../driver')
     if ret1.returncode != 0:
+        print('FATAL')
+        print('hycom_ncfiles_to_pickle did not work!')
         print('exiting driver_LV1 now!')
         sys.exit(1)
 
@@ -669,12 +671,12 @@ def run_fore_LV1(pkl_fnm):
     fr_ocnR_pkl_file=1
 
     # what are we going to plot?
-    plot_ocn = 1
-    plot_ocnr = 1
-    plot_atm = 1
-    plot_all_atm = 1
-    plot_ocn_icnc= 1
-    load_plot_atm= 1
+    plot_ocn = 0
+    plot_ocnr = 0
+    plot_atm = 0
+    plot_all_atm = 0
+    plot_ocn_icnc= 0
+    load_plot_atm= 0
 
     # need the file names and locations of the pickle and .nc files we will save
     fn_pckl = PFM['lv1_forc_dir'] + '/' + PFM['lv1_ocn_tmp_pckl_file']
@@ -700,8 +702,9 @@ def run_fore_LV1(pkl_fnm):
         print('this took:')
         print(t02-t01)
         print('\n')
-        dt_plotting.append(t02-t01)
 
+    t02 = datetime.now()    
+    dt_plotting.append(t02-t01)
 
     # put the ocn data on the roms grid
     t01 = datetime.now()
@@ -711,8 +714,13 @@ def run_fore_LV1(pkl_fnm):
     cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','make_all_tmp_pckl_ocnR_files_1hrzeta',pkl_fnm]
     os.chdir('../sdpm_py_util')
     ret1 = subprocess.run(cmd_list)     
-    #ocnfuns.make_all_tmp_pckl_ocnR_files(fn_pckl)
     os.chdir('../driver')
+    if ret1.returncode != 0:
+        print('FATAL')
+        print('make_all_tmp_pckl_ocnR_files_1hrzeta did not run correctly')
+        print('exiting driver_LV1 now!')
+        sys.exit(1)
+
     print('subprocess return code? ' + str(ret1.returncode) +  ' (0=good)')
 
     cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','print_maxmin_HYrm_pickles',pkl_fnm]
@@ -730,13 +738,10 @@ def run_fore_LV1(pkl_fnm):
         ret1 = subprocess.run(cmd_list)     
         os.chdir('../driver')
         print('subprocess return code? ' + str(ret1.returncode) +  ' (0=good)')
-        t03 = datetime.now()
-        dt_plotting.append(t03-t02)
 
-    print('...done with LV1 ocn_R')
-    print('this took:')
-    print(t02-t01)
-    print('\n')
+    t03 = datetime.now()    
+    dt_plotting.append(t03-t02)
+
     t04 = datetime.now()
 
     # make the depth pickle file
@@ -762,6 +767,12 @@ def run_fore_LV1(pkl_fnm):
         cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','ocnr_2_ICdict_from_tmppkls',ocnIC_pckl,pkl_fnm]
         ret3 = subprocess.run(cmd_list)     
         os.chdir('../driver')
+        if ret3.returncode != 0:
+            print('FATAL')
+            print('ocnr_2_ICdict_from_tmppkls did not run correctly')
+            print('exiting driver_LV1 now!')
+            sys.exit(1)
+        
         print('OCN IC data saved with pickle, correctly? ' + str(ret3.returncode) + ' (0=yes,1=no)')
 
         print('driver_run_forecast_LV1: done with ocn_r_2_ICdict')
@@ -777,6 +788,11 @@ def run_fore_LV1(pkl_fnm):
         os.chdir('../sdpm_py_util')
         ret4 = subprocess.run(cmd_list)     
         os.chdir('../driver')
+        if ret4.returncode != 0:
+            print('FATAL')
+            print('cn_roms_IC_dict_to_netcdf_pckl did not run correctly')
+            print('exiting driver_LV1 now!')
+            sys.exit(1)
         print('OCN IC nc data saved, correctly? ' + str(ret4.returncode) + ' (0=yes)')
 
         print('done makeing IC file.')
@@ -803,6 +819,7 @@ def run_fore_LV1(pkl_fnm):
         if PFM['lv1_nrrec'] < 0:
             print('WARNING RESTARTING LV1 WILL NOT WORK!!!')
 
+    print('reloading PFM pkl info!')
     PFM = initfuns_fore.get_model_info(pkl_fnm) # refresh this
     
     # get the OCN_BC dictionary
@@ -815,6 +832,11 @@ def run_fore_LV1(pkl_fnm):
     cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','ocnr_2_BCdict_1hrzeta_from_tmppkls',ocnBC_pckl,pkl_fnm]
     ret4 = subprocess.run(cmd_list)     
     os.chdir('../driver')
+    if ret4.returncode != 0:
+        print('FATAL')
+        print('ocnr_2_BCdict_1hrzeta_from_tmppkls did not run correctly')
+        print('exiting driver_LV1 now!')
+        sys.exit(1)
     print('OCN BC data saved with pickle, correctly? ' + str(ret4.returncode) + ' (0=yes)')
         
     t02 = datetime.now()
@@ -855,10 +877,6 @@ def run_fore_LV1(pkl_fnm):
     dt_download_atm = []
     dt_download_atm.append(t02-t01)
  
-
-    dt_download_atm = []
-    dt_download_atm.append(t02-t01)
-
     # plot atm here, if we want.
     #if plot_atm == 1:
     #    print('we are now plotting the atm data...')
@@ -929,6 +947,9 @@ def run_fore_LV1(pkl_fnm):
     print('\n')
     dt_roms = []
     dt_roms.append(t02-t01)
+
+    t01=datetime.now()
+    dt_plotting.append(datetime.now()-t01)
 
     dt_LV1 = {}
     dt_LV1['roms'] = dt_roms
@@ -1094,6 +1115,8 @@ def run_fore_LV2(pkl_fnm):
     t11=datetime.now()
     t22=datetime.now()
     dt_plotting.append(t22-t11)
+
+
 
     dt_LV2 = {}
     dt_LV2['roms'] = dt_roms
@@ -1464,43 +1487,17 @@ def run_fore_LV4(pkl_fnm):
     t2 = datetime.now()
     print(t2-t1)
     print('\n')
-    #print(t2-t00)
     dt_roms = []
     dt_roms.append(t2-t1)
 
-
-    print('now making LV4 history file plots...')
-    t01=datetime.now()
-    cmd_list = ['python','-W','ignore','plotting_functions.py','make_all_his_figures','LV4',pkl_fnm]
-    os.chdir('../sdpm_py_util')
-    ret6 = subprocess.run(cmd_list)   
-    print('...done plotting LV4: ' + str(ret6.returncode) + ' (0=good)')  
-    os.chdir('../driver')
-    print('this took:')
-    print(datetime.now()-t01)
-
-    print('now making LV4 dye plots...')
-    fn_gr = MI['lv4_grid_file']
-    fn_hs = MI['lv4_his_name_full']
-    cmd_list = ['python','-W','ignore','plotting_functions.py','make_dye_plots',fn_gr,fn_hs,pkl_fnm]
-    os.chdir('../sdpm_py_util')
-    ret6 = subprocess.run(cmd_list)   
-    print('...done plotting LV4: ' + str(ret6.returncode) + ' (0=good)')  
-    os.chdir('../driver')
-    print('this took:')
-    print(datetime.now()-t01)
-    dt_plotting = []
-    dt_plotting.append(datetime.now()-t01)
-
-
-    print('\nmoving LV4 atm and river files to Archive...')
+    print('copying and moving files around ...')   
+    print('moving LV4 atm and river files to Archive...')
     copy_mv_nc_file('atm','lv4',pkl_fnm)
     copy_mv_nc_file('river','lv4',pkl_fnm)
     print('...done')
 
-    t01 = datetime.now()
     print('making the web netcdf file...')
-    cmd_list = ['python','-W','ignore','web_functions.py','full_his_to_essential',fn_hs,fn_gr]
+    cmd_list = ['python','-W','ignore','web_functions.py','full_his_to_essential',fn_hs,fn_gr,pkl_fnm]
     os.chdir('../web_util')
     ret6 = subprocess.run(cmd_list)   
     print('...done making web nc file: ' + str(ret6.returncode) + ' (0=good)')  
@@ -1510,6 +1507,68 @@ def run_fore_LV4(pkl_fnm):
     print(t02-t01)
     dt_web = []
     dt_web.append(t02-t01)
+
+    dt_plotting = []
+    print('now making all of the plots for the entire simulation...')
+    t01 = datetime.now()
+    
+    print('making LV1 history file plots and moving on (Popen)...')
+    cmd_list = ['python','-W','ignore','plotting_functions.py','make_all_his_figures','LV1',pkl_fnm]
+    os.chdir('../sdpm_py_util')
+    pr1 = subprocess.Popen(cmd_list)   
+    
+    print('making LV2 history file plots and moving on (Popen)...')
+    cmd_list = ['python','-W','ignore','plotting_functions.py','make_all_his_figures','LV2',pkl_fnm]
+    pr2 = subprocess.Popen(cmd_list)   
+    
+    print('making LV3 history file plots and moving on (Popen)...')
+    cmd_list = ['python','-W','ignore','plotting_functions.py','make_all_his_figures','LV3',pkl_fnm]
+    pr3 = subprocess.Popen(cmd_list)   
+   
+    print('making LV4 history file plots and moving on (Popen)...')
+    t01=datetime.now()
+    cmd_list = ['python','-W','ignore','plotting_functions.py','make_all_his_figures','LV4',pkl_fnm]
+    pr4 = subprocess.run(cmd_list)   
+    
+    print('doing LV4 dye plots and waiting (Popen)...')
+    fn_gr = MI['lv4_grid_file']
+    fn_hs = MI['lv4_his_name_full']
+    cmd_list = ['python','-W','ignore','plotting_functions.py','make_dye_plots',fn_gr,fn_hs,pkl_fnm]
+    pr5 = subprocess.Popen(cmd_list)   
+    
+    print('waiting for plotting to finish...')
+    exit_codes = []
+    for pr in [pr1,pr2,pr3,pr4,pr5]:
+        exit_codes.append(pr.wait()) # this waits for pr1...pr5 to finish
+    
+    t02 = datetime.now()
+    dt_plotting.append(t02-t01)
+    print('...done waiting.')
+    print('plotting took:')
+    print(t02-t01)
+    print('LV1 history plots made correctly: ',exit_codes[0],' (0=yes)')
+    print('LV2 history plots made correctly: ',exit_codes[1],' (0=yes)')
+    print('LV3 history plots made correctly: ',exit_codes[2],' (0=yes)')
+    print('LV4 history plots made correctly: ',exit_codes[3],' (0=yes)')
+    print('LV4 dye     plots made correctly: ',exit_codes[4],' (0=yes)')
+
+    os.chdir('../driver')
+
+    #  this replace Falks copy_forecast_to_dataSIO.sh file
+    # implement later!
+    #t01=datetime.now()
+    #print('moving files to Archive and website and making history gifs...')
+    #cmd_list = ['python','-W','ignore','util_functions.py','end_of_sim_housekeeping',pkl_fnm]
+    #os.chdir('../web_util')
+    #ret6 = subprocess.run(cmd_list)   
+    #print('...done making web nc file: ' + str(ret6.returncode) + ' (0=good)')  
+    #os.chdir('../driver')
+    #t02 = datetime.now()
+    #print('this took:')
+    #print(t02-t01)
+
+    #print('...done')
+    #dt_plotting.append(datetime.now()-t01)
 
     dt_LV4 = {}
     dt_LV4['roms'] = dt_roms
@@ -1524,7 +1583,6 @@ def run_fore_LV4(pkl_fnm):
     with open(fn_timing,'wb') as fout:
         pickle.dump(dt_LV4,fout)
         print('OCN_LV4 timing info dict saved with pickle to: ',fn_timing)
-
 
 def run_hind_simulation(t1str,lvl,pkl_fnm):
     if lvl == 'LV1':
