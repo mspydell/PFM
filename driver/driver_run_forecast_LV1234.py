@@ -18,6 +18,8 @@ def driver_run_forecast_LV1234( pkl_fnm ):
     # get model information
     MI = initfuns.get_model_info( pkl_fnm )
 
+    initfuns.remove_zero_size_files( pkl_fnm )
+
     # this is the loop over the levels to run
     print('Starting the loop over levels to run!')
     for lvl in MI['levels_to_run']:

@@ -1497,6 +1497,8 @@ def run_fore_LV4(pkl_fnm):
     print('...done')
 
     print('making the web netcdf file...')
+    fn_hs = MI['lv4_his_name_full']
+    fn_gr = MI['lv4_grid_file']
     cmd_list = ['python','-W','ignore','web_functions.py','full_his_to_essential',fn_hs,fn_gr,pkl_fnm]
     os.chdir('../web_util')
     ret6 = subprocess.run(cmd_list)   
@@ -1528,7 +1530,7 @@ def run_fore_LV4(pkl_fnm):
     print('making LV4 history file plots and moving on (Popen)...')
     t01=datetime.now()
     cmd_list = ['python','-W','ignore','plotting_functions.py','make_all_his_figures','LV4',pkl_fnm]
-    pr4 = subprocess.run(cmd_list)   
+    pr4 = subprocess.Popen(cmd_list)   
     
     print('doing LV4 dye plots and waiting (Popen)...')
     fn_gr = MI['lv4_grid_file']

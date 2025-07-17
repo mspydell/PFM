@@ -8,7 +8,6 @@ import glob
 import shutil
 
 sys.path.append('../sdpm_py_util')
-import ocn_funs_forecast as ocnfuns
 
 def evaluate_function_from_file(file_path, function_name, *args):
     """
@@ -564,6 +563,51 @@ def update_PFM_pkl(t1str,lvl,pkl_fnm):
     PFM2[keystr3] = str3
     PFM2[keystr4] = str4
     edit_and_save_MI(PFM2,pkl_fnm)
+
+def delete_zero_size_files(directory_path):
+    """
+    Deletes all files with a size of zero bytes in the specified directory.
+
+    Args:
+        directory_path (str): The path to the directory to scan for zero-size files.
+    """
+    if not os.path.isdir(directory_path):
+        print(f"Error: Directory not found at '{directory_path}'")
+        return
+
+    for filename in os.listdir(directory_path):
+        file_path = os.path.join(directory_path, filename)
+        if os.path.isfile(file_path):  # Check if it's a file (not a directory)
+            try:
+                if os.path.getsize(file_path) == 0:
+                    os.remove(file_path)
+                    print(f"Deleted zero-size file: '{file_path}'")
+            except OSError as e:
+                print(f"Error deleting '{file_path}': {e}")
+
+def remove_zero_size_files( pkl_fnm ):
+    PFM = get_model_info(pkl_fnm)
+    dir_rst = PFM['restart_files_dir']
+    dir_cdip = PFM['cdip_data_dir']
+    dir_hyc = PFM['hycom_dir']
+    # remove zero size files in these directories...
+    for dr_path in [dir_rst,dir_cdip,dir_hyc]:
+        delete_zero_size_files(dr_path)
+
+    # remove *.tmp files in dir_hyc if there are any
+    directory_path = dir_hyc  # Replace with your directory path
+    target_extension = ".tmp"
+
+    for filename in os.listdir(directory_path):
+        if filename.endswith(target_extension):
+            file_path = os.path.join(directory_path, filename)
+            try:
+                os.remove(file_path)
+                print(f"Removed: {file_path}")
+            except OSError as e:
+                print(f"Error removing {file_path}: {e}")
+
+
    
 if __name__ == "__main__":
     args = sys.argv
