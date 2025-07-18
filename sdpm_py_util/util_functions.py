@@ -5,6 +5,11 @@ import warnings
 import pickle
 import shutil
 import sys
+import subprocess
+import datetime
+sys.path.append('../sdpm_py_util')
+import init_funs_forecast as initfuns
+
 
 def copy_mv_nc_file(nc_type,lvl,pkl_fnm):
     # this copies an atm.nc or river.nc file to the archive location
@@ -286,7 +291,45 @@ def display_timing_info(pkl_fnm):
 #print(f'max {vnm:6} = {mxx:6.3f} {ulist2[vnm]:5}      at  ( it, ilat, ilon)     =  ({ind_mx[0]:3},{ind_mx[1]:4},{ind_mx[2]:4})')
 
 
+def make_web_nc_file(pkl_fnm):
+    MI = initfuns.get_model_info(pkl_fnm)
+    fn_hs = MI['lv4_his_name_full']
+    fn_gr = MI['lv4_grid_file']
+    cmd_list = ['python','-W','ignore','web_functions.py','full_his_to_essential',fn_hs,fn_gr,pkl_fnm]
+    os.chdir('../web_util')
+    ret6 = subprocess.run(cmd_list)   
+    os.chdir('../driver')
+    return ret6
 
+def make_simulation_plots(lvs_to_plt,pkl_fnm):
+    procs = dict()
+    MI = initfuns.get_model_info(pkl_fnm)
+    for lvl in lvs_to_plt:
+        if lvl == 'LV4dye': # make dye plots too
+            print('doing LV4 dye plots and waiting (Popen)...')
+            fn_gr = MI['lv4_grid_file']
+            fn_hs = MI['lv4_his_name_full']
+            cmd_list = ['python','-W','ignore','plotting_functions.py','make_dye_plots',fn_gr,fn_hs,pkl_fnm]
+            os.chdir('../sdpm_py_util')
+            procs[lvl] = subprocess.Popen(cmd_list)   
+        else:
+            print('making ', lvl, ' history file plots and moving on (Popen)...')
+            cmd_list = ['python','-W','ignore','plotting_functions.py','make_all_his_figures',lvl,pkl_fnm]
+            os.chdir('../sdpm_py_util')
+            procs[lvl] = subprocess.Popen(cmd_list)   
+    
+    print('waiting for plotting to finish...')
+    exit_codes = []
+    for lvl in lvs_to_plt:
+        exit_codes.append(procs[lvl].wait()) # this waits for procesess to finish
+    print('...done waiting.')
+    
+    cnt = 0
+    for lvl in lvs_to_plt:
+        print(lvl, ' plots made correctly: ',exit_codes[cnt],' (0=yes)')
+        cnt = cnt + 1
+
+    os.chdir('../driver')
    
 class s_coordinate(object):
     def __init__(self, h, theta_b, theta_s, Tcline, N, hraw=None, zeta=None):

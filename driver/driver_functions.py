@@ -1295,7 +1295,6 @@ def run_fore_LV3(pkl_fnm):
 
 def run_fore_LV4(pkl_fnm):
     import init_funs_forecast as initfuns
-    from util_functions import copy_mv_nc_file
     MI = initfuns.get_model_info(pkl_fnm)
 
     level = 4
@@ -1490,87 +1489,12 @@ def run_fore_LV4(pkl_fnm):
     dt_roms = []
     dt_roms.append(t2-t1)
 
-    print('copying and moving files around ...')   
-    print('moving LV4 atm and river files to Archive...')
-    copy_mv_nc_file('atm','lv4',pkl_fnm)
-    copy_mv_nc_file('river','lv4',pkl_fnm)
-    print('...done')
-
-    print('making the web netcdf file...')
-    fn_hs = MI['lv4_his_name_full']
-    fn_gr = MI['lv4_grid_file']
-    cmd_list = ['python','-W','ignore','web_functions.py','full_his_to_essential',fn_hs,fn_gr,pkl_fnm]
-    os.chdir('../web_util')
-    ret6 = subprocess.run(cmd_list)   
-    print('...done making web nc file: ' + str(ret6.returncode) + ' (0=good)')  
-    os.chdir('../driver')
-    t02 = datetime.now()
-    print('this took:')
-    print(t02-t01)
-    dt_web = []
-    dt_web.append(t02-t01)
-
+ 
     dt_plotting = []
-    print('now making all of the plots for the entire simulation...')
-    t01 = datetime.now()
-    
-    print('making LV1 history file plots and moving on (Popen)...')
-    cmd_list = ['python','-W','ignore','plotting_functions.py','make_all_his_figures','LV1',pkl_fnm]
-    os.chdir('../sdpm_py_util')
-    pr1 = subprocess.Popen(cmd_list)   
-    
-    print('making LV2 history file plots and moving on (Popen)...')
-    cmd_list = ['python','-W','ignore','plotting_functions.py','make_all_his_figures','LV2',pkl_fnm]
-    pr2 = subprocess.Popen(cmd_list)   
-    
-    print('making LV3 history file plots and moving on (Popen)...')
-    cmd_list = ['python','-W','ignore','plotting_functions.py','make_all_his_figures','LV3',pkl_fnm]
-    pr3 = subprocess.Popen(cmd_list)   
-   
-    print('making LV4 history file plots and moving on (Popen)...')
-    t01=datetime.now()
-    cmd_list = ['python','-W','ignore','plotting_functions.py','make_all_his_figures','LV4',pkl_fnm]
-    pr4 = subprocess.Popen(cmd_list)   
-    
-    print('doing LV4 dye plots and waiting (Popen)...')
-    fn_gr = MI['lv4_grid_file']
-    fn_hs = MI['lv4_his_name_full']
-    cmd_list = ['python','-W','ignore','plotting_functions.py','make_dye_plots',fn_gr,fn_hs,pkl_fnm]
-    pr5 = subprocess.Popen(cmd_list)   
-    
-    print('waiting for plotting to finish...')
-    exit_codes = []
-    for pr in [pr1,pr2,pr3,pr4,pr5]:
-        exit_codes.append(pr.wait()) # this waits for pr1...pr5 to finish
-    
-    t02 = datetime.now()
-    dt_plotting.append(t02-t01)
-    print('...done waiting.')
-    print('plotting took:')
-    print(t02-t01)
-    print('LV1 history plots made correctly: ',exit_codes[0],' (0=yes)')
-    print('LV2 history plots made correctly: ',exit_codes[1],' (0=yes)')
-    print('LV3 history plots made correctly: ',exit_codes[2],' (0=yes)')
-    print('LV4 history plots made correctly: ',exit_codes[3],' (0=yes)')
-    print('LV4 dye     plots made correctly: ',exit_codes[4],' (0=yes)')
+    t1=datetime.now()
+    t2=datetime.now()
+    dt_plotting.append(t2-t1)
 
-    os.chdir('../driver')
-
-    #  this replace Falks copy_forecast_to_dataSIO.sh file
-    # implement later!
-    #t01=datetime.now()
-    #print('moving files to Archive and website and making history gifs...')
-    #cmd_list = ['python','-W','ignore','util_functions.py','end_of_sim_housekeeping',pkl_fnm]
-    #os.chdir('../web_util')
-    #ret6 = subprocess.run(cmd_list)   
-    #print('...done making web nc file: ' + str(ret6.returncode) + ' (0=good)')  
-    #os.chdir('../driver')
-    #t02 = datetime.now()
-    #print('this took:')
-    #print(t02-t01)
-
-    #print('...done')
-    #dt_plotting.append(datetime.now()-t01)
 
     dt_LV4 = {}
     dt_LV4['roms'] = dt_roms
@@ -1579,7 +1503,7 @@ def run_fore_LV4(pkl_fnm):
     dt_LV4['atm'] = dt_atm
     dt_LV4['plotting'] = dt_plotting
     dt_LV4['swan'] = dt_sw
-    dt_LV4['web'] = dt_web
+    #dt_LV4['web'] = dt_web
 
     fn_timing = MI['lv4_run_dir'] + '/LV4_timing_info.pkl'
     with open(fn_timing,'wb') as fout:
