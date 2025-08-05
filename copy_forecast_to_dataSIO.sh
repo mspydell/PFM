@@ -11,12 +11,20 @@ dateZ=$(date '+%Y%m%d')
 
 ##
 
+##  first delete netcdf files on website
+rm -rf /projects/www-users/falk/PFM_Forecast/LV4_His/LV*.nc
+
+## copy webdata to /dataSIO and website
+
+cp -f  /scratch/PFM_Simulations/LV4_Forecast/His/web*.nc     /projects/www-users/falk/PFM_Forecast/LV4_His/web_data_latest.nc
+cp -f  /scratch/PFM_Simulations/LV4_Forecast/His/web*.nc     /dataSIO/PFM_Simulations/Archive/for_web/web_data_latest.nc
+#cp -f  /scratch/PFM_Simulations/LV4_Forecast/His/LV4*.nc     /projects/www-users/falk/PFM_Forecast/LV4_His
 cp -f  /scratch/PFM_Simulations/LV4_Forecast/His/web*.nc     /dataSIO/PFM_Simulations/Archive/web
 
 ## copy LV1-LV3 plots to /dataSIO and
-cp -f  /scratch/PFM_Simulations/LV1_Forecast/Plots/his*png    /dataSIO/PFM_Simulations/Plots
-cp -f  /scratch/PFM_Simulations/LV2_Forecast/Plots/his*png    /dataSIO/PFM_Simulations/Plots
-cp -f  /scratch/PFM_Simulations/LV3_Forecast/Plots/his*png    /dataSIO/PFM_Simulations/Plots
+#cp -f  /scratch/PFM_Simulations/LV1_Forecast/Plots/his*png    /dataSIO/PFM_Simulations/Plots
+#cp -f  /scratch/PFM_Simulations/LV2_Forecast/Plots/his*png    /dataSIO/PFM_Simulations/Plots
+#cp -f  /scratch/PFM_Simulations/LV3_Forecast/Plots/his*png    /dataSIO/PFM_Simulations/Plots
 ## copy LV4 plots to /dataSIO 
 cp -f  /scratch/PFM_Simulations/LV4_Forecast/Plots/his*png    /dataSIO/PFM_Simulations/Plots
 cp -f  /scratch/PFM_Simulations/LV4_Forecast/Plots/dye*png    /dataSIO/PFM_Simulations/Plots
@@ -41,12 +49,12 @@ cp -f  /scratch/PFM_Simulations/LV4_Forecast/Run/LV4_forecast.log  /dataSIO/PFM_
 
 #### next copy over to website
 ##  first delete netcdf files on website
-rm -rf /projects/www-users/falk/PFM_Forecast/LV4_His/*.nc
+#rm -rf /projects/www-users/falk/PFM_Forecast/LV4_His/*.nc
 
 ## copy webdata to /dataSIO and website
 
-cp -f  /scratch/PFM_Simulations/LV4_Forecast/His/web*.nc     /projects/www-users/falk/PFM_Forecast/LV4_His/web_data_latest.nc
-cp -f  /scratch/PFM_Simulations/LV4_Forecast/His/LV4*.nc     /projects/www-users/falk/PFM_Forecast/LV4_His
+#cp -f  /scratch/PFM_Simulations/LV4_Forecast/His/web*.nc     /projects/www-users/falk/PFM_Forecast/LV4_His/web_data_latest.nc
+#cp -f  /scratch/PFM_Simulations/LV4_Forecast/His/LV4*.nc     /projects/www-users/falk/PFM_Forecast/LV4_His
 
 
 

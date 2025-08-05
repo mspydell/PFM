@@ -58,7 +58,7 @@ def create_model_info_dict():
     pfm_dir = '/scratch/PFM_Simulations/' # this stays fixed for Grids and executables
                                          # both forecasting and hindcasting use the same ones.
     
-    model_root_dir = '/scratch/matt/PFM_Simulations_v2/'          
+    model_root_dir = '/scratch/PFM_Simulations/'          
     
     if run_type == 'hindcast': # note hycom with tides starts on 2024-10-10 1200...
         sim_start_time = '2024101100' # the simulation start time is in yyyymmddhh format
@@ -98,10 +98,10 @@ def create_model_info_dict():
 
     PFM['executable_dir'] = pfm_dir + 'executables/'   # we will not make copies of executables and 
     pfm_grid_dir =  pfm_dir +  'Grids'                 # grids. PHM will use the ones in pfm_dir
-    lv1_root_dir =  model_root_dir +  'LV1/'
-    lv2_root_dir =  model_root_dir +  'LV2/'
-    lv3_root_dir =  model_root_dir +  'LV3/'
-    lv4_root_dir =  model_root_dir +  'LV4/'
+    lv1_root_dir =  model_root_dir +  'LV1_Forecast/'
+    lv2_root_dir =  model_root_dir +  'LV2_Forecast/'
+    lv3_root_dir =  model_root_dir +  'LV3_Forecast/'
+    lv4_root_dir =  model_root_dir +  'LV4_Forecast/'
 
     lv1_run_dir  = lv1_root_dir + 'Run'
     lv1_his_dir  = lv1_root_dir + 'His'
