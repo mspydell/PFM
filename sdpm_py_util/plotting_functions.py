@@ -1,4 +1,3 @@
-import matplotlib.pyplot as plt
 import numpy as np
 import cartopy
 import cartopy.crs as ccrs
@@ -13,6 +12,7 @@ import grid_functions as grdfuns
 import pickle
 import matplotlib.dates as mdates
 from matplotlib.gridspec import GridSpec
+import matplotlib.pyplot as plt
 import pandas as pd
 import requests
 import subprocess

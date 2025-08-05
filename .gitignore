@@ -4,3 +4,5 @@ __pychache__/
 *$py.class
 # weird files from hycom
 FMRC_*
+# the log files in the log directory
+log/

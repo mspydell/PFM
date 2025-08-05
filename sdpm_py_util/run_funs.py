@@ -34,8 +34,10 @@ def  make_LV1_dotin_and_SLURM( pkl_fnm , mod_type ):
 
     if mod_type == 'hind':
         D['mod_type']='HINDCAST'
+        D['partition'] = 'fast'
     else:
         D['mod_type']='FORECAST'
+        D['partition']= 'fast-hiprio'
 
     # this is where the varinfo.yaml file is located.
     # the original location was 
@@ -55,7 +57,8 @@ def  make_LV1_dotin_and_SLURM( pkl_fnm , mod_type ):
     # timing info
     dtsec         = PFM['tinfo']['L1','dtsec']
     D['ndtfast']  = PFM['tinfo']['L1','ndtfast']
-    forecast_days = PFM['tinfo']['L1','forecast_days']  #   forecast_days=2;
+    #forecast_days = PFM['tinfo']['L1','forecast_days']  #   forecast_days=2;
+    forecast_days = PFM['forecast_days']
     days_to_run   = forecast_days  #float(Ldir['forecast_days'])
     his_interval  = PFM['outputinfo']['L1','his_interval']
     rst_interval  = PFM['outputinfo']['L1','rst_interval']
@@ -222,8 +225,10 @@ def  make_LV2_dotin_and_SLURM( pkl_fnm , mod_type ):
 
     if mod_type == 'hind':
         D['mod_type']='HINDCAST'
+        D['partition'] = 'fast'
     else:
         D['mod_type']='FORECAST'
+        D['partition']= 'fast-hiprio'
 
     # this is where the varinfo.yaml file is located.
     # the original location was 
@@ -243,7 +248,8 @@ def  make_LV2_dotin_and_SLURM( pkl_fnm , mod_type ):
     # timing info
     dtsec         = PFM['tinfo']['L2','dtsec']
     D['ndtfast']  = PFM['tinfo']['L2','ndtfast']
-    forecast_days = PFM['tinfo']['L2','forecast_days']  #   forecast_days=2;
+#    forecast_days = PFM['tinfo']['L2','forecast_days']  #   forecast_days=2;
+    forecast_days = PFM['forecast_days']
     days_to_run   = forecast_days  #float(Ldir['forecast_days'])
     his_interval  = PFM['outputinfo']['L2','his_interval']
     rst_interval  = PFM['outputinfo']['L2','rst_interval']
@@ -401,8 +407,10 @@ def  make_LV3_dotin_and_SLURM( pkl_fnm , mod_type ):
 
     if mod_type == 'hind':
         D['mod_type']='HINDCAST'
+        D['partition'] = 'fast'
     else:
         D['mod_type']='FORECAST'
+        D['partition']= 'fast-hiprio'
 
     # this is where the varinfo.yaml file is located.
     # the original location was 
@@ -422,7 +430,8 @@ def  make_LV3_dotin_and_SLURM( pkl_fnm , mod_type ):
     # timing info
     dtsec         = PFM['tinfo']['L3','dtsec']
     D['ndtfast']  = PFM['tinfo']['L3','ndtfast']
-    forecast_days = PFM['tinfo']['L3','forecast_days']  #   forecast_days=2;
+#    forecast_days = PFM['tinfo']['L3','forecast_days']  #   forecast_days=2;
+    forecast_days = PFM['forecast_days']
     days_to_run   = forecast_days  #float(Ldir['forecast_days'])
     his_interval  = PFM['outputinfo']['L3','his_interval']
     rst_interval  = PFM['outputinfo']['L3','rst_interval']
@@ -585,8 +594,10 @@ def  make_LV4_coawst_dotins_dotsb(pkl_fnm,mod_type):
 
     if mod_type == 'hind':
         D['mod_type']='HINDCAST'
+        D['partition'] = 'fast'
     else:
         D['mod_type']='FORECAST'
+        D['partition']= 'fast-hiprio'
 
     # this is where the varinfo.yaml file is located.
     # the original location was 

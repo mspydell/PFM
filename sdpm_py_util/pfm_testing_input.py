@@ -40,28 +40,29 @@ def get_llbox(fname):
 # the function below MUST be called create_model_info_dict!!!
 def create_model_info_dict():
 
-    run_type = 'hindcast'
+    #run_type determines whether we do a forecast or a hindcast 
+    #run_type = 'hindcast'
+    run_type = 'forecast'
 
-    HOME = Path.home()
-    try:
-        HOSTNAME = os.environ['HOSTNAME']
-    except KeyError:
-        HOSTNAME = 'BLANK'
+    # is this needed...
+    #HOME = Path.home()
+    #try:
+    #    HOSTNAME = os.environ['HOSTNAME']
+    #except KeyError:
+    #    HOSTNAME = 'BLANK'
 
-    #run_type = 'forecast' # this is the switch to go from forecasting to hindcasting...
+    # PFM is the dictionary that contains all of the model information
+    PFM = dict()
+    PFM['run_type'] = run_type
 
     pfm_dir = '/scratch/PFM_Simulations/' # this stays fixed for Grids and executables
                                          # both forecasting and hindcasting use the same ones.
-    if run_type == 'forecast':
-       pfm_root_dir = '/scratch/PFM_Simulations/'       
-    else:
-       pfm_root_dir = '/scratch/PHM_Simulations/'       
-   
-    PFM = dict()
+    
+    model_root_dir = '/scratch/PFM_Simulations/'
+    
     if run_type == 'hindcast': # note hycom with tides starts on 2024-10-10 1200...
-        sim_start_time = '2024101900' # the simulation start time is in yyyymmddhh format
-        # 2024101100 is the 1st day of hycom with tides hycom data.
-        sim_end_time   = '2024102100' # this is the very last time of the full simulation
+        sim_start_time = '2024101100' # the simulation start time is in yyyymmddhh format
+        sim_end_time   = '2024101300' # this is the very last time of the full simulation
         PFM['forecast_days'] = 1.0 # for now we do 1 day sub simulations
         # set the simulation end time. An integer number of days past the start time
         # We will loop over days until we get to this time.
@@ -81,23 +82,32 @@ def create_model_info_dict():
         PFM['atm_dt_hr'] = 3
         PFM['server'] = 'swell'
     else:
+        PFM['levels_to_run'] = ['LV1','LV2','LV3','LV4']
         # hycom_new is the only forecast option
         ocn_model = 'hycom_new' # worked with 'hycom' but that is now (9/13/24) depricated      
-    
+        PFM['clean_start']=True
+        # where do we find, and save, the raw hycom data to...
+        PFM['hycom_dir'] = pfm_dir + 'hycom_data/'
+        PFM['Q_PB'] = -2.0 # m3/s flow at Punta Bandera
+        PFM['dye_PB'] = 0.5 # fraction of Q_PB that is raw WW
+       # this is where PFM saves atm forcing and river discharge to at end of PFM simulation
+        PFM['archive_dir'] = '/dataSIO/PFM_Simulations/Archive/Forcing/'
+        PFM['archive_web_dir'] = '/dataSIO/PFM_Simulations/Archive/web/'
+
     if ocn_model == 'hycom_new' or ocn_model == 'hycom_hind_wtide':
         add_tides=0 # the new version of hycom has tides, we don't need to add them
 
     PFM['executable_dir'] = pfm_dir + 'executables/'   # we will not make copies of executables and 
     pfm_grid_dir =  pfm_dir +  'Grids'                 # grids. PHM will use the ones in pfm_dir
-    lv1_root_dir =  pfm_root_dir +  'LV1_Forecast/'
-    lv2_root_dir =  pfm_root_dir +  'LV2_Forecast/'
-    lv3_root_dir =  pfm_root_dir +  'LV3_Forecast/'
-    lv4_root_dir =  pfm_root_dir +  'LV4_Forecast/'
+    lv1_root_dir =  model_root_dir +  'LV1_Forecast/'
+    lv2_root_dir =  model_root_dir +  'LV2_Forecast/'
+    lv3_root_dir =  model_root_dir +  'LV3_Forecast/'
+    lv4_root_dir =  model_root_dir +  'LV4_Forecast/'
 
     lv1_run_dir  = lv1_root_dir + 'Run'
     lv1_his_dir  = lv1_root_dir + 'His'
     lv1_forc_dir = lv1_root_dir + 'Forc'
-    lv1_tide_dir = lv1_root_dir + 'Tides'
+    lv1_tide_dir = pfm_dir + 'tide_data'
     lv1_plot_dir = lv1_root_dir + 'Plots'          
 
     lv2_run_dir  = lv2_root_dir + 'Run'
@@ -179,7 +189,7 @@ def create_model_info_dict():
             PFM['forecast_days'] = 5.0 #is the target 
             PFM['atm_dt_hr'] = 1
     
-    PFM['ecmwf_dir'] = '/scratch/PFM_Simulations/ecmwf_data/'
+    PFM['ecmwf_dir'] = pfm_dir + 'ecmwf_data/' # this is where the forecast ecmwf data goes
     PFM['ecmwf_all_pkl_name'] = 'ecmwf_all.pkl'
     PFM['ecmwf_pkl_roms_vars'] = 'ecmwf_roms_vars.pkl'
     PFM['ecmwf_pkl_on_roms_grid'] = 'ecmwf_on_romsgrid.pkl'
@@ -315,7 +325,6 @@ def create_model_info_dict():
     OP['L4','his_interval'] = 3600 # how often in sec outut is written to his.nc
     OP['L4','rst_interval'] = 0.25  # how often in days, a restart file is made. 
 
-    PFM['run_type'] = run_type
 
     # first the environment
     PFM['lv1_run_dir']  = lv1_run_dir
@@ -349,12 +358,20 @@ def create_model_info_dict():
     PFM['lv4_grid_file'] = lv4_grid_file
     PFM['lv4_model']     = lv4_model
 
+    PFM['dataSIO_plot_dir'] = '/dataSIO/PFM_Simulations/Plots/'
+    PFM['lv1_archive_his_dir'] = '/dataSIO/PFM_Simulations/Archive/LV1_His/'
+    PFM['lv2_archive_his_dir'] = '/dataSIO/PFM_Simulations/Archive/LV2_His/'
+    PFM['lv3_archive_his_dir'] = '/dataSIO/PFM_Simulations/Archive/LV3_His/'
+    PFM['lv4_archive_his_dir'] = '/dataSIO/PFM_Simulations/Archive/LV4_His/'
+    PFM['log_archive_dir']     = '/dataSIO/PFM_Simulations/Archive/Log/'
+
     if PFM['run_type'] == 'forecast':
-        PFM['hycom_data_dir'] = pfm_root_dir + 'hycom_data/'
+        PFM['hycom_data_dir'] = pfm_dir + 'hycom_data/'
     else:
         PFM['hycom_data_dir'] = '/dataSIO/PHM_Simulations/raw_download/hycom_nc/'
 
-    PFM['cdip_data_dir'] = pfm_root_dir + 'cdip_data'
+    # location of the forecast cdip data !!!
+    PFM['cdip_data_dir'] = pfm_dir + 'cdip_data' 
 
     PFM['lv1_tides_file']          = 'ocean_tide.nc'
     PFM['atm_tmp_pckl_file']       = 'atm_tmp_pckl_file.pkl'
@@ -375,6 +392,12 @@ def create_model_info_dict():
     PFM['lv1_executable']          = 'LV3_romsM_INTEL'
     PFM['lv2_executable']          = 'LV3_romsM_INTEL'
     PFM['lv3_executable']          = 'LV3_romsM_INTEL'
+    #PFM['lv1_executable']          = 'LV3_romsM_INTEL_new'
+    #PFM['lv2_executable']          = 'LV3_romsM_INTEL_new'
+    #PFM['lv3_executable']          = 'LV3_romsM_INTEL_new'
+    #PFM['lv1_executable']          = 'romsM_INTEL'
+    #PFM['lv2_executable']          = 'romsM_INTEL'
+    #PFM['lv3_executable']          = 'romsM_INTEL'
 
     if add_tides==1:
         PFM['lv1_adding_tides'] = 'yes'
@@ -417,6 +440,8 @@ def create_model_info_dict():
     PFM['lv4_swan_rst_int_hr']     = int( 24 * OP['L4','rst_interval'] )
     PFM['river_pckl_file_full']    = PFM['lv4_forc_dir'] + '/river_Q.pkl'
     
+    PFM['lv4_his_web_dir'] = '/projects/www-users/falk/PFM_Forecast/LV4_His/'
+
     PFM['modtime0']        = modtime0
     PFM['roms_time_units'] = roms_time_units
     PFM['ds_fmt']          = ds_fmt
@@ -435,10 +460,11 @@ def create_model_info_dict():
     PFM['outputinfo']     = OP
 
     # this is the switch to use restart files
-    PFM['restart_files_dir'] =  pfm_root_dir + 'restart_data' 
+    # restart_files_dir is where the restart file is saved
+    # and where the restart files are read from.
+    PFM['restart_files_dir'] =  pfm_dir + 'restart_data' 
 
-    # right now there are restarts from 2024-10-12 to 2024-10-19
-    PFM['lv1_use_restart']         = 1 # use_restart
+    PFM['lv1_use_restart']         = 1 # 1 == use_restart 
     PFM['lv2_use_restart']         = 1
     PFM['lv3_use_restart']         = 1
     PFM['lv4_use_restart']         = 1
@@ -493,6 +519,34 @@ def create_model_info_dict():
         PFM['sim_time_2'] = fetch_time2 + PFM['forecast_days']*timedelta(days=1)
         PFM['sim_start_time'] = PFM['sim_time_1']
         PFM['sim_end_time'] = PFM['sim_time_2']
+        
+        yyyymmddhh   = PFM['sim_start_time'].strftime("%Y%m%d%H")
+        yyyymmddhhmm = PFM['sim_start_time'].strftime("%Y%m%d%H") + '00'
+        end_str = PFM['sim_end_time'].strftime("%Y%m%d%H") + '00'
+        PFM['lv1_his_name'] = 'LV1_ocean_his_' + yyyymmddhhmm + '.nc'
+        PFM['lv1_rst_name'] = 'LV1_ocean_rst_' + yyyymmddhhmm + '_' + end_str + '.nc' 
+        PFM['lv1_his_name_full'] = PFM['lv1_his_dir'] + '/' + PFM['lv1_his_name']
+        PFM['lv1_rst_name_full'] = PFM['restart_files_dir'] + '/' + PFM['lv1_rst_name']
+        PFM['lv2_his_name'] = 'LV2_ocean_his_' + yyyymmddhhmm + '.nc'
+        PFM['lv2_rst_name'] = 'LV2_ocean_rst_' + yyyymmddhhmm + '_' + end_str + '.nc' 
+        PFM['lv2_his_name_full'] = PFM['lv2_his_dir'] + '/' + PFM['lv2_his_name']
+        PFM['lv2_rst_name_full'] = PFM['restart_files_dir'] + '/' + PFM['lv2_rst_name']
+        PFM['lv3_his_name'] = 'LV3_ocean_his_' + yyyymmddhhmm + '.nc'
+        PFM['lv3_rst_name'] = 'LV3_ocean_rst_' + yyyymmddhhmm + '_' + end_str + '.nc' 
+        PFM['lv3_his_name_full'] = PFM['lv3_his_dir'] + '/'  + PFM['lv3_his_name']
+        PFM['lv3_rst_name_full'] = PFM['restart_files_dir'] + '/' + PFM['lv3_rst_name']
+        PFM['lv4_his_name'] = 'LV4_ocean_his_' + yyyymmddhhmm + '.nc'
+        PFM['lv4_rst_name'] = 'LV4_ocean_rst_' + yyyymmddhhmm + '_' + end_str + '.nc' 
+        PFM['lv4_swan_rst_name']  = 'LV4_swan_rst_' + yyyymmddhhmm + '.dat' 
+        web_name = 'web_data_' + yyyymmddhh + '.nc'
+        PFM['lv4_web_name_full'] = PFM['lv4_his_dir'] + '/' + web_name
+        PFM['lv4_his_name_full'] = PFM['lv4_his_dir'] + '/'  + PFM['lv4_his_name']
+        PFM['lv4_rst_name_full'] = PFM['restart_files_dir'] + '/' + PFM['lv4_rst_name']
+        PFM['lv4_swan_rst_name_full'] = PFM['restart_files_dir'] + '/' + PFM['lv4_swan_rst_name']
+    #     # get how often swan files are written. The 0.2 makes sure we check 5 times between 
+    #     # approximate writing times. based on CURRENT (12/13/24) coawst tiling!!! if 
+    #     # tiling changes this needs to change too!
+        PFM['lv4_swan_check_freq_sec'] = int( np.round( 0.2 * OP['L4','rst_interval'] * 2 * 3600 / 2.5 ) ) 
     else:
         fetch_time2 = PFM['sim_time_1']
         
@@ -501,9 +555,6 @@ def create_model_info_dict():
     end_time = fetch_time2 + PFM['forecast_days'] * timedelta(days=1)
     PFM['fore_end_time'] = end_time # the end time of the forecast
 
-    PFM['lv4_swan_check_freq_sec'] = int( np.round( 0.2 * OP['L4','rst_interval'] * 2 * 3600 / 2.5 ) ) 
-
-       
     return PFM
 
 

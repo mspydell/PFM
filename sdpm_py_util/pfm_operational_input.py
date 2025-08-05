@@ -5,9 +5,6 @@ All? paths are pathlib.Path objects.
 Users should copy this and edit it appropriately in get_model_info.
 """
  
-import os
-import pickle
-from pathlib import Path
 from datetime import datetime, timezone, timedelta
 import grid_functions as grdfuns
 import numpy as np
@@ -58,7 +55,8 @@ def create_model_info_dict():
     pfm_dir = '/scratch/PFM_Simulations/' # this stays fixed for Grids and executables
                                          # both forecasting and hindcasting use the same ones.
     
-    model_root_dir = '/scratch/PFM_Simulations/'          
+    #model_root_dir = '/scratch/matt/PFM_Simulations_v2/'  
+    model_root_dir = '/scratch/PFM_Simulations/'
     
     if run_type == 'hindcast': # note hycom with tides starts on 2024-10-10 1200...
         sim_start_time = '2024101100' # the simulation start time is in yyyymmddhh format
@@ -92,6 +90,7 @@ def create_model_info_dict():
         PFM['dye_PB'] = 0.5 # fraction of Q_PB that is raw WW
        # this is where PFM saves atm forcing and river discharge to at end of PFM simulation
         PFM['archive_dir'] = '/dataSIO/PFM_Simulations/Archive/Forcing/'
+        PFM['archive_web_dir'] = '/dataSIO/PFM_Simulations/Archive/web/'
 
     if ocn_model == 'hycom_new' or ocn_model == 'hycom_hind_wtide':
         add_tides=0 # the new version of hycom has tides, we don't need to add them
@@ -357,6 +356,13 @@ def create_model_info_dict():
     PFM['lv4_grid_file'] = lv4_grid_file
     PFM['lv4_model']     = lv4_model
 
+    PFM['dataSIO_plot_dir'] = '/dataSIO/PFM_Simulations/Plots/'
+    PFM['lv1_archive_his_dir'] = '/dataSIO/PFM_Simulations/Archive/LV1_His/'
+    PFM['lv2_archive_his_dir'] = '/dataSIO/PFM_Simulations/Archive/LV2_His/'
+    PFM['lv3_archive_his_dir'] = '/dataSIO/PFM_Simulations/Archive/LV3_His/'
+    PFM['lv4_archive_his_dir'] = '/dataSIO/PFM_Simulations/Archive/LV4_His/'
+    PFM['log_archive_dir']     = '/dataSIO/PFM_Simulations/Archive/Log/'
+
     if PFM['run_type'] == 'forecast':
         PFM['hycom_data_dir'] = pfm_dir + 'hycom_data/'
     else:
@@ -432,6 +438,8 @@ def create_model_info_dict():
     PFM['lv4_swan_rst_int_hr']     = int( 24 * OP['L4','rst_interval'] )
     PFM['river_pckl_file_full']    = PFM['lv4_forc_dir'] + '/river_Q.pkl'
     
+    PFM['lv4_his_web_dir'] = '/projects/www-users/falk/PFM_Forecast/LV4_His/'
+
     PFM['modtime0']        = modtime0
     PFM['roms_time_units'] = roms_time_units
     PFM['ds_fmt']          = ds_fmt
@@ -510,6 +518,7 @@ def create_model_info_dict():
         PFM['sim_start_time'] = PFM['sim_time_1']
         PFM['sim_end_time'] = PFM['sim_time_2']
         
+        yyyymmddhh   = PFM['sim_start_time'].strftime("%Y%m%d%H")
         yyyymmddhhmm = PFM['sim_start_time'].strftime("%Y%m%d%H") + '00'
         end_str = PFM['sim_end_time'].strftime("%Y%m%d%H") + '00'
         PFM['lv1_his_name'] = 'LV1_ocean_his_' + yyyymmddhhmm + '.nc'
@@ -527,6 +536,8 @@ def create_model_info_dict():
         PFM['lv4_his_name'] = 'LV4_ocean_his_' + yyyymmddhhmm + '.nc'
         PFM['lv4_rst_name'] = 'LV4_ocean_rst_' + yyyymmddhhmm + '_' + end_str + '.nc' 
         PFM['lv4_swan_rst_name']  = 'LV4_swan_rst_' + yyyymmddhhmm + '.dat' 
+        web_name = 'web_data_' + yyyymmddhh + '.nc'
+        PFM['lv4_web_name_full'] = PFM['lv4_his_dir'] + '/' + web_name
         PFM['lv4_his_name_full'] = PFM['lv4_his_dir'] + '/'  + PFM['lv4_his_name']
         PFM['lv4_rst_name_full'] = PFM['restart_files_dir'] + '/' + PFM['lv4_rst_name']
         PFM['lv4_swan_rst_name_full'] = PFM['restart_files_dir'] + '/' + PFM['lv4_swan_rst_name']
