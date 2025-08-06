@@ -47,6 +47,9 @@ def driver_run_hind_LV123( pkl_fnm ):
             os.chdir('../driver')
             cmd_list = ['python','driver_functions.py','run_hind_simulation',time1,lvl,pkl_fnm]
             ret1 = subprocess.run(cmd_list)     
+            if ret1.returncode != 0:
+                print('need to abort! run_hind_simulation didnt work. Aborting simulation!')
+                sys.exit(1)
             print('done with ' + lvl)
             print(lvl, ' hind ran correctly? ' + str(ret1.returncode) + ' (0=yes)')
             print('this took ')

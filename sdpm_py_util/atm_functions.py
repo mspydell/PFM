@@ -1055,6 +1055,19 @@ def atm_roms_dict_to_netcdf(lv,pkl_fnm,mod_type):
         fname_in  = PFM['lv4_forc_dir'] + '/' + PFM['atm_tmp_LV4_pckl_file']
         fname_out = PFM['lv4_forc_dir'] + '/' + PFM['lv4_atm_file'] 
     
+    file_path = fname_out
+    if os.path.exists(file_path):
+        try:
+            os.remove(file_path)
+            print(f"Previous file '{file_path}' has been deleted successfully.")
+        except PermissionError:
+            print(f"Permission denied to delete the file '{file_path}'.")
+        except Exception as e:
+            print(f"An error occurred while deleting the file: {e}")
+    else:
+        print(f"File '{file_path}' does not exist.")
+
+
     with open(fname_in,'rb') as fp:
         ATM_R = pickle.load(fp)
 

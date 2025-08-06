@@ -3366,7 +3366,9 @@ def make_all_tmp_pckl_ocnR_files_1hrzeta(pkl_fnm):
         ret1 = subprocess.run(cmd_list )     
         rctot = rctot + ret1.returncode
         if ret1.returncode != 0:
-            print('the ' + aa + ' pickle file was not made correctly')
+            print('the ' + aa + ' pickle file was not made correctly. Aborting!')
+            sys.exit(1)
+
 
     if rctot == 0: 
         print('...done. \nall 18 ocnR pickle files were made correctly')
@@ -3443,6 +3445,13 @@ def make_tmp_hy_on_rom_pckl_files_1hrzeta(fname_in,var_name,pkl_fnm):
 
     fn_temp = PFM['lv1_forc_dir'] + '/tmp_' + var_name + '.pkl'
 
+    print(fname_in)
+
+    if os.path.exists(fn_temp):
+        os.remove(fn_temp)
+        print(f"An old '{fn_temp}' was deleted.")
+        print("making a new one...")
+
     HYrm=dict()
     if var_name == 'vinfo':
         HYrm['vinfo']=dict()
@@ -3517,9 +3526,16 @@ def make_tmp_hy_on_rom_pckl_files_1hrzeta(fname_in,var_name,pkl_fnm):
         Fz = RegularGridInterpolator((HY['lat'],HY['lon']),HY['zeta'][0,:,:])
         HYrm[var_name] = np.zeros((NT,NZ,NR,NC))
         for cc in range(NT):
-            #print(cc)
             for bb in range(NZ):
                 zhy2 = HY[var_name][cc,bb,:,:]
+                nan_mask = np.isnan(zhy2)
+                num_nans = np.count_nonzero(nan_mask)
+                if num_nans == 0:
+                    print(f"there were no nans in {var_name} for it={cc} and iz={bb}")
+                    print(f"the mean of this is {np.mean(zhy2)}, the std is {np.std(zhy2)}")
+                    print(f"replacing this field with all nans...")
+                    zhy2 = np.nan * zhy2
+                    
                 HYrm[var_name][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],Fz)            
 
     elif var_name == 'urm' or var_name == 'vrm':
@@ -3541,6 +3557,21 @@ def make_tmp_hy_on_rom_pckl_files_1hrzeta(fname_in,var_name,pkl_fnm):
             for bb in range(NZ):
                 uhy = HY['u'][cc,bb,:,:]
                 vhy = HY['v'][cc,bb,:,:]
+                nan_masku = np.isnan(uhy)
+                nan_maskv = np.isnan(vhy)
+                num_nansu = np.count_nonzero(nan_masku)
+                num_nansv = np.count_nonzero(nan_maskv)
+                if num_nansu == 0:
+                    print(f"there were no nans in u for it={cc} and iz={bb}")
+                    print(f"the mean of this is {np.mean(uhy)}, the std is {np.std(uhy)}")
+                    print(f"replacing this field with all nans...")
+                    uhy = np.nan * uhy
+                if num_nansv == 0:
+                    print(f"there were no nans in v for it={cc} and iz={bb}")
+                    print(f"the mean of this is {np.mean(vhy)}, the std is {np.std(vhy)}")
+                    print(f"replacing this field with all nans...")
+                    vhy = np.nan * vhy
+
                 u1 = interp_hycom_to_roms(lnhy,lthy,uhy,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],Fz)
                 v1 = interp_hycom_to_roms(lnhy,lthy,vhy,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],Fz)            
                 if var_name == 'urm':
@@ -3570,6 +3601,7 @@ def make_tmp_hy_on_rom_pckl_files_1hrzeta(fname_in,var_name,pkl_fnm):
     elif var_name == 'ubar':
         HYrm[var_name] = np.zeros((NT,NR,NC-1))    
 
+    
     with open(fn_temp,'wb') as fp:
         pickle.dump(HYrm[var_name],fp)
 
@@ -5412,6 +5444,18 @@ def ocnr_2_BCdict_1hrzeta_from_tmppkls(fname_out,pkl_fnm):
     # and places them on the ROMS z levels
     # this returns another dictionary OCN_BC that has all needed fields 
     # for making the BC.nc file
+
+    file_path = fname_out
+    if os.path.exists(file_path):
+        try:
+            os.remove(file_path)
+            print(f"Previous file '{file_path}' has been deleted successfully.")
+        except PermissionError:
+            print(f"Permission denied to delete the file '{file_path}'.")
+        except Exception as e:
+            print(f"An error occurred while deleting the file: {e}")
+    else:
+        print(f"File '{file_path}' does not exist.")
 
     PFM=initfuns.get_model_info(pkl_fnm)   
     RMG = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])

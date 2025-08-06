@@ -96,6 +96,9 @@ def run_hind_LV1(t1str,pkl_fnm):
     #ocnfuns.make_all_tmp_pckl_ocnR_files(fn_pckl)
     os.chdir('../driver')
     print('subprocess return code? ' + str(ret1.returncode) +  ' (0=good)')
+    if ret1.returncode != 0:
+        print('need to abort! Aborting simulation!')
+        sys.exit(1)
 
     cmd_list = ['python','-W','ignore','ocn_functions.py','print_maxmin_HYrm_pickles',pkl_fnm]
     os.chdir('../sdpm_py_util')
@@ -1518,7 +1521,9 @@ def run_hind_simulation(t1str,lvl,pkl_fnm):
         ret1 = subprocess.run(cmd_list)   
         print('...finished LV1 hindcast.')
         print('return code: ' + str(ret1.returncode) + ' (0=good)')  
-        #run_hind_LV1(t1str,pkl_fnm)
+        if ret1.returncode != 0:
+            print('need to abort! Aborting simulation!')
+            sys.exit(1)
     if lvl == 'LV2':
         os.chdir('../driver')
         print('starting LV2 hindcast with subprocess...')
@@ -1526,7 +1531,9 @@ def run_hind_simulation(t1str,lvl,pkl_fnm):
         ret1 = subprocess.run(cmd_list)   
         print('...finished LV2 hindcast.')
         print('return code: ' + str(ret1.returncode) + ' (0=good)')  
-        #run_hind_LV2(t1str,pkl_fnm)
+        if ret1.returncode != 0:
+            print('need to abort! Aborting simulation!')
+            sys.exit(1)
     if lvl == 'LV3':
         os.chdir('../driver')
         print('starting LV3 hindcast with subprocess...')
@@ -1534,7 +1541,9 @@ def run_hind_simulation(t1str,lvl,pkl_fnm):
         ret1 = subprocess.run(cmd_list)   
         print('...finished LV3 hindcast.')
         print('return code: ' + str(ret1.returncode) + ' (0=good)')  
-        #run_hind_LV3(t1str,pkl_fnm)
+        if ret1.returncode != 0:
+            print('need to abort! Aborting simulation!')
+            sys.exit(1)
 
 def run_fore_simulation(lvl,pkl_fnm):
     if lvl == 'LV1':
