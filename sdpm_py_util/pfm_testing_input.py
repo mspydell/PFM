@@ -58,7 +58,6 @@ def create_model_info_dict():
     pfm_dir = '/scratch/PFM_Simulations/' # this stays fixed for Grids and executables
                                          # both forecasting and hindcasting use the same ones.
     
-    #model_root_dir = '/scratch/matt/PFM_Simulations_v2/'  
     model_root_dir = '/scratch/PFM_Simulations/'
     
     if run_type == 'hindcast': # note hycom with tides starts on 2024-10-10 1200...

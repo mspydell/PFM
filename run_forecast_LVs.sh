@@ -10,7 +10,8 @@ cd /home/ffeddersen/PFM
 #Initialize conda, needed for conda activate to work
 eval "$(conda shell.bash hook)"
 # Activate the desired environment
-conda activate PFM-env
+#conda activate PFM-env
+conda activate PHM-env
 
 conda info --envs
 ########

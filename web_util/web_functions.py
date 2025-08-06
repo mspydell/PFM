@@ -62,13 +62,7 @@ def full_his_to_essential(his_fname,grd_fname,pkl_fnm):
             },
         )
 
-#    yyyymmddhh = times[0].strftime('%Y%m%d%H')
-#    fname_out = '/scratch/matt/PFM_Simulations_v2/LV4/His/web_data_'+yyyymmddhh+'.nc'
-#    yyyymmddhh   = PFM['sim_start_time'].strftime("%Y%m%d%H")
-#    web_name = 'web_data_' + yyyymmddhh + '.nc'
-#    PFM['lv4_web_name_full'] = PFM['lv4_his_dir'] + '/' + web_name
     fname_out = PFM['lv4_web_name_full'] 
-
     ds.to_netcdf(fname_out)
 
 
