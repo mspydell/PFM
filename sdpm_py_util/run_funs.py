@@ -87,7 +87,7 @@ def  make_LV1_dotin_and_SLURM( pkl_fnm , mod_type ):
     D['dstart'] = str(dt) + 'd0' # this is in the form xxxxx.5 due to 12:00 start time for hycom
 
         # Paths to forcing various file locations
-    D['lv1_grid_dir']      = PFM['lv1_grid_dir']
+    D['lv1_grid_full']     = PFM['lv1_grid_file_full'] 
     D['lv1_run_dir']       = PFM['lv1_run_dir']     
     D['lv1_forc_dir']      = PFM['lv1_forc_dir']   
     D['lv1_his_dir']       = PFM['lv1_his_dir']
@@ -135,6 +135,8 @@ def  make_LV1_dotin_and_SLURM( pkl_fnm , mod_type ):
         blank_sbfile = dot_in_dir +'/' +  'LV1_SLURM_BLANK.sb'
     
     print('for this LV1 simulation')
+    print('the grid file used is:')
+    print(D['lv1_grid_full'])
     print('history file made will be:')
     print(D['lv1_his_name_full'])
     print('restart file made will be:')
@@ -278,7 +280,7 @@ def  make_LV2_dotin_and_SLURM( pkl_fnm , mod_type ):
     D['dstart'] = str(dt) + 'd0' # this is in the form xxxxx.5 due to 12:00 start time for hycom
 
     # Paths to forcing various file locations
-    D['lv2_grid_dir'] = PFM['lv2_grid_dir']
+    D['lv2_grid_full'] = PFM['lv2_grid_file_full'] 
     D['lv2_run_dir']  = PFM['lv2_run_dir']     
     D['lv2_forc_dir'] = PFM['lv2_forc_dir']   
     D['lv2_his_dir']  = PFM['lv2_his_dir']
@@ -318,6 +320,8 @@ def  make_LV2_dotin_and_SLURM( pkl_fnm , mod_type ):
     D['lv2_executable'] = PFM['executable_dir']  + PFM['lv2_executable']
     
     print('for this LV2 simulation')
+    print('the grid file used is:')
+    print(D['lv2_grid_full'])
     print('history file made will be:')
     print(D['lv2_his_name_full'])
     print('restart file made will be:')
@@ -460,7 +464,7 @@ def  make_LV3_dotin_and_SLURM( pkl_fnm , mod_type ):
     D['dstart'] = str(dt) + 'd0' # this is in the form xxxxx.5 due to 12:00 start time for hycom
 
         # Paths to forcing various file locations
-    D['lv3_grid_dir'] = PFM['lv3_grid_dir']
+    D['lv3_grid_full'] = PFM['lv3_grid_file_full']
     D['lv3_run_dir']  = PFM['lv3_run_dir']     
     D['lv3_forc_dir'] = PFM['lv3_forc_dir']   
     D['lv3_his_dir']  = PFM['lv3_his_dir']
@@ -499,6 +503,8 @@ def  make_LV3_dotin_and_SLURM( pkl_fnm , mod_type ):
     D['lv3_executable'] = PFM['executable_dir']  + PFM['lv3_executable']
 
     print('for this LV3 simulation')
+    print('the grid file used is:')
+    print(D['lv3_grid_full'])
     print('history file made will be:')
     print(D['lv3_his_name_full'])
     print('restart file made will be:')
@@ -656,7 +662,7 @@ def  make_LV4_coawst_dotins_dotsb(pkl_fnm,mod_type):
     D['dstart'] = str(dt) + 'd0' # this is in the form xxxxx.5 due to 12:00 start time for hycom
 
         # Paths to forcing various file locations
-    D['lv4_grid_dir'] = PFM['lv4_grid_dir']
+    D['lv4_grid_full'] = PFM['lv4_grid_file_full']
     D['lv4_run_dir']  = PFM['lv4_run_dir']     
     D['lv4_forc_dir'] = PFM['lv4_forc_dir']   
     D['lv4_his_dir']  = PFM['lv4_his_dir']

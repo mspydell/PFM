@@ -1046,7 +1046,7 @@ PIO_I2C_Preq = 65                 ! Maximum pending I2C requests
 
 ! Input NetCDF file names, [1:Ngrids].
 
-     GRDNAME == $lv3_grid_dir$/GRID_SDTJRE_LV3_rx020.nc
+     GRDNAME == $lv3_grid_full$
      ININAME == $lv3_ini_file$
      ITLNAME == roms_itl.nc
      IRPNAME == roms_irp.nc

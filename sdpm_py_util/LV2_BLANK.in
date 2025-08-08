@@ -1059,7 +1059,7 @@ PIO_I2C_Preq = 65                 ! Maximum pending I2C requests
 
 ! Input NetCDF file names, [1:Ngrids].
 
-     GRDNAME == $lv2_grid_dir$/GRID_SDTJRE_LV2_rx020.nc
+     GRDNAME == $lv2_grid_full$
      ININAME == $lv2_ini_file$
      ITLNAME == ocean_itl.nc
      IRPNAME == ocean_irp.nc
