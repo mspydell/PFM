@@ -439,6 +439,7 @@ def create_model_info_dict():
     PFM['river_pckl_file_full']    = PFM['lv4_forc_dir'] + '/river_Q.pkl'
     
     PFM['lv4_his_web_dir'] = '/projects/www-users/falk/PFM_Forecast/LV4_His/'
+    PFM['lv4_for_web_dir'] = '/dataSIO/PFM_Simulations/Archive/for_web/'
 
     PFM['modtime0']        = modtime0
     PFM['roms_time_units'] = roms_time_units

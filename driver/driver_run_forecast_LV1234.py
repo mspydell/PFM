@@ -40,11 +40,15 @@ def driver_run_forecast_LV1234( pkl_fnm ):
         if lvl == 'LV4':
             print('making web.nc file...')
             t01 = datetime.now()
+            print('current time is:')
+            print(t01)
             ret = utilfuns.make_web_nc_file(pkl_fnm)
             t02 = datetime.now()
             print('...done making web nc file: ' + str(ret.returncode) + ' (0=good)')  
             print('this took:')
             print(t02-t01)
+            print('current time is:')
+            print(t02)
 
             print('copying and moving LV4 atm and river nc files to Archive...')
             utilfuns.copy_mv_nc_file('atm','lv4',pkl_fnm)
@@ -52,19 +56,28 @@ def driver_run_forecast_LV1234( pkl_fnm ):
             print('...done')
 
 
-    lvs_to_plt = ['LV1','LV2','LV3','LV4','LV4dye']
+    #lvs_to_plt = ['LV1','LV2','LV3','LV4','LV4dye']
+    lvs_to_plt = ['LV4','LV4dye']
     print('making history and dye plots for levels...')
     print(lvs_to_plt)
     t01 = datetime.now()
+    print('current time is:')
+    print(t01)
+
     utilfuns.make_simulation_plots(lvs_to_plt,pkl_fnm)
     t02 = datetime.now()
     print('...done. plotting took:')
     print(t02-t01)
+    print('current time is:')
+    print(t02)
+
 
     print('moving files around (FFs .sh file stuff)...')
     use_FF = 1
     if use_FF == 1:
-        print('using FFs shell script!')
+        print('going to use FFs shell script after python finishes!!! ')
+        print('current time is:')
+        print(datetime.now())
     else:
         print('using python the function utilfuns.end_of_sim_housekeeping...')
         utilfuns.end_of_sim_housekeeping(pkl_fnm)

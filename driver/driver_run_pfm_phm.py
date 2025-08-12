@@ -37,7 +37,10 @@ def driver_run_pfm_phm( input_py_full, pkl_fnm ):
         cmd_list = ['python','-u','-W','ignore','driver_run_forecast_LV1234.py','driver_run_forecast_LV1234',pkl_fnm]
         ret1 = subprocess.run(cmd_list)     
         print('\n!Finished the forecast subprocess!\n')
-        print('return code:',str(ret1.returncode),' (0=good)')     
+        print('return code:',str(ret1.returncode),' (0=good)')
+        print('displaying the timing info table (last python thing to do!)...')
+        print('current time is:')
+        print(datetime.now())     
         utilfuns.display_timing_info(pkl_fnm)
 
 

@@ -72,16 +72,17 @@ def end_of_sim_housekeeping(pkl_fnm):
     PFM = get_model_info(pkl_fnm)
     yyyymmdd = PFM['yyyymmdd']
     ##  first delete previous netcdf files on website directory
-    web_dir = PFM['lv4_his_web_dir']
-    archive_web_dir = PFM['archive_web_dir']
-    delete_files_by_extension(web_dir, ".nc")
+    # this stuff is now done when making the web.nc file
+    #web_dir = PFM['lv4_his_web_dir']
+    #archive_web_dir = PFM['archive_web_dir']
+    #delete_files_by_extension(web_dir, ".nc")
     ## copy web.nc file to website and Archive
-    shutil.copy(PFM['lv4_web_name_full'],web_dir)
-    shutil.copy(PFM['lv4_web_name_full'],archive_web_dir)    
+    #shutil.copy(PFM['lv4_web_name_full'],web_dir)
+    #shutil.copy(PFM['lv4_web_name_full'],archive_web_dir)    
     # Rename the web.nc file on website
-    original_name_in_dest = os.path.join(web_dir, os.path.basename(PFM['lv4_web_name_full']))
-    new_path_in_dest = os.path.join(web_dir, 'web_data_latest.nc')
-    shutil.move(original_name_in_dest, new_path_in_dest)
+    #original_name_in_dest = os.path.join(web_dir, os.path.basename(PFM['lv4_web_name_full']))
+    #new_path_in_dest = os.path.join(web_dir, 'web_data_latest.nc')
+    #shutil.move(original_name_in_dest, new_path_in_dest)
 
     # copy all plots to dataSIO
     pattern = "his*.png"
@@ -299,6 +300,28 @@ def make_web_nc_file(pkl_fnm):
     os.chdir('../web_util')
     ret6 = subprocess.run(cmd_list)   
     os.chdir('../driver')
+    fn_wb = MI['lv4_web_name_full'] 
+    print('moving and copying', fn_wb, ' file')
+    #web_dir = MI['lv4_his_web_dir']
+    
+    #MI['lv4_for_web_dir'] = '/dataSIO/PFM_Simulations/Archive/for_web/'
+
+    web_dir = MI['lv4_for_web_dir']
+    archive_web_dir = MI['archive_web_dir']
+    print('to ', web_dir, ' and ', archive_web_dir)
+    delete_files_by_extension(web_dir, ".nc")
+    ## copy web.nc file to website and Archive
+    print('copying web.nc to /dataSIO/... now...')
+    shutil.copy(MI['lv4_web_name_full'],web_dir)
+    shutil.copy(MI['lv4_web_name_full'],archive_web_dir)    
+    # Rename the web.nc file on website to web_data_latest.nc
+    original_name_in_dest = os.path.join(web_dir, os.path.basename(MI['lv4_web_name_full']))
+    new_path_in_dest = os.path.join(web_dir, 'web_data_latest.nc')
+    print('renaming ', original_name_in_dest, ' to ')
+    print(new_path_in_dest)
+    shutil.move(original_name_in_dest, new_path_in_dest)
+    print('...done!')
+
     return ret6
 
 def make_simulation_plots(lvs_to_plt,pkl_fnm):
