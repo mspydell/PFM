@@ -3473,15 +3473,33 @@ def make_tmp_hy_on_rom_pckl_files_1hrzeta(fname_in,var_name,pkl_fnm):
             zhy2 = HY[var_name][cc,:,:]
             HYrm[var_name][cc,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],Fz)            
 
+#    elif var_name == 'salt' or var_name == 'temp':
+        #print('in here ' + var_name)
+#        Fz = RegularGridInterpolator((HY['lat'],HY['lon']),HY['zeta'][0,:,:])
+#        HYrm[var_name] = np.zeros((NT,NZ,NR,NC))
+#        for cc in range(NT):
+#            #print(cc)
+#            for bb in range(NZ):
+#                zhy2 = HY[var_name][cc,bb,:,:]
+#                HYrm[var_name][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],Fz)            
+
     elif var_name == 'salt' or var_name == 'temp':
         #print('in here ' + var_name)
         Fz = RegularGridInterpolator((HY['lat'],HY['lon']),HY['zeta'][0,:,:])
         HYrm[var_name] = np.zeros((NT,NZ,NR,NC))
         for cc in range(NT):
-            #print(cc)
             for bb in range(NZ):
                 zhy2 = HY[var_name][cc,bb,:,:]
+                nan_mask = np.isnan(zhy2)
+                num_nans = np.count_nonzero(nan_mask)
+                if num_nans == 0:
+                    print(f"there were no nans in {var_name} for it={cc} and iz={bb}")
+                    print(f"the mean of this is {np.mean(zhy2)}, the std is {np.std(zhy2)}")
+                    print(f"replacing this field with all nans...")
+                    zhy2 = np.nan * zhy2
+                    
                 HYrm[var_name][cc,bb,:,:] = interp_hycom_to_roms(lnhy,lthy,zhy2,RMG['lon_rho'],RMG['lat_rho'],RMG['mask_rho'],Fz)            
+
 
     elif var_name == 'urm' or var_name == 'vrm':
         #print('doing ' + var_name)
