@@ -2,18 +2,12 @@ import os
 import sys
 import pickle
 import numpy as np
-from pathlib import Path
+import netCDF4
 from datetime import datetime, timezone, timedelta, date
-from get_PFM_info import get_PFM_info
 import glob
 import shutil
-import netCDF4
-import cftime
 
 sys.path.append('../sdpm_py_util')
-import ocn_functions as ocnfuns
-
-
 
 def evaluate_function_from_file(file_path, function_name, *args):
     """
@@ -78,9 +72,9 @@ def get_hindcast_days(t1,tend,dt):
 def initialize_model(input_py_full,modinfo_pkl_full):
     # this makes the pickle file from the model_input_dictionary
     # first return the dictionary of model info
-    print('first, we need all the model information.')
-    print('from ' + input_py_full)
-    print('we create a dictionary of model info')
+    print('The model information in:')
+    print(input_py_full)
+    print('is turned into a .pkl file of model info.')
     MINFO = evaluate_function_from_file( input_py_full , 'create_model_info_dict')
     # now we save the MINFO dict to a pickle file
 
@@ -89,11 +83,11 @@ def initialize_model(input_py_full,modinfo_pkl_full):
         t_starts, t_ends = get_hindcast_days(MINFO['sim_start_time'],MINFO['sim_end_time'],MINFO['forecast_days'])
         MINFO['start_times_str'] = t_starts
         MINFO['end_times_str'] = t_ends
-    
+
     with open(modinfo_pkl_full,'wb') as fout:
-        pickle.dump(MINFO,fout)
-        print('the model_info dictionary is saved to ' + modinfo_pkl_full)
-        print('this file dictates how the model is run, where files are saved, etc.')
+        pickle.dump(MINFO,fout, protocol=pickle.HIGHEST_PROTOCOL)
+        print('The model_info dictionary is saved to ' + modinfo_pkl_full)
+        print('This file dictates how the model is run, where files are saved, etc.\n')
 
 
 def get_model_info(pkl_fnm):
@@ -136,7 +130,7 @@ def add_file_names_2MI(yyyymmddhh,pkl_fnm):
     PFM['lv4_swan_rst_name_full'] = PFM['restart_files_dir'] + '/' + PFM['lv4_swan_rst_name']
 
     with open(pkl_fnm,'wb') as fout:
-        pickle.dump(PFM,fout)
+        pickle.dump(PFM,fout, protocol=pickle.HIGHEST_PROTOCOL)
         print('the model_info dictionary was resaved to ' + pkl_fnm)
         print('with properly time stamped output file names')
     
@@ -155,7 +149,7 @@ def print_initial_model_info(pkl_fnm):
     t1str = t1.strftime('%Y-%m-%d %H:%M') 
     t2str = t2.strftime('%Y-%m-%d %H:%M') 
     dtstr = str(MI['forecast_days'])
-    nsims = len(MI['start_times_str'])
+    #nsims = len(MI['start_times_str'])
     lvlstr = ', '.join(MI['levels_to_run'])
 
     nn = 60 # total spaces
@@ -165,71 +159,19 @@ def print_initial_model_info(pkl_fnm):
     print(f"{run_type : <60}")
     print(f"{'from           : ' + t1str : <60}")
     print(f"{'to             : ' + t2str : <60}")
-    print(f"{'in             : ' + dtstr + ' day chunks (if hindcast)' : <60}")
-    if run_type == 'hindcast':
-        print(f"{'we will do     : ' + str(nsims) + ' separate ' + dtstr + ' day sims' : <60}")
+    print(f"{'in a           : ' + dtstr + ' day chunk' : <60}")
     print(f"{'atm model      : ' + MI['atm_model'] : <60}")
     print(f"{'ocean_model    : ' + MI['ocn_model'] : <60}")
     print(f"{'running levels : ' + lvlstr : <60}")
 
-def determine_hycom_foretime():
-    PFM=get_PFM_info()
-    # return the hycom forecast date based on the PFM simulation times
 
-    fetch_time = PFM['fetch_time'] # the start of the PFM forecast
-    hy_time = datetime(fetch_time.year,fetch_time.month,fetch_time.day)
-    hy_time = hy_time - timedelta(days=1)
-    yyyymmdd = "%d%02d%02d" % (hy_time.year, hy_time.month, hy_time.day)
-
-    # these times do not change!!!
-    t1  = fetch_time                                     # this is the first time of the PFM forecast
-    t2  = t1 + PFM['forecast_days'] * timedelta(days=1)  # this is the last time of the PFM forecast
-
-    print('making a PFM simulation starting from')
-    print(t1)
-    print('and ending at')
-    print(t2)
-    print('getting the right hycom data...')
-    # make stuff below this into a function...
-    # n0 is the number of files we should have
-    # num_missing is the number of files we are missing
-    num_missing = 10
-    days_off = 1
-    while num_missing > 0:
-        n0, num_missing = ocnfuns.check_hycom_data(yyyymmdd,[t1,t2])
-        print('there should be ' + str(n0) + ' files.')
-        print('there are ' + str(num_missing) + ' missing files.')
-
-        if num_missing > 0:
-            # try downloading all of the data again
-            print('we did not have the files from the ' + yyyymmdd + ' hycom forecast')
-            print('but we will try getting that data again. Maybe hycom filled in their .nc files?')
-            ocnfuns.get_hycom_data(yyyymmdd)
-            n02, num_missing2 = ocnfuns.check_hycom_data(yyyymmdd,[t1,t2])
-            if num_missing2 == 0:
-                num_missing = 0
-            else:
-                print('we need the change the date of the hycom forecast (but not change the dates of the PFM forecast)')
-                hy_time = hy_time - timedelta(days=1)
-                yyyymmdd = "%d%02d%02d" % (hy_time.year, hy_time.month, hy_time.day)
-                days_off = days_off + 1
-                if days_off > 4:
-                    num_missing = -10
-                    return num_missing
-
-    return yyyymmdd
-
-
-def initialize_simulation(args):
-    if isinstance(args,bool) == True:
-        clean_start = args
-    else:
-        clean_start = args[0]
+def initialize_simulation(pkl_fnm):
+    PFM=get_model_info(pkl_fnm)
+    
+    clean_start = PFM['clean_start']
 
     if clean_start:
-        print('we are going to start clean...')
-        print('getting PFM info...')
-        PFM=get_PFM_info()
+        print('We are starting clean.')
 
         dirs=[PFM['lv1_his_dir'],PFM['lv1_plot_dir'],PFM['lv1_forc_dir'],
               PFM['lv2_his_dir'],PFM['lv2_plot_dir'],PFM['lv2_forc_dir'],
@@ -238,7 +180,7 @@ def initialize_simulation(args):
 
         runl = ['/*.out','/*.sb','/*.log','/*.in','*_timing_info.pkl']
 
-        print('cleaning out directories...')
+        print('Removing files from directories...')
         for dd in dirs: # for everything but run dir
             if 'Forc' in dd or 'His' in dd:
                 ddd = dd + '/*.*'
@@ -254,7 +196,10 @@ def initialize_simulation(args):
         for f in glob.glob(PFM['lv4_run_dir'] + '/Err*'):
             os.remove(f)
 
-        if isinstance(args,bool) == False:
+        print('...done.')
+        PFM = get_model_info(pkl_fnm)
+        if clean_start == False:
+            print('we are NOT starting clean. Setting up simulation times etc...')
             yyyymmdd = args[1]
             print('now changing the start date to: ', yyyymmdd)
             start_time  = datetime.now()
@@ -267,45 +212,17 @@ def initialize_simulation(args):
             PFM['start_time'] = start_time
             PFM['utc_time']   = utc_time
             print('fetch_time is now: ', fetch_time)
-            print('resaving the PFM.pkl file with specified start time.')
+            print('resaving the PFM.pkl file with specified start time...')
             with open(PFM['info_file'],'wb') as fout:
-                pickle.dump(PFM,fout)
+                pickle.dump(PFM,fout, protocol=pickle.HIGHEST_PROTOCOL)
                 print('PFM info was resaved as ' + PFM['info_file'])
 
     else:
         print('we are NOT starting clean.')
         print('NO files are being deleted.')        
 
-
-def remake_PFM_pkl_file(args):
-    print('we are remaking the PFM.pkl file...')
-    print('getting PFM info...')
-    PFM=get_PFM_info()
-
-    print('removing PFM info file...')
-    os.remove(PFM['info_file'])
-
-    PFM=get_PFM_info()
- 
-    if args != 0:
-        yyyymmdd = args
-        print('now changing the start date to: ', yyyymmdd)
-        start_time  = datetime.now()
-        utc_time    = datetime.now(timezone.utc)
-        fetch_time  = date(int(yyyymmdd[0:4]),int(yyyymmdd[4:6]),int(yyyymmdd[6:8]))
-        PFM['yyyymmdd']   = yyyymmdd
-        PFM['hhmm']       = '1200'
-        PFM['fetch_time'] = fetch_time
-        PFM['start_time'] = start_time
-        PFM['utc_time']   = utc_time
-        print('fetch_time is now: ', fetch_time)
-        print('resaving the PFM.pkl file with specified start time.')
-        with open(PFM['info_file'],'wb') as fout:
-            pickle.dump(PFM,fout)
-            print('PFM info was resaved as ' + PFM['info_file'])
-
-def move_restart_ncs():
-    PFM = get_PFM_info()
+def move_restart_ncs(pkl_fnm):
+    PFM = get_model_info(pkl_fnm)
     PFM['restart_file_dir'] = '/scratch/PFM_Simulations/restart_data'
     rst_dirs = [PFM['lv1_forc_dir'],PFM['lv2_forc_dir'],PFM['lv3_forc_dir'],PFM['lv4_forc_dir']]
     for pp in rst_dirs:
@@ -319,8 +236,8 @@ def move_restart_ncs():
                 fnew = PFM['restart_file_dir'] + '/' + tail
                 shutil.move(f,fnew)
 
-def remove_old_restart_ncs():
-    PFM = get_PFM_info()
+def remove_old_restart_ncs(pkl_fnm):
+    PFM = get_model_info(pkl_fnm)
     #PFM['restart_files_dir'] = '/scratch/PFM_Simulations/restart_data'
     for lvl in ['LV1','LV2','LV3','LV4']:
         rst_files = glob.glob(PFM['restart_files_dir'] + '/' + lvl + '*.nc')
@@ -348,10 +265,10 @@ def find_restart_index(datetime_list, target_datetime):
     ind = -99    
     return ind
 
-def get_swan_restart_file_name():
+def get_swan_restart_file_name(pkl_fnm):
 
     fnm_swan = None
-    PFM = get_PFM_info()
+    PFM = get_model_info(pkl_fnm)
     t_fore = PFM['fetch_time'] 
     print('going to restart swan, forecast start time is')
     print(t_fore)
@@ -403,7 +320,6 @@ def get_restart_file_and_index(lvl,pkl_fnm):
     print('going to restart ' + lvl + ' from')
     print(t_fore)
     rst_files = glob.glob(PFM['restart_files_dir'] + '/' + lvl + '*.nc')
-    print(rst_files)
     dts = []
     for rf in rst_files:
         head, tail = os.path.split(rf)
@@ -447,11 +363,11 @@ def edit_and_save_MI(dict_in,pkl_fnm):
         PFM[ky] = dict_in[ky]
     
     with open(pkl_fnm,'wb') as fout:
-        pickle.dump(PFM,fout)
+        pickle.dump(PFM,fout, protocol=pickle.HIGHEST_PROTOCOL)
         print('PFM info was edited and resaved')
     
-def remove_old_swan_rst():
-    PFM = get_PFM_info()
+def remove_old_swan_rst(pkl_fnm):
+    PFM = get_model_info(pkl_fnm)
     PFM['restart_file_dir'] = '/scratch/PFM_Simulations/restart_data'
     rst_files = glob.glob(PFM['restart_file_dir'] + '/LV4*dat*')
     if len(rst_files)>0:
@@ -464,10 +380,10 @@ def remove_old_swan_rst():
             if tf<told:
                 print('removing old swan restart file:' + rf)
 
-def get_old_restart_files_list(ftype,older_than_days):
+def get_old_restart_files_list(ftype,older_than_days,pkl_fnm):
     # this function returns a list of files for ftype = 'ocean' or 'swan'
     # that are older than now-older_than_days
-    PFM = get_PFM_info()
+    PFM = get_model_info(pkl_fnm)
     
     dt_now = datetime.now()
     dt_test = dt_now - older_than_days * timedelta(days=1)
@@ -497,8 +413,8 @@ def get_old_restart_files_list(ftype,older_than_days):
 
     return file_list
 
-def remove_old_restart_files(ftype,older_than_days):
-    flist = get_old_restart_files_list(ftype,older_than_days)
+def remove_old_restart_files(ftype,older_than_days,pkl_fnm):
+    flist = get_old_restart_files_list(ftype,older_than_days,pkl_fnm)
     if len(flist)>0:
         print('there are ' + str(len(flist)) + ' ' + ftype + ' restart files to remove. Deleting them...')
         for fn in flist:
@@ -507,8 +423,8 @@ def remove_old_restart_files(ftype,older_than_days):
     else:
         print('there were no ' + ftype + ' restart files older than now minus ' + str(older_than_days) + ' days old')
 
-def remove_swan_restarts_eq_foretime():
-    PFM = get_PFM_info()
+def remove_swan_restarts_eq_foretime(pkl_fnm):
+    PFM = get_model_info(pkl_fnm)
     t_fore = PFM['fetch_time']    
     rst_files = glob.glob(PFM['restart_files_dir'] + '/LV4*dat*')
     i1 = 13
@@ -530,23 +446,23 @@ def remove_swan_restarts_eq_foretime():
         print('a previous forecast was run from this start time. Swan restart files from this forecast were deleted.')
 
 
-def remove_swan_rst_nohour():
+def remove_swan_rst_nohour(pkl_fnm):
     # this removes the files swan writes to that do not have hr time stamps, just keeps the restart directory clean.
     # we will call at the beginning of a PFM run.
-    PFM = get_PFM_info()
+    PFM = get_model_info(pkl_fnm)
     fns = glob.glob(PFM['restart_files_dir'] + '/LV4_swan_rst_????????????.dat-*')
     print('going to deleting swan base rst files...')
     if len(fns)>0:
+        print('deleting some files...')
         for fn in fns:
-            print('...deleting: ' + fn)
             os.remove(fn)
     else:
         print('...no swan base rst files to delete.')
 
-def remove_swan_rst_incomplete():
+def remove_swan_rst_incomplete(pkl_fnm):
     # we no longer call this function. Not needed.
     # this will delete swan restart files that were made if the simulation didn't complete 
-    PFM = get_PFM_info()
+    PFM = get_model_info(pkl_fnm)
     fns = glob.glob(PFM['restart_files_dir'] + '/LV4_swan_rst_????????????_000.dat-001')
     fores = [] # a list with all of the forecast times
     print('possibly deleting incomplete PFM simulation swan rst files...')
@@ -585,7 +501,7 @@ def restart_setup(lvl,pkl_fnm):
     if lvl == 'LV1':
         if PFM['run_type']=='forecast':
             print('removing ocean restart files older than now - ' + str(older_than_days) + ' days old...')
-            remove_old_restart_files('ocean',older_than_days)
+            remove_old_restart_files('ocean',older_than_days,pkl_fnm)
         key_rec = 'lv1_nrrec'
         key_file = 'lv1_ini_file'
     if lvl == 'LV2':
@@ -597,15 +513,15 @@ def restart_setup(lvl,pkl_fnm):
     if lvl == 'LV4':
         key_rec = 'lv4_nrrec'
         key_file = 'lv4_ini_file'
-        remove_swan_rst_nohour()
+        remove_swan_rst_nohour(pkl_fnm)
         #remove_swan_rst_incomplete()
         print('removing swan restart files older than now - ' + str(older_than_days) + ' days old...')
-        remove_old_restart_files('swan',older_than_days)
+        remove_old_restart_files('swan',older_than_days,pkl_fnm)
         # below ensure that swan looks for a previous forecast to find the correct restart data!
-        remove_swan_restarts_eq_foretime()
+        remove_swan_restarts_eq_foretime(pkl_fnm)
         if PFM['lv4_swan_use_rst'] == 1:
             fn0 = PFM['lv4_swan_rst_name'][0:13]
-            fnm_swan = get_swan_restart_file_name()
+            fnm_swan = get_swan_restart_file_name(pkl_fnm)
             #yyyymmdd_rm = fname1[14:26]
             #t_sw = tindex1 * PFM['lv4_swan_rst_int_hr']
             #t_sw_str = str(t_sw).zfill(3)
@@ -646,7 +562,52 @@ def update_PFM_pkl(t1str,lvl,pkl_fnm):
     PFM2[keystr2] = fname2 
     PFM2[keystr3] = str3
     PFM2[keystr4] = str4
-    edit_and_save_PFM(PFM2,pkl_fnm)
+    edit_and_save_MI(PFM2,pkl_fnm)
+
+def delete_zero_size_files(directory_path):
+    """
+    Deletes all files with a size of zero bytes in the specified directory.
+
+    Args:
+        directory_path (str): The path to the directory to scan for zero-size files.
+    """
+    if not os.path.isdir(directory_path):
+        print(f"Error: Directory not found at '{directory_path}'")
+        return
+
+    for filename in os.listdir(directory_path):
+        file_path = os.path.join(directory_path, filename)
+        if os.path.isfile(file_path):  # Check if it's a file (not a directory)
+            try:
+                if os.path.getsize(file_path) == 0:
+                    os.remove(file_path)
+                    print(f"Deleted zero-size file: '{file_path}'")
+            except OSError as e:
+                print(f"Error deleting '{file_path}': {e}")
+
+def remove_zero_size_files( pkl_fnm ):
+    PFM = get_model_info(pkl_fnm)
+    dir_rst = PFM['restart_files_dir']
+    dir_cdip = PFM['cdip_data_dir']
+    dir_hyc = PFM['hycom_dir']
+    # remove zero size files in these directories...
+    for dr_path in [dir_rst,dir_cdip,dir_hyc]:
+        delete_zero_size_files(dr_path)
+
+    # remove *.tmp files in dir_hyc if there are any
+    directory_path = dir_hyc  # Replace with your directory path
+    target_extension = ".tmp"
+
+    for filename in os.listdir(directory_path):
+        if filename.endswith(target_extension):
+            file_path = os.path.join(directory_path, filename)
+            try:
+                os.remove(file_path)
+                print(f"Removed: {file_path}")
+            except OSError as e:
+                print(f"Error removing {file_path}: {e}")
+
+
    
 if __name__ == "__main__":
     args = sys.argv

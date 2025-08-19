@@ -38,6 +38,16 @@ def  make_LV1_dotin_and_exec( pkl_fnm ):
     # D['roms_varinfo_dir'] = PFM['lv1_run_dir'] +  '/LV1_varinfo.yaml'  ## FIX!
     # and changing again to point to the ROMS varinfo.yaml 
     D['roms_varinfo_dir'] = '/home/vboatwright/boat_roms/roms/ROMS/External/varinfo.yaml'
+     
+
+    
+    print('check out the PFM to see grid files: ')
+    print(PFM)
+
+    
+    # set server
+    # added this to model_info_devel
+    # PFM['server'] = 'rockfish'
 
     # grid info
     D['ncols']  = PFM['gridinfo']['L1','Lm']
@@ -857,6 +867,9 @@ def  make_LV3_dotin_and_exec( pkl_fnm ):
     # again - point back to the main ROMS .yaml file 
     D['roms_varinfo_dir'] = '/home/vboatwright/boat_roms/roms/ROMS/External/varinfo.yaml'
 
+    # identify server: do this in the model_info_devel at some point
+    # added this to model_info_devel
+    # PFM['server'] = 'rockfish'
 
     
     # grid info
