@@ -1,7 +1,8 @@
 # library of river functions
 import sys
+import csv
+import os
 from datetime import datetime, timedelta
-from scipy.interpolate import RegularGridInterpolator
 from scipy.interpolate import interp1d
 
 import pickle
@@ -13,8 +14,6 @@ from netCDF4 import num2date
 sys.path.append('../sdpm_py_util')
 import grid_functions as grdfuns
 import init_funs_forecast as initfuns
-
-#from pydap.client import open_url
 
 def get_river_flow_nwm(yyyymmddhh,t_pfm_str,pkl_fnm):
     # yyyymmddhh is the start time of the river forecast
@@ -152,4 +151,152 @@ def get_river_temp(pkl_fnm):
     # temp_river_time is the mean over land at each time stamp.
     return temp_river, temp_river_time
 
+def download_ibwc_file(url, save_path):
+    """
+    Downloads a file from a given URL and saves it to a specified path.
+
+    Args:
+        url (str): The URL of the file to download.
+        save_path (str): The local path where the file will be saved.
+    """
+    try:
+        # Send a GET request to the URL
+        response = requests.get(url, stream=True) # Use stream=True for large files
+
+        # Check if the request was successful (status code 200)
+        if response.status_code == 200:
+            # Create the directory if it doesn't exist
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+            # Write the content of the response to a local file
+            with open(save_path, 'wb') as file:
+                for chunk in response.iter_content(chunk_size=8192):
+                    file.write(chunk)
+            print(f"File downloaded successfully: {save_path}")
+        else:
+            print(f"Failed to download file. Status code: {response.status_code}")
+    except requests.exceptions.RequestException as e:
+        print(f"Error during download: {e}")
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+
+def load_csv_skip_header_footer(filepath, header_rows=1, footer_rows=0, delimiter=','):
+    """
+    Loads a CSV file, skipping a specified number of header and footer rows.
+
+    Args:
+        filepath (str): The path to the CSV file.
+        header_rows (int): The number of rows to skip from the beginning (header).
+                           Defaults to 1 (skipping a single header row).
+        footer_rows (int): The number of rows to skip from the end (footer).
+                           Defaults to 0 (no footer rows skipped).
+        delimiter (str): The character used to separate values in the CSV.
+                         Defaults to a comma.
+
+    Returns:
+        list: A list of lists, where each inner list represents a row of data
+              from the CSV file, with header and footer rows removed.
+    """
+    data = []
+    with open(filepath, 'r', newline='') as csvfile:
+        reader = csv.reader(csvfile, delimiter=delimiter)
+
+        # Read all rows into a temporary list
+        all_rows = list(reader)
+
+        # Determine the effective start and end indices for data rows
+        start_index = header_rows
+        end_index = len(all_rows) - footer_rows
+
+        # Extract the data rows
+        if start_index < end_index:  # Ensure there are data rows to extract
+            data = all_rows[start_index:end_index]
+
+    return data
+
+def get_observed_TJriver_flow(custom_range,t1_str,t2_str):
+    #t1_str = '2024-10-10'
+    #t2_str = '2024-10-17'
+
+    if custom_range:
+        file_url = ('https://waterdata.ibwc.gov/AQWebportal/Export/BulkExport?DateRange=Custom&StartTime=' + 
+            t1_str + '%2000%3A00&EndTime=' + 
+            t2_str + '%2000%3A00&TimeZone=0&Calendar=CALENDARYEAR&Interval=PointsAsRecorded&Step=1&ExportFormat=csv&TimeAligned=True&RoundData=False&IncludeGradeCodes=False&IncludeApprovalLevels=False&IncludeQualifiers=False&IncludeInterpolationTypes=False&Datasets[0].DatasetName=Discharge.Best%20Available%4011013300&Datasets[0].Calculation=Instantaneous&Datasets[0].UnitId=128&_=1754421522237')
+    else:
+        file_url = 'https://waterdata.ibwc.gov/AQWebportal/Export/BulkExport?DateRange=Days7&TimeZone=0&Calendar=CALENDARYEAR&Interval=PointsAsRecorded&Step=1&ExportFormat=csv&TimeAligned=True&RoundData=False&IncludeGradeCodes=False&IncludeApprovalLevels=False&IncludeQualifiers=False&IncludeInterpolationTypes=False&Datasets[0].DatasetName=Discharge.Best%20Available%4011013300&Datasets[0].Calculation=Instantaneous&Datasets[0].UnitId=128&_=1754417066794'
+
+
+    local_save_path = "/home/mspydell/research/LV4_river_stuff/IBWC_Qtrje_custom.csv"
+
+    download_ibwc_file(file_url, local_save_path)
+    data = load_csv_skip_header_footer(local_save_path, header_rows=5, footer_rows=1, delimiter=',')
+    t_obs2 = []
+    q_obs2 = []
+    for row in data:
+        t_obs2.append(datetime.strptime(row[0],'%Y-%m-%d %H:%M:%S'))
+        q_obs2.append(float(row[1]))
+
+    t_obs = np.array(t_obs2)
+    q_obs = np.array(q_obs2)
+
+    return t_obs, q_obs
+
+def get_forecasted_Q_IBWC(pkl_fnm):
+    #file_in = '/scratch/PFM_Simulations/LV4_Forecast/Forc/river_Q.pkl'
+    PFM = initfuns.get_model_info(pkl_fnm)
+
+    file_in= PFM['river_pckl_file_full']
+    with open(file_in,'rb') as fp:
+        NWM = pickle.load(fp)
+
+    t_nwm = NWM['time']
+    q_nwm = NWM['discharge'][:,2]
+
+    # if the 1st argument below is False, then we get the most recent 7 days of data
+    # if True, then from '2025-08-01' to '2025-08-08' etc
+    # the last time stamp is about 1-2 hours before current time. Nice!
+    tobs,Qobs = get_observed_TJriver_flow(False,'2025-08-01','2025-08-08')
+
+    #tf_dt is the start time of the forecast in datetime
+    tf_dt = t_nwm[0] #datetime.strptime(t_fore,'%Y%m%d%H')
+    start_time = tf_dt - 1* timedelta(days=1)
+    end_time = tf_dt
+
+    # Create a boolean mask
+    # This directly compares datetime objects within the array
+    mask = (tobs >= start_time) & (tobs <= end_time)
+
+        # Get the indices where the mask is True
+    indices = np.where(mask)[0]
+        # take the mean over these indices
+        # this is persistence!
+    Qb1 = np.mean( Qobs[indices] )
+
+    # now get super persistence, or dry Q
+    mask2 = (Qobs<4)
+    i2 = np.where(mask2)[0]
+    Qb2 = np.mean( Qobs[i2] ) # this is super persistence
+    if 
+
+    print(Qb1)
+    print(Qb2)
+
+    # here is the persistence forecast
+    Qf_p = Qb1*np.ones(np.shape(t_nwm))
+
+    # here is persistence + NMW'
+    Qf_pnwm = Qf_p[:,0] + q_nwm - q_nwm[0]
     
+    # set up alpha
+    dt = t_nwm - t_nwm[0]
+    dt_sec = []
+    for dtt in dt:
+        dt_sec.append(dtt[0].total_seconds())
+    dt_day = np.array(dt_sec) / 3600 /24
+    tau_day = 1.5 # time scale to go from flow to dry
+    alpha = np.exp(-dt_day / tau_day)
+
+    # here is 1 day mean, to dry, with NWM' added too
+    # this one does pretty well over all
+    Q_new = Qf_p[:,0] * alpha + (1-alpha)*Qb2 + q_nwm - q_nwm[0]
+    return Q_new

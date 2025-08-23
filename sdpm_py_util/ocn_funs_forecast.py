@@ -8863,7 +8863,14 @@ def mk_lv4_river_nc(pkl_fnm):
     # do I need to ramp up for nonzero Q? OR will this work?
     D['river_transport'] = np.zeros((nt,9))
     #D['river_transport'][:,0:5] = -0.025 + D['river_transport'][:,0:5] # this is SDTJRE points
-    D['river_transport'][:,0] = - 0.2 * QQ['discharge'][:,2] # TJR discharge
+
+    use_IBWC = True
+    if use_IBWC: 
+        Q_new = rivfuns.get_forecasted_Q_IBWC(pkl_fnm)
+    else:
+        Q_new = QQ['discharge'][:,2]
+
+    D['river_transport'][:,0] = - 0.2 * Q_new # TJR discharge
     D['river_transport'][:,1] = D['river_transport'][:,0]
     D['river_transport'][:,2] = D['river_transport'][:,0]
     D['river_transport'][:,3] = D['river_transport'][:,0]
