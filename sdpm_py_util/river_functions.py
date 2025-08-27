@@ -276,7 +276,6 @@ def get_forecasted_Q_IBWC(pkl_fnm):
     mask2 = (Qobs<4)
     i2 = np.where(mask2)[0]
     Qb2 = np.mean( Qobs[i2] ) # this is super persistence
-    if 
 
     print(Qb1)
     print(Qb2)
