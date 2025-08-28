@@ -437,9 +437,11 @@ def create_model_info_dict():
     
     PFM['lv4_swan_rst_int_hr']     = int( 24 * OP['L4','rst_interval'] )
     PFM['river_pckl_file_full']    = PFM['lv4_forc_dir'] + '/river_Q.pkl'
+    #PFM['river_pkl2']    = PFM['lv4_forc_dir'] + '/river_Q_variety.pkl'
     
     PFM['lv4_his_web_dir'] = '/projects/www-users/falk/PFM_Forecast/LV4_His/'
     PFM['lv4_for_web_dir'] = '/dataSIO/PFM_Simulations/Archive/for_web/'
+    PFM['cdip_archive_dir'] = '/dataSIO/PFM_Simulations/Archive/cdip_ncs/'
 
     PFM['modtime0']        = modtime0
     PFM['roms_time_units'] = roms_time_units

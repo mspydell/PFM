@@ -86,7 +86,7 @@ def get_river_flow_nwm(yyyymmddhh,t_pfm_str,pkl_fnm):
 
         cnt1 = cnt1+1 # this is the hour index counter
         
-    plot_it = 1
+    plot_it = 0
     if plot_it == 1:
         fig, ax = plt.subplots()
         p1=ax.plot(t3,Q[:,0],label='Sweet Water')
@@ -96,7 +96,7 @@ def get_river_flow_nwm(yyyymmddhh,t_pfm_str,pkl_fnm):
         plt.legend()
         plt.setp(plt.xticks()[1], rotation=30, ha='right') # ha is the same as horizontalalignment
         plt.ylabel('discharge [m3/s]')
-        plt.title('PFM forecast time is: ' + t_pfm_str + '| river forecast time is: ' + yyyymmddhh )
+        plt.title('PFM forecast time is: ' + t_pfm_str + ' | river forecast time is: ' + yyyymmddhh )
         fn_out = PFM['lv4_plot_dir'] + '/river_discharge_' + PFM['yyyymmdd'] + PFM['hhmm'] + '.png'
         plt.savefig(fn_out, dpi=300)
 
@@ -259,7 +259,8 @@ def get_forecasted_Q_IBWC(pkl_fnm):
 
     #tf_dt is the start time of the forecast in datetime
     tf_dt = t_nwm[0] #datetime.strptime(t_fore,'%Y%m%d%H')
-    start_time = tf_dt - 1* timedelta(days=1)
+    start_time = tf_dt - 1 * timedelta(days=1)
+    start_time_2 = tf_dt - 4 * timedelta(days=1)
     end_time = tf_dt
 
     # Create a boolean mask
@@ -273,15 +274,25 @@ def get_forecasted_Q_IBWC(pkl_fnm):
     Qb1 = np.mean( Qobs[indices] )
 
     # now get super persistence, or dry Q
-    mask2 = (Qobs<4)
-    i2 = np.where(mask2)[0]
-    Qb2 = np.mean( Qobs[i2] ) # this is super persistence
+    #print(np.shape(Qobs))
+    #print(np.shape(tobs))
+    #print(np.shape(tf_dt))
+    mask2 = (Qobs<4) 
+    mask3 = (tobs >= start_time_2) & (tobs <= end_time)
+    i_ob = np.where(mask3)[0]
+    mask4 = mask2 & mask3
+    i2 = np.where(mask4)[0]
+    if len(i2) == 0:
+        Qb2 = np.mean( Qobs ) # just take the mean of the whole thing for a number
+    else:
+        Qb2 = np.mean( Qobs[i2] ) # this is super persistence
 
-    print(Qb1)
-    print(Qb2)
+    print('1 day persistence (Qp) is ', Qb1)
+    print('4 day average of all Q<4 (super persistence, Qpp) is ', Qb2)
 
     # here is the persistence forecast
     Qf_p = Qb1*np.ones(np.shape(t_nwm))
+    Qf_sp = Qb2*np.ones(np.shape(t_nwm))
 
     # here is persistence + NMW'
     Qf_pnwm = Qf_p[:,0] + q_nwm - q_nwm[0]
@@ -298,4 +309,78 @@ def get_forecasted_Q_IBWC(pkl_fnm):
     # here is 1 day mean, to dry, with NWM' added too
     # this one does pretty well over all
     Q_new = Qf_p[:,0] * alpha + (1-alpha)*Qb2 + q_nwm - q_nwm[0]
-    return Q_new
+
+    Q_cut = 4.0
+    use_Qp_cut = 0
+    use_Qp_nwmp = 0
+    use_Qp_Qsp = 1
+    use_old = 0
+
+    if Qb1 < Q_cut:
+        Qc = Qf_p[:,0]
+    elif Qb1 >= Q_cut:
+        Qc = q_nwm
+
+
+    if use_Qp_cut == 1 and Qb1 < Q_cut:
+        QQ = Qc
+        print('using Q = Qp as Qp<Qcut, Qcut=',Q_cut)
+    elif use_Qp_cut == 1 and Qb1 >= Q_cut:
+        QQ = Qc
+        print('using Q = NWM as Qp>Qcut, Qcut=',Q_cut)
+    elif use_Qp_nwmp == 1:
+        QQ = Qf_pnwm
+        print('using Q = Qp + NWM(t) - NWM(t=0)')
+    elif use_Qp_Qsp == 1:
+        print('using Q = Qp exp(-t/1.5) + Qpp (1-exp(-t/1.5)) + NWM(t) - NWM(t=0)')
+        QQ = Q_new
+    elif use_old == 1:
+        print('using NWM for Q (original method)')
+        QQ = q_nwm
+
+    Q3 = dict()
+    Q3['Q_nwm'] = q_nwm
+    Q3['Q_p'] = Qf_p[:,0]
+    Q3['Q_sp'] = Qf_sp[:,0]
+    Q3['Q_cut'] = Qc
+    Q3['Q_pnwm'] = Qf_pnwm
+    Q3['Q_p_sp_nwm'] = Q_new
+    Q3['time'] = t_nwm
+
+    # return both the time and discharge
+    #river_pkl_2 = PFM['river_pkl2']
+    #print('saving different Qs to ', river_pkl_2)
+    #with open(river_pkl_2,'wb') as fp:
+    #    pickle.dump(Q3,fp, protocol=pickle.HIGHEST_PROTOCOL)
+    #    print('\nriver discharge varieties saved as pickle file')
+
+    #t_nwm = NWM['time']
+    #q_nwm = NWM['discharge'][:,2]
+
+    plot_it = 1
+    if plot_it == 1:
+        print('plotting river discharge')
+        fig, ax = plt.subplots()
+        p1=ax.plot(t_nwm,NWM['discharge'][:,0],label='NWM Sweet Water')
+        p2=ax.plot(t_nwm,NWM['discharge'][:,1],label='NWM Otay Mesa')
+        p3=ax.plot(t_nwm,NWM['discharge'][:,2],label='NWM TJ')
+        p4=ax.plot(tobs[i_ob],Qobs[i_ob],label='IBWC')
+        p5=ax.plot(t_nwm,Q3['Q_p'],label='Q_p')
+        p6=ax.plot(t_nwm,Q3['Q_sp'],label='Q_sp')
+        p7=ax.plot(t_nwm,Q3['Q_p_sp_nwm'],label='Q_p_sp_nwm')
+
+
+    #t_pfm = datetime.strptime(t_pfm_str,'%Y%m%d%H')
+
+        t0 = PFM['fetch_time']
+        t_pfm_str = t0.strftime('%Y%m%d%H')
+        yyyymmddhh = (t0 - 0.25*timedelta(days=1)).strftime('%Y%m%d%H')
+        plt.legend()
+        plt.setp(plt.xticks()[1], rotation=30, ha='right') # ha is the same as horizontalalignment
+        plt.ylabel('discharge [m3/s]')
+        plt.title('PFM forecast time is: ' + t_pfm_str + ' | river forecast time is: ' + yyyymmddhh )
+        fn_out = PFM['lv4_plot_dir'] + '/river_discharge_' + PFM['yyyymmdd'] + PFM['hhmm'] + '.png'
+        plt.savefig(fn_out, dpi=300)
+
+
+    return t_nwm, QQ

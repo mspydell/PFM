@@ -186,6 +186,7 @@ def get_cdip_data(pkl_fnm):
     fn2 = '_ecmwf_fc.nc'
     varns = 'waveTime,waveHs,waveTp,waveDp,waveFrequency,waveDirection,waveDirectionalSpectrum,metaLatitude,metaLongitude'
 
+    files_to_copy = []
 
     with ThreadPoolExecutor() as executor:
         threads = []
@@ -193,7 +194,9 @@ def get_cdip_data(pkl_fnm):
             fn = cdip_wave_grabber
             fnmin = url_0+ff+fn2
             fnmout = PFM['cdip_data_dir'] + '/' + 'cdip_' + ff + '_' + yyyymmddhh + '.nc' 
-#            fnmout = ('/scratch/PFM_Simulations/LV4_Forecast/Forc/cdip_data' + '/' 
+            files_to_copy.append(fnmout)
+#           
+#  fnmout = ('/scratch/PFM_Simulations/LV4_Forecast/Forc/cdip_data' + '/' 
 #                    + 'cdip_' + ff + '_' + yyyymmddhh + '.nc')          
             args = [fnmin,varns,fnmout]
             kwargs = {} #
@@ -206,6 +209,21 @@ def get_cdip_data(pkl_fnm):
             #print(result)
                 # report the result        
 
+    archive_cdip = 1
+    #PFM['cdip_archive_dir'] = '/dataSIO/PFM_Simulations/Archive/cdip_ncs/'
+    if archive_cdip == 1:
+        print('copying cdip .nc files to archive...')
+        dir2 = PFM['cdip_archive_dir']
+        for fname in files_to_copy:
+            fn_end = os.path.basename(fname)
+            fn_2 = dir2 + fn_end
+            try:
+                shutil.copy(fname, fn_2)
+                #print(f"File '{source_file}' copied successfully to '{destination_directory}'")
+            except FileNotFoundError:
+                print(f"Error: Source file '{fname}' not found.")
+            except Exception as e:
+                print(f"An error occurred: {e}")
 
 def cdip_ncs_to_dict(refresh,pkl_fnm):
     

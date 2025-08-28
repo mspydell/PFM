@@ -8866,7 +8866,7 @@ def mk_lv4_river_nc(pkl_fnm):
 
     use_IBWC = True
     if use_IBWC: 
-        Q_new = rivfuns.get_forecasted_Q_IBWC(pkl_fnm)
+        _, Q_new = rivfuns.get_forecasted_Q_IBWC(pkl_fnm)
     else:
         Q_new = QQ['discharge'][:,2]
 
