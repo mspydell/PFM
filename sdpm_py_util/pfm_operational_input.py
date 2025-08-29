@@ -442,6 +442,7 @@ def create_model_info_dict():
     PFM['lv4_his_web_dir'] = '/projects/www-users/falk/PFM_Forecast/LV4_His/'
     PFM['lv4_for_web_dir'] = '/dataSIO/PFM_Simulations/Archive/for_web/'
     PFM['cdip_archive_dir'] = '/dataSIO/PFM_Simulations/Archive/cdip_ncs/'
+    PFM['Q_tjr_climatology'] = 0.27 # m3/s climatology discharge
 
     PFM['modtime0']        = modtime0
     PFM['roms_time_units'] = roms_time_units

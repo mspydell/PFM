@@ -282,13 +282,20 @@ def get_forecasted_Q_IBWC(pkl_fnm):
     i_ob = np.where(mask3)[0]
     mask4 = mask2 & mask3
     i2 = np.where(mask4)[0]
-    if len(i2) == 0:
-        Qb2 = np.mean( Qobs ) # just take the mean of the whole thing for a number
+
+    use_clim = 1
+    if use_clim == 1:
+        Qb2 = PFM['Q_tjr_climatology'] # hard coded
     else:
-        Qb2 = np.mean( Qobs[i2] ) # this is super persistence
+        if len(i2) == 0:
+            Qb2 = np.mean( Qobs ) # just take the mean of the whole thing for a number
+        else:
+            Qb2 = np.mean( Qobs[i2] ) # this is super persistence
+
+    
 
     print('1 day persistence (Qp) is ', Qb1)
-    print('4 day average of all Q<4 (super persistence, Qpp) is ', Qb2)
+    print('climatology is ', Qb2)
 
     # here is the persistence forecast
     Qf_p = Qb1*np.ones(np.shape(t_nwm))
@@ -310,16 +317,22 @@ def get_forecasted_Q_IBWC(pkl_fnm):
     # this one does pretty well over all
     Q_new = Qf_p[:,0] * alpha + (1-alpha)*Qb2 + q_nwm - q_nwm[0]
 
-    Q_cut = 4.0
     use_Qp_cut = 0
     use_Qp_nwmp = 0
-    use_Qp_Qsp = 1
-    use_old = 0
+    use_Qp_Qsp = 0
+    use_old = 1
+    use_nwm_cut = 0
 
-    if Qb1 < Q_cut:
-        Qc = Qf_p[:,0]
-    elif Qb1 >= Q_cut:
-        Qc = q_nwm
+    if use_nwm_cut == 1:
+        Q_cut = 2.0
+    else:
+        Q_cut = 4.0
+        if Qb1 < Q_cut:
+            Qc = Qf_p[:,0]
+        elif Qb1 >= Q_cut:
+            Qc = q_nwm
+
+
 
 
     if use_Qp_cut == 1 and Qb1 < Q_cut:
@@ -336,6 +349,16 @@ def get_forecasted_Q_IBWC(pkl_fnm):
         QQ = Q_new
     elif use_old == 1:
         print('using NWM for Q (original method)')
+        QQ = q_nwm
+    elif use_nwm_cut == 1:
+        print('using cutoff based on maximum NWM')
+        if np.max(q_nwm) > Q_cut:
+            print('forecasted increased flow, use NWM')
+            QQ = q_nwm
+        else:
+            print('no forecasted increased flow, use climatology')
+            QQ = Qf_sp[:,0]
+    elif use_old == 1:
         QQ = q_nwm
 
     Q3 = dict()
@@ -367,7 +390,8 @@ def get_forecasted_Q_IBWC(pkl_fnm):
         p4=ax.plot(tobs[i_ob],Qobs[i_ob],label='IBWC')
         p5=ax.plot(t_nwm,Q3['Q_p'],label='Q_p')
         p6=ax.plot(t_nwm,Q3['Q_sp'],label='Q_sp')
-        p7=ax.plot(t_nwm,Q3['Q_p_sp_nwm'],label='Q_p_sp_nwm')
+        #p7=ax.plot(t_nwm,Q3['Q_p_sp_nwm'],label='Q_p_sp_nwm')
+        p8=ax.plot(t_nwm,QQ,label='Q_forecast')
 
 
     #t_pfm = datetime.strptime(t_pfm_str,'%Y%m%d%H')
