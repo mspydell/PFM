@@ -31,10 +31,9 @@ conda activate PHM-env
 
 dateZ=$(date '+%Y%m%d')
 fstdout=/home/mspydell/models/PFM_root/PFM/log/LVs_forecast_system_${dateZ}0600Z.log
-fsterr=/home/mspydell/models/PFM_root/PFM/log/LVs_forecast_system_${dateZ}0600Z_ERROR.log
 
 in_py="/home/mspydell/models/PFM_root/PFM/sdpm_py_util/pfm_operational_input.py"
 info_pkl="/scratch/matt/PFM_Simulations_v2/forecast_info.pkl"
-python -u -W "ignore" driver_run_pfm_phm.py $in_py $info_pkl > ${fstdout}  2> >(tee -a ${fstderr} >&2)
+python -u -W "ignore" driver_run_pfm_phm.py $in_py $info_pkl > ${fstdout} 2>&1
 
 cd /home/mspydell/models/PFM_root/PFM

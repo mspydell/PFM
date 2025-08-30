@@ -1424,15 +1424,23 @@ def run_fore_LV4(pkl_fnm):
     print('driver_run_forcast_LV4: making clm.nc, nud.nc, and river.nc files...')
     os.chdir('../sdpm_py_util')
     cmd_list = ['python','-u','-W','ignore','ocn_funs_forecast.py','mk_lv4_clm_nc',pkl_fnm]
-    ret5 = subprocess.run(cmd_list)   
-    print('clm return code: ' + str(ret5.returncode) + ' (0=good)')  
+    ret1 = subprocess.run(cmd_list)   
+    print('clm return code: ' + str(ret1.returncode) + ' (0=good)')  
     cmd_list = ['python','-u','-W','ignore','ocn_funs_forecast.py','mk_lv4_nud_nc',pkl_fnm]
-    ret5 = subprocess.run(cmd_list)   
-    print('nud return code: ' + str(ret5.returncode) + ' (0=good)')  
+    ret2 = subprocess.run(cmd_list)   
+    print('nud return code: ' + str(ret2.returncode) + ' (0=good)')  
     cmd_list = ['python','-u','-W','ignore','ocn_funs_forecast.py','mk_lv4_river_nc',pkl_fnm]
-    ret5 = subprocess.run(cmd_list)   
-    print('river return code: ' + str(ret5.returncode) + ' (0=good)')  
+    ret3 = subprocess.run(cmd_list)   
+    print('river return code: ' + str(ret3.returncode) + ' (0=good)')  
     os.chdir('../sdpm_py_util')
+    if ret1.returncode != 0 or ret2.returncode != 0:
+        print('one or both clm or nud nc files were made incorrectly, aborting simulation!')
+        sys.exit(1)
+    if ret3.returncode != 0: 
+        print('river nc file was made incorrectly, aborting simulation!')
+        sys.exit(1)
+
+
     print('driver_run_forecast_L4:  done making clm, nud, and river.nc files.') 
     print('this took:')
     t2 = datetime.now()
@@ -1446,19 +1454,24 @@ def run_fore_LV4(pkl_fnm):
     print('driver_run_forcast_LV4: making swan bnd and wnd files...')
     os.chdir('../sdpm_py_util')
     cmd_list = ['python','-u','-W','ignore','swan_functions.py','cdip_ncs_to_dict','refresh',pkl_fnm]
-    ret5 = subprocess.run(cmd_list)   
+    ret1 = subprocess.run(cmd_list)   
     print('cdip to dictionary return code: ' + str(ret5.returncode) + ' (0=good)')  
     fout = MI['lv4_forc_dir'] + '/' + MI['lv4_swan_bnd_file']
     print('making swan .bnd file...')
     cmd_list = ['python','-u','-W','ignore','swan_functions.py','mk_swan_bnd_file',fout,pkl_fnm]
-    ret5 = subprocess.run(cmd_list)   
+    ret2 = subprocess.run(cmd_list)   
     print('...done. swan bnd file return code: ' + str(ret5.returncode) + ' (0=good)')  
     fout = MI['lv4_forc_dir'] + '/' + MI['lv4_swan_wnd_file']
     print('making swan wnd file...')
     cmd_list = ['python','-u','-W','ignore','swan_functions.py','mk_swan_wnd_file',fout,pkl_fnm]
-    ret5 = subprocess.run(cmd_list)   
+    ret3 = subprocess.run(cmd_list)   
     print('...done. swan wnd file return code: ' + str(ret5.returncode) + ' (0=good)')  
     t2 = datetime.now()
+
+    if ret1.returncode != 0 or ret2.returncode != 0 or ret3.returncode != 0: 
+        print('something bad happened making swan files, aborting simulation!')
+        sys.exit(1)
+
     print('...done. making swan .bnd and .wnd files took:')
     print(t2-t1)
     dt_sw = []

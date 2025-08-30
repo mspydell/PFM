@@ -299,29 +299,35 @@ def make_web_nc_file(pkl_fnm):
     cmd_list = ['python','-W','ignore','web_functions.py','full_his_to_essential',fn_hs,fn_gr,pkl_fnm]
     os.chdir('../web_util')
     ret6 = subprocess.run(cmd_list)   
+    if ret6.returncode != 0 : 
+        print('something bad happened making web.nc file, aborting move and copy function!')
+        sys.exit(1)
+
     os.chdir('../driver')
     fn_wb = MI['lv4_web_name_full'] 
     print('moving and copying', fn_wb, ' file')
-    #web_dir = MI['lv4_his_web_dir']
-    
-    #MI['lv4_for_web_dir'] = '/dataSIO/PFM_Simulations/Archive/for_web/'
-
     web_dir = MI['lv4_for_web_dir']
     archive_web_dir = MI['archive_web_dir']
     print('to ', web_dir, ' and ', archive_web_dir)
     delete_files_by_extension(web_dir, ".nc")
     ## copy web.nc file to website and Archive
-    print('copying web.nc to /dataSIO/... now...')
-    shutil.copy(MI['lv4_web_name_full'],web_dir)
-    shutil.copy(MI['lv4_web_name_full'],archive_web_dir)    
-    # Rename the web.nc file on website to web_data_latest.nc
-    original_name_in_dest = os.path.join(web_dir, os.path.basename(MI['lv4_web_name_full']))
-    new_path_in_dest = os.path.join(web_dir, 'web_data_latest.nc')
-    print('renaming ', original_name_in_dest, ' to ')
-    print(new_path_in_dest)
-    shutil.move(original_name_in_dest, new_path_in_dest)
-    print('...done!')
 
+    if os.path.exists(MI['lv4_web_name_full']):
+        print(f"The file '{MI['lv4_web_name_full']}' exists.")
+        print('copying web.nc to /dataSIO/... now...')
+        shutil.copy(MI['lv4_web_name_full'],web_dir)
+        shutil.copy(MI['lv4_web_name_full'],archive_web_dir)    
+        # Rename the web.nc file on website to web_data_latest.nc
+        original_name_in_dest = os.path.join(web_dir, os.path.basename(MI['lv4_web_name_full']))
+        new_path_in_dest = os.path.join(web_dir, 'web_data_latest.nc')
+        print('renaming ', original_name_in_dest, ' to ')
+        print(new_path_in_dest)
+        shutil.move(original_name_in_dest, new_path_in_dest)
+        print('...done!')
+    else:
+        print(f"The file '{MI['lv4_web_name_full']}' does not exist. Aborting function!")
+        sys.exit(1)
+    
     return ret6
 
 def make_simulation_plots(lvs_to_plt,pkl_fnm):

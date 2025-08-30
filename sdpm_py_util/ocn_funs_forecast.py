@@ -9090,6 +9090,7 @@ def river_dict_to_nc(D,fout):
 
     #ds.to_netcdf(fout, encoding={'river_Xposition':{'dtype':'int64'},'river_Eposition':{'dtype':'int64'},
     #                             'river_direction':{'dtype':'int64'},'river_flag':{'dtype':'int64'}})
+    print('saving ', fout)
     ds.to_netcdf(fout)
     ds.close()
 

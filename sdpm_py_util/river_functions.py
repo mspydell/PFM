@@ -260,7 +260,7 @@ def get_forecasted_Q_IBWC(pkl_fnm):
     #tf_dt is the start time of the forecast in datetime
     tf_dt = t_nwm[0] #datetime.strptime(t_fore,'%Y%m%d%H')
     start_time = tf_dt - 1 * timedelta(days=1)
-    start_time_2 = tf_dt - 4 * timedelta(days=1)
+    start_time_2 = tf_dt - 5 * timedelta(days=1)
     end_time = tf_dt
 
     # Create a boolean mask
@@ -277,14 +277,12 @@ def get_forecasted_Q_IBWC(pkl_fnm):
     #print(np.shape(Qobs))
     #print(np.shape(tobs))
     #print(np.shape(tf_dt))
-    mask2 = (Qobs<4) 
     mask3 = (tobs >= start_time_2) & (tobs <= end_time)
-    i_ob = np.where(mask3)[0]
-    mask4 = mask2 & mask3
-    i2 = np.where(mask4)[0]
+    i2 = np.where(mask3)[0]
 
-    use_clim = 1
+    use_clim = 0
     if use_clim == 1:
+        PFM['Q_tjr_climatology'] = 0.27
         Qb2 = PFM['Q_tjr_climatology'] # hard coded
     else:
         if len(i2) == 0:
@@ -310,30 +308,25 @@ def get_forecasted_Q_IBWC(pkl_fnm):
     for dtt in dt:
         dt_sec.append(dtt[0].total_seconds())
     dt_day = np.array(dt_sec) / 3600 /24
-    tau_day = 1.5 # time scale to go from flow to dry
+    tau_day = 0.5 # time scale to go from flow to dry
     alpha = np.exp(-dt_day / tau_day)
 
     # here is 1 day mean, to dry, with NWM' added too
     # this one does pretty well over all
-    Q_new = Qf_p[:,0] * alpha + (1-alpha)*Qb2 + q_nwm - q_nwm[0]
 
     use_Qp_cut = 0
     use_Qp_nwmp = 0
-    use_Qp_Qsp = 0
-    use_old = 1
-    use_nwm_cut = 0
+    use_old = 0
+    use_nwm_cut = 1
 
     if use_nwm_cut == 1:
-        Q_cut = 2.0
+        Q_cut = 1.0 # this is the cutoff for nwm std(Q). if bigger than this, rain.
     else:
         Q_cut = 4.0
         if Qb1 < Q_cut:
             Qc = Qf_p[:,0]
         elif Qb1 >= Q_cut:
             Qc = q_nwm
-
-
-
 
     if use_Qp_cut == 1 and Qb1 < Q_cut:
         QQ = Qc
@@ -344,20 +337,24 @@ def get_forecasted_Q_IBWC(pkl_fnm):
     elif use_Qp_nwmp == 1:
         QQ = Qf_pnwm
         print('using Q = Qp + NWM(t) - NWM(t=0)')
-    elif use_Qp_Qsp == 1:
-        print('using Q = Qp exp(-t/1.5) + Qpp (1-exp(-t/1.5)) + NWM(t) - NWM(t=0)')
-        QQ = Q_new
     elif use_old == 1:
         print('using NWM for Q (original method)')
         QQ = q_nwm
     elif use_nwm_cut == 1:
-        print('using cutoff based on maximum NWM')
-        if np.max(q_nwm) > Q_cut:
+        std_nwm = np.std(q_nwm)
+        print('using cutoff based on std NWM,  = ', std_nwm, ' m3/s')
+        print('the std NWM cutoff is ', Q_cut, ' m3/s')
+        if std_nwm > Q_cut:
             print('forecasted increased flow, use NWM')
             QQ = q_nwm
         else:
-            print('no forecasted increased flow, use climatology')
-            QQ = Qf_sp[:,0]
+            print('no forecasted increased flow...')
+            if Qb1 < Qb2:
+                print('1 day < 5 day, use Q_1day')
+                QQ = Qf_p[:,0]
+            else:
+                print('1 day > 5 day, use Q_1 * alpha + Q_5 * (1-alpha)')
+                QQ = Qf_p[:,0] * alpha + Qf_sp[:,0] * (1 - alpha)
     elif use_old == 1:
         QQ = q_nwm
 
@@ -365,9 +362,7 @@ def get_forecasted_Q_IBWC(pkl_fnm):
     Q3['Q_nwm'] = q_nwm
     Q3['Q_p'] = Qf_p[:,0]
     Q3['Q_sp'] = Qf_sp[:,0]
-    Q3['Q_cut'] = Qc
     Q3['Q_pnwm'] = Qf_pnwm
-    Q3['Q_p_sp_nwm'] = Q_new
     Q3['time'] = t_nwm
 
     # return both the time and discharge
@@ -384,14 +379,14 @@ def get_forecasted_Q_IBWC(pkl_fnm):
     if plot_it == 1:
         print('plotting river discharge')
         fig, ax = plt.subplots()
-        p1=ax.plot(t_nwm,NWM['discharge'][:,0],label='NWM Sweet Water')
-        p2=ax.plot(t_nwm,NWM['discharge'][:,1],label='NWM Otay Mesa')
-        p3=ax.plot(t_nwm,NWM['discharge'][:,2],label='NWM TJ')
-        p4=ax.plot(tobs[i_ob],Qobs[i_ob],label='IBWC')
-        p5=ax.plot(t_nwm,Q3['Q_p'],label='Q_p')
-        p6=ax.plot(t_nwm,Q3['Q_sp'],label='Q_sp')
-        #p7=ax.plot(t_nwm,Q3['Q_p_sp_nwm'],label='Q_p_sp_nwm')
-        p8=ax.plot(t_nwm,QQ,label='Q_forecast')
+        p1=ax.plot(t_nwm,NWM['discharge'][:,0],':',label='NWM Sweet Water')
+        p2=ax.plot(t_nwm,NWM['discharge'][:,1],':',label='NWM Otay Mesa')
+        p3=ax.plot(t_nwm,NWM['discharge'][:,2],linewidth=2,label='NWM TJ')
+        p4=ax.plot(tobs,Qobs,label='IBWC',linewidth=2)        
+        p5=ax.plot(tobs[i2],Qobs[i2],'-k',linewidth=.25)
+        p6=ax.plot(t_nwm,Q3['Q_p'],label='Q_1day')
+        p7=ax.plot(t_nwm,Q3['Q_sp'],label='Q_5day')
+        p8=ax.plot(t_nwm,QQ,'--k',label='Q_forecast')
 
 
     #t_pfm = datetime.strptime(t_pfm_str,'%Y%m%d%H')
