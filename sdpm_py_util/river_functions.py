@@ -402,4 +402,10 @@ def get_forecasted_Q_IBWC(pkl_fnm):
         plt.savefig(fn_out, dpi=300)
 
 
+    print('QQ in rivfuns:')
+    print('shape QQ')
+    print(np.shape(QQ))
+    print(QQ)
+    print('discharge QQ [m3/s]')
+    print(QQ)
     return t_nwm, QQ

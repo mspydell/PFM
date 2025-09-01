@@ -8870,6 +8870,10 @@ def mk_lv4_river_nc(pkl_fnm):
     else:
         Q_new = QQ['discharge'][:,2]
 
+    print('in to .nc:')
+    print(np.shape(Q_new))
+    print(Q_new[:])
+
     D['river_transport'][:,0] = - 0.2 * Q_new # TJR discharge
     D['river_transport'][:,1] = D['river_transport'][:,0]
     D['river_transport'][:,2] = D['river_transport'][:,0]
