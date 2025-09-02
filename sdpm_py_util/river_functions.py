@@ -214,9 +214,11 @@ def load_csv_skip_header_footer(filepath, header_rows=1, footer_rows=0, delimite
 
     return data
 
-def get_observed_TJriver_flow(custom_range,t1_str,t2_str):
+def get_observed_TJriver_flow(custom_range,t1_str,t2_str,pkl_fnm):
     #t1_str = '2024-10-10'
     #t2_str = '2024-10-17'
+    PFM = initfuns.get_model_info(pkl_fnm)
+
 
     if custom_range:
         file_url = ('https://waterdata.ibwc.gov/AQWebportal/Export/BulkExport?DateRange=Custom&StartTime=' + 
@@ -226,7 +228,8 @@ def get_observed_TJriver_flow(custom_range,t1_str,t2_str):
         file_url = 'https://waterdata.ibwc.gov/AQWebportal/Export/BulkExport?DateRange=Days7&TimeZone=0&Calendar=CALENDARYEAR&Interval=PointsAsRecorded&Step=1&ExportFormat=csv&TimeAligned=True&RoundData=False&IncludeGradeCodes=False&IncludeApprovalLevels=False&IncludeQualifiers=False&IncludeInterpolationTypes=False&Datasets[0].DatasetName=Discharge.Best%20Available%4011013300&Datasets[0].Calculation=Instantaneous&Datasets[0].UnitId=128&_=1754417066794'
 
 
-    local_save_path = "/home/mspydell/research/LV4_river_stuff/IBWC_Qtrje_custom.csv"
+    #local_save_path = "/home/mspydell/research/LV4_river_stuff/IBWC_Qtrje_custom.csv"
+    local_save_path = PFM['qtj_obs_fname_full']
 
     download_ibwc_file(file_url, local_save_path)
     data = load_csv_skip_header_footer(local_save_path, header_rows=5, footer_rows=1, delimiter=',')
@@ -255,7 +258,9 @@ def get_forecasted_Q_IBWC(pkl_fnm):
     # if the 1st argument below is False, then we get the most recent 7 days of data
     # if True, then from '2025-08-01' to '2025-08-08' etc
     # the last time stamp is about 1-2 hours before current time. Nice!
-    tobs,Qobs = get_observed_TJriver_flow(False,'2025-08-01','2025-08-08')
+    tobs,Qobs = get_observed_TJriver_flow(False,'2025-08-01','2025-08-08',pkl_fnm)
+
+    tobs_end = tobs[-1]
 
     #tf_dt is the start time of the forecast in datetime
     tf_dt = t_nwm[0] #datetime.strptime(t_fore,'%Y%m%d%H')
@@ -265,7 +270,13 @@ def get_forecasted_Q_IBWC(pkl_fnm):
 
     # Create a boolean mask
     # This directly compares datetime objects within the array
-    mask = (tobs >= start_time) & (tobs <= end_time)
+    if tobs_end < start_time:
+        # just use the last day. This should not be used
+        mask = tobs >= (tobs_end - 1*timedelta(days=1))
+        print('using just the last day of Qobs for average. Should not really be here.')
+        print('as the tobs and tnwm do not overlap properly')
+    else:
+        mask = (tobs >= start_time) & (tobs <= end_time)
 
         # Get the indices where the mask is True
     indices = np.where(mask)[0]
@@ -273,11 +284,14 @@ def get_forecasted_Q_IBWC(pkl_fnm):
         # this is persistence!
     Qb1 = np.mean( Qobs[indices] )
 
-    # now get super persistence, or dry Q
-    #print(np.shape(Qobs))
-    #print(np.shape(tobs))
-    #print(np.shape(tf_dt))
-    mask3 = (tobs >= start_time_2) & (tobs <= end_time)
+    if tobs_end < start_time_2:
+        # just use the last day. This should not be used
+        mask = tobs >= (tobs_end - 5 *timedelta(days=1))
+        print('using just the last 5 days of Qobs for average. Should not really be here.')
+        print('as the tobs and tnwm do not overlap properly')
+    else:
+        mask3 = (tobs >= start_time_2) & (tobs <= end_time)
+    
     i2 = np.where(mask3)[0]
 
     use_clim = 0
@@ -291,10 +305,6 @@ def get_forecasted_Q_IBWC(pkl_fnm):
             Qb2 = np.mean( Qobs[i2] ) # this is super persistence
 
     
-
-    print('1 day persistence (Qp) is ', Qb1)
-    print('climatology is ', Qb2)
-
     # here is the persistence forecast
     Qf_p = Qb1*np.ones(np.shape(t_nwm))
     Qf_sp = Qb2*np.ones(np.shape(t_nwm))
@@ -401,11 +411,4 @@ def get_forecasted_Q_IBWC(pkl_fnm):
         fn_out = PFM['lv4_plot_dir'] + '/river_discharge_' + PFM['yyyymmdd'] + PFM['hhmm'] + '.png'
         plt.savefig(fn_out, dpi=300)
 
-
-    print('QQ in rivfuns:')
-    print('shape QQ')
-    print(np.shape(QQ))
-    print(QQ)
-    print('discharge QQ [m3/s]')
-    print(QQ)
     return t_nwm, QQ

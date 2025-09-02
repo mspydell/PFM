@@ -3516,7 +3516,7 @@ def make_tmp_hy_on_rom_pckl_files_1hrzeta(fname_in,var_name,pkl_fnm):
             HYrm['vrm'] = np.zeros((NT,NZ,NR-1,NC)) 
         
         for cc in range(NT):
-            #print(cc)
+            print(cc)
             for bb in range(NZ):
                 uhy = HY['u'][cc,bb,:,:]
                 vhy = HY['v'][cc,bb,:,:]
@@ -8869,10 +8869,6 @@ def mk_lv4_river_nc(pkl_fnm):
         _, Q_new = rivfuns.get_forecasted_Q_IBWC(pkl_fnm)
     else:
         Q_new = QQ['discharge'][:,2]
-
-    print('in to .nc:')
-    print(np.shape(Q_new))
-    print(Q_new[:])
 
     D['river_transport'][:,0] = - 0.2 * Q_new # TJR discharge
     D['river_transport'][:,1] = D['river_transport'][:,0]

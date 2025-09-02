@@ -147,7 +147,7 @@ def create_model_info_dict():
     PFM['lv4_clm_file'] = 'LV4_clm.nc'    
     PFM['lv4_nud_file'] = 'LV4_nud.nc'    
     PFM['lv4_river_file'] = 'LV4_river.nc'    
-
+    PFM['qtj_obs_fname_full'] = lv4_forc_dir + '/qtjr_obs_tmp.csv'
 
 # grid file locations
     lv1_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV1_rx020_hmask.nc'
