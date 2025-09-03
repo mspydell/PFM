@@ -15,6 +15,53 @@ sys.path.append('../sdpm_py_util')
 import grid_functions as grdfuns
 import init_funs_forecast as initfuns
 
+def get_observed_flow(t1str,t2str,pkl_fnm):
+    # t1str is the start time of the data we get
+    # it is 1 day before the 1st hindcast time
+    # t2str is the end time of the data we get
+    # it is 1 day after the last hindcast time
+    PFM = initfuns.get_model_info(pkl_fnm)
+    t1 = datetime.strptime(t1str,'%Y%m%d%H')
+    t2 = datetime.strptime(t2str,'%Y%m%d%H')
+    t1_str = t1.strftime('%Y-%m-%d')
+    t2_str = t2.strftime('%Y-%m-%d')
+    #t1_str = '2024-10-10'
+    #t2_str = '2024-10-17'
+ 
+
+    file_url = ('https://waterdata.ibwc.gov/AQWebportal/Export/BulkExport?DateRange=Custom&StartTime=' + 
+            t1_str + '%2000%3A00&EndTime=' + 
+            t2_str + '%2000%3A00&TimeZone=0&Calendar=CALENDARYEAR&Interval=PointsAsRecorded&Step=1&ExportFormat=csv&TimeAligned=True&RoundData=False&IncludeGradeCodes=False&IncludeApprovalLevels=False&IncludeQualifiers=False&IncludeInterpolationTypes=False&Datasets[0].DatasetName=Discharge.Best%20Available%4011013300&Datasets[0].Calculation=Instantaneous&Datasets[0].UnitId=128&_=1754421522237')
+
+    #local_save_path = "/home/mspydell/research/LV4_river_stuff/IBWC_Qtrje_custom.csv"
+    local_save_path = PFM['qtj_obs_fname_full']
+
+    download_ibwc_file(file_url, local_save_path)
+    data = load_csv_skip_header_footer(local_save_path, header_rows=5, footer_rows=1, delimiter=',')
+    
+    t_obs2 = []
+    q_obs2 = []
+    for row in data:
+        t_obs2.append(datetime.strptime(row[0],'%Y-%m-%d %H:%M:%S'))
+        q_obs2.append(float(row[1]))
+
+    t_obs = np.array(t_obs2)
+    q_obs = np.array(q_obs2)
+
+
+    QQ = dict()
+    QQ['time'] = t_obs
+    # previous XWu LV4 simulations capped TJR Q at 150 m3/s. We might want to do that here?
+    QQ['discharge'] = q_obs
+    QQ['readme'] = 'this is just the observed flow at TJ from IBWC in m3/s.'
+
+    file_out = PFM['river_pckl_file_full']
+
+    with open(file_out,'wb') as fp:
+        pickle.dump(QQ,fp, protocol=pickle.HIGHEST_PROTOCOL)
+        print('\nriver discharge data saved as pickle file')
+
+
 def get_river_flow_nwm(yyyymmddhh,t_pfm_str,pkl_fnm):
     # yyyymmddhh is the start time of the river forecast
     # t_pfm_str [in yyyymmddhh] is the start time of the PFM forecast

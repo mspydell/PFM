@@ -3516,7 +3516,7 @@ def make_tmp_hy_on_rom_pckl_files_1hrzeta(fname_in,var_name,pkl_fnm):
             HYrm['vrm'] = np.zeros((NT,NZ,NR-1,NC)) 
         
         for cc in range(NT):
-            print(cc)
+            #print(cc)
             for bb in range(NZ):
                 uhy = HY['u'][cc,bb,:,:]
                 vhy = HY['v'][cc,bb,:,:]
@@ -9053,6 +9053,300 @@ def mk_lv4_river_nc(pkl_fnm):
     
     river_dict_to_nc(D,fout)
     #print(fout)
+
+
+def mk_lv4_hind_river_nc(pkl_fnm):
+    print('making river tracer dictionary')
+    PFM = initfuns.get_model_info(pkl_fnm)
+    Grd = grdfuns.roms_grid_to_dict(PFM['lv4_grid_file'])
+#    vns = ( ['theta_s','theta_b','Tcline','hc','Cs_r','sc_r','Cs_w','sc_w','river','river_time',
+#           'river_Xposition','river_Eposition','river_direction','river_Vshape','river_transport',
+#           'river_flag','river_temp','river_salt','river_dye_01','river_dye_02'] )
+    
+    D = dict()
+    D['vinfo'] = dict()
+    lv = 'L4'
+    Nz   = PFM['stretching'][lv,'Nz']                              # number of vertical levels: 40
+    Vtr  = PFM['stretching'][lv,'Vtransform']                       # transformation equation: 2
+    Vst  = PFM['stretching'][lv,'Vstretching']                    # stretching function: 4 
+    th_s = PFM['stretching'][lv,'THETA_S']                      # surface stretching parameter: 8
+    th_b = PFM['stretching'][lv,'THETA_B']                      # bottom  stretching parameter: 3
+    Tcl  = PFM['stretching'][lv,'TCLINE']                      # critical depth (m): 50
+    hc   = PFM['stretching'][lv,'hc']
+    
+    D = dict()
+    D['vinfo'] = dict()
+    D['Nz'] = np.squeeze(Nz)
+    D['Vtr'] = np.squeeze(Vtr)
+    D['Vst'] = np.squeeze(Vst)
+    D['th_s'] = np.squeeze(th_s)
+    D['th_b'] = np.squeeze(th_b)
+    D['Tcl'] = np.squeeze(Tcl)
+    D['hc'] = np.squeeze(hc)
+
+    D['vinfo']['Nz'] = {'long_name':'number of vertical rho levels',
+                             'units':'none'}
+    D['vinfo']['Vtr'] = {'long_name':'vertical terrain-following transformation equation'}
+    D['vinfo']['Vst'] = {'long_name':'vertical terrain-following stretching function'}
+    D['vinfo']['th_s'] = {'long_name':'S-coordinate surface control parameter',
+                               'units':'nondimensional',
+                               'field': 'theta_s, scalar, series'}
+    D['vinfo']['th_b'] = {'long_name':'S-coordinate bottom control parameter',
+                               'units':'nondimensional',
+                               'field': 'theta_b, scalar, series'}
+    D['vinfo']['Tcl'] = {'long_name':'S-coordinate surface/bottom layer width',
+                               'units':'meter',
+                               'field': 'Tcline, scalar, series'}
+    D['vinfo']['hc'] = {'long_name':'S-coordinate parameter, critical depth',
+                               'units':'meter',
+                               'field': 'hc, scalar, series'}
+
+    D['spherical'] =  'T'
+    D['vinfo']['spherical'] = {'long_name':'Grid type logical switch',
+                          'option_T':'spherical',
+                          'option_F':'Cartesian'}
+
+    t0 = PFM['fetch_time']
+    t_ref = PFM['modtime0']
+    nday  = PFM['forecast_days']    
+    t0_days = (t0 - t_ref)  / timedelta(days = 1) # this gets time in days from t_ref
+    # make the river times be every 1 hr for now...
+    triv = np.arange(t0_days,t0_days+nday+2/24,1/24) # the .5/24 is required to end on the last time step.
+
+    print('making the river discharge pickle file')
+    tnwm = t0 - 6 * timedelta(hours = 1) # river is always 6 hours before forecast start.
+    tnwm_str = tnwm.strftime('%Y%m%d%H')
+    tpfm_str = t0.strftime('%Y%m%d%H')
+    print('using the nwm river forecast from the start time:')
+    print(tnwm_str)
+    print('to ensure that the forecast can be found on their server')
+    #print(tpfm_str)
+    #rivfuns.get_river_flow_nwm(tnwm_str,tpfm_str,pkl_fnm)
+    # the below will get an extra day of data on both ends. To ensure we cover
+    # the hindcast times.
+    t1_str = (t0 - 1 * timedelta(days = 1)).strftime('%Y%m%d%H%M')
+    t2_str = (t0 + nday * timedelta(days = 1) + 1 * timedelta(days = 1)).strftime('%Y%m%d%H%M') 
+
+    rivfuns.get_observed_flows(t1_str,t2_str,pkl_fnm)
+
+    t1  = PFM['fetch_time']    # this is the first time of the PFM forecast
+    t1str = t1.strftime('%Y%m%d%H%M')
+    #print(t1str)
+    # now a string of the time to start ROMS (and the 1st atm time too)
+    yyyymmddhhmm_pfm = "%d%02d%02d%02d%02d" % (t1.year, t1.month, t1.day, t1.hour, t1.minute)
+    t2  = t1 + PFM['forecast_days'] * timedelta(days=1)  # this is the last time of the PFM forecast
+
+
+    print('loading the river discharge pickle file...')
+    file_in= PFM['river_pckl_file_full']
+    #file_in = '/scratch/PFM_Simulations/LV4_Forecast/Forc/river_Q.pkl'
+    with open(file_in,'rb') as fp:
+        QQ = pickle.load(fp)
+
+    #print( QQ['time'] )
+    #print( PFM['modtime0'] + triv * timedelta(days = 1 ) )
+
+    nt = len(triv)
+    D['river_time'] = triv
+    D['vinfo']['river_time'] = {'long_name':'river time',
+                        'units':'days',
+                        'field':'river_time, scalar, series'}
+
+    # do I need to ramp up for nonzero Q? OR will this work?
+    D['river_transport'] = np.zeros((nt,9))
+    #D['river_transport'][:,0:5] = -0.025 + D['river_transport'][:,0:5] # this is SDTJRE points
+
+    use_IBWC = True
+    if use_IBWC: 
+        _, Q_new = rivfuns.get_forecasted_Q_IBWC(pkl_fnm)
+    else:
+        Q_new = QQ['discharge'][:,2]
+
+    D['river_transport'][:,0] = - 0.2 * Q_new # TJR discharge
+    D['river_transport'][:,1] = D['river_transport'][:,0]
+    D['river_transport'][:,2] = D['river_transport'][:,0]
+    D['river_transport'][:,3] = D['river_transport'][:,0]
+    D['river_transport'][:,4] = D['river_transport'][:,0]
+    print('the time-mean discharge for TJR is ')
+    print(str( 5*np.mean(D['river_transport'][:,0]) ) + ' m3/s')
+    print('or ', str( 22.824*5*np.mean(D['river_transport'][:,0]) ) + ' MGD')
+
+    #D['river_transport'][:,5] = -2.1906 + D['river_transport'][:,5] # this is PB. original value
+    #D['river_transport'][:,5] = -2.5 + D['river_transport'][:,5] # this is PB. 4/14/25 value
+    # based on discussion with Liden at PFM meeting
+    # but Liden also said that this is good for dry weather, wet weather flow gets
+    # diverted and at PB Qww = 0.175 m3/s, Qfw 0.79 m3/s, Qtot = 0.965 m3/s, and 
+    # dye_01 = 0.175 / 0.965 = 0.1818. NOT IMPLEMENTED!!!! 
+    #PFM['Q_PB'] = -2.0
+    #PFM['dye_PB'] = 0.5
+    D['river_transport'][:,5] = PFM['Q_PB'] + D['river_transport'][:,5] # this is PB. 5/2/25 value
+    # based on FF email with Liden
+
+    D['river_transport'][:,6] = - 0.5 * QQ['discharge'][:,0] # sweetwater discharge
+    D['river_transport'][:,7] = D['river_transport'][:,6]
+    print('the time-mean discharge for Sweetwater is ')
+    print(str( 2*np.mean(D['river_transport'][:,6]) ) + ' m3/s')
+    print('or ', str( 22.824*2*np.mean(D['river_transport'][:,6]) ) + ' MGD')
+
+    D['river_transport'][:,8] = - QQ['discharge'][:,1] # Otay discharge
+    #D['river_transport'][:,6:] = -0.01 + D['river_transport'][:,6:] # these are in SD Bay
+    print('the time-mean discharge for Otay Mesa is ')
+    print(str( np.mean(D['river_transport'][:,8]) ) + ' m3/s')
+    print('or ', str( 22.824*np.mean(D['river_transport'][:,8]) ) + ' MGD')
+    print('the time-constant discharge for Punta Bandera is ')
+    print(str( np.mean(D['river_transport'][:,5]) ) + ' m3/s')
+    print('or ', str( 22.824*np.mean(D['river_transport'][:,5]) ) + ' MGD')
+
+    
+    D['vinfo']['river_transport'] = {'long_name':'river runoff mass transport',
+                        'units':'meter^3/s',
+                        'field':'river runoff mass transport, scalar, series'}
+    #Temp_riv = 20.0
+    print('getting the river temperature. For each river, each time, and depth,')
+    print('      it is the mean air temp over the LV4 land domain...')
+    _, Temp_riv = rivfuns.get_river_temp(pkl_fnm)
+    #ntra = len(temp_riv_time)
+
+    #print('all 3 river temperatures are')
+    #print(Temp_riv)
+    #print('and do not depend on time or depth')
+
+    D['river_temp'] = np.zeros((nt,Nz,9))
+    for aa in np.arange(nt):
+        D['river_temp'][aa,:,:] = Temp_riv[aa]
+
+    #D['river_temp'] = Temp_riv + D['river_temp'] # how should this get set?
+    D['vinfo']['river_temp'] = {'long_name':'river runoff potential temperature',
+                        'units':'Celsius',
+                        'field':'river temp, scalar, series'}
+
+    D['river_salt'] = np.zeros((nt,Nz,9)) # this is always zero. 
+    D['vinfo']['river_salt'] = {'long_name':'river runoff salt',
+                        'units':'psu',
+                        'field':'river salt, scalar, series'}
+
+    D['river_dye_01'] = np.zeros((nt,Nz,9)) # this is always zero. 
+    #D['river_dye_01'][:,:,5] = 0.7 + D['river_dye_01'][:,:,5] # original value
+    #D['river_dye_01'][:,:,5] = 0.5088 + D['river_dye_01'][:,:,5] # new value
+    # based on Liden discussion at PFM 4/14/25 meeting 0.5088 = 29/(28+29)
+    # where 29 MGD WW, and 28 MGD non-WW
+    D['river_dye_01'][:,:,5] = PFM['dye_PB'] + D['river_dye_01'][:,:,5] # new value 5/2/25
+    # based on FF email with Liden
+
+
+    D['vinfo']['river_dye_01'] = {'long_name':'river runoff dye, fraction raw sewage at PB',
+                        'units':'fraction',
+                        'field':'river dye 1, scalar, series'}
+
+    D['river_dye_02'] = np.zeros((nt,Nz,9)) # this is always zero.
+    Q2 = - 5 * D['river_transport'][:,0] # - sign to insure positive
+    # this is Qtot of TJRE
+    old_way = 2
+    if old_way == 1:
+        mgd2m3s = 1.01/23    # a conversion factor, from MGD to m3/s
+        Qd = 12.5 * mgd2m3s  # the amount of sewage discharge if Q > Qcrit
+        dye2 = Qd  / Q2      # the fraction of raw sewage for Q > Qcrit
+        dye0 = .3            # the fraction of raw sewage for Q < Qcrit 
+        Qcrit = Qd / dye0    # we calculate Qcrit so that dye2 is continuous as a function of Q
+        print('the TJRE critical Q is')
+        print(str(Qcrit) + ' m3/s or ' + str(Qcrit/mgd2m3s) + ' MGD')
+
+        ic = np.argwhere(Q2 < Qcrit) # where 
+        dye2[ic] = dye0 # is now the correct dye concentration for TJRE
+    else:
+        # this is based on Biggs data. we were underestimate WW fraction
+        # this formula better matches his data
+        R1 = 0.65
+        R2 = 0.045
+        Q00 = 2.25
+        WW1 = R1*Q2
+        WW2 = R2*Q2 + (R1-R2)*Q00
+        msk = Q2>Q00
+        WW1[msk] = WW2[msk]
+        dye2 = WW1 / Q2
+
+    for aa in np.arange(nt):
+        D['river_dye_02'][aa,:,0:4] = dye2[aa]
+ 
+    print('the time-mean river dye for Punta Bandera is ')
+    print(str( np.mean(D['river_dye_01'][:,0,5]) ))
+    print('the time-mean river dye for TJRE is ')
+    print(str( np.mean(D['river_dye_02'][:,0,0]) ))
+    print('the time-mean river temp for all rivers is ')
+    print(str( np.mean(D['river_temp'][:,0,0]) ))
+
+    #D['river_dye_02'][:,:,0:5] = 0.15 + D['river_dye_02'][:,:,0:5]
+    D['vinfo']['river_dye_02'] = {'long_name':'river runoff dye, fraction raw sweage at SDTJRE',
+                        'units':'fraction',
+                        'field':'river dye 2, scalar, series'}
+
+    D['river_Xposition'] = np.array( [433, 433, 433, 433, 433, 337, 464, 464, 439] )
+    D['river_Eposition'] = np.array( [614, 615, 613, 616, 612,  76, 961, 962, 779] )
+    D['river_direction'] = 0 * D['river_Xposition']
+    D['vinfo']['river_Xposition'] = {'long_name':'river runoff  XI-positions at RHO-points',
+                        'units':'scalar',
+                        'field':'river runoff XI position, scalar, series'}
+    D['vinfo']['river_Eposition'] = {'long_name':'river runoff  ETA-positions at RHO-points',
+                        'units':'scalar',
+                        'field':'river runoff ETA position, scalar, series'}
+    D['vinfo']['river_direction'] = {'long_name':'river runoff direction, XI=0, ETA>0',
+                        'units':'scalar',
+                        'field':'river runoff direction, scalar, series'}
+    D['river_Vshape'] = np.array( [[0.1068243,  0.1068243,  0.1068243,  0.1068243,  0.1068243,  0.1068243,
+                                    0.1068243,  0.1068243,  0.1068243 ],
+                                    [0.16414651, 0.16414651, 0.16414651, 0.16414651, 0.16414651, 0.16414651,
+                                    0.16414651, 0.16414651, 0.16414651],
+                                    [0.18450656, 0.18450656, 0.18450656, 0.18450656, 0.18450656, 0.18450656,
+                                    0.18450656, 0.18450656, 0.18450656],
+                                    [0.16907407, 0.16907407, 0.16907407, 0.16907407, 0.16907407, 0.16907407,
+                                    0.16907407, 0.16907407, 0.16907407],
+                                    [0.13549981, 0.13549981, 0.13549981, 0.13549981, 0.13549981, 0.13549981,
+                                    0.13549981, 0.13549981, 0.13549981],
+                                    [0.0991329,  0.0991329,  0.0991329,  0.0991329,  0.0991329,  0.0991329,
+                                    0.0991329,  0.0991329,  0.0991329 ],
+                                    [0.06757376, 0.06757376, 0.06757376, 0.06757376, 0.06757376, 0.06757376,
+                                    0.06757376, 0.06757376, 0.06757376],
+                                    [0.04263029, 0.04263029, 0.04263029, 0.04263029, 0.04263029, 0.04263029,
+                                    0.04263029, 0.04263029, 0.04263029],
+                                    [0.02325146, 0.02325146, 0.02325146, 0.02325146, 0.02325146, 0.02325146,
+                                    0.02325146, 0.02325146, 0.02325146],
+                                    [0.00736032, 0.00736032, 0.00736032, 0.00736032, 0.00736032, 0.00736032,
+                                    0.00736032, 0.00736032, 0.00736032]] )
+    D['vinfo']['river_Vshape'] = {'long_name':'river runoff mass transport vertical profile',
+                        'units':'scalar',
+                        'field':'river runoff vertical profile, scalar, series'}
+    D['river_flag'] = np.array( [3., 3., 3., 3., 3., 3., 3., 3., 3.] )
+    D['vinfo']['river_flag'] = {'long_name':'river flag, 1=temp, 2=salt, 3=temp+salt, 4=temp+salt+sed, 5=temp+salt+sed+bio',
+                        'units':'nondimensional',
+                        'field':'river flag, scalar, series'}
+
+
+    hb = Grd['h']
+    zrom = s_coordinate_4(hb, th_b , th_s , Tcl , Nz, hraw=None, zeta=0*hb)
+    D['Cs_r'] = np.squeeze(zrom.Cs_r)
+    D['vinfo']['Cs_r'] = {'long_name':'S-coordinate stretching curves at RHO-points',
+                        'units':'nondimensional',
+                        'valid min':'-1',
+                        'valid max':'0',
+                        'field':'Cs_r, scalar, series'}
+
+    #D['river'] =np.zeros(9)
+    D['river']= np.array([1., 2., 3., 4., 5., 6., 7., 8., 9.])
+    D['vinfo']['river'] = {'long_name':'river_runoff identification number',
+                           'units':'nondimensional',
+		                   'field':'num_rivers, scalar'}    
+    
+    D['vinfo']['river_time'] = {'long_name':'river_time',
+		                        'units':'days',
+		                        'field':'river_time, scalar, series'}		            
+
+
+    fout = PFM['lv4_forc_dir'] + '/' + PFM['lv4_river_file']
+    
+    river_dict_to_nc(D,fout)
+    #print(fout)
+
+
 
 def river_dict_to_nc(D,fout):
     #    vns = ( ['theta_s','theta_b','Tcline','hc','Cs_r','sc_r','Cs_w','sc_w','river','river_time',
