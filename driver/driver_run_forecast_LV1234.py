@@ -50,10 +50,11 @@ def driver_run_forecast_LV1234( pkl_fnm ):
             print('current time is:')
             print(t02)
 
-            print('copying and moving LV4 atm and river nc files to Archive...')
-            utilfuns.copy_mv_nc_file('atm','lv4',pkl_fnm)
-            utilfuns.copy_mv_nc_file('river','lv4',pkl_fnm)
-            print('...done')
+            print('copying and moving LV4 atm to Archive with Popen...')
+            utilfuns.copy_mv_nc_file_v2('atm','lv4',pkl_fnm)
+            print('copying and moving LV4 river to Archive with Popen...')
+            utilfuns.copy_mv_nc_file_v2('river','lv4',pkl_fnm)
+            print('moving on...')
 
 
     #lvs_to_plt = ['LV1','LV2','LV3','LV4','LV4dye']

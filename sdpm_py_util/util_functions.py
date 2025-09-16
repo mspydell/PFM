@@ -17,8 +17,7 @@ def copy_mv_nc_file(nc_type,lvl,pkl_fnm):
     # lvl can be ['lv1','lv2','lv3','lv4']
 
     lvl_upper = lvl.upper()
-    from init_funs_forecast import get_model_info
-    PFM = get_model_info(pkl_fnm)
+    PFM = initfuns.get_model_info(pkl_fnm)
     fcdate = PFM['fetch_time'].strftime("%Y%m%d%H")
     dir_out = PFM['archive_dir']
     if nc_type == 'atm':
@@ -30,6 +29,27 @@ def copy_mv_nc_file(nc_type,lvl,pkl_fnm):
 
     fn_out_full = dir_out + fn_out
     shutil.move(fn_in_full, fn_out_full)
+
+def copy_mv_nc_file_v2(nc_type,lvl,pkl_fnm):
+    # this copies an atm.nc or river.nc file to the archive location
+    # nc_type can be ['atm','river']
+    # lvl can be ['lv1','lv2','lv3','lv4']
+
+    lvl_upper = lvl.upper()
+    PFM = initfuns.get_model_info(pkl_fnm)
+    fcdate = PFM['fetch_time'].strftime("%Y%m%d%H")
+    dir_out = PFM['archive_dir']
+    if nc_type == 'atm':
+        fn_in_full = PFM[lvl+'_forc_dir'] + '/' + PFM[lvl+'_atm_file']
+        fn_out = 'atm_' + PFM['atm_model'] + '_' + lvl_upper + '_' + fcdate + '.nc'
+    if nc_type == 'river':
+        fn_in_full = PFM[lvl+'_forc_dir'] + '/' + PFM[lvl+'_river_file']
+        fn_out = 'river_' + lvl_upper + '_' + fcdate + '.nc'
+
+    fn_out_full = dir_out + fn_out
+    cmd_lst = ['cp',fn_in_full,fn_out_full]
+    ret = subprocess.Popen(cmd_lst)
+
 
 def delete_files_by_extension(directory_path, extension):
     """
