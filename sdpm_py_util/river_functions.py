@@ -15,29 +15,387 @@ sys.path.append('../sdpm_py_util')
 import grid_functions as grdfuns
 import init_funs_forecast as initfuns
 
-def get_observed_flow(t1str,t2str,pkl_fnm):
-    # t1str is the start time of the data we get
-    # it is 1 day before the 1st hindcast time
-    # t2str is the end time of the data we get
-    # it is 1 day after the last hindcast time
-    PFM = initfuns.get_model_info(pkl_fnm)
-    t1 = datetime.strptime(t1str,'%Y%m%d%H')
-    t2 = datetime.strptime(t2str,'%Y%m%d%H')
-    t1_str = t1.strftime('%Y-%m-%d')
-    t2_str = t2.strftime('%Y-%m-%d')
-    #t1_str = '2024-10-10'
-    #t2_str = '2024-10-17'
- 
+def get_hind_nwm_urls(t1,t2):
 
+    urls = []
+    t_cnt = t1
+
+    url0 = (['https://storage.googleapis.com/national-water-model/nwm.',
+            '/analysis_assim/nwm.t',
+            'z.analysis_assim.channel_rt.tm00.conus.nc#mode=bytes'])
+     #20241011/analysis_assim/nwm.t00z.analysis_assim.channel_rt.tm00.conus.nc#mode=bytes'
+
+    urls = []
+    while t_cnt <= t2:
+        yyyymmdd = t_cnt.strftime('%Y%m%d')
+        hh = t_cnt.strftime('%H')
+        url2 = url0[0] + yyyymmdd + url0[1] + hh + url0[2]
+        urls.append(url2)
+        t_cnt += timedelta(hours=1)
+
+    return urls
+
+def get_flow_from_nwm_ds(ds,reach_ids):
+    id = ds.variables['feature_id'][:]
+    t =  ds.variables['time']
+    t2 = nc.num2date(t[:],t.units)
+    # convert t2 to a datetime object
+    t3 = datetime.strptime(t2[0].isoformat(), "%Y-%m-%dT%H:%M:%S")
+
+    mask_val1 = (id == reach_ids[0])
+    mask_val2 = (id == reach_ids[1])
+    mask_val3 = (id == reach_ids[2])
+
+    # Combine the masks using logical OR
+    combined_mask = mask_val1 | mask_val2 | mask_val3
+
+    # Get the indices where the combined mask is True
+    ig = np.where(combined_mask)
+    # the ordering of ig is: TJ, Otay, SW - it got reversed 
+
+    qq = ds.variables['streamflow'][ig]
+    reach_ids_2 = id[ig]
+
+    return t3, qq, reach_ids_2
+
+def get_nwm_dates_for_simulation(t_riv):
+
+    # first convert t_riv (np array of datetime64 objects)
+    # to datetime array
+    t_riv2 = np.array([dt.item() for dt in t_riv])
+
+    # create a set of unique_date
+    unique_dates = set()
+    # now add to that set, this will be unique tuples of integers
+    for dt_obj in t_riv2:
+        unique_dates.add((dt_obj.year, dt_obj.month, dt_obj.day))
+
+    # Convert the set of tuples to a sorted list for consistent output
+    unique_list = sorted(list(unique_dates))
+    #print(unique_list)
+
+    # Initialize an empty list to store datetime objects
+    datetime_list = []
+
+    # Iterate through the tuples and convert to datetime objects
+    for year, month, day in unique_list:
+        dt_object = datetime(year, month, day)
+        datetime_list.append(dt_object)
+
+    return datetime_list
+
+def get_nwm_assim_flow(urls,reach_ids):
+
+    nt = len(urls)
+    nrid = len(reach_ids)
+    t2 = []
+    q2 = np.zeros((nt,nrid))
+    cnt = 0
+    for url in urls:
+        ds = nc.Dataset(url)
+        t, q, rids2 = get_flow_from_nwm_ds(ds,reach_ids)
+        q2[cnt,:] = q
+        t2.append(t)
+        cnt       = cnt+1
+
+    t2 = np.array(t2)
+    return t2, q2, rids2
+
+def mk_q_ncfile(t2,Q,rids,riv_names,file_name_out):
+    # makes an nc file of discharge data for multiple rivers
+    # fore_date is the start time of the forecast as datetime eg fore_date = datetime(2024,10,11)
+    # t2 is the time stamps of the flow as an array of datetimes
+    # Q is the nt by n_river np array of discharge
+    # rids are the reach ids of the data
+    # riv_name is a np array of strings that name each river.
+    num_stations = len(riv_names)
+    station_ids = riv_names
+
+    with nc.Dataset(file_name_out, 'w', format='NETCDF4') as nc_file:
+        # Create dimensions
+        nc_file.createDimension('time', None)  # Unlimited dimension for time
+        nc_file.createDimension('station', num_stations)
+
+        # Create variables
+        time_var = nc_file.createVariable('time', 'f8', ('time',))
+        q_var = nc_file.createVariable('discharge', 'f8', ('time', 'station'))
+        station_id_var = nc_file.createVariable('station_id', str, ('station',)) # For string station IDs
+        reach_id_var = nc_file.createVariable('reach_id', int, ('station',)) # For string station IDs
+
+        # Add attributes to variables (optional, but recommended for CF-compliance)
+        time_var.units = 'days since 1999-01-01 00:00:00'
+        time_var.calendar = 'gregorian'
+        q_var.units = 'm^3/s'
+        q_var.long_name = 'river discharge'
+        station_id_var.long_name = 'river name'
+        reach_id_var.long_name = 'reach ids from National Water Model'
+
+        # Add global attributes (optional)
+        nc_file.title = 'discharge from National Water Model'
+        nc_file.history = f'Created on {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}'
+
+        # 3. Write data to variables
+        time_var[:] = nc.date2num(t2, units=time_var.units, calendar=time_var.calendar)
+        q_var[:] = Q
+        station_id_var[:] = station_ids
+        reach_id_var[:] = rids
+
+
+def make_nwm_assim_nc_file(fn):
+    # this assumes the fn looks like *yyyymmdd.nc
+    yyyymmdd = fn[-11:-3]    
+    # we need the data for this day!
+    t1 = datetime.strptime(yyyymmdd,'%Y%m%d')
+    t2 = t1 + timedelta(hours=23)
+
+    urls = get_hind_nwm_urls(t1,t2)
+
+    reach_ids = [948070199, 20331702, 20324441]
+                #SW         Otay      TJR 20324441 is last segment near ocean.
+    station_ids = ['SW','Otay','TJR']
+    reach_ids = np.array(reach_ids)
+    station_ids = np.array(station_ids)
+    
+    # get the data from the urls...
+    t, q, rids2 = get_nwm_assim_flow(urls,reach_ids)
+
+    # do some sorting 
+    i1 = np.argsort(reach_ids)
+    i2 = np.argsort(rids2)
+    i3 = np.argsort(i2)
+    i0 = i1[i3]
+    names2 = station_ids[i0] # the correct order of the flow in array q.
+
+    t_str = t[0].strftime('%Y%m%d')
+    file_name_out = fn
+    print('now putting the data into the nc file')
+    print(file_name_out)
+    mk_q_ncfile(t,q,rids2,names2,file_name_out)
+    print('...done with this day!')
+
+
+
+def get_nwm_file_names(nwm_dir,fn_dates):
+    
+    files = []
+    for dt in fn_dates:
+        yyyymmdd = dt.strftime('%Y%m%d')
+        fn = nwm_dir + 'nwm_assim_' + yyyymmdd + '.nc'
+        files.append(fn)
+    
+    return files
+
+
+def check_for_nwm_raw_files(nwm_dir,fn_dates):
+
+    files = get_nwm_file_names(nwm_dir,fn_dates)
+
+    for fn in files:
+        if os.path.exists(fn):
+            print(fn, ' exists. No need to download.')
+        else:
+            print(fn, ' does not exist. Making it...')
+            make_nwm_assim_nc_file(fn) 
+            print('...done!')
+
+def get_data_from_nwm_file(fn):
+    with nc.Dataset(fn) as ds:
+        QQ = ds.variables['discharge'][:]
+        tt = ds.variables['time']
+        rid = ds.variables['reach_id'][:]
+        time_values = tt[:]
+        # Get the units and calendar attributes from the time variable
+        time_units = tt.units
+        time_calendar = getattr(tt, 'calendar', 'standard') # Default to 'standard' if no calendar attribute
+        # Convert to datetime objects
+        tt_dt = nc.num2date(time_values, units=time_units, calendar=time_calendar)
+
+    return tt_dt, QQ, rid
+
+def get_data_from_nwm_nc_files(file_names):
+    # this extracts the data in file names...
+
+    t_nc1 = np.empty((0))
+    q_nc = np.empty((0,3))
+
+    for fn in file_names:
+        t, q, rid_nc = get_data_from_nwm_file(fn)
+        t_nc1 = np.concatenate((t_nc1, t))
+        q_nc = np.concatenate((q_nc,q),axis=0)
+
+    # turn the cftimes to datetimes
+    datetime_list = [datetime(
+        dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second, dt.microsecond
+        ) for dt in t_nc1]
+
+    # Convert the list to a NumPy array of datetime.datetime objects
+    t_nc = np.array(datetime_list)
+        
+    return t_nc, q_nc, rid_nc
+
+def get_nwm_analysis_flow(t_riv,pkl_fnm):
+
+    PFM = initfuns.get_model_info(pkl_fnm)
+
+    # first get list of unique datetimes that would cover t_riv
+    # separated by 1 day
+    fn_dates = get_nwm_dates_for_simulation(t_riv)
+
+    # where will the files be located...
+    if 'nwm_dir' in PFM:
+        nwm_dir = PFM['nwm_dir']
+    else:
+        nwm_dir = '/dataSIO/PHM_Simulations/raw_download/nwm_files/'
+
+    # get the nwm .nc file names that should be archinved that are needed for the simulation
+    file_names = get_nwm_file_names(nwm_dir,fn_dates)
+
+    # now check to see if the nwm_dir has these files...
+    # if the needed file does NOT exist, this gets them!
+    check_for_nwm_raw_files(nwm_dir,fn_dates)
+    # we should have all the files now
+
+    # these are the reach ids that are in the .nc files
+    reach_ids = [948070199, 20331702, 20324441]
+    #location_names = ['SW','Otay','TJR']
+    reach_ids = np.array(reach_ids)
+
+    # 
+    print('need to get the data from the nc files...')
+    t_nc, q_nc, rid_nc = get_data_from_nwm_nc_files(file_names)
+
+    t_nc64 = t_nc.astype('datetime64[ns]')
+
+    i_sw = np.argwhere(rid_nc == reach_ids[0])
+    i_om = np.argwhere(rid_nc == reach_ids[1])
+
+    q_sw = np.squeeze(q_nc[:,i_sw])
+    q_om = np.squeeze(q_nc[:,i_om])
+
+    qi_sw = np.interp(t_riv.astype('int64'),t_nc64.astype('int64'),q_sw)
+    qi_om = np.interp(t_riv.astype('int64'),t_nc64.astype('int64'),q_om)
+
+    return qi_sw, qi_om
+
+def get_pb_flow_and_dye(t_riv,pkl_fnm):
+    
+    PFM = initfuns.get_model_info(pkl_fnm)
+    if 'pb_time_switch' in PFM:
+        time_switch = PFM['pb_time_switch']
+        print('assuming flow at PB switched on ', time_switch, ' from PFM dictionary')
+    else:
+        print('no time_switch in PFM, using hard coded value...')
+        time_switch = datetime(2025,4,1)
+        print(time_switch)
+
+    # these are the values we were using and we are using now.
+    Q1 = 2.1906
+    Q2 = 2.0
+    dye1 = 0.7
+    dye2 = 0.5
+    i1 = np.argwhere(t_riv <= time_switch)
+    i2 = np.argwhere(t_riv > time_switch)
+    q_pb = np.zeros(np.shape(t_riv))
+    dye_pb = np.zeros(np.shape(t_riv))
+    if (i1.size == 0) & (i2.size == 0):
+        print('something is wrong, no times less than ', time_switch)
+        print('and no times great than ', time_switch)
+        sys.exit(1)
+    elif not (i1.size == 0):
+        q_pb[i1] = Q1
+        dye_pb[i1] = dye1
+    elif not (i2.size == 0):
+        q_pb[i2] = Q2
+        dye_pb[i2] = dye2
+
+    return q_pb, dye_pb
+
+def check_qtj_obs_file(fn_qtj_obs,t1,t2):
+    # this function loads fn_qtj_obs, and checks to see if there
+    # is data between t1 and t2...
+
+    t_obs, _ = get_all_tj_observed_data(fn_qtj_obs)
+    i_good = np.argwhere( (t_obs >= t1) & (t_obs <= t2) )
+    if i_good.size == 0:
+        return False
+    else:
+        return True
+
+def get_more_qtj_obs_data(fn_qtj_obs,t1,t2):
+    print('we are replacting the file ', fn_qtj_obs)
+    print('with a new one that has more data.')
+    t_obs, _ = get_all_tj_observed_data(fn_qtj_obs)
+    t_min = t_obs[0]
+    t_max = t_obs[-1]
+    if t_min <= t1:
+        t1_get = t_min
+    else:
+        t1_get = t1
+    if t_max >= t2:
+        t2_get = t_max
+    else:
+        t2_get = t2
+    t1_str = t1_get.strftime('%Y-%m-%d')
+    t2_str = t2_get.strftime('%Y-%m-%d')
+    make_obs_Qtj_file(t1_str,t2_str,fn_qtj_obs)    
+
+def make_obs_Qtj_file(t1_str,t2_str,fn_qtj_obs):    
     file_url = ('https://waterdata.ibwc.gov/AQWebportal/Export/BulkExport?DateRange=Custom&StartTime=' + 
             t1_str + '%2000%3A00&EndTime=' + 
             t2_str + '%2000%3A00&TimeZone=0&Calendar=CALENDARYEAR&Interval=PointsAsRecorded&Step=1&ExportFormat=csv&TimeAligned=True&RoundData=False&IncludeGradeCodes=False&IncludeApprovalLevels=False&IncludeQualifiers=False&IncludeInterpolationTypes=False&Datasets[0].DatasetName=Discharge.Best%20Available%4011013300&Datasets[0].Calculation=Instantaneous&Datasets[0].UnitId=128&_=1754421522237')
-
-    #local_save_path = "/home/mspydell/research/LV4_river_stuff/IBWC_Qtrje_custom.csv"
-    local_save_path = PFM['qtj_obs_fname_full']
-
+    local_save_path = fn_qtj_obs
     download_ibwc_file(file_url, local_save_path)
-    data = load_csv_skip_header_footer(local_save_path, header_rows=5, footer_rows=1, delimiter=',')
+
+
+def get_tj_observed_flow(t_riv,pkl_fnm,method='raw_interp'):
+    # this function returns the observed tj flow on the datetimes in t_riv
+
+    PFM = initfuns.get_model_info(pkl_fnm)
+
+    # first check to see if the observations exist for the times t_riv
+    # for testing
+#    PFM['qtj_obs_fname_full'] = '/dataSIO/PHM_Simulations/raw_download/qtj_obs_data/qtj_raw_20200101_20250901.csv'
+
+    fn_qtj_obs = PFM['qtj_obs_fname_full']
+    print('the raw tj river discharge is in the file ', fn_qtj_obs)
+    print('check and see if this file has the data...')
+    if os.path.exists(fn_qtj_obs):
+        print(f"'{fn_qtj_obs}' exists. Checking to see if the data in it covers the time range:")
+        t1 = t_riv[0]  - 7 * timedelta(days=1)
+        t2 = t_riv[-1] + 7 * timedelta(days=1)
+        print(f"'{t1}' to '{t2}'")
+        has_data = check_qtj_obs_file(fn_qtj_obs,t1,t2)
+        if has_data:
+            print(f"'{fn_qtj_obs}' has the data we need. Retrieving it from the file...")
+            t_tj_raw, q_tj_raw = get_all_tj_observed_data(fn_qtj_obs)
+        else:
+            print(f"'{fn_qtj_obs}' did not have data we need. Making a new file...")
+            get_more_qtj_obs_data(fn_qtj_obs,t1,t2)
+            t_tj_raw, q_tj_raw = get_all_tj_observed_data(fn_qtj_obs)
+
+    else:    
+        print(f"'{fn_qtj_obs}' does not exist. Need to make.")
+        print(f"Making it based on the hindcast times and padding by 7 days on each end.")
+        t1 = PFM['sim_start_time'] - 7 * timedelta(days=1)
+        t2 = PFM['sim_end_time']   + 7 * timedelta(days=1)
+        t1_str = t1.strftime('%Y-%m-%d')
+        t2_str = t2.strftime('%Y-%m-%d')
+        make_obs_Qtj_file(t1_str,t2_str,fn_qtj_obs)
+        t_tj_raw, q_tj_raw = get_all_tj_observed_data(fn_qtj_obs)    
+
+    if method == 'raw_interp':
+        t_original = (t_tj_raw.astype('datetime64[ns]')).astype('int64')
+        t_i = (t_riv.astype('datetime64[ns]')).astype('int64')
+        q_tj = np.interp(t_i, t_original, q_tj_raw)
+        # now q_tj_raw is interpolated to the time stamps of t_riv
+
+    return q_tj
+
+
+def get_all_tj_observed_data(fn_qtj_obs):
+    # this returns all of the data in fn_qtj_obs
+    # both time and q [m3/s]
+    data = load_csv_skip_header_footer(fn_qtj_obs, header_rows=5, footer_rows=1, delimiter=',')
     
     t_obs2 = []
     q_obs2 = []
@@ -47,19 +405,7 @@ def get_observed_flow(t1str,t2str,pkl_fnm):
 
     t_obs = np.array(t_obs2)
     q_obs = np.array(q_obs2)
-
-
-    QQ = dict()
-    QQ['time'] = t_obs
-    # previous XWu LV4 simulations capped TJR Q at 150 m3/s. We might want to do that here?
-    QQ['discharge'] = q_obs
-    QQ['readme'] = 'this is just the observed flow at TJ from IBWC in m3/s.'
-
-    file_out = PFM['river_pckl_file_full']
-
-    with open(file_out,'wb') as fp:
-        pickle.dump(QQ,fp, protocol=pickle.HIGHEST_PROTOCOL)
-        print('\nriver discharge data saved as pickle file')
+    return t_obs, q_obs
 
 
 def get_river_flow_nwm(yyyymmddhh,t_pfm_str,pkl_fnm):
@@ -159,7 +505,8 @@ def get_river_flow_nwm(yyyymmddhh,t_pfm_str,pkl_fnm):
         print('\nriver discharge data saved as pickle file')
 
 
-def get_river_temp(pkl_fnm):
+def get_river_temp(t_riv,pkl_fnm):
+    # triv is days past reference time, what we interpolate to...
     PFM = initfuns.get_model_info(pkl_fnm)
     fatm = PFM['lv4_forc_dir'] + '/' + PFM['lv4_atm_file'] 
     RMG = grdfuns.roms_grid_to_dict(PFM['lv4_grid_file'])
@@ -167,31 +514,29 @@ def get_river_temp(pkl_fnm):
 
     ds = nc.Dataset(fatm)
     temp_air = ds['Tair'][:]
+    t_air = ds['tair_time'][:]
     msk2d = RMG['mask_rho']
     msk3d = np.broadcast_to( msk2d==0 , temp_air.shape)
     temp_river = np.mean(temp_air[msk3d])
     nt,_,_ = np.shape(temp_air)
-
-    t_air = np.arange(0,3*nt, 3)
     temp_river_time0 = np.zeros(nt)
     for a in np.arange(nt):
         tmp = temp_air[a,:,:]
         temp_river_time0[a] = np.mean( tmp[msk2d==0] )
 
-    t_riv = np.arange(0,3*nt,1)    # this should be the length of triver in river.nc file...
     Fz = interp1d(t_air,temp_river_time0,bounds_error=False,kind='linear',fill_value=(temp_river_time0[0],temp_river_time0[-1]))
                 
     temp_river_time = Fz(t_riv)
-    #print(len(temp_river_time))
+    t_riv_dt = PFM['modtime0'] + t_riv * timedelta(days=1)
 
     plot_it = 1
     if plot_it == 1:
         fig, ax = plt.subplots()
-        p1=ax.plot(t_riv,temp_river_time)
+        p1=ax.plot(t_riv_dt,temp_river_time)
         plt.setp(plt.xticks()[1], rotation=30, ha='right') # ha is the same as horizontalalignment
         plt.ylabel('river_temperature [C]')
-        plt.title('all 3 rivers have this temperature for forecast: ' + PFM['yyyymmdd'] + PFM['hhmm'] )
-        fn_out = PFM['lv4_plot_dir'] + '/river_temperature_' + PFM['yyyymmdd'] + PFM['hhmm'] + '.png'
+        plt.title('all 3 rivers have this temperature for: ' + PFM['fetch_time'].strftime('%Y%m%d%H') )
+        fn_out = PFM['lv4_plot_dir'] + '/river_temperature_' + PFM['fetch_time'].strftime('%Y%m%d%H') + '.png'
         plt.savefig(fn_out, dpi=300)
 
     # temp_river is the mean over land and time

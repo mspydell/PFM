@@ -26,6 +26,7 @@ def driver_run_hind_LV123( pkl_fnm ):
         MI2 = dict()
         MI2['sim_time_1'] = t1
         MI2['sim_time_2'] = t2
+
         initfuns.edit_and_save_MI(MI2,pkl_fnm)
         
         # add / change file names to model info

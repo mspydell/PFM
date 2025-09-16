@@ -8912,7 +8912,9 @@ def mk_lv4_river_nc(pkl_fnm):
     #Temp_riv = 20.0
     print('getting the river temperature. For each river, each time, and depth,')
     print('      it is the mean air temp over the LV4 land domain...')
-    _, Temp_riv = rivfuns.get_river_temp(pkl_fnm)
+    
+    # the time here is days past roms reference time...
+    _, Temp_riv = rivfuns.get_river_temp(triv,pkl_fnm)
     #ntra = len(temp_riv_time)
 
     #print('all 3 river temperatures are')
@@ -8972,10 +8974,15 @@ def mk_lv4_river_nc(pkl_fnm):
         msk = Q2>Q00
         WW1[msk] = WW2[msk]
         dye2 = WW1 / Q2
+        # below this ensures that if Q2=0 we don't get nans for dye.
+        msk0 = (Q2 <= Q00)
+        dye2[msk0] = R1
 
     for aa in np.arange(nt):
-        D['river_dye_02'][aa,:,0:4] = dye2[aa]
- 
+        D['river_dye_02'][aa,:,0:5] = dye2[aa]
+ # until 2025-09-09, this was 0:4, therefore filling only 4 of the 5 TJ spots, thus
+ # the amount of total wastewater entering the estuary was 80% of what we wanted to put in
+
     print('the time-mean river dye for Punta Bandera is ')
     print(str( np.mean(D['river_dye_01'][:,0,5]) ))
     print('the time-mean river dye for TJRE is ')
@@ -9054,15 +9061,46 @@ def mk_lv4_river_nc(pkl_fnm):
     river_dict_to_nc(D,fout)
     #print(fout)
 
+def convert_datetime64_to_datetime(np_datetime64_array):
+    """
+    Converts a NumPy array of datetime64 values to a NumPy array of datetime.datetime objects.
+
+    Args:
+        np_datetime64_array (np.ndarray): A NumPy array with dtype 'datetime64'.
+
+    Returns:
+        np.ndarray: A NumPy array containing datetime.datetime objects.
+    """
+    if not np.issubdtype(np_datetime64_array.dtype, np.datetime64):
+        raise TypeError("Input array must have a datetime64 dtype.")
+
+    # Convert datetime64 to Unix timestamps (in nanoseconds) and then to seconds,
+    # then create datetime objects.
+    # The astype('O') is crucial to allow storing Python objects (datetime.datetime)
+    # within a NumPy array.
+    return np.array([dt.item() for dt in np_datetime64_array], dtype=object)
+
 
 def mk_lv4_hind_river_nc(pkl_fnm):
-    print('making river tracer dictionary')
+
     PFM = initfuns.get_model_info(pkl_fnm)
     Grd = grdfuns.roms_grid_to_dict(PFM['lv4_grid_file'])
+
+    fout = PFM['lv4_forc_dir'] + '/' + PFM['lv4_river_file']
+    print('the river file .nc file name for this LV4 hindcast is...')
+    print(fout)
+    print('checking to see if this file exists...')
+    if os.path.exists(fout):
+        print(f"'{fout}' exists. No need to make. Exiting this function...")
+        return
+    else:    
+        print(f"'{fout}' does not exist. Need to make...")
+
 #    vns = ( ['theta_s','theta_b','Tcline','hc','Cs_r','sc_r','Cs_w','sc_w','river','river_time',
 #           'river_Xposition','river_Eposition','river_direction','river_Vshape','river_transport',
 #           'river_flag','river_temp','river_salt','river_dye_01','river_dye_02'] )
     
+    print('making the dictionary first...')
     D = dict()
     D['vinfo'] = dict()
     lv = 'L4'
@@ -9107,47 +9145,31 @@ def mk_lv4_hind_river_nc(pkl_fnm):
                           'option_F':'Cartesian'}
 
     t0 = PFM['fetch_time']
-    t_ref = PFM['modtime0']
     nday  = PFM['forecast_days']    
-    t0_days = (t0 - t_ref)  / timedelta(days = 1) # this gets time in days from t_ref
-    # make the river times be every 1 hr for now...
-    triv = np.arange(t0_days,t0_days+nday+2/24,1/24) # the .5/24 is required to end on the last time step.
+    t2 = t0 + nday * timedelta(days=1)
+    
+    dt_riv = timedelta(minutes=15) # this is the dt for the river file
 
-    print('making the river discharge pickle file')
-    tnwm = t0 - 6 * timedelta(hours = 1) # river is always 6 hours before forecast start.
-    tnwm_str = tnwm.strftime('%Y%m%d%H')
-    tpfm_str = t0.strftime('%Y%m%d%H')
-    print('using the nwm river forecast from the start time:')
-    print(tnwm_str)
-    print('to ensure that the forecast can be found on their server')
-    #print(tpfm_str)
-    #rivfuns.get_river_flow_nwm(tnwm_str,tpfm_str,pkl_fnm)
-    # the below will get an extra day of data on both ends. To ensure we cover
-    # the hindcast times.
-    t1_str = (t0 - 1 * timedelta(days = 1)).strftime('%Y%m%d%H%M')
-    t2_str = (t0 + nday * timedelta(days = 1) + 1 * timedelta(days = 1)).strftime('%Y%m%d%H%M') 
+    t_riv = np.arange(t0-dt_riv,t2+2*dt_riv,dt_riv)
 
-    rivfuns.get_observed_flows(t1_str,t2_str,pkl_fnm)
+    # get the river flow from observations and NWM on the t_riv time stamps!
+    q_tj = rivfuns.get_tj_observed_flow(t_riv,pkl_fnm,method='raw_interp')
+    q_sw, q_om = rivfuns.get_nwm_analysis_flow(t_riv,pkl_fnm)
+    q_pb, dye_pb = rivfuns.get_pb_flow_and_dye(t_riv,pkl_fnm)
 
-    t1  = PFM['fetch_time']    # this is the first time of the PFM forecast
-    t1str = t1.strftime('%Y%m%d%H%M')
-    #print(t1str)
-    # now a string of the time to start ROMS (and the 1st atm time too)
-    yyyymmddhhmm_pfm = "%d%02d%02d%02d%02d" % (t1.year, t1.month, t1.day, t1.hour, t1.minute)
-    t2  = t1 + PFM['forecast_days'] * timedelta(days=1)  # this is the last time of the PFM forecast
+    time_0 = PFM['modtime0']
+    t_riv_dt = convert_datetime64_to_datetime(t_riv)
 
+    dts = t_riv_dt - time_0
+    dts_days = []
+    for dt in dts:
+        dts_days.append( dt.total_seconds() / (24.0 * 3600.0 ))
 
-    print('loading the river discharge pickle file...')
-    file_in= PFM['river_pckl_file_full']
-    #file_in = '/scratch/PFM_Simulations/LV4_Forecast/Forc/river_Q.pkl'
-    with open(file_in,'rb') as fp:
-        QQ = pickle.load(fp)
+    t_riv_roms = np.array( dts_days )
+    # this is days past tref
 
-    #print( QQ['time'] )
-    #print( PFM['modtime0'] + triv * timedelta(days = 1 ) )
-
-    nt = len(triv)
-    D['river_time'] = triv
+    nt = len(t_riv)
+    D['river_time'] = t_riv_roms
     D['vinfo']['river_time'] = {'long_name':'river time',
                         'units':'days',
                         'field':'river_time, scalar, series'}
@@ -9156,13 +9178,8 @@ def mk_lv4_hind_river_nc(pkl_fnm):
     D['river_transport'] = np.zeros((nt,9))
     #D['river_transport'][:,0:5] = -0.025 + D['river_transport'][:,0:5] # this is SDTJRE points
 
-    use_IBWC = True
-    if use_IBWC: 
-        _, Q_new = rivfuns.get_forecasted_Q_IBWC(pkl_fnm)
-    else:
-        Q_new = QQ['discharge'][:,2]
 
-    D['river_transport'][:,0] = - 0.2 * Q_new # TJR discharge
+    D['river_transport'][:,0] = - 0.2 * q_tj # TJR discharge
     D['river_transport'][:,1] = D['river_transport'][:,0]
     D['river_transport'][:,2] = D['river_transport'][:,0]
     D['river_transport'][:,3] = D['river_transport'][:,0]
@@ -9171,25 +9188,16 @@ def mk_lv4_hind_river_nc(pkl_fnm):
     print(str( 5*np.mean(D['river_transport'][:,0]) ) + ' m3/s')
     print('or ', str( 22.824*5*np.mean(D['river_transport'][:,0]) ) + ' MGD')
 
-    #D['river_transport'][:,5] = -2.1906 + D['river_transport'][:,5] # this is PB. original value
-    #D['river_transport'][:,5] = -2.5 + D['river_transport'][:,5] # this is PB. 4/14/25 value
-    # based on discussion with Liden at PFM meeting
-    # but Liden also said that this is good for dry weather, wet weather flow gets
-    # diverted and at PB Qww = 0.175 m3/s, Qfw 0.79 m3/s, Qtot = 0.965 m3/s, and 
-    # dye_01 = 0.175 / 0.965 = 0.1818. NOT IMPLEMENTED!!!! 
-    #PFM['Q_PB'] = -2.0
-    #PFM['dye_PB'] = 0.5
-    D['river_transport'][:,5] = PFM['Q_PB'] + D['river_transport'][:,5] # this is PB. 5/2/25 value
+    D['river_transport'][:,5] = -q_pb + D['river_transport'][:,5] # this is PB. 5/2/25 value
     # based on FF email with Liden
 
-    D['river_transport'][:,6] = - 0.5 * QQ['discharge'][:,0] # sweetwater discharge
+    D['river_transport'][:,6] = - 0.5 * q_sw # sweetwater discharge
     D['river_transport'][:,7] = D['river_transport'][:,6]
     print('the time-mean discharge for Sweetwater is ')
     print(str( 2*np.mean(D['river_transport'][:,6]) ) + ' m3/s')
     print('or ', str( 22.824*2*np.mean(D['river_transport'][:,6]) ) + ' MGD')
 
-    D['river_transport'][:,8] = - QQ['discharge'][:,1] # Otay discharge
-    #D['river_transport'][:,6:] = -0.01 + D['river_transport'][:,6:] # these are in SD Bay
+    D['river_transport'][:,8] = - q_om # Otay discharge
     print('the time-mean discharge for Otay Mesa is ')
     print(str( np.mean(D['river_transport'][:,8]) ) + ' m3/s')
     print('or ', str( 22.824*np.mean(D['river_transport'][:,8]) ) + ' MGD')
@@ -9204,18 +9212,15 @@ def mk_lv4_hind_river_nc(pkl_fnm):
     #Temp_riv = 20.0
     print('getting the river temperature. For each river, each time, and depth,')
     print('      it is the mean air temp over the LV4 land domain...')
-    _, Temp_riv = rivfuns.get_river_temp(pkl_fnm)
-    #ntra = len(temp_riv_time)
-
-    #print('all 3 river temperatures are')
-    #print(Temp_riv)
-    #print('and do not depend on time or depth')
+    _, Temp_riv = rivfuns.get_river_temp(t_riv_roms,pkl_fnm)
 
     D['river_temp'] = np.zeros((nt,Nz,9))
+    D['river_dye_01'] = np.zeros((nt,Nz,9)) # start with 0 
     for aa in np.arange(nt):
         D['river_temp'][aa,:,:] = Temp_riv[aa]
+        D['river_dye_01'][aa,:,5] = dye_pb[aa] # new value 5/2/25
 
-    #D['river_temp'] = Temp_riv + D['river_temp'] # how should this get set?
+
     D['vinfo']['river_temp'] = {'long_name':'river runoff potential temperature',
                         'units':'Celsius',
                         'field':'river temp, scalar, series'}
@@ -9225,13 +9230,6 @@ def mk_lv4_hind_river_nc(pkl_fnm):
                         'units':'psu',
                         'field':'river salt, scalar, series'}
 
-    D['river_dye_01'] = np.zeros((nt,Nz,9)) # this is always zero. 
-    #D['river_dye_01'][:,:,5] = 0.7 + D['river_dye_01'][:,:,5] # original value
-    #D['river_dye_01'][:,:,5] = 0.5088 + D['river_dye_01'][:,:,5] # new value
-    # based on Liden discussion at PFM 4/14/25 meeting 0.5088 = 29/(28+29)
-    # where 29 MGD WW, and 28 MGD non-WW
-    D['river_dye_01'][:,:,5] = PFM['dye_PB'] + D['river_dye_01'][:,:,5] # new value 5/2/25
-    # based on FF email with Liden
 
 
     D['vinfo']['river_dye_01'] = {'long_name':'river runoff dye, fraction raw sewage at PB',
@@ -9264,10 +9262,16 @@ def mk_lv4_hind_river_nc(pkl_fnm):
         msk = Q2>Q00
         WW1[msk] = WW2[msk]
         dye2 = WW1 / Q2
+        # below this ensures that if Q2=0 we don't get nans for dye.
+        msk0 = (Q2 <= Q00)
+        dye2[msk0] = R1
 
     for aa in np.arange(nt):
-        D['river_dye_02'][aa,:,0:4] = dye2[aa]
- 
+        D['river_dye_02'][aa,:,0:5] = dye2[aa]
+     # until 2025-09-09, this was 0:4, therefore filling only 4 of the 5 TJ spots, thus
+    # the amount of total wastewater entering the estuary was 80% of what we wanted to put in
+
+
     print('the time-mean river dye for Punta Bandera is ')
     print(str( np.mean(D['river_dye_01'][:,0,5]) ))
     print('the time-mean river dye for TJRE is ')
@@ -9275,7 +9279,6 @@ def mk_lv4_hind_river_nc(pkl_fnm):
     print('the time-mean river temp for all rivers is ')
     print(str( np.mean(D['river_temp'][:,0,0]) ))
 
-    #D['river_dye_02'][:,:,0:5] = 0.15 + D['river_dye_02'][:,:,0:5]
     D['vinfo']['river_dye_02'] = {'long_name':'river runoff dye, fraction raw sweage at SDTJRE',
                         'units':'fraction',
                         'field':'river dye 2, scalar, series'}
@@ -9339,12 +9342,8 @@ def mk_lv4_hind_river_nc(pkl_fnm):
     D['vinfo']['river_time'] = {'long_name':'river_time',
 		                        'units':'days',
 		                        'field':'river_time, scalar, series'}		            
-
-
-    fout = PFM['lv4_forc_dir'] + '/' + PFM['lv4_river_file']
-    
+  
     river_dict_to_nc(D,fout)
-    #print(fout)
 
 
 

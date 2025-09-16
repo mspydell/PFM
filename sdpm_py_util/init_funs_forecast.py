@@ -122,6 +122,7 @@ def add_file_names_2MI(yyyymmddhh,pkl_fnm):
     PFM['lv3_his_name_full'] = PFM['lv3_his_dir'] + '/'  + PFM['lv3_his_name']
     PFM['lv3_rst_name_full'] = PFM['restart_files_dir'] + '/' + PFM['lv3_rst_name']
 
+    PFM['lv4_river_file'] = 'river_' + t1.strftime('%Y%m%d') + '_' + t2.strftime('%Y%m%d') + '.nc'
     PFM['lv4_his_name'] = 'LV4_ocean_his_' + yyyymmddhhmm + '.nc'
     PFM['lv4_rst_name'] = 'LV4_ocean_rst_' + yyyymmddhhmm + '_' + end_str + '.nc' 
     PFM['lv4_swan_rst_name']  = 'LV4_swan_rst_' + yyyymmddhhmm + '.dat' 

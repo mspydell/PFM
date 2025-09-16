@@ -756,19 +756,19 @@ def run_hind_LV4(t1str,pkl_fnm):
     t1=datetime.now()
     print('driver_run_forcast_LV4: making swan bnd and wnd files...')
     os.chdir('../sdpm_py_util')
-    cmd_list = ['python','-u','-W','ignore','swan_functions.py','cdip_ncs_to_dict','refresh',pkl_fnm]
+    cmd_list = ['python','-u','-W','ignore','swan_functions.py','cdip_ncs_to_dict_hind',pkl_fnm]
     ret1 = subprocess.run(cmd_list)   
-    print('cdip to dictionary return code: ' + str(ret5.returncode) + ' (0=good)')  
+    print('cdip to dictionary return code: ' + str(ret1.returncode) + ' (0=good)')  
     fout = MI['lv4_forc_dir'] + '/' + MI['lv4_swan_bnd_file']
     print('making swan .bnd file...')
     cmd_list = ['python','-u','-W','ignore','swan_functions.py','mk_swan_bnd_file',fout,pkl_fnm]
     ret2 = subprocess.run(cmd_list)   
-    print('...done. swan bnd file return code: ' + str(ret5.returncode) + ' (0=good)')  
+    print('...done. swan bnd file return code: ' + str(ret2.returncode) + ' (0=good)')  
     fout = MI['lv4_forc_dir'] + '/' + MI['lv4_swan_wnd_file']
     print('making swan wnd file...')
     cmd_list = ['python','-u','-W','ignore','swan_functions.py','mk_swan_wnd_file',fout,pkl_fnm]
     ret3 = subprocess.run(cmd_list)   
-    print('...done. swan wnd file return code: ' + str(ret5.returncode) + ' (0=good)')  
+    print('...done. swan wnd file return code: ' + str(ret3.returncode) + ' (0=good)')  
     t2 = datetime.now()
 
     if ret1.returncode != 0 or ret2.returncode != 0 or ret3.returncode != 0: 
@@ -785,7 +785,7 @@ def run_hind_LV4(t1str,pkl_fnm):
     t1=datetime.now()
     print('making LV4 ocean, swan, coupling .in and .sb...')
     os.chdir('../sdpm_py_util')
-    runfuns.make_LV4_coawst_dotins_dotsb(pkl_fnm,'fore')
+    runfuns.make_LV4_coawst_dotins_dotsb(pkl_fnm,'hind')
     print('...done')
 
     ################
@@ -797,7 +797,7 @@ def run_hind_LV4(t1str,pkl_fnm):
     print('and using ' + str(MI['gridinfo']['L4','np_swan']) + ' CPUs for SWAN.')
     print('working...')
 
-    runfuns.run_slurm_LV4(pkl_fnm, 'fore')
+    runfuns.run_slurm_LV4(pkl_fnm, 'hind')
 
     os.chdir('../driver')
     print('...done.')
@@ -1690,17 +1690,17 @@ def run_fore_LV4(pkl_fnm):
     os.chdir('../sdpm_py_util')
     cmd_list = ['python','-u','-W','ignore','swan_functions.py','cdip_ncs_to_dict','refresh',pkl_fnm]
     ret1 = subprocess.run(cmd_list)   
-    print('cdip to dictionary return code: ' + str(ret5.returncode) + ' (0=good)')  
+    print('cdip to dictionary return code: ' + str(ret1.returncode) + ' (0=good)')  
     fout = MI['lv4_forc_dir'] + '/' + MI['lv4_swan_bnd_file']
     print('making swan .bnd file...')
     cmd_list = ['python','-u','-W','ignore','swan_functions.py','mk_swan_bnd_file',fout,pkl_fnm]
     ret2 = subprocess.run(cmd_list)   
-    print('...done. swan bnd file return code: ' + str(ret5.returncode) + ' (0=good)')  
+    print('...done. swan bnd file return code: ' + str(ret2.returncode) + ' (0=good)')  
     fout = MI['lv4_forc_dir'] + '/' + MI['lv4_swan_wnd_file']
     print('making swan wnd file...')
     cmd_list = ['python','-u','-W','ignore','swan_functions.py','mk_swan_wnd_file',fout,pkl_fnm]
     ret3 = subprocess.run(cmd_list)   
-    print('...done. swan wnd file return code: ' + str(ret5.returncode) + ' (0=good)')  
+    print('...done. swan wnd file return code: ' + str(ret3.returncode) + ' (0=good)')  
     t2 = datetime.now()
 
     if ret1.returncode != 0 or ret2.returncode != 0 or ret3.returncode != 0: 
@@ -1788,6 +1788,16 @@ def run_hind_simulation(t1str,lvl,pkl_fnm):
         cmd_list = ['python','-u','-W','ignore','driver_functions.py','run_hind_LV3',t1str,pkl_fnm]
         ret1 = subprocess.run(cmd_list)   
         print('...finished LV3 hindcast.')
+        print('return code: ' + str(ret1.returncode) + ' (0=good)')  
+        if ret1.returncode != 0:
+            print('need to abort! Aborting simulation!')
+            sys.exit(1)
+    if lvl == 'LV4':
+        os.chdir('../driver')
+        print('starting LV4 hindcast with subprocess...')
+        cmd_list = ['python','-u','-W','ignore','driver_functions.py','run_hind_LV4',t1str,pkl_fnm]
+        ret1 = subprocess.run(cmd_list)   
+        print('...finished LV4 hindcast.')
         print('return code: ' + str(ret1.returncode) + ' (0=good)')  
         if ret1.returncode != 0:
             print('need to abort! Aborting simulation!')

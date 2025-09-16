@@ -1066,8 +1066,10 @@ def atm_roms_dict_to_netcdf(lv,pkl_fnm,mod_type):
             print(f"An error occurred while deleting the file: {e}")
     else:
         print(f"File '{file_path}' does not exist.")
+        print('thus, no need to delete it.')
 
 
+    print(f"File '{file_path}' is now being made...")
     with open(fname_in,'rb') as fp:
         ATM_R = pickle.load(fp)
 

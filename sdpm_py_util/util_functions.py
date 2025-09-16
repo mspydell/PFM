@@ -296,6 +296,7 @@ def make_web_nc_file(pkl_fnm):
     MI = initfuns.get_model_info(pkl_fnm)
     fn_hs = MI['lv4_his_name_full']
     fn_gr = MI['lv4_grid_file']
+    print('making the web_essential.nc file...')
     cmd_list = ['python','-W','ignore','web_functions.py','full_his_to_essential',fn_hs,fn_gr,pkl_fnm]
     os.chdir('../web_util')
     ret6 = subprocess.run(cmd_list)   
@@ -304,26 +305,45 @@ def make_web_nc_file(pkl_fnm):
         sys.exit(1)
 
     os.chdir('../driver')
-    fn_wb = MI['lv4_web_name_full'] 
-    print('moving and copying', fn_wb, ' file')
+    #fn_wb = MI['lv4_web_name_full'] 
+    #print('moving and copying', fn_wb, ' file')
     web_dir = MI['lv4_for_web_dir']
     archive_web_dir = MI['archive_web_dir']
-    print('to ', web_dir, ' and ', archive_web_dir)
-    delete_files_by_extension(web_dir, ".nc")
+    #print('to ', web_dir, ' and ', archive_web_dir)
+    #delete_files_by_extension(web_dir, ".nc")
     ## copy web.nc file to website and Archive
 
     if os.path.exists(MI['lv4_web_name_full']):
-        print(f"The file '{MI['lv4_web_name_full']}' exists.")
-        print('copying web.nc to /dataSIO/... now...')
-        shutil.copy(MI['lv4_web_name_full'],web_dir)
-        shutil.copy(MI['lv4_web_name_full'],archive_web_dir)    
-        # Rename the web.nc file on website to web_data_latest.nc
-        original_name_in_dest = os.path.join(web_dir, os.path.basename(MI['lv4_web_name_full']))
-        new_path_in_dest = os.path.join(web_dir, 'web_data_latest.nc')
-        print('renaming ', original_name_in_dest, ' to ')
-        print(new_path_in_dest)
-        shutil.move(original_name_in_dest, new_path_in_dest)
-        print('...done!')
+        # hook to use shell commands instead...
+        use_bash = True
+        if use_bash:
+            web_full_orig = MI['lv4_web_name_full']
+            base_name     = os.path.basename(web_full_orig)
+            web_full_v1   = web_dir + 'web_data_latest.nc'
+            web_full_v2   = archive_web_dir + base_name 
+            print('going to copy ', web_full_orig, ' to')
+            print(web_full_v1, ' and ', web_full_v2)
+            cmd_lst1 = ['cp',web_full_orig,web_full_v1]
+            retv1 = subprocess.run(cmd_lst1)
+            print('done copying to /for_web/.')
+            cmd_lst2 = ['cp',web_full_orig,web_full_v2]
+            retv2 = subprocess.run(cmd_lst2)
+            print('done copying to /web/')
+
+        else:
+            web_dir_2 = web_dir[0:-1]
+            print(f"The file '{MI['lv4_web_name_full']}' exists.")
+            print('copying web.nc to /dataSIO/... now...')
+            shutil.copy(MI['lv4_web_name_full'],web_dir)
+            shutil.copy(MI['lv4_web_name_full'],archive_web_dir)    
+            # Rename the web.nc file on website to web_data_latest.nc
+            print('copied ', MI['lv4_web_name_full'], ' to /dataSIO/ locations. Renaming in for_web/')
+            original_name_in_dest = os.path.join(web_dir, os.path.basename(MI['lv4_web_name_full']))
+            new_path_in_dest = os.path.join(web_dir, 'web_data_latest.nc')
+            print('renaming ', original_name_in_dest, ' to ')
+            print(new_path_in_dest)
+            shutil.move(original_name_in_dest, new_path_in_dest)
+            print('...done!')
     else:
         print(f"The file '{MI['lv4_web_name_full']}' does not exist. Aborting function!")
         sys.exit(1)

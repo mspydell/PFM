@@ -80,7 +80,9 @@ def create_model_info_dict():
         atm_model = 'nam_analysis'
         PFM['atm_dt_hr'] = 3
         PFM['server'] = 'swell'
-        PFM['qtj_obs_fname_full'] = pfm_root_dir + 'river_data/IBWC_Qtrje_custom.csv'
+        PFM['qtj_obs_fname_full'] = '/dataSIO/PHM_Simulations/raw_download/qtj_obs_data/qtj_raw_20200101_20250901.csv'
+        PFM['pb_time_switch'] = datetime(2025,4,1)
+        PFM['nwm_dir'] = '/dataSIO/PHM_Simulations/raw_download/nwm_files/'
     else:
         # hycom_new is the only forecast option
         ocn_model = 'hycom_new' # worked with 'hycom' but that is now (9/13/24) depricated      
@@ -139,7 +141,7 @@ def create_model_info_dict():
     PFM['lv4_nwave_dirs'] = '11' # used in the ocean.in file. it does NOT match swan
     PFM['lv4_clm_file'] = 'LV4_clm.nc'    
     PFM['lv4_nud_file'] = 'LV4_nud.nc'    
-    PFM['lv4_river_file'] = 'LV4_river.nc'    
+    PFM['lv4_river_file'] = 'LV4_river.nc'    # for PFM. overwritten below for PHM.
 
 
 # grid file locations
@@ -352,10 +354,11 @@ def create_model_info_dict():
 
     if PFM['run_type'] == 'forecast':
         PFM['hycom_data_dir'] = pfm_root_dir + 'hycom_data/'
+        PFM['cdip_data_dir'] = pfm_root_dir + 'cdip_data'
     else:
         PFM['hycom_data_dir'] = '/dataSIO/PHM_Simulations/raw_download/hycom_nc/'
+        PFM['cdip_data_dir'] =  '/dataSIO/PHM_Simulations/raw_download/cdip_data'
 
-    PFM['cdip_data_dir'] = pfm_root_dir + 'cdip_data'
 
     PFM['lv1_tides_file']          = 'ocean_tide.nc'
     PFM['atm_tmp_pckl_file']       = 'atm_tmp_pckl_file.pkl'
@@ -503,7 +506,9 @@ def create_model_info_dict():
     PFM['fore_end_time'] = end_time # the end time of the forecast
 
     PFM['lv4_swan_check_freq_sec'] = int( np.round( 0.2 * OP['L4','rst_interval'] * 2 * 3600 / 2.5 ) ) 
-
+    yyyymmdd_1 = PFM['fetch_time'].strftime('%Y%m%d')
+    yyyymmdd_2 = (PFM['fetch_time'] + PFM['forecast_days']*timedelta(days=1) ).strftime('%Y%m%d')
+    PFM['lv4_river_file'] = 'river_' + yyyymmdd_1 + '_' + yyyymmdd_2 + '.nc'
        
     return PFM
 
