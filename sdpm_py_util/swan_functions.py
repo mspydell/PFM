@@ -385,7 +385,7 @@ def cdip_ncs_to_dict_hind(pkl_fnm):
                               hour=date.hour, minute=date.minute, second=date.second) for date in t2])
 
 
-    t00 = PFM['fetch_time'] # the first forecast time
+    t00 = PFM['sim_time_1'] # the first forecast time
     t10 = t00 + PFM['forecast_days'] * timedelta(days=1)    # need to find the right t's for the forecast...
     # t10 is the last forecast time
     msk = (t2 >= t00) & (t2 <= t10)

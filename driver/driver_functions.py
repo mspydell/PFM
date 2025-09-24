@@ -800,36 +800,12 @@ def run_hind_LV4(t1str,pkl_fnm):
     runfuns.run_slurm_LV4(pkl_fnm, 'hind')
 
     os.chdir('../driver')
-    print('...done.')
-    print('this took:')
+    print('running COAWST took:')
     t2 = datetime.now()
     print(t2-t1)
     print('\n')
     dt_roms = []
     dt_roms.append(t2-t1)
-
- 
-    dt_plotting = []
-    t1=datetime.now()
-    t2=datetime.now()
-    dt_plotting.append(t2-t1)
-
-
-    dt_LV4 = {}
-    dt_LV4['roms'] = dt_roms
-    dt_LV4['ic'] = dt_ic
-    dt_LV4['bc'] = dt_bc
-    dt_LV4['atm'] = dt_atm
-    dt_LV4['plotting'] = dt_plotting
-    dt_LV4['swan'] = dt_sw
-    #dt_LV4['web'] = dt_web
-
-    fn_timing = MI['lv4_run_dir'] + '/LV4_timing_info.pkl'
-    with open(fn_timing,'wb') as fout:
-        pickle.dump(dt_LV4,fout)
-        print('OCN_LV4 timing info dict saved with pickle to: ',fn_timing)
-
-
 
 def run_fore_LV1(pkl_fnm):
     import init_funs_forecast as initfuns_fore

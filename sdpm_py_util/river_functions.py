@@ -448,7 +448,11 @@ def get_river_flow_nwm(yyyymmddhh,t_pfm_str,pkl_fnm):
         hr_str = str(int(hr)).zfill(3)
         fn = fname[0] + hh + fname[1] + hr_str + fname[2]
         url_tot = url + '/' + fn
+        print('we are trying to get the url_tot:')
+        print(url_tot)
+        print('with response = requests.get(url_tot)')
         response = requests.get(url_tot)
+        print('the response status code for this was ', str(response.status_code))
 
         # Check if the request was successful
         if response.status_code == 200:
@@ -469,16 +473,21 @@ def get_river_flow_nwm(yyyymmddhh,t_pfm_str,pkl_fnm):
     
         # ds = nc.Dataset(url_tot) DOESNT WORK. NOT the right server type on their end?
         
-        # note, this block of code is in the hour loop and grabs only the data for the rivers we want.
-        ig = [None]*3
-        cnt=0 # this is the reach_id index counter
-        for rids0 in reach_ids:
-            ig= np.argwhere(rids==rids0)
-            Q[cnt1,cnt] = qq[ig]
-            cnt=cnt+1
+            # note, this block of code is in the hour loop and grabs only the data for the rivers we want.
+            ig = [None]*3
+            cnt=0 # this is the reach_id index counter
+            for rids0 in reach_ids:
+                ig= np.argwhere(rids==rids0)
+                Q[cnt1,cnt] = qq[ig]
+                cnt=cnt+1
 
-        cnt1 = cnt1+1 # this is the hour index counter
+            cnt1 = cnt1+1 # this is the hour index counter
         
+        else: # something bad happened gettng the file
+            print('response.status_code not 200! problems with getting nwm file.')
+            print('exiting PFM...')
+            sys.exit(1)
+
     plot_it = 0
     if plot_it == 1:
         fig, ax = plt.subplots()
@@ -504,6 +513,7 @@ def get_river_flow_nwm(yyyymmddhh,t_pfm_str,pkl_fnm):
         pickle.dump(QQ,fp, protocol=pickle.HIGHEST_PROTOCOL)
         print('\nriver discharge data saved as pickle file')
 
+    return 0
 
 def get_river_temp(t_riv,pkl_fnm):
     # triv is days past reference time, what we interpolate to...
@@ -535,8 +545,8 @@ def get_river_temp(t_riv,pkl_fnm):
         p1=ax.plot(t_riv_dt,temp_river_time)
         plt.setp(plt.xticks()[1], rotation=30, ha='right') # ha is the same as horizontalalignment
         plt.ylabel('river_temperature [C]')
-        plt.title('all 3 rivers have this temperature for: ' + PFM['fetch_time'].strftime('%Y%m%d%H') )
-        fn_out = PFM['lv4_plot_dir'] + '/river_temperature_' + PFM['fetch_time'].strftime('%Y%m%d%H') + '.png'
+        plt.title('all 3 rivers have this temperature for: ' + PFM['sim_time_1'].strftime('%Y%m%d%H') )
+        fn_out = PFM['lv4_plot_dir'] + '/river_temperature_' + PFM['sim_time_1'].strftime('%Y%m%d%H') + '.png'
         plt.savefig(fn_out, dpi=300)
 
     # temp_river is the mean over land and time

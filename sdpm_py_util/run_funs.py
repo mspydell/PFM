@@ -593,8 +593,7 @@ def  make_LV4_coawst_dotins_dotsb(pkl_fnm,mod_type):
         import init_funs_forecast as initfuns
 
     PFM = initfuns.get_model_info(pkl_fnm)
-    yyyymmddhhmm = PFM['yyyymmdd'] + PFM['hhmm']
-
+    
     # initialize dict to hold values that we will substitute into the dot_in file.
     D = dict()
 
@@ -657,7 +656,7 @@ def  make_LV4_coawst_dotins_dotsb(pkl_fnm,mod_type):
 
     #date_string_yesterday = fdt_yesterday.strftime(Lfun.ds_fmt)
     t0          = PFM['modtime0']
-    t2          = datetime.strptime( yyyymmddhhmm, '%Y%m%d%H%M')
+    t2          = PFM['sim_time_1']
     dt          = (t2-t0)/timedelta(days=1) # days since 19990101
     D['dstart'] = str(dt) + 'd0' # this is in the form xxxxx.5 due to 12:00 start time for hycom
 
@@ -677,7 +676,11 @@ def  make_LV4_coawst_dotins_dotsb(pkl_fnm,mod_type):
     D['swan_wnd_full'] = "'" + PFM['lv4_forc_dir'] + '/' +PFM['lv4_swan_wnd_file'] + "'"     
     D['atm_dt_hr'] = PFM['atm_dt_hr']
 
-    t1 = PFM['fetch_time']
+    if PFM['run_type'] == 'forecast':
+        t1 = PFM['fetch_time']
+    else:
+        t1 = PFM['sim_time_1']
+        
     #t2 = PFM['fore_end_time']
     t2 = t1 + PFM['forecast_days'] * timedelta(days=1)
     t1_swan_str = t1.strftime("%Y%m%d.%H") + '0000'
@@ -724,9 +727,7 @@ def  make_LV4_coawst_dotins_dotsb(pkl_fnm,mod_type):
     D['lv4_logfile_local'] = lv4_logfile_local
 #    D['lv4_executable']    = PFM['lv4_run_dir'] + '/' + PFM['lv4_exe_name']
     D['lv4_executable'] = PFM['executable_dir']  + PFM['lv4_executable']
-    print('we are using')
-    print(D['lv4_executable'])
-    print('for LV4')
+
 
 
     dot_in_dir   = '.'
@@ -764,6 +765,21 @@ def  make_LV4_coawst_dotins_dotsb(pkl_fnm,mod_type):
     D['angle_max'] = np.max(cdip['dir'])    
     D['angle_num'] = len(cdip['dir'])
     D['angle_dangle'] = cdip['dir'][1] - cdip['dir'][0]    
+
+
+    print('for this LV4 simulation')
+    print('the grid file used is:')
+    print(D['lv4_grid_full'])
+    print('history file made will be:')
+    print(D['lv4_his_name_full'])
+    print('restart file made will be:')
+    print(D['lv4_rst_name_full'])
+    print('the ini file used is:')
+    print(D['lv4_ini_file'])
+    print('the river input file is:')
+    print(D['lv4_river_file'])
+    print('we are using')
+    print(D['lv4_executable'])
 
 
     ## here is ocean.in 

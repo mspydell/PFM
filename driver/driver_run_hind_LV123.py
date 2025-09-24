@@ -26,7 +26,8 @@ def driver_run_hind_LV123( pkl_fnm ):
         MI2 = dict()
         MI2['sim_time_1'] = t1
         MI2['sim_time_2'] = t2
-
+        MI2['lv4_river_file'] = 'river_' + t1.strftime('%Y%m%d') + '_' + t2.strftime('%Y%m%d') + '.nc'
+    
         initfuns.edit_and_save_MI(MI2,pkl_fnm)
         
         # add / change file names to model info
@@ -67,11 +68,14 @@ def driver_run_hind_LV123( pkl_fnm ):
         time_tots[cnt_t] = t2_t - t0_t
         print(f"{'='*60}")
 
-        # after the 1st simulation, change to using restarts
+        # after the 1st simulation, change to using restarts!!!
         MI2 = {}
         MI2['lv1_use_restart'] = 1
         MI2['lv2_use_restart'] = 1
         MI2['lv3_use_restart'] = 1
+        MI2['lv4_use_restart'] = 1
+        MI2['lv4_swan_use_rst'] = 1  
+
         initfuns.edit_and_save_MI(MI2,pkl_fnm)
         print('done with a 1 day LV1 hindcast, going to the next day.\n')
         #sys.exit("exiting for now.")

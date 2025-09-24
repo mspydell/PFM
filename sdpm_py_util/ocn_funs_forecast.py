@@ -8843,7 +8843,10 @@ def mk_lv4_river_nc(pkl_fnm):
     print(tnwm_str)
     print('to ensure that the forecast can be found on their server')
     #print(tpfm_str)
-    rivfuns.get_river_flow_nwm(tnwm_str,tpfm_str,pkl_fnm)
+    ret_code = rivfuns.get_river_flow_nwm(tnwm_str,tpfm_str,pkl_fnm)
+    if ret_code == 1:
+        print('river file wasnt made, exiting...')
+        sys.exit(1)
 
     print('loading the river discharge pickle file...')
     file_in= PFM['river_pckl_file_full']
@@ -9144,7 +9147,7 @@ def mk_lv4_hind_river_nc(pkl_fnm):
                           'option_T':'spherical',
                           'option_F':'Cartesian'}
 
-    t0 = PFM['fetch_time']
+    t0 = PFM['sim_time_1']
     nday  = PFM['forecast_days']    
     t2 = t0 + nday * timedelta(days=1)
     

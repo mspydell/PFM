@@ -270,7 +270,11 @@ def get_swan_restart_file_name(pkl_fnm):
 
     fnm_swan = None
     PFM = get_model_info(pkl_fnm)
-    t_fore = PFM['fetch_time'] 
+    if PFM['run_type'] == 'forecast':
+        t_fore = PFM['fetch_time'] 
+    else:
+        t_fore = PFM['sim_time_1']
+        
     print('going to restart swan, forecast start time is')
     print(t_fore)
     rst_files = glob.glob(PFM['restart_files_dir'] + '/*_???.dat-001') # only examine cpu 1 files for timing
@@ -424,9 +428,23 @@ def remove_old_restart_files(ftype,older_than_days,pkl_fnm):
     else:
         print('there were no ' + ftype + ' restart files older than now minus ' + str(older_than_days) + ' days old')
 
+def remove_old_swan_hind_restarts(pkl_fnm):
+    PFM = get_model_info(pkl_fnm)
+    t_hind = PFM['sim_time_1']
+    f_names = glob.glob(PFM['restart_files_dir'] + '/LV4*_???.dat*')
+    for fn in f_names:
+        t_fn = datetime.strptime(fn[-24:-16],'%Y%m%d')
+        if t_fn <= t_hind - 3*timedelta(days=1):
+            os.remove(fn)
+            print('the file ', fn, ' was deleted')
+
 def remove_swan_restarts_eq_foretime(pkl_fnm):
     PFM = get_model_info(pkl_fnm)
-    t_fore = PFM['fetch_time']    
+    if PFM['run_type'] == 'forecast':
+        t_fore = PFM['fetch_time']    
+    else:
+        t_fore = PFM['sim_time_1']
+
     rst_files = glob.glob(PFM['restart_files_dir'] + '/LV4*dat*')
     i1 = 13
     i2 = 23
@@ -442,9 +460,9 @@ def remove_swan_restarts_eq_foretime(pkl_fnm):
                 rmd = 1            
                 
     if rmd == 0:
-        print('there was not a previous forecast with this forecast time. No swan restart files were deleted.')
+        print('This is a new forecast withou previous swan restart files. Thus, no swan restart files were deleted.')
     else:
-        print('a previous forecast was run from this start time. Swan restart files from this forecast were deleted.')
+        print('a previous forecast was run from this start time. Previously made Swan restart files from this forecast time were deleted.')
 
 
 def remove_swan_rst_nohour(pkl_fnm):
@@ -516,9 +534,15 @@ def restart_setup(lvl,pkl_fnm):
         key_file = 'lv4_ini_file'
         remove_swan_rst_nohour(pkl_fnm)
         #remove_swan_rst_incomplete()
-        print('removing swan restart files older than now - ' + str(older_than_days) + ' days old...')
-        remove_old_restart_files('swan',older_than_days,pkl_fnm)
-        # below ensure that swan looks for a previous forecast to find the correct restart data!
+        if PFM['run_type']=='forecast':
+            print('removing swan restart files older than now - ' + str(older_than_days) + ' days old...')
+            remove_old_restart_files('swan',older_than_days,pkl_fnm)
+            # below ensure that swan looks for a previous forecast to find the correct restart data!
+        else:
+            print('removing swan restart files made by previous hindcasts')
+            print('older than 2 days from this hindcast ', PFM['sim_time_1'])
+            remove_old_swan_hind_restarts(pkl_fnm)
+
         remove_swan_restarts_eq_foretime(pkl_fnm)
         if PFM['lv4_swan_use_rst'] == 1:
             fn0 = PFM['lv4_swan_rst_name'][0:13]
