@@ -2,6 +2,9 @@
 import sys
 import csv
 import os
+import urllib.request
+from urllib.error import URLError, HTTPError
+
 from datetime import datetime, timedelta
 from scipy.interpolate import interp1d
 
@@ -407,6 +410,38 @@ def get_all_tj_observed_data(fn_qtj_obs):
     q_obs = np.array(q_obs2)
     return t_obs, q_obs
 
+def file_url_exists(url):
+    """
+    Checks if a file at the given URL exists and is accessible.
+
+    Args:
+        url (str): The URL of the file to check.
+
+    Returns:
+        bool: True if the file exists and is accessible (returns a 200, 301, or 302 status code), 
+              False otherwise.
+    """
+    try:
+        # Create a Request object and set the method to 'HEAD'
+        req = urllib.request.Request(url, method='HEAD')
+        
+        # Open the URL and get the response
+        with urllib.request.urlopen(req) as response:
+            # Check for successful status codes (200 OK, 301 Moved Permanently, 302 Found)
+            return response.getcode() in (200, 301, 302)
+    except HTTPError as e:
+        # Handle HTTP errors (e.g., 404 Not Found, 403 Forbidden)
+        print(f"HTTP Error for {url}: {e.code} - {e.reason}")
+        return False
+    except URLError as e:
+        # Handle URL errors (e.g., network issues, invalid URL)
+        print(f"URL Error for {url}: {e.reason}")
+        return False
+    except Exception as e:
+        # Catch any other unexpected errors
+        print(f"An unexpected error occurred for {url}: {e}")
+        return False
+    
 
 def get_river_flow_nwm(yyyymmddhh,t_pfm_str,pkl_fnm):
     # yyyymmddhh is the start time of the river forecast
@@ -450,7 +485,10 @@ def get_river_flow_nwm(yyyymmddhh,t_pfm_str,pkl_fnm):
         url_tot = url + '/' + fn
         print('we are trying to get the url_tot:')
         print(url_tot)
-        print('with response = requests.get(url_tot)')
+        print('checking to see if it is there with file_url_exists [new]...')
+        rc = file_url_exists(url)
+        print(rc)
+        print('try with response = requests.get(url_tot) [old]')
         response = requests.get(url_tot)
         print('the response status code for this was ', str(response.status_code))
 
