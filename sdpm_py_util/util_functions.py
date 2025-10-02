@@ -6,7 +6,6 @@ import pickle
 import shutil
 import sys
 import subprocess
-import datetime
 sys.path.append('../sdpm_py_util')
 import init_funs_forecast as initfuns
 

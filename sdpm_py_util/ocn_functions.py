@@ -9,7 +9,7 @@ import resource
 import pickle
 
 sys.path.append('../sdpm_py_util')
-import init_funs as initfuns
+import init_funs_forecast as initfuns
 import grid_functions as grdfuns
 import river_functions as rivfuns
 import hind_functions as hindfuns
@@ -606,177 +606,6 @@ def get_longest_forecast():
     # return the forecast start time and the forecast last time
     # ftime is a string, tmx_tot is a datetime object
     return ftime, tmx_tot
-
-
-def get_hycom_foretime_v2(t1str,t2str):
-
-    PFM = get_PFM_info()
-    hycom_dir = PFM['hycom_data_dir'] # this has the trailing /
-    
-    t0s = stored_hycom_dates()
-    print('we currently have hycom forecasts starting from:')
-    print(t0s)
-    print('checking to see if we are missing any files...')
-    miss_dict = {}
-    total_missing = []
-    for tt in t0s:
-        t1 = datetime.strptime(tt,'%Y-%m-%d') + 0.5* timedelta(days=1)
-        yyyymmdd = t1.strftime('%Y%m%d')
-        t2 = t1+8.0*timedelta(days=1)
-        times = [t1,t2]
-        n0, num_missing, miss_dict[tt] = check_hycom_data(yyyymmdd,times)
-        for mm in miss_dict[tt]:
-            total_missing.append(mm)
-
-    print('we are missing ' + str(len(total_missing)) + ' files from these forecasts.')
-    
-    print('attempting to get these files ...')
-    get_hycom_data_fnames_v3(total_missing) # _v3 is the unaggregated server
-    print('...done')
-
-    t0s = stored_hycom_dates()
-    miss_dict = {}
-    total_missing = []
-    for tt in t0s:
-        t1 = datetime.strptime(tt,'%Y-%m-%d') + 0.5* timedelta(days=1)
-        yyyymmdd = t1.strftime('%Y%m%d')
-        t2 = t1+8.0*timedelta(days=1)
-        times = [t1,t2]
-        n0, num_missing, miss_dict[tt] = check_hycom_data(yyyymmdd,times)
-        for mm in miss_dict[tt]:
-            total_missing.append(mm)
-
-    print('we are now missing ' + str(len(total_missing)) + ' files from these forecasts.')
-
-    print('\nattempting to get a new hycom forecast...')
-    tnow = datetime.now()
-    tend = t0s[-1]   # this is the last forecast we have...
-    t0 =  datetime.strptime(tend,"%Y-%m-%d")
-    t0 = t0 + timedelta(days=1) # this is one day after the last day we have data,
-                                # we have no data for this day.
-    while t0 < tnow - 1.0 * timedelta(days = 1): # get data from t0 to now-1 day
-        t0str = t0.strftime('%Y%m%d')
-        print('we are trying to get the entire ', t0str, ' hycom forecast in 10 file chunks...')
-        #get_hycom_data_1hr(t0str) # aggregated
-        get_hycom_data_1hr_v2(t0str) # new url
-        t0 = t0 + timedelta(days=1)
-
-    print('now how many total files are we now missing?')
-    t0s = stored_hycom_dates()
-    nms = []
-    for dts in t0s:
-        yyyymmdd = dts[0:4] + dts[5:7] + dts[8:10]
-        yyyymmddhhmm = yyyymmdd + '1200'
-        t1 = datetime.strptime(yyyymmddhhmm,'%Y%m%d%H%M')
-        t2 = t1+8.0*timedelta(days=1)
-        times = [t1,t2]
-        n0, num_missing, miss_dict[yyyymmdd] = check_hycom_data(yyyymmdd,times)
-        nms.append(num_missing)
-        print('the ', yyyymmdd, ' hycom forecast is missing')
-        print(str(num_missing), ' files out of ', str(n0))
-
-    fn2 = np.array(nms)
-    ind0 = np.where(fn2 == 0)[0]
-    keeper_i = np.max(ind0)
-    if keeper_i>0:
-        print('removing old unneeded full forecasts...')
-        ii = 0
-        while ii < keeper_i:
-            dt = t0s[ii]
-            print('the date ' + dt + ' will be deleted')
-            fnsd = hycom_dir + '*' + dt + 'T12:00_2*.nc'
-            fls2d = glob.glob(fnsd)
-            for ff in fls2d:
-                os.remove(ff)
-            ii+=1
-        print('...done')
-    else:
-        print('the oldest forecast is the only full forecast!')
-   
-    print('which hycom forecast has the times we need for the PFM simulation?')
-
-    t0s = stored_hycom_dates()
-    t1 =  datetime.strptime(t1str,"%Y%m%d%H%M")
-    t2 =  datetime.strptime(t2str,"%Y%m%d%H%M")
-    times = [t1,t2]
-
-    missing = []
-    print('for the PFM simulation starting from ', t1)
-    print('and ending at ', t2)
-
-    # code here moves some hycom data to hycom_tmp for testing
-    # move all files >= 05-02..
-    hy_test=0
-    if hy_test==1:
-        print('we are moving some files for testing...')
-        source_dir = "/scratch/PFM_Simulations/hycom_data"
-        destination_dir = "/scratch/PFM_Simulations/hycom_data/hy_tmp"
-        days = ['05-04','05-05','05-06','05-07']
-        for dy in days:
-            fpat = "hy*" + dy + "*.nc"
-            full_pat = os.path.join(source_dir,fpat)
-            files2mv = glob.glob(full_pat)
-            for filenm in files2mv:
-                shutil.move(filenm, destination_dir)
-
-    for dts in t0s:
-        yyyymmdd = dts[0:4] + dts[5:7] + dts[8:10]
-        n0, num_missing, dum = check_hycom_data(yyyymmdd,times)
-        missing.append(num_missing)
-        print('for the ', yyyymmdd, ' hycom forecast, we are missing')
-        print(num_missing, ' files.')
-
-    fn2 = np.array(missing)
-    ind0 = np.where(fn2 == 0)[0]
-    og_method = 1
-    if len(ind0) == 0: # ie ind0 is empty, then there are no hycom forecasts with data for PFM
-        print('No hycom forecasts had the necessary files for this')
-        print(str(PFM['forecast_days']) + ' day PFM forecast starting at')
-        print(PFM['fetch_time'])
-        print('with the current hycom data, we will run a shorter forecast...')
-        # get forecast dates we have
-        #t0s = stored_hycom_dates()
-
-        # get the forecast time, fore_txt. and the maximum time
-        # we can do a forecast to (max_time, a datetime object)
-        og_method = 0
-        fore_txt, max_time = get_longest_forecast()
-        DT = max_time - PFM['fetch_time'] # length of forecast now
-        DT_days = DT.total_seconds()/(24*3600)
-
-        if DT_days >= 3 and DT_days<5:
-            print('we will do a forecast using the hycom forecast starting at ', fore_txt)
-            # reset the forecast days in PFM pickle
-            print('the forecast is now ', DT_days, ' long')
-            print('from ', PFM['fetch_time'], ' to ', PFM['fetch_time'] + DT)
-            print('updating PFM to reflect this shorter forecast')
-            newd = dict()
-            newd['forecast_days'] = DT_days
-            initfuns.edit_and_save_PFM(newd)
-        else:
-            print('exiting this PFM forecast...')
-            print('we could not do a forecast >= 3 days.')
-            sys.exit("there was not enough hycom data.")
-
-    if og_method == 1: # using a full 5 day forecast
-        keeper = np.max(ind0) # get the latest hycom forecast that has the files we need.
-        tkeep = t0s[keeper]
-        print('so we will use the')
-        yyyymmdd = tkeep[0:4] + tkeep[5:7] + tkeep[8:10]
-        print(yyyymmdd, ' hycom simulation for this PFM forecast\n')
-    else: # using a shorter forecast
-        yyyymmdd = fore_txt[0:4]+fore_txt[5:7]+fore_txt[8:10]
-        # we now need to set the maximum forecast time.
-
-
-    # clean up step...
-    dir_path0 = os.getcwd() # this should be .../PFM/driver/
-    dir_path = dir_path0 + '/tds.hycom.org'
-    delete_directory_if_exists(dir_path) 
-
-    return yyyymmdd
-
-
 
 
 def get_hycom_data(yyyymmdd):
@@ -2163,10 +1992,7 @@ def hycom_hind_ncfiles_to_pickle(pkl_fnm):
         print('Hycom OCN dict saved with pickle.')
 
 
-
-
 def print_var_max_mins(OCN,vlist,ulist2):
-
     for vnm in vlist:
         ind_mx = np.unravel_index(np.nanargmax(OCN[vnm], axis=None), OCN[vnm].shape)
         ind_mn = np.unravel_index(np.nanargmin(OCN[vnm], axis=None), OCN[vnm].shape)
@@ -3369,7 +3195,6 @@ def make_all_tmp_pckl_ocnR_files_1hrzeta(pkl_fnm):
             print('the ' + aa + ' pickle file was not made correctly. Aborting!')
             sys.exit(1)
 
-
     if rctot == 0: 
         print('...done. \nall 18 ocnR pickle files were made correctly')
     else:
@@ -3444,8 +3269,6 @@ def make_tmp_hy_on_rom_pckl_files_1hrzeta(fname_in,var_name,pkl_fnm):
     NTz = len(HY['zeta_time'])
 
     fn_temp = PFM['lv1_forc_dir'] + '/tmp_' + var_name + '.pkl'
-
-    print(fname_in)
 
     if os.path.exists(fn_temp):
         os.remove(fn_temp)
@@ -3553,7 +3376,6 @@ def make_tmp_hy_on_rom_pckl_files_1hrzeta(fname_in,var_name,pkl_fnm):
             HYrm['vrm'] = np.zeros((NT,NZ,NR-1,NC)) 
         
         for cc in range(NT):
-            #print(cc)
             for bb in range(NZ):
                 uhy = HY['u'][cc,bb,:,:]
                 vhy = HY['v'][cc,bb,:,:]
@@ -3601,11 +3423,8 @@ def make_tmp_hy_on_rom_pckl_files_1hrzeta(fname_in,var_name,pkl_fnm):
     elif var_name == 'ubar':
         HYrm[var_name] = np.zeros((NT,NR,NC-1))    
 
-    
     with open(fn_temp,'wb') as fp:
         pickle.dump(HYrm[var_name],fp)
-
-
 
 
 def make_tmp_hy_on_rom_pckl_files(fname_in,var_name):

@@ -10,6 +10,7 @@ import xarray as xr
 import netCDF4 as nc
 sys.path.append('../sdpm_py_util')
 import grid_functions as grdfuns
+import init_funs_forecast as initfuns
 import subprocess
 import cfgrib
 import os
@@ -33,8 +34,7 @@ def delete_files_by_pattern(directory, pattern):
 
 def get_atm_data_as_dict(pkl_fnm):
 
-    import init_funs_forecast as initfuns_fore
-    PFM        = initfuns_fore.get_model_info(pkl_fnm)   
+    PFM        = initfuns.get_model_info(pkl_fnm)   
     ftime = PFM['fetch_time']
     yyyymmdd = "%d%02d%02d" % (ftime.year, ftime.month, ftime.day)
 
@@ -489,7 +489,6 @@ def get_atm_data_on_roms_grid(lv,pkl_fnm):
     # this function takes the ATM data, in a dict, and the roms grid, as a dict
     # and returns the ATM data but on the roms grid. It returns atm2
     # the wind directions in atm2 are rotated to be in ROMS xi,eta directions.
-    import init_funs_forecast as initfuns
 
     PFM=initfuns.get_model_info(pkl_fnm)
     fname_atm  = PFM['lv1_forc_dir'] + '/' + PFM['atm_tmp_pckl_file']
@@ -605,182 +604,6 @@ def get_atm_data_on_roms_grid(lv,pkl_fnm):
         pickle.dump(atm2,fp, protocol=pickle.HIGHEST_PROTOCOL)
         print('\nATM on roms grid dict saved with pickle.')
 
-def save_individual_dicts(lv,fld):
-
-    PFM=get_PFM_info()
-    fname_atm  = PFM['lv1_forc_dir'] + '/' + PFM['atm_tmp_pckl_file']    
-    # load the atm data on the original grid
-    with open(fname_atm,'rb') as fp:
-        print('loading ' + fname_atm + ' ...')
-        ATM = pickle.load(fp)
-
-    # get the correct grid file to interpolate to
-    key_txt = 'lv' + lv + '_grid_file'
-    RMG = grdfuns.roms_grid_to_dict(PFM[key_txt])
-    fname_out = PFM['lv'+lv+'_forc_dir'] + '/' + 'tmp_LV'+lv+'_'+fld+'.pkl'
-
-    lon = ATM['lon']
-    lat = ATM['lat']
-    Lt_r = RMG['lat_rho']
-    Ln_r = RMG['lon_rho']
-    nlt, nln = np.shape(Ln_r)
-
-    # this for loop puts the ATM fields onto the ROMS grid
-    print('interpolating ' + fld + ' to LV ' + lv + ' grid...')
-    f1 = ATM[fld]
-    nt, _, _ = np.shape(f1) # added Feb 6, 2025 due to ecmwf radiation and rain 
-    frm2 = np.zeros( (nt,nlt,nln) ) # need to initialize the dict, or there are problems    
-    atm2 = dict()
-    atm2[fld] = frm2
-    got_F = 0
-
-    for b in range(nt):
-        f2 = np.squeeze( f1[b,:,:] )
-
-        if got_F == 0:
-            F = RegularGridInterpolator((lat,lon),f2)
-            got_F = 1
-        else:                
-            setattr(F,'values',f2)
-
-        froms = F((Lt_r,Ln_r),method='linear')
-        atm2[fld][b,:,:] = froms
-        
-    print('... done.')
-        
-    print('saving to...')
-    print(fname_out)
-
-    with open(fname_out,'wb') as fp:
-        pickle.dump(atm2,fp, protocol=pickle.HIGHEST_PROTOCOL)
-        print('...done.')
-
-def rotate_dict_velocity(lv):
-    
-    key_txt = 'lv' + lv + '_grid_file'
-    PFM = get_PFM_info()
-    RMG = grdfuns.roms_grid_to_dict(PFM[key_txt])
-    print('rotating velocities to LV ' + lv + ' roms directions...')
-    # atm2 is now has velocities on the roms grid. but we need to rotate the winds from N-S, E-W to ROMS (xi,eta)
-
-    atm2 = dict() 
-
-    for fld in ['Uwind','Vwind']:
-        # call the function that makes the individual pickle files...
-        fname_in = PFM['lv'+lv+'_forc_dir'] + '/' + 'tmp_LV'+lv+'_'+fld+'.pkl'
-        with open(fname_in,'rb') as fp:
-            print('loading ' + fname_in + ' ...')
-            ATM = pickle.load(fp)
-            atm2[fld]=ATM[fld]
-
-    angr = RMG['angle']
-    cosang = np.cos(angr)
-    sinang = np.sin(angr)
-    nt,_,_ = np.shape(atm2['Uwind'])
-    Cosang = np.tile(cosang,(nt,1,1))
-    Sinang = np.tile(sinang,(nt,1,1))
-    ur = Cosang * atm2['Uwind'] + Sinang * atm2['Vwind']
-    vr = Cosang * atm2['Vwind'] - Sinang * atm2['Uwind']
- 
-    atm2['Uwind'] = ur
-    atm2['Vwind'] = vr
-
-    print('saving the rotated velocities into pickled dictionaries...')
-    for fld in ['Uwind','Vwind']:
-        fname_out = PFM['lv'+lv+'_forc_dir'] + '/' + 'tmp_LV'+lv+'_'+fld+'.pkl'
-        atm3 = dict()
-        atm3[fld]=atm2[fld]
-        with open(fname_out,'wb') as fp:
-            pickle.dump(atm3,fp, protocol=pickle.HIGHEST_PROTOCOL)
-    
-    print('...done.')
-
-
-
-def get_atm_data_on_roms_grid_v2(lv):
-    # this function takes the ATM data, in a dict, and the roms grid, as a dict
-    # and save the ATM data dict on the roms grid. 
-    # winds are rotated to be in ROMS xi,eta directions.
-    
-
-    # save individual variable atm data to temparary dictionaries...
-    # these are the variables that will get individual pkl files
-    field_names = ['lwrad', 'lwrad_down', 'swrad', 'rain', 'Tair', 'Pair', 'Qair', 'Uwind', 'Vwind']
-
-    os.chdir('../sdpm_py_util')
-    for fld in field_names:
-        # call the function that makes the individual pickle files...
-        # these pickle files are the atm data on the roms grid.
-        #save_individual_dicts(lv,fld)
-        cmd_list = ['python','-W','ignore','atm_functions.py','save_individual_dicts',lv,fld]
-        print('saving individual '+fld+' pkl file...')
-        ret5 = subprocess.run(cmd_list)   
-        print('...return code: ' + str(ret5.returncode) + ' (0=good)')  
-
-    print('rotating the velocities...')
-    cmd_list = ['python','-W','ignore','atm_functions.py','rotate_dict_velocity',lv]
-    ret5 = subprocess.run(cmd_list)   
-    print('...return code: ' + str(ret5.returncode) + ' (0=good)')  
-
-    os.chdir('../driver')
-     
-    # these are the 2d fields that need to be interpreted onto the roms grid
-    # dimensions of all fields are [ntime,nlat,nlon]
-    PFM=get_PFM_info()
-    fname_atm  = PFM['lv1_forc_dir'] + '/' + PFM['atm_tmp_pckl_file']    
-    # load the atm data on the original grid
-    # this has a ton of stuf in it that needs to go into the .nc
-    with open(fname_atm,'rb') as fp:
-        print('loading ' + fname_atm + ' ...')
-        ATM = pickle.load(fp)
-
-    key_txt = 'lv' + lv + '_grid_file'
-    RMG = grdfuns.roms_grid_to_dict(PFM[key_txt])
-    
-    # this is the complete list of variables that need to be in the netcdf file
-    vlist = ['lon','lat','ocean_time','ocean_time_ref','lwrad','lwrad_down','swrad','rain','Tair','Pair','Qair','Uwind','Vwind','tair_time','pair_time','qair_time','wind_time','rain_time','srf_time','lrf_time']
-
-    # copy vinfo from ATM to atm2
-    atm2 = dict()
-    atm2['vinfo'] = dict()
-    for aa in vlist:
-        atm2['vinfo'][aa] = ATM['vinfo'][aa]
-
-    # copy the right coordinates too
-    vlist2 = ['ocean_time','tair_time','pair_time','qair_time','wind_time','rain_time','srf_time','lrf_time']
-    for aa in vlist2:
-        atm2[aa] = ATM[aa]
-
-    # the lat lons are from the roms grid
-    atm2['lat'] = RMG['lat_rho']
-    atm2['lon'] = RMG['lon_rho']
-
-    # now time to load the individual pickle files and add them to atm2...
-    print('loading the individual pickle files...')
-    for fld in field_names:
-        # call the function that makes the individual pickle files...
-        fname_in = PFM['lv'+lv+'_forc_dir'] + '/' + 'tmp_LV'+lv+'_'+fld+'.pkl'
-        with open(fname_in,'rb') as fp:
-            print('loading ' + fname_in + ' ...')
-            atm3 = pickle.load(fp)
-            atm2[fld]=atm3[fld]
-
-    print('... done.')
-
-
-    # these two are useful later
-    atm2['ocean_time_ref'] = ATM['ocean_time_ref']
-        
-
-    fname_out = PFM['lv'+lv+'_forc_dir'] + '/' + PFM['atm_tmp_LV'+lv+'_pckl_file']
-
-    print('saving to...')
-
-    with open(fname_out,'wb') as fp:
-        print(fname_out)
-        pickle.dump(atm2,fp, protocol=pickle.HIGHEST_PROTOCOL)
-        print('\nATM on roms grid dict saved with pickle.')
-
 
 def get_atm_data_on_roms_grid_to_atmnc(lv,pkl_fnm):
     # this function takes the ATM data, in a dict, and the roms grid, as a dict
@@ -879,167 +702,8 @@ def get_atm_data_on_roms_grid_to_atmnc(lv,pkl_fnm):
     print('... done making atm.nc.')
 
 
-def append_to_atm_dotnc(fld,lv):
-    PFM=get_PFM_info()
-    fname_atm  = PFM['lv1_forc_dir'] + '/' + PFM['atm_tmp_pckl_file']    
-    # load the atm data on the original grid
-    # this has a ton of stuf in it that needs to go into the .nc
-    with open(fname_atm,'rb') as fp:
-        print('loading ' + fname_atm + ' ...')
-        ATM = pickle.load(fp)
-
-    key_txt = 'lv' + lv + '_grid_file'
-    RMG = grdfuns.roms_grid_to_dict(PFM[key_txt])
+def atm_roms_dict_to_netcdf(lv,pkl_fnm):
     
-    # this is the complete list of variables that need to be in the netcdf file
-    vlist = ['lon','lat','ocean_time','ocean_time_ref','lwrad','lwrad_down','swrad','rain','Tair','Pair','Qair','Uwind','Vwind','tair_time','pair_time','qair_time','wind_time','rain_time','srf_time','lrf_time']
-
-    # copy vinfo from ATM to atm2
-    atm2 = dict()
-    atm2['vinfo'] = dict()
-    for aa in vlist:
-        atm2['vinfo'][aa] = ATM['vinfo'][aa]
-
-    # copy the right coordinates too
-    vlist2 = ['ocean_time','tair_time','pair_time','qair_time','wind_time','rain_time','srf_time','lrf_time']
-    for aa in vlist2:
-        atm2[aa] = ATM[aa]
-
-    # the lat lons are from the roms grid
-    atm2['lat'] = RMG['lat_rho']
-    atm2['lon'] = RMG['lon_rho']
-    atm2['ocean_time_ref'] = ATM['ocean_time_ref']
-
-    # now time to load the individual pickle files and add them to atm2...
-    fname_in = PFM['lv'+lv+'_forc_dir'] + '/' + 'tmp_LV'+lv+'_'+fld+'.pkl'
-    with open(fname_in,'rb') as fp:
-        print('loading ' + fname_in + ' ...')
-        atm3 = pickle.load(fp)
-
-    if fld == 'lwrad_down':
-        ds = xr.Dataset(
-        data_vars = dict(
-            lwrad_down      = (["lrf_time","er","xr"],atm3[fld],atm2['vinfo'][fld]),
-        ),
-        coords=dict(
-            lat =(["er","xr"],atm2['lat'], atm2['vinfo']['lat']),
-            lon =(["er","xr"],atm2['lon'], atm2['vinfo']['lon']),
-            ocean_time = (["time"],atm2['ocean_time'], atm2['vinfo']['ocean_time']),
-            lrf_time = (["lrf_time"],atm2['lrf_time'], atm2['vinfo']['lrf_time']),
-        ),
-        attrs={'type':'atmospheric forcing file fields for surface fluxes',
-            'time info':'ocean time is from '+ atm2['ocean_time_ref'].strftime("%Y/%m/%d %H:%M:%S") },
-        )
-    if fld == 'swrad':
-        ds = xr.Dataset(
-        data_vars = dict(
-            swrad      = (["srf_time","er","xr"],atm3[fld],atm2['vinfo'][fld]),
-        ),
-        coords=dict(
-            lat =(["er","xr"],atm2['lat'], atm2['vinfo']['lat']),
-            lon =(["er","xr"],atm2['lon'], atm2['vinfo']['lon']),
-            ocean_time = (["timse"],atm2['ocean_time'], atm2['vinfo']['ocean_time']),
-            srf_time = (["srf_time"],atm2['srf_time'], atm2['vinfo']['srf_time']),
-        ),
-        attrs={'type':'atmospheric forcing file fields for surface fluxes',
-            'time info':'ocean time is from '+ atm2['ocean_time_ref'].strftime("%Y/%m/%d %H:%M:%S") },
-        )
-    if fld == 'rain':
-        ds = xr.Dataset(
-        data_vars = dict(
-            rain     = (["rain_time","er","xr"],atm3[fld],atm2['vinfo'][fld]),
-        ),
-        coords=dict(
-            lat =(["er","xr"],atm2['lat'], atm2['vinfo']['lat']),
-            lon =(["er","xr"],atm2['lon'], atm2['vinfo']['lon']),
-            ocean_time = (["time"],atm2['ocean_time'], atm2['vinfo']['ocean_time']),
-            rain_time = (["rain_time"],atm2['rain_time'], atm2['vinfo']['rain_time']),
-        ),
-        attrs={'type':'atmospheric forcing file fields for surface fluxes',
-            'time info':'ocean time is from '+ atm2['ocean_time_ref'].strftime("%Y/%m/%d %H:%M:%S") },
-        )
-    if fld == 'Tair':
-        ds = xr.Dataset(
-        data_vars = dict(
-            Tair      = (["tair_time","er","xr"],atm3[fld],atm2['vinfo'][fld]),
-        ),
-        coords=dict(
-            lat =(["er","xr"],atm2['lat'], atm2['vinfo']['lat']),
-            lon =(["er","xr"],atm2['lon'], atm2['vinfo']['lon']),
-            ocean_time = (["time"],atm2['ocean_time'], atm2['vinfo']['ocean_time']),
-            tair_time = (["tair_time"],atm2['tair_time'], atm2['vinfo']['tair_time']),
-        ),
-        attrs={'type':'atmospheric forcing file fields for surface fluxes',
-            'time info':'ocean time is from '+ atm2['ocean_time_ref'].strftime("%Y/%m/%d %H:%M:%S") },
-        )
-    if fld == 'Pair':
-        ds = xr.Dataset(
-        data_vars = dict(
-            Pair      = (["pair_time","er","xr"],atm3[fld],atm2['vinfo'][fld]),
-        ),
-        coords=dict(
-            lat =(["er","xr"],atm2['lat'], atm2['vinfo']['lat']),
-            lon =(["er","xr"],atm2['lon'], atm2['vinfo']['lon']),
-            ocean_time = (["time"],atm2['ocean_time'], atm2['vinfo']['ocean_time']),
-            pair_time = (["pair_time"],atm2['pair_time'], atm2['vinfo']['pair_time']),
-        ),
-        attrs={'type':'atmospheric forcing file fields for surface fluxes',
-            'time info':'ocean time is from '+ atm2['ocean_time_ref'].strftime("%Y/%m/%d %H:%M:%S") },
-        )
-    if fld == 'Qair':
-        ds = xr.Dataset(
-        data_vars = dict(
-            Qair      = (["qair_time","er","xr"],atm3[fld],atm2['vinfo'][fld]),
-        ),
-        coords=dict(
-            lat =(["er","xr"],atm2['lat'], atm2['vinfo']['lat']),
-            lon =(["er","xr"],atm2['lon'], atm2['vinfo']['lon']),
-            ocean_time = (["time"],atm2['ocean_time'], atm2['vinfo']['ocean_time']),
-            qair_time = (["qair_time"],atm2['qair_time'], atm2['vinfo']['qair_time']),
-        ),
-        attrs={'type':'atmospheric forcing file fields for surface fluxes',
-            'time info':'ocean time is from '+ atm2['ocean_time_ref'].strftime("%Y/%m/%d %H:%M:%S") },
-        )
-    if fld == 'Uwind':
-        ds = xr.Dataset(
-        data_vars = dict(
-            Uwind      = (["wind_time","er","xr"],atm3[fld],atm2['vinfo'][fld]),
-        ),
-        coords=dict(
-            lat =(["er","xr"],atm2['lat'], atm2['vinfo']['lat']),
-            lon =(["er","xr"],atm2['lon'], atm2['vinfo']['lon']),
-            ocean_time = (["time"],atm2['ocean_time'], atm2['vinfo']['ocean_time']),
-            wind_time = (["wind_time"],atm2['wind_time'], atm2['vinfo']['wind_time']),
-        ),
-        attrs={'type':'atmospheric forcing file fields for surface fluxes',
-            'time info':'ocean time is from '+ atm2['ocean_time_ref'].strftime("%Y/%m/%d %H:%M:%S") },
-        )
-    if fld == 'Vwind':
-        ds = xr.Dataset(
-        data_vars = dict(
-            Vwind      = (["wind_time","er","xr"],atm3[fld],atm2['vinfo'][fld]),
-        ),
-        coords=dict(
-            lat =(["er","xr"],atm2['lat'], atm2['vinfo']['lat']),
-            lon =(["er","xr"],atm2['lon'], atm2['vinfo']['lon']),
-            ocean_time = (["time"],atm2['ocean_time'], atm2['vinfo']['ocean_time']),
-            wind_time = (["wind_time"],atm2['wind_time'], atm2['vinfo']['wind_time']),
-        ),
-        attrs={'type':'atmospheric forcing file fields for surface fluxes',
-            'time info':'ocean time is from '+ atm2['ocean_time_ref'].strftime("%Y/%m/%d %H:%M:%S") },
-        )
-        
-    fname_out = PFM['lv'+lv+'_forc_dir'] + '/' + 'LV' + lv + '_ATM_FORCING.nc'
-    ds.to_netcdf(fname_out, mode='a')
-
-
-def atm_roms_dict_to_netcdf(lv,pkl_fnm,mod_type):
-    
-    if mod_type == 'hind':
-        import init_funs as initfuns
-    else:
-        import init_funs_forecast as initfuns
-
     PFM=initfuns.get_model_info(pkl_fnm)
 
     if lv == '1':
@@ -1112,7 +776,6 @@ def ecmwf_grabber(cmd_lst):
 def get_ecmwf_grib_files_lists(yyyymmddhh0,pkl_fnm):
     # this gets the ecmwf grib files from the cdip server for the forecast starting at yyyymmddhh
 
-    import init_funs_forecast as initfuns
 
     yyyy0 = yyyymmddhh0[0:4]
     mm0 = yyyymmddhh0[4:6]
@@ -1198,8 +861,6 @@ def got_ecmwf_files(yyyymmddhh0,t0_str,pkl_fnm):
 def get_ecmwf_grib_files_lists_v2(yyyymmddhh0,t0_str,pkl_fnm):
     # this gets the ecmwf grib files from the cdip server for the forecast starting at yyyymmddhh0
     # but we are now only going to get data from t0 to t0+PFM['forecast_days']
-
-    import init_funs_forecast as initfuns
 
     # the forecast time stamp
     yyyy0 = yyyymmddhh0[0:4]
@@ -1353,7 +1014,6 @@ def ecmwf_grib_2_dict(fn_in):
 def ecmwf_grib_2_dict_all_v2(yyyymmddhh0,t0_str,pkl_fnm):
     # this saves the ecmwf grib data as a dictionary pkl file. Variables will be in ROMS units with ROMS
     # variable names, but on the ecmwf grid
-    import init_funs_forecast as initfuns
 
     _, _, fn_grbs, _ = get_ecmwf_grib_files_lists_v2(yyyymmddhh0,t0_str,pkl_fnm)
     nt = len(fn_grbs) # the number of files is the number of time stamps (101 for a 5 day ecmwf forecast)
@@ -1404,60 +1064,7 @@ def ecmwf_grib_2_dict_all_v2(yyyymmddhh0,t0_str,pkl_fnm):
     #return ATM    
 
 
-def ecmwf_grib_2_dict_all(yyyymmddhh0):
-    # this saves the ecmwf grib data as a dictionary pkl file. Variables will be in ROMS units with ROMS
-    # variable names, but on the ecmwf grid
-
-    _, _, fn_grbs, _ = get_ecmwf_grib_files_lists(yyyymmddhh0)
-    nt = len(fn_grbs) # the number of files is the number of time stamps (101 for a 5 day ecmwf forecast)
-    print('there are ' + str(nt) + ' ecmwf grib files to stack in time.')
-    
-    A0 = ecmwf_grib_2_dict(fn_grbs[0]) # us this to get nlat and nlon
-
-    ATM = dict()
-    ATM['var_info'] = A0['var_info']
-    ATM['lat'] = A0['latitude']
-    ATM['lon'] = A0['longitude']
-    nlat = len(ATM['lat']) # ecmwf lat, lon are vectors, both at 0.1 deg resolution
-    nlon = len(ATM['lon'])
-    # the following are ecmwf 2d variables variables
-    var_e = ['d2m','t2m','msl','u10','v10','e','tp','slhf','sshf','ssr','ssrd','strd','str'] # need 'str' !!!
-
-    ATM['time'] = []
-    ATM['valid_time'] = np.zeros((nt))
-    for var in var_e:
-        ATM[var] = np.zeros((nt,nlat,nlon))
-
-    cnt=0
-    for fn in fn_grbs:
-        g = ecmwf_grib_2_dict(fn)
-        ATM['time'].append(g['time'])
-        ATM['valid_time'][cnt] = g['valid_time']
-        for var in var_e:
-            dum = g[var][:,:]
-            dum = np.flip(dum,0)
-            ATM[var][cnt,:,:] = dum
-        cnt = cnt+1
-    
-    ATM['lat'] = np.flipud( ATM['lat'] )
-    PFM = get_PFM_info()
-    # stuff to be set with PFM structure.
-
-    #PFM['ecmwf_dir'] = '/scratch/PFM_Simulations/ecmwf_data/'
-    #PFM['ecmwf_pkl_name'] = 'ecmwf_all.pkl'
-    
-    dir_out = PFM['ecmwf_dir']
-    fn_out = PFM['ecmwf_all_pkl_name']
-    fname_out = dir_out + fn_out
-    
-    with open(fname_out,'wb') as fp:
-        pickle.dump(ATM,fp, protocol=pickle.HIGHEST_PROTOCOL)
-        print('\necmwf 1st ATM dict saved with pickle.')
-
-    #return ATM    
-
 def datetime_to_romstime(tdt,pkl_fnm):
-    import init_funs_forecast as initfuns
 
     PFM = initfuns.get_model_info(pkl_fnm)
     t_ref = PFM['modtime0'] 
@@ -1470,11 +1077,9 @@ def datetime_to_romstime(tdt,pkl_fnm):
 
     return t_rom2
 
+
 def ecmwf_to_roms_vars(fn_in,pkl_fnm):
-
-    import init_funs_forecast as initfuns_fore
-
-    PFM = initfuns_fore.get_model_info(pkl_fnm)
+    PFM = initfuns.get_model_info(pkl_fnm)
 
     with open(fn_in,'rb') as fp:
         ATM_0 = pickle.load(fp)
