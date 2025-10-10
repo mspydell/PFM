@@ -6,3 +6,6 @@ __pychache__/
 FMRC_*
 # the log files in the log directory
 log/
+# wget-log files
+wget-log
+wget-log.*
