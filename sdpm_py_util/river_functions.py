@@ -491,48 +491,43 @@ def get_river_flow_nwm(yyyymmddhh,t_pfm_str,pkl_fnm):
         hr_str = str(int(hr)).zfill(3)
         fn = fname[0] + hh + fname[1] + hr_str + fname[2]
         url_tot = url + '/' + fn
-        print('we are trying to get the url_tot:')
-        print(url_tot)
-        print('checking to see if it is there with file_url_exists [new]...')
         rc = file_url_exists(url)
-        print(rc)
-        print('try with response = requests.get(url_tot) [old]')
-        response = requests.get(url_tot)
-        print('the response status code for this was ', str(response.status_code))
+        if rc:
+            # get the file
+            response = requests.get(url_tot)
+            # Check if the request was successful
+            if response.status_code == 200:
+                # Write the content to a temporary file
+                with open(tmpnc, "wb") as f:
+                    f.write(response.content)
 
-        # Check if the request was successful
-        if response.status_code == 200:
-            # Write the content to a temporary file
-            with open(tmpnc, "wb") as f:
-                f.write(response.content)
-
-        # Open the NetCDF file using netCDF4
-            with nc.Dataset(tmpnc) as ds:
-                # Access the data variables
-                rids = ds.variables['feature_id'][:]
-                t = ds.variables['time']
-                qq = ds.variables['streamflow'][:]
-                t2 = num2date(t[:],t.units)
-                t2 = np.array([datetime(year=date.year, month=date.month, day=date.day, 
+                # Open the NetCDF file using netCDF4
+                with nc.Dataset(tmpnc) as ds:
+                    # Access the data variables
+                    rids = ds.variables['feature_id'][:]
+                    t = ds.variables['time']
+                    qq = ds.variables['streamflow'][:]
+                    t2 = num2date(t[:],t.units)
+                    t2 = np.array([datetime(year=date.year, month=date.month, day=date.day, 
                               hour=date.hour, minute=date.minute, second=date.second) for date in t2])
-                t3[cnt1] = t2
-    
-        # ds = nc.Dataset(url_tot) DOESNT WORK. NOT the right server type on their end?
-        
-            # note, this block of code is in the hour loop and grabs only the data for the rivers we want.
-            ig = [None]*3
-            cnt=0 # this is the reach_id index counter
-            for rids0 in reach_ids:
-                ig= np.argwhere(rids==rids0)
-                Q[cnt1,cnt] = qq[ig]
-                cnt=cnt+1
+                    t3[cnt1] = t2
+            
+                # note, this block of code is in the hour loop and grabs only the data for the rivers we want.
+                ig = [None]*3
+                cnt=0 # this is the reach_id index counter
+                for rids0 in reach_ids:
+                    ig= np.argwhere(rids==rids0)
+                    Q[cnt1,cnt] = qq[ig]
+                    cnt=cnt+1
 
-            cnt1 = cnt1+1 # this is the hour index counter
-        
-        else: # something bad happened gettng the file
-            print('response.status_code not 200! problems with getting nwm file.')
-            print('exiting PFM...')
+                cnt1 = cnt1+1 # this is the hour index counter
+        else:
+            print('we were trying to NWM river data from the url_tot:')
+            print(url_tot)
+            print('There were problems. River pickle file will not be made.')
+            print('exiting this function...')
             sys.exit(1)
+
 
     plot_it = 0
     if plot_it == 1:
