@@ -5,16 +5,13 @@ import pickle
 sys.path.append('../sdpm_py_util')
 from datetime import datetime, timedelta
 import run_funs as runfuns 
+import init_funs_forecast as initfuns
 
 #from make_LV1_dotin_and_SLURM import make_LV1_dotin_and_SLURM
 #from run_slurm_LV1 import run_slurm_LV1
-
-
-
 # the functions in here are used to make the 
 
 def run_hind_LV1(t1str,pkl_fnm):
-    import init_funs as initfuns
 
     MI = initfuns.get_model_info(pkl_fnm)
 
@@ -29,14 +26,14 @@ def run_hind_LV1(t1str,pkl_fnm):
     print('getting the hycom data for this simulation...')
     os.chdir('../sdpm_py_util')
     # this will only work for 1 day chunks. need to fix?
-    cmd_list = ['python','-W','ignore','ocn_functions.py','get_hycom_hind_data',t1str,t2str,pkl_fnm]
+    cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','get_hycom_hind_data',t1str,t2str,pkl_fnm]
     ret1 = subprocess.run(cmd_list)
     print('...done')     
 
     print('making the hycom pickle file from all hycom.nc files ...')
     t01 = datetime.now() 
     os.chdir('../sdpm_py_util')
-    cmd_list = ['python','-W','ignore','ocn_functions.py','hycom_hind_ncfiles_to_pickle',pkl_fnm]
+    cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','hycom_hind_ncfiles_to_pickle',pkl_fnm]
     ret1 = subprocess.run(cmd_list)     
     os.chdir('../driver')
     print('did subprocess run correctly? ' + str(ret1.returncode) + ' (0=yes,1=no)')
@@ -90,7 +87,7 @@ def run_hind_LV1(t1str,pkl_fnm):
     os.chdir('../sdpm_py_util')
     hy_pckl = MI['lv1_forc_dir'] + '/' + MI['lv1_ocn_tmp_pckl_file']
     print('putting the hycom data in ' + hy_pckl + ' on the roms grid...')
-    cmd_list = ['python','-W','ignore','ocn_functions.py','make_all_tmp_pckl_ocnR_files_1hrzeta',pkl_fnm]
+    cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','make_all_tmp_pckl_ocnR_files_1hrzeta',pkl_fnm]
     os.chdir('../sdpm_py_util')
     ret1 = subprocess.run(cmd_list)     
     #ocnfuns.make_all_tmp_pckl_ocnR_files(fn_pckl)
@@ -100,7 +97,7 @@ def run_hind_LV1(t1str,pkl_fnm):
         print('need to abort! Aborting simulation!')
         sys.exit(1)
 
-    cmd_list = ['python','-W','ignore','ocn_functions.py','print_maxmin_HYrm_pickles',pkl_fnm]
+    cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','print_maxmin_HYrm_pickles',pkl_fnm]
     os.chdir('../sdpm_py_util')
     ret1 = subprocess.run(cmd_list)     
     os.chdir('../driver')
@@ -117,7 +114,7 @@ def run_hind_LV1(t1str,pkl_fnm):
     # make the depth pickle file
     print('making the depth pickle file...')
     fname_depths = MI['lv1_forc_dir'] + '/' + MI['lv1_depth_file']
-    cmd_list = ['python','-W','ignore','ocn_functions.py','make_rom_depths_1hrzeta',fname_depths,pkl_fnm]
+    cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','make_rom_depths_1hrzeta',fname_depths,pkl_fnm]
     os.chdir('../sdpm_py_util')
     ret6 = subprocess.run(cmd_list)     
     os.chdir('../driver')
@@ -132,7 +129,7 @@ def run_hind_LV1(t1str,pkl_fnm):
     if lv1_use_restart==0:
         print('going to save OCN_IC to a pickle file: ' + ocnIC_pckl)
         os.chdir('../sdpm_py_util')
-        cmd_list = ['python','-W','ignore','ocn_functions.py','ocnr_2_ICdict_from_tmppkls',ocnIC_pckl,pkl_fnm]
+        cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','ocnr_2_ICdict_from_tmppkls',ocnIC_pckl,pkl_fnm]
         ret3 = subprocess.run(cmd_list)     
         os.chdir('../driver')
         print('OCN IC data saved with pickle, correctly? ' + str(ret3.returncode) + ' (0=yes,1=no)')
@@ -146,7 +143,7 @@ def run_hind_LV1(t1str,pkl_fnm):
         ic_file_out = MI['lv1_forc_dir'] + '/' + MI['lv1_ini_file']
         print('making IC file from pickled IC: '+ ic_file_out)
         t03 = datetime.now()
-        cmd_list = ['python','-W','ignore','ocn_functions.py','ocn_roms_IC_dict_to_netcdf_pckl',ocnIC_pckl,ic_file_out]
+        cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','ocn_roms_IC_dict_to_netcdf_pckl',ocnIC_pckl,ic_file_out]
         os.chdir('../sdpm_py_util')
         ret4 = subprocess.run(cmd_list)     
         os.chdir('../driver')
@@ -166,7 +163,7 @@ def run_hind_LV1(t1str,pkl_fnm):
         #    dt_plotting.append(t04-t05)
     else:
         print('going to use a restart file for the LV1 IC. Setting this up...')
-        cmd_list = ['python','-W','ignore','init_funs.py','restart_setup','LV1',pkl_fnm]
+        cmd_list = ['python','-W','ignore','init_funs_forecast.py','restart_setup','LV1',pkl_fnm]
         os.chdir('../sdpm_py_util')
         ret4 = subprocess.run(cmd_list)     
         os.chdir('../driver')
@@ -192,7 +189,7 @@ def run_hind_LV1(t1str,pkl_fnm):
     ocnBC_pckl = MI['lv1_forc_dir'] + '/' + MI['lv1_ocnBC_tmp_pckl_file']
     print(ocnBC_pckl) 
     os.chdir('../sdpm_py_util')
-    cmd_list = ['python','-W','ignore','ocn_functions.py','ocnr_2_BCdict_1hrzeta_from_tmppkls',ocnBC_pckl,pkl_fnm]
+    cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','ocnr_2_BCdict_1hrzeta_from_tmppkls',ocnBC_pckl,pkl_fnm]
     ret4 = subprocess.run(cmd_list)     
     os.chdir('../driver')
     print('OCN BC data saved with pickle, correctly? ' + str(ret4.returncode) + ' (0=yes)')
@@ -205,7 +202,7 @@ def run_hind_LV1(t1str,pkl_fnm):
     bc_file_out = MI['lv1_forc_dir'] + '/' + MI['lv1_bc_file']
     print('making BC nc file from pickled BC: '+ bc_file_out)
     t01 = datetime.now()
-    cmd_list = ['python','-W','ignore','ocn_functions.py','ocn_roms_BC_dict_to_netcdf_pckl_1hrzeta',ocnBC_pckl,bc_file_out]
+    cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','ocn_roms_BC_dict_to_netcdf_pckl_1hrzeta',ocnBC_pckl,bc_file_out]
     os.chdir('../sdpm_py_util')
     ret5 = subprocess.run(cmd_list)     
     os.chdir('../driver')
@@ -269,7 +266,7 @@ def run_hind_LV1(t1str,pkl_fnm):
     fn_atm_out = MI['lv1_forc_dir'] + '/' + MI['lv1_atm_file'] # LV1 atm forcing filename
     print('we are now saving ATM LV1 to ' + fn_atm_out + ' ...')
     t01 = datetime.now()
-    cmd_list = ['python','-W','ignore','atm_functions.py','atm_roms_dict_to_netcdf',str(level),pkl_fnm,'hind']
+    cmd_list = ['python','-W','ignore','atm_functions.py','atm_roms_dict_to_netcdf',str(level),pkl_fnm]
     os.chdir('../sdpm_py_util')
     ret5 = subprocess.run(cmd_list)   
     print('return code: ' + str(ret5.returncode) + ' (0=good)')  
@@ -305,7 +302,6 @@ def run_hind_LV1(t1str,pkl_fnm):
     dt_roms.append(t02-t01)
 
 def run_hind_LV2(t1str,pkl_fnm):
-    import init_funs as initfuns
 
     level = 2
     MI = initfuns.get_model_info(pkl_fnm)
@@ -332,7 +328,7 @@ def run_hind_LV2(t1str,pkl_fnm):
     fn_atm_out = MI['lv2_forc_dir'] + '/' + MI['lv2_atm_file'] # LV1 atm forcing filename
     print('we are now saving ATM LV2 to ' + fn_atm_out + ' ...')
     t01 = datetime.now()
-    cmd_list = ['python','-W','ignore','atm_functions.py','atm_roms_dict_to_netcdf',str(level),pkl_fnm,'hind']
+    cmd_list = ['python','-W','ignore','atm_functions.py','atm_roms_dict_to_netcdf',str(level),pkl_fnm]
     os.chdir('../sdpm_py_util')
     ret5 = subprocess.run(cmd_list)   
     print('return code: ' + str(ret5.returncode) + ' (0=good)')  
@@ -350,7 +346,7 @@ def run_hind_LV2(t1str,pkl_fnm):
     t01 = datetime.now()
     print('driver_run_forcast_LV2: saving LV2_OCN_BC pickle file')
     os.chdir('../sdpm_py_util')
-    cmd_list = ['python','-W','ignore','ocn_functions.py','mk_LV2_BC_dict_edges',str(level),pkl_fnm]
+    cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','mk_LV2_BC_dict_edges',str(level),pkl_fnm]
     ret5 = subprocess.run(cmd_list)   
     print('return code: ' + str(ret5.returncode) + ' (0=good)')  
     os.chdir('../sdpm_py_util')
@@ -366,11 +362,11 @@ def run_hind_LV2(t1str,pkl_fnm):
     lv2_bc_file_out = MI['lv2_forc_dir'] + '/' + MI['lv2_bc_file']
     print('driver_run_forcast_LV2: saving LV2_OCN_BC netcdf file')
     os.chdir('../sdpm_py_util')
-    cmd_list = ['python','-W','ignore','ocn_functions.py','ocn_roms_BC_dict_to_netcdf_pckl',lv2_ocnBC_pckl,lv2_bc_file_out]
+    cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','ocn_roms_BC_dict_to_netcdf_pckl',lv2_ocnBC_pckl,lv2_bc_file_out]
     ret5 = subprocess.run(cmd_list)   
     print('return code: ' + str(ret5.returncode) + ' (0=good)')  
     os.chdir('../sdpm_py_util')
-    print('driver_run_forecast_L21:  done with writing LV2_OCN_BC.nc file.') 
+    print('driver_run_hind_LV2:  done with writing LV2_OCN_BC.nc file.') 
     print('this took:')
     t2 = datetime.now()
     print(t2-t1)
@@ -385,11 +381,11 @@ def run_hind_LV2(t1str,pkl_fnm):
     if MI['lv2_use_restart']==0:
         print('driver_run_forcast_LV2: making and saving LV2_OCN_IC pickle file')
         os.chdir('../sdpm_py_util')
-        cmd_list = ['python','-W','ignore','ocn_functions.py','mk_LV2_IC_dict',str(level),pkl_fnm]
+        cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','mk_LV2_IC_dict',str(level),pkl_fnm]
         ret5 = subprocess.run(cmd_list)   
         print('return code: ' + str(ret5.returncode) + ' (0=good)')  
         os.chdir('../sdpm_py_util')
-        print('driver_run_forecast_L21:  done with writing LV2_OCN_IC.pkl file.') 
+        print('driver_run_hind_LV2:  done with writing LV2_OCN_IC.pkl file.') 
         print('this took:')
         t2 = datetime.now()
         print(t2-t1)
@@ -401,7 +397,7 @@ def run_hind_LV2(t1str,pkl_fnm):
         lv2_ic_file_out = MI['lv2_forc_dir'] + '/' + MI['lv2_ini_file']
         print('driver_run_forcast_LV2: saving LV2_OCN_IC netcdf file')
         os.chdir('../sdpm_py_util')
-        cmd_list = ['python','-W','ignore','ocn_functions.py','ocn_roms_IC_dict_to_netcdf_pckl',lv2_ocnIC_pckl,lv2_ic_file_out]
+        cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','ocn_roms_IC_dict_to_netcdf_pckl',lv2_ocnIC_pckl,lv2_ic_file_out]
         ret5 = subprocess.run(cmd_list)   
         print('return code: ' + str(ret5.returncode) + ' (0=good)')  
         os.chdir('../sdpm_py_util')
@@ -413,7 +409,7 @@ def run_hind_LV2(t1str,pkl_fnm):
         dt_ic.append(t2-t01)
     else:
         print('going to use a restart file for the LV2 IC. Setting this up...')
-        cmd_list = ['python','-W','ignore','init_funs.py','restart_setup','LV2',pkl_fnm]
+        cmd_list = ['python','-W','ignore','init_funs_forecast.py','restart_setup','LV2',pkl_fnm]
         os.chdir('../sdpm_py_util')
         ret4 = subprocess.run(cmd_list)     
         os.chdir('../driver')
@@ -451,7 +447,6 @@ def run_hind_LV2(t1str,pkl_fnm):
     dt_roms.append(t2-t1)
 
 def run_hind_LV3(t1str,pkl_fnm):
-    import init_funs as initfuns
     level = 3
     MI = initfuns.get_model_info(pkl_fnm)
     t1 = datetime.strptime(t1str,'%Y%m%d%H')
@@ -477,7 +472,7 @@ def run_hind_LV3(t1str,pkl_fnm):
     fn_atm_out = MI['lv3_forc_dir'] + '/' + MI['lv3_atm_file'] # LV1 atm forcing filename
     print('we are now saving ATM LV2 to ' + fn_atm_out + ' ...')
     t01 = datetime.now()
-    cmd_list = ['python','-W','ignore','atm_functions.py','atm_roms_dict_to_netcdf',str(level),pkl_fnm,'hind']
+    cmd_list = ['python','-W','ignore','atm_functions.py','atm_roms_dict_to_netcdf',str(level),pkl_fnm]
     os.chdir('../sdpm_py_util')
     ret5 = subprocess.run(cmd_list)   
     print('return code: ' + str(ret5.returncode) + ' (0=good)')  
@@ -495,7 +490,7 @@ def run_hind_LV3(t1str,pkl_fnm):
     t01 = datetime.now()
     print('driver_run_forcast_LV3: saving LV3_OCN_BC pickle file')
     os.chdir('../sdpm_py_util')
-    cmd_list = ['python','-W','ignore','ocn_functions.py','mk_LV2_BC_dict_edges',str(level),pkl_fnm]
+    cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','mk_LV2_BC_dict_edges',str(level),pkl_fnm]
     ret5 = subprocess.run(cmd_list)   
     print('return code: ' + str(ret5.returncode) + ' (0=good)')  
     os.chdir('../sdpm_py_util')
@@ -511,7 +506,7 @@ def run_hind_LV3(t1str,pkl_fnm):
     lv3_bc_file_out = MI['lv3_forc_dir'] + '/' + MI['lv3_bc_file']
     print('driver_run_forcast_LV3: saving LV3_OCN_BC netcdf file')
     os.chdir('../sdpm_py_util')
-    cmd_list = ['python','-W','ignore','ocn_functions.py','ocn_roms_BC_dict_to_netcdf_pckl',lv3_ocnBC_pckl,lv3_bc_file_out]
+    cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','ocn_roms_BC_dict_to_netcdf_pckl',lv3_ocnBC_pckl,lv3_bc_file_out]
     ret5 = subprocess.run(cmd_list)   
     print('return code: ' + str(ret5.returncode) + ' (0=good)')  
     os.chdir('../sdpm_py_util')
@@ -530,7 +525,7 @@ def run_hind_LV3(t1str,pkl_fnm):
     if MI['lv3_use_restart']==0:
         print('driver_run_forcast_LV3: making and saving LV3_OCN_IC pickle file')
         os.chdir('../sdpm_py_util')
-        cmd_list = ['python','-W','ignore','ocn_functions.py','mk_LV2_IC_dict',str(level),pkl_fnm]
+        cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','mk_LV2_IC_dict',str(level),pkl_fnm]
         ret5 = subprocess.run(cmd_list)   
         print('return code: ' + str(ret5.returncode) + ' (0=good)')  
         os.chdir('../sdpm_py_util')
@@ -546,7 +541,7 @@ def run_hind_LV3(t1str,pkl_fnm):
         lv3_ic_file_out = MI['lv3_forc_dir'] + '/' + MI['lv3_ini_file']
         print('driver_run_forcast_LV3: saving LV3_OCN_IC netcdf file')
         os.chdir('../sdpm_py_util')
-        cmd_list = ['python','-W','ignore','ocn_functions.py','ocn_roms_IC_dict_to_netcdf_pckl',lv3_ocnIC_pckl,lv3_ic_file_out]
+        cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','ocn_roms_IC_dict_to_netcdf_pckl',lv3_ocnIC_pckl,lv3_ic_file_out]
         ret5 = subprocess.run(cmd_list)   
         print('return code: ' + str(ret5.returncode) + ' (0=good)')  
         os.chdir('../sdpm_py_util')
@@ -558,7 +553,7 @@ def run_hind_LV3(t1str,pkl_fnm):
         dt_ic.append(t2-t01)
     else:
         print('going to use a restart file for the LV3 IC. Setting this up...')
-        cmd_list = ['python','-W','ignore','init_funs.py','restart_setup','LV3',pkl_fnm]
+        cmd_list = ['python','-W','ignore','init_funs_forecast.py','restart_setup','LV3',pkl_fnm]
         os.chdir('../sdpm_py_util')
         ret4 = subprocess.run(cmd_list)     
         os.chdir('../driver')
@@ -596,7 +591,6 @@ def run_hind_LV3(t1str,pkl_fnm):
     dt_roms.append(t2-t1)
 
 def run_hind_LV4(t1str,pkl_fnm):
-    import init_funs_forecast as initfuns
     level = 4
     MI = initfuns.get_model_info(pkl_fnm)
     t1 = datetime.strptime(t1str,'%Y%m%d%H')
@@ -623,7 +617,7 @@ def run_hind_LV4(t1str,pkl_fnm):
     fn_atm_out = MI['lv4_forc_dir'] + '/' + MI['lv4_atm_file'] # LV1 atm forcing filename
     print('we are now saving ATM LV4 to ' + fn_atm_out + ' ...')
     t01 = datetime.now()
-    cmd_list = ['python','-W','ignore','atm_functions.py','atm_roms_dict_to_netcdf',str(level),pkl_fnm,'hind']
+    cmd_list = ['python','-W','ignore','atm_functions.py','atm_roms_dict_to_netcdf',str(level),pkl_fnm]
     os.chdir('../sdpm_py_util')
     ret5 = subprocess.run(cmd_list)   
     print('return code: ' + str(ret5.returncode) + ' (0=good)')  
@@ -641,7 +635,6 @@ def run_hind_LV4(t1str,pkl_fnm):
     t01 = datetime.now()
     print('driver_run_forcast_LV4: saving LV4_OCN_BC pickle file')
     os.chdir('../sdpm_py_util')
-    # note mk_LV2_BC_dict_edges works for LV2,3,4 !!! bad function name
     cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','mk_LV2_BC_dict_edges',str(level),pkl_fnm]
     ret5 = subprocess.run(cmd_list)   
     print('return code: ' + str(ret5.returncode) + ' (0=good)')  
@@ -808,13 +801,12 @@ def run_hind_LV4(t1str,pkl_fnm):
     dt_roms.append(t2-t1)
 
 def run_fore_LV1(pkl_fnm):
-    import init_funs_forecast as initfuns_fore
     import ocn_funs_forecast as ocnfuns_fore
     t01 = datetime.now()
 
-    PFM = initfuns_fore.get_model_info(pkl_fnm)
+    PFM = initfuns.get_model_info(pkl_fnm)
 
-    initfuns_fore.initialize_simulation(pkl_fnm)
+    initfuns.initialize_simulation(pkl_fnm)
 
     t1  = PFM['fetch_time']    # this is the first time of the PFM forecast
     t1str = t1.strftime('%Y%m%d%H%M')
@@ -1026,7 +1018,7 @@ def run_fore_LV1(pkl_fnm):
         print(t05-t01)
         dt_ic.append(t05-t01)
         # update the model information as we are now using restarts
-        PFM = initfuns_fore.get_model_info(pkl_fnm)
+        PFM = initfuns.get_model_info(pkl_fnm)
         print('\nGoing to use the file ' + PFM['lv1_ini_file'] + ' to restart the simulation')
         print('with time index ' + str(PFM['lv1_nrrec']))
         print('\n')
@@ -1034,7 +1026,7 @@ def run_fore_LV1(pkl_fnm):
             print('WARNING RESTARTING LV1 WILL NOT WORK!!!')
 
     print('reloading PFM pkl info!')
-    PFM = initfuns_fore.get_model_info(pkl_fnm) # refresh this
+    PFM = initfuns.get_model_info(pkl_fnm) # refresh this
     
     # get the OCN_BC dictionary
     print('going to save OCN_BC to a pickle file to:')
@@ -1127,7 +1119,7 @@ def run_fore_LV1(pkl_fnm):
     fn_atm_out = PFM['lv1_forc_dir'] + '/' + PFM['lv1_atm_file'] # LV1 atm forcing filename
     print('we are now saving ATM LV1 to ' + fn_atm_out + ' ...')
     t01 = datetime.now()
-    cmd_list = ['python','-W','ignore','atm_functions.py','atm_roms_dict_to_netcdf',str(level),pkl_fnm,'fore']
+    cmd_list = ['python','-W','ignore','atm_functions.py','atm_roms_dict_to_netcdf',str(level),pkl_fnm]
     os.chdir('../sdpm_py_util')
     ret5 = subprocess.run(cmd_list)   
     print('return code: ' + str(ret5.returncode) + ' (0=good)')  
@@ -1183,7 +1175,6 @@ def run_fore_LV1(pkl_fnm):
 
 
 def run_fore_LV2(pkl_fnm):
-    import init_funs_forecast as initfuns
     MI = initfuns.get_model_info(pkl_fnm)
 
     level = 2
@@ -1207,7 +1198,7 @@ def run_fore_LV2(pkl_fnm):
     fn_atm_out = MI['lv2_forc_dir'] + '/' + MI['lv2_atm_file'] # LV1 atm forcing filename
     print('we are now saving ATM LV2 to ' + fn_atm_out + ' ...')
     t01 = datetime.now()
-    cmd_list = ['python','-W','ignore','atm_functions.py','atm_roms_dict_to_netcdf',str(level),pkl_fnm,'fore']
+    cmd_list = ['python','-W','ignore','atm_functions.py','atm_roms_dict_to_netcdf',str(level),pkl_fnm]
     os.chdir('../sdpm_py_util')
     ret5 = subprocess.run(cmd_list)   
     print('return code: ' + str(ret5.returncode) + ' (0=good)')  
@@ -1346,7 +1337,6 @@ def run_fore_LV2(pkl_fnm):
 
 
 def run_fore_LV3(pkl_fnm):
-    import init_funs_forecast as initfuns
     MI = initfuns.get_model_info(pkl_fnm)
 
     level = 3
@@ -1370,7 +1360,7 @@ def run_fore_LV3(pkl_fnm):
     fn_atm_out = MI['lv3_forc_dir'] + '/' + MI['lv3_atm_file'] # LV1 atm forcing filename
     print('we are now saving ATM LV3 to ' + fn_atm_out + ' ...')
     t01 = datetime.now()
-    cmd_list = ['python','-W','ignore','atm_functions.py','atm_roms_dict_to_netcdf',str(level),pkl_fnm,'fore']
+    cmd_list = ['python','-W','ignore','atm_functions.py','atm_roms_dict_to_netcdf',str(level),pkl_fnm]
     os.chdir('../sdpm_py_util')
     ret5 = subprocess.run(cmd_list)   
     print('return code: ' + str(ret5.returncode) + ' (0=good)')  
@@ -1388,7 +1378,6 @@ def run_fore_LV3(pkl_fnm):
     t01 = datetime.now()
     print('driver_run_forcast_LV3: saving LV3_OCN_BC pickle file')
     os.chdir('../sdpm_py_util')
-    # note mk_LV2_BC_dict_edges works for LV2,3,4 !!! bad function name
     cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','mk_LV2_BC_dict_edges',str(level),pkl_fnm]
     ret5 = subprocess.run(cmd_list)   
     print('return code: ' + str(ret5.returncode) + ' (0=good)')  
@@ -1508,7 +1497,6 @@ def run_fore_LV3(pkl_fnm):
 
 
 def run_fore_LV4(pkl_fnm):
-    import init_funs_forecast as initfuns
     MI = initfuns.get_model_info(pkl_fnm)
 
     level = 4
@@ -1532,7 +1520,7 @@ def run_fore_LV4(pkl_fnm):
     fn_atm_out = MI['lv4_forc_dir'] + '/' + MI['lv4_atm_file'] # LV1 atm forcing filename
     print('we are now saving ATM LV4 to ' + fn_atm_out + ' ...')
     t01 = datetime.now()
-    cmd_list = ['python','-W','ignore','atm_functions.py','atm_roms_dict_to_netcdf',str(level),pkl_fnm,'fore']
+    cmd_list = ['python','-W','ignore','atm_functions.py','atm_roms_dict_to_netcdf',str(level),pkl_fnm]
     os.chdir('../sdpm_py_util')
     ret5 = subprocess.run(cmd_list)   
     print('return code: ' + str(ret5.returncode) + ' (0=good)')  
@@ -1550,7 +1538,6 @@ def run_fore_LV4(pkl_fnm):
     t01 = datetime.now()
     print('driver_run_forcast_LV4: saving LV4_OCN_BC pickle file')
     os.chdir('../sdpm_py_util')
-    # note mk_LV2_BC_dict_edges works for LV2,3,4 !!! bad function name
     cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','mk_LV2_BC_dict_edges',str(level),pkl_fnm]
     ret5 = subprocess.run(cmd_list)   
     print('return code: ' + str(ret5.returncode) + ' (0=good)')  

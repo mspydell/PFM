@@ -478,42 +478,10 @@ def remove_swan_rst_nohour(pkl_fnm):
     else:
         print('...no swan base rst files to delete.')
 
-def remove_swan_rst_incomplete(pkl_fnm):
-    # we no longer call this function. Not needed.
-    # this will delete swan restart files that were made if the simulation didn't complete 
-    PFM = get_model_info(pkl_fnm)
-    fns = glob.glob(PFM['restart_files_dir'] + '/LV4_swan_rst_????????????_000.dat-001')
-    fores = [] # a list with all of the forecast times
-    print('possibly deleting incomplete PFM simulation swan rst files...')
-    if len(fns)>0:
-        for fn in fns:
-            head, tail = os.path.split(fn)
-            yyyymmddhhmm = tail[13:23]
-            fores.append(yyyymmddhhmm)
-
-        unique_fores = list(set(fores))
-        #print(unique_fores)
-        for fn in unique_fores:
-            ftxt = PFM['restart_files_dir'] + '/LV4_swan_rst_' + fn + '00_*.dat-*'
-            all_files = glob.glob(ftxt)
-            num_files = PFM['gridinfo']['L4','np_swan'] * int( (PFM['forecast_days'] / PFM['outputinfo']['L4','rst_interval']) + 1 )
-            #print(num_files)
-            #print(len(all_files))
-            # below breaks things when changing 2.5 to 5.0 day forecasts, vice versa, etc. 
-            if len(all_files) != num_files:
-                print('...the simulation from ' + fn + ' wasnt finsished correctly, need to delete swan rst files.')
-                for rf in all_files:
-                    print('deleting ' + rf)
-                    os.remove(rf)
-            else:
-                print('...there were no incomplete sets of swan rst files from the ' + fn + ' PFM simulation.')
-
 def restart_setup(lvl,pkl_fnm):
 
     PFM = get_model_info(pkl_fnm)
-
     older_than_days = 7.0
-
     PFM_edit = dict()
     fname1,tindex1 = get_restart_file_and_index(lvl,pkl_fnm)
 
@@ -533,7 +501,6 @@ def restart_setup(lvl,pkl_fnm):
         key_rec = 'lv4_nrrec'
         key_file = 'lv4_ini_file'
         remove_swan_rst_nohour(pkl_fnm)
-        #remove_swan_rst_incomplete()
         if PFM['run_type']=='forecast':
             print('removing swan restart files older than now - ' + str(older_than_days) + ' days old...')
             remove_old_restart_files('swan',older_than_days,pkl_fnm)
@@ -547,16 +514,12 @@ def restart_setup(lvl,pkl_fnm):
         if PFM['lv4_swan_use_rst'] == 1:
             fn0 = PFM['lv4_swan_rst_name'][0:13]
             fnm_swan = get_swan_restart_file_name(pkl_fnm)
-            #yyyymmdd_rm = fname1[14:26]
-            #t_sw = tindex1 * PFM['lv4_swan_rst_int_hr']
-            #t_sw_str = str(t_sw).zfill(3)
             if fnm_swan == None:
                 print('although a swan restart was requested, a restart file could not be found')
                 print('and swan will start swan with IC=ZERO and with the line ...')
                 print(PFM['swan_init_txt_full'])
             else:    
                 swan_txt = 'HOTSTART ' + "'" + fnm_swan + "'"
-                #fn0 + yyyymmdd_rm + '_' + t_sw_str + '.dat'
                 PFM_edit['swan_init_txt_full'] = swan_txt
                 print('we are going to restart swan with the line ...')
                 print(PFM_edit['swan_init_txt_full'])
