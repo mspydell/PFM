@@ -11,7 +11,6 @@ sys.path.append('../sdpm_py_util')
 import init_funs_forecast as initfuns
 import grid_functions as grdfuns
 import river_functions as rivfuns
-import hind_functions as hindfuns
 import os
 import os.path
 import pickle
@@ -844,6 +843,12 @@ def get_hind_nc_cmd_list(t1str,t2str,pkl_fnm):
 
     return cmd_list, nc_out
 
+def check_file_exists_os(file_path):
+    """
+    Checks if a file exists using os.path.exists() and returns 1 if it exists, 0 otherwise.
+    """
+    return 1 if os.path.exists(file_path) else 0
+
 def get_hycom_hind_data(t1str,t2str,pkl_fnm):
     # this function gets all of the new hycom data as separate files for each field (ssh,temp,salt,u,v) and each time
     # and puts each .nc file in the directory for hycom data
@@ -855,7 +860,7 @@ def get_hycom_hind_data(t1str,t2str,pkl_fnm):
     # first check and see if the files we want, we have...
     fes = []
     for fn in ncs:
-        fe=hindfuns.check_file_exists_os(fn)
+        fe=check_file_exists_os(fn)
         fes.append(fe)
     
     if sum(fes) == len(ncs):
@@ -895,7 +900,7 @@ def get_hycom_hind_data(t1str,t2str,pkl_fnm):
 
     fes = []
     for fn in ncs:
-        fe=hindfuns.check_file_exists_os(fn)
+        fe=check_file_exists_os(fn)
         fes.append(fe)
     
     if sum(fes) == len(ncs):
