@@ -27,8 +27,8 @@ READINP WIND 1 $swan_wnd_full$ 4 0 FREE
 BOUNDNEST1 NEST  $swan_bnd_full$  OPEN
 
 && Initial Condition
-&& INITIAL ZERO
-INITIAL $swan_init_txt$
+INITIAL ZERO
+&& INITIAL $swan_init_txt$
 
 && Restart name **********************************
 && INIT HOTSTART 'swan_rst_LV4_3river.dat'
@@ -36,7 +36,7 @@ INITIAL $swan_init_txt$
 && PHYSICS  ****************************************
 BREAKING CONSTANT 1.0 0.50
 FRICTION JONSWAP 0.0001
-GEN3 KOM
+&&GEN3 KOM
 PROP BSBT
 && OFF QUAD
 
