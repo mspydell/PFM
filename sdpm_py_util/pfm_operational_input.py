@@ -59,9 +59,15 @@ def create_model_info_dict():
     pfm_dir = '/scratch/PFM_Simulations/' # this stays fixed for Grids and executables
                                          # both forecasting and hindcasting use the same ones.
     
+    PFM['swan_wind_wave_generation'] = True
     #model_root_dir = '/scratch/matt/PFM_Simulations_v2/'  
     model_root_dir = '/scratch/PFM_Simulations/'
     
+    PFM['swan_wind_wave_generation'] = False # make or do not make wind waves in swan.
+    PFM['use_IBWC'] = True
+    PFM['use_constant_flow'] = False
+
+
     if run_type == 'hindcast': # note hycom with tides starts on 2024-10-10 1200...
         sim_start_time = '2024101100' # the simulation start time is in yyyymmddhh format
         sim_end_time   = '2024101300' # this is the very last time of the full simulation
@@ -474,8 +480,11 @@ def create_model_info_dict():
     PFM['lv2_use_restart']         = 1
     PFM['lv3_use_restart']         = 1
     PFM['lv4_use_restart']         = 1
-    #PFM['lv4_swan_use_rst']        = 0
-    PFM['lv4_swan_use_rst']        = 1
+    #PFM['lv4_swan_use_rst']        = 1
+    PFM['lv4_swan_use_rst']        = 0
+
+    PFM['use_IBWC'] = True # True mean use the new MSS method for TJR river flow. True is operational
+    PFM['use_constant_flow'] = False # True means use constant flow, for debugging purposes. False is operational
 
     # now do the timing information
     start_time = datetime.now()

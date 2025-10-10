@@ -19,16 +19,20 @@ READGRID COORDINATES 1 $swan_grd_full$ 4 0 0 FREE
 INPGRID BOTTOM CURVILINEAR 0 0 $ncols_swan$ $nrows_swan$ EXC 9.999000e+003
 READINP BOTTOM 1 $swan_bot_full$ 4 0 FREE 
 
-INPGRID WIND CURVILINEAR 0 0 $ncols_swan$ $nrows_swan$ EXC 9.999000e+003 &
-       NONSTATIONARY $swan_t1_str$ $atm_dt_hr$ HR $swan_t2_str$
-READINP WIND 1 $swan_wnd_full$ 4 0 FREE 
+
+$wind_line_1$
+$wind_line_nonstationary$ 
+$wind_line_2$
+&&INPGRID WIND CURVILINEAR 0 0 $ncols_swan$ $nrows_swan$ EXC 9.999000e+003 &
+&&NONSTATIONARY $swan_t1_str$ $atm_dt_hr$ HR $swan_t2_str$
+&&READINP WIND 1 $swan_wnd_full$ 4 0 FREE 
 
 && Boundary files  ****************************************
 BOUNDNEST1 NEST  $swan_bnd_full$  OPEN
 
 && Initial Condition
-INITIAL ZERO
-&& INITIAL $swan_init_txt$
+&& INITIAL ZERO
+INITIAL $swan_init_txt$
 
 && Restart name **********************************
 && INIT HOTSTART 'swan_rst_LV4_3river.dat'
@@ -36,9 +40,10 @@ INITIAL ZERO
 && PHYSICS  ****************************************
 BREAKING CONSTANT 1.0 0.50
 FRICTION JONSWAP 0.0001
+$wind_line_3$
 &&GEN3 KOM
 PROP BSBT
-&& OFF QUAD
+$quad_line$
 
 &&BLOCK 'COMPGRID' NOHEADER 'hsig.dat'     LAY 4 HSIGN 1.   OUTPUT 20150712.120000 60 MIN
 &&BLOCK 'COMPGRID' NOHEADER 'rtp.dat'      LAY 4 RTP 1.     OUTPUT 20150712.120000 60 MIN

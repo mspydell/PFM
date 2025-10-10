@@ -59,6 +59,12 @@ def mk_swan_bot_file(hb,fout):
 def mk_swan_wnd_file(fout,pkl_fnm):
     PFM = initfuns.get_model_info(pkl_fnm)
 
+    # only make the wind file if we have generation on
+    if not PFM['swan_wind_wave_generation']:
+        print('we are not going to generate wind waves in swan. No need to make .wnd file.')
+        print('exiting function.')
+        sys.exit(1)
+
     RMG = grdfuns.roms_grid_to_dict(PFM['lv4_grid_file'])
     angr = RMG['angle']
     # this is level 4, and the angles in the grid are all the same to within 1/1000

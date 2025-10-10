@@ -677,8 +677,9 @@ def  make_LV4_coawst_dotins_dotsb(pkl_fnm,mod_type):
     D['swan_bot_full'] = "'" + PFM['lv4_grid_dir'] + '/' + PFM['lv4_swan_bot_file'] + "'"      
     D['swan_bnd_full'] = "'" + PFM['lv4_forc_dir'] + '/' +PFM['lv4_swan_bnd_file'] + "'"      
     D['swan_wnd_full'] = "'" + PFM['lv4_forc_dir'] + '/' +PFM['lv4_swan_wnd_file'] + "'"     
+    D['swan_wnd_full'] = "'" + PFM['lv4_forc_dir'] + '/' +PFM['lv4_swan_wnd_file'] + "'"     
     D['atm_dt_hr'] = PFM['atm_dt_hr']
-
+        
     if PFM['run_type'] == 'forecast':
         t1 = PFM['fetch_time']
     else:
@@ -769,7 +770,20 @@ def  make_LV4_coawst_dotins_dotsb(pkl_fnm,mod_type):
     D['angle_num'] = len(cdip['dir'])
     D['angle_dangle'] = cdip['dir'][1] - cdip['dir'][0]    
 
-
+    D['wind_line_1'] = 'INPGRID WIND CURVILINEAR 0 0 ' + str(D['ncols_swan']) + ' ' +  str(D['nrows_swan']) + ' EXC 9.999000e+003 &'
+    D['wind_line_nonstationary'] = 'NONSTATIONARY ' + D['swan_t1_str'] + ' ' +  str(D['atm_dt_hr']) + ' HR ' +  D['swan_t2_str']
+    D['wind_line_2'] = 'READINP WIND 1 ' + D['swan_wnd_full'] + ' 4 0 FREE' 
+    D['wind_line_3'] = 'GEN3 KOM'
+    D['quad_line']  = 'OFF QUAD' # these needs to be off for no wind
+    if not PFM['swan_wind_wave_generation']:
+        print('we are not going to generate wind waves in swan.')
+        D['wind_line_1'] = '&&' + D['wind_line_1']
+        D['wind_line_2'] = '&&' + D['wind_line_2']
+        #D['wind_line_3'] = '&&' + D['wind_line_3']
+        D['wind_line_nonstationary'] = '&&' + D['wind_line_nonstationary']
+    else:
+        D['quad_line'] = '&&' + D['quad_line'] # and on for wind
+    
     print('for this LV4 simulation')
     print('the grid file used is:')
     print(D['lv4_grid_full'])

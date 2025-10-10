@@ -5357,24 +5357,32 @@ def mk_lv4_river_nc(pkl_fnm):
     # make the river times be every 1 hr for now...
     triv = np.arange(t0_days,t0_days+nday+2/24,1/24) # the .5/24 is required to end on the last time step.
 
-    print('making the river discharge pickle file')
-    tnwm = t0 - 6 * timedelta(hours = 1) # river is always 6 hours before forecast start.
-    tnwm_str = tnwm.strftime('%Y%m%d%H')
-    tpfm_str = t0.strftime('%Y%m%d%H')
-    print('using the nwm river forecast from the start time:')
-    print(tnwm_str)
-    print('to ensure that the forecast can be found on their server')
-    #print(tpfm_str)
-    ret_code = rivfuns.get_river_flow_nwm(tnwm_str,tpfm_str,pkl_fnm)
-    if ret_code == 1:
-        print('river file wasnt made, exiting...')
-        sys.exit(1)
+    if PFM['use_constant_flow']:
+        Qs = np.zeros((len(triv),3))
+        Qs[:,0] =  .25  # sweetwater
+        Qs[:,1] =  .25  # Otay
+        Qs[:,2] = .1   # TJR
+        QQ={}
+        QQ['discharge'] = Qs
+    else:
+        print('making the river discharge pickle file')
+        tnwm = t0 - 6 * timedelta(hours = 1) # river is always 6 hours before forecast start.
+        tnwm_str = tnwm.strftime('%Y%m%d%H')
+        tpfm_str = t0.strftime('%Y%m%d%H')
+        print('using the nwm river forecast from the start time:')
+        print(tnwm_str)
+        print('to ensure that the forecast can be found on their server')
+        #print(tpfm_str)
+        ret_code = rivfuns.get_river_flow_nwm(tnwm_str,tpfm_str,pkl_fnm)
+        if ret_code == 1:
+            print('river file wasnt made, exiting...')
+            sys.exit(1)
 
-    print('loading the river discharge pickle file...')
-    file_in= PFM['river_pckl_file_full']
-    #file_in = '/scratch/PFM_Simulations/LV4_Forecast/Forc/river_Q.pkl'
-    with open(file_in,'rb') as fp:
-        QQ = pickle.load(fp)
+        print('loading the river discharge pickle file...')
+        file_in= PFM['river_pckl_file_full']
+        #file_in = '/scratch/PFM_Simulations/LV4_Forecast/Forc/river_Q.pkl'
+        with open(file_in,'rb') as fp:
+            QQ = pickle.load(fp)
 
     #print( QQ['time'] )
     #print( PFM['modtime0'] + triv * timedelta(days = 1 ) )
@@ -5389,8 +5397,8 @@ def mk_lv4_river_nc(pkl_fnm):
     D['river_transport'] = np.zeros((nt,9))
     #D['river_transport'][:,0:5] = -0.025 + D['river_transport'][:,0:5] # this is SDTJRE points
 
-    use_IBWC = True
-    if use_IBWC: 
+
+    if PFM['use_IBWC']: 
         _, Q_new = rivfuns.get_forecasted_Q_IBWC(pkl_fnm)
     else:
         Q_new = QQ['discharge'][:,2]
