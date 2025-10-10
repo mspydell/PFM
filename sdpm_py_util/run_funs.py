@@ -107,7 +107,7 @@ def  make_LV1_dotin_and_SLURM( pkl_fnm , mod_type ):
     D['nrrec']        = nrrec
     D['lv1_ini_file'] = lv1_ini_dir + '/' + ininame
     D['lv1_bc_file']  = PFM['lv1_forc_dir'] + '/' + PFM['lv1_bc_file']    
-
+    D['roughness'] = str( PFM['lv1_bottom_roughness'] ) + 'd0'
  
     D['vtransform']  = PFM['stretching']['L1','Vtransform']
     D['vstretching'] = PFM['stretching']['L1','Vstretching']
@@ -246,6 +246,7 @@ def  make_LV2_dotin_and_SLURM( pkl_fnm , mod_type ):
     D['ntilej'] = PFM['gridinfo']['L2','ntilej']
     D['np']     = PFM['gridinfo']['L2','np']
     D['nnodes'] = PFM['gridinfo']['L2','nnodes']
+    D['roughness'] = str( PFM['lv2_bottom_roughness'] ) + 'd0'
 
     # timing info
     dtsec         = PFM['tinfo']['L2','dtsec']
@@ -430,6 +431,7 @@ def  make_LV3_dotin_and_SLURM( pkl_fnm , mod_type ):
     D['ntilej'] = PFM['gridinfo']['L3','ntilej']
     D['np']     = PFM['gridinfo']['L3','np']
     D['nnodes'] = PFM['gridinfo']['L3','nnodes']
+    D['roughness'] = str( PFM['lv3_bottom_roughness'] ) + 'd0'
 
     # timing info
     dtsec         = PFM['tinfo']['L3','dtsec']
@@ -623,6 +625,7 @@ def  make_LV4_coawst_dotins_dotsb(pkl_fnm,mod_type):
     D['nnodes'] = PFM['gridinfo']['L4','nnodes']
     D['nd']     = PFM['lv4_nwave_dirs']
     D['np_swan'] = PFM['gridinfo']['L4','np_swan']
+    D['roughness'] = str( PFM['lv4_bottom_roughness'] ) + 'd0'
 
     D['lv4_clm_file'] = PFM['lv4_forc_dir'] + '/' + PFM['lv4_clm_file']
     D['lv4_nud_file'] = PFM['lv4_forc_dir'] + '/' + PFM['lv4_nud_file']

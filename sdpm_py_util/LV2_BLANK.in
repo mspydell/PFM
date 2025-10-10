@@ -401,7 +401,7 @@ LtracerSponge == F F                            ! temperature, salinity, inert
 
         RDRG == 3.0d-04                    ! m/s
        RDRG2 == 3.0d-03                    ! nondimensional
-         Zob == 0.001d0                    ! m
+         Zob == $roughness$                    ! m
          Zos == 0.005d0                      ! m
 
 ! Height (m) of atmospheric measurements for Bulk fluxes parameterization.

@@ -10,7 +10,7 @@ import sys
 
 sys.path.append('../sdpm_py_util')
 import grid_functions as grdfuns
-import ocn_functions as ocnfuns
+import ocn_funs_forecast as ocnfuns
 import init_funs as initfuns
 
 import numpy as np

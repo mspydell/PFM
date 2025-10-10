@@ -271,14 +271,22 @@ def get_nwm_analysis_flow(t_riv,pkl_fnm):
 
     i_sw = np.argwhere(rid_nc == reach_ids[0])
     i_om = np.argwhere(rid_nc == reach_ids[1])
+    i_tj = np.argwhere(rid_nc == reach_ids[2])
 
     q_sw = np.squeeze(q_nc[:,i_sw])
     q_om = np.squeeze(q_nc[:,i_om])
+    q_tj = np.squeeze(q_nc[:,i_tj])
 
     qi_sw = np.interp(t_riv.astype('int64'),t_nc64.astype('int64'),q_sw)
     qi_om = np.interp(t_riv.astype('int64'),t_nc64.astype('int64'),q_om)
+    qi_tj = np.interp(t_riv.astype('int64'),t_nc64.astype('int64'),q_tj)
 
-    return qi_sw, qi_om
+    return qi_sw, qi_om, qi_tj
+
+def get_tj_flow_version_PFM(t_riv,pkl_fnm):
+    q_tj = 0
+
+    return q_tj
 
 def get_pb_flow_and_dye(t_riv,pkl_fnm):
     

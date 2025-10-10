@@ -55,13 +55,42 @@ def create_model_info_dict():
     if run_type == 'forecast':
        pfm_root_dir = '/scratch/PFM_Simulations/'       
     else:
-       pfm_root_dir = '/scratch/PHM_Simulations/'       
-   
+       pfm_root_dir = '/scratch/PHM_Simulations/riv_nwm/'  # other options are:     
+       #pfm_root_dir = '/scratch/PHM_Simulations/riv_ibwc_raw/'  # other options are:     
+       #pfm_root_dir = '/scratch/PHM_Simulations/riv_vpfm/'  # other options are:     
+        #['/riv_nwm','/riv_ibwc_raw','/riv_vpfm']
+    
     PFM = dict()
+    if pfm_root_dir == '/scratch/PHM_Simulations/riv_nwm/':       
+        d0b = 0.001
+        PFM['hind_river_type'] = 'NWM' 
+        hind_archive_dir = '/dataSIO/PHM_Simulations/riv_nwm/'
+    elif pfm_root_dir == '/scratch/PHM_Simulations/riv_ibwc_raw/':
+        d0b = 0.0005
+        PFM['hind_river_type'] = 'IBWC_raw' 
+        hind_archive_dir = '/dataSIO/PHM_Simulations/riv_ibwc_raw/'
+    elif pfm_root_dir == '/scratch/PHM_Simulations/riv_vpfm/':
+        d0b = 0.0001
+        PFM['hind_river_type'] = 'vPFM' 
+        hind_archive_dir = '/dataSIO/PHM_Simulations/riv_vpfm/'
+
+    PFM['hind_lv1_archive_dir'] = hind_archive_dir + 'LV1/'
+    PFM['hind_lv2_archive_dir'] = hind_archive_dir + 'LV2/'
+    PFM['hind_lv3_archive_dir'] = hind_archive_dir + 'LV3/'
+    PFM['hind_lv4_archive_dir'] = hind_archive_dir + 'LV4/'
+    PFM['hind_river_archive_dir'] = hind_archive_dir + 'river_ncs/'
+
+    PFM['lv1_bottom_roughness'] = d0b # in meters, used in log layer dissipation. z0b in .in file
+    PFM['lv2_bottom_roughness'] = d0b # in meters, used in log layer dissipation. z0b in .in file
+    PFM['lv3_bottom_roughness'] = d0b # in meters, used in log layer dissipation. z0b in .in file
+    PFM['lv4_bottom_roughness'] = d0b # in meters, used in log layer dissipation. z0b in .in file
+    
+                                   # 'IBWC' raw observed
+                                   # 'PFM'. This uses the PFM method.   
     if run_type == 'hindcast': # note hycom with tides starts on 2024-10-10 1200...
-        sim_start_time = '2024101900' # the simulation start time is in yyyymmddhh format
+        sim_start_time = '2025010100' # the simulation start time is in yyyymmddhh format
         # 2024101100 is the 1st day of hycom with tides hycom data.
-        sim_end_time   = '2024102100' # this is the very last time of the full simulation
+        sim_end_time   = '2025010300' # this is the very last time of the full simulation
         PFM['forecast_days'] = 1.0 # for now we do 1 day sub simulations
         # set the simulation end time. An integer number of days past the start time
         # We will loop over days until we get to this time.
@@ -98,23 +127,26 @@ def create_model_info_dict():
     lv4_root_dir =  pfm_root_dir +  'LV4_Forecast/'
 
     lv1_run_dir  = lv1_root_dir + 'Run'
-    lv1_his_dir  = lv1_root_dir + 'His'
     lv1_forc_dir = lv1_root_dir + 'Forc'
     lv1_tide_dir = lv1_root_dir + 'Tides'
     lv1_plot_dir = lv1_root_dir + 'Plots'          
 
     lv2_run_dir  = lv2_root_dir + 'Run'
-    lv2_his_dir  = lv2_root_dir + 'His'
     lv2_forc_dir = lv2_root_dir + 'Forc'
     lv2_plot_dir = lv2_root_dir + 'Plots'          
 
     lv3_run_dir  = lv3_root_dir + 'Run'
-    lv3_his_dir  = lv3_root_dir + 'His'
     lv3_forc_dir = lv3_root_dir + 'Forc'
     lv3_plot_dir = lv3_root_dir + 'Plots'          
 
     lv4_run_dir  = lv4_root_dir + 'Run'
     lv4_forc_dir = lv4_root_dir + 'Forc'
+
+
+    lv1_his_dir  = lv1_root_dir + 'His'
+    lv2_his_dir  = lv2_root_dir + 'His'
+    lv3_his_dir  = lv3_root_dir + 'His'
+    lv4_his_dir  = lv4_root_dir + 'His'
 
     # here is the switch to go from LV4 Roms only to LV4 coawst
     #lv4_model = 'ROMS'
@@ -134,7 +166,6 @@ def create_model_info_dict():
         PFM['lv4_blank_swan_name'] = 'LV4_SWAN_BLANK.in'
         PFM['lv4_coupling_name'] = 'LV4_COUPLING_BLANK.in'
 
-    lv4_his_dir  = lv4_root_dir + 'His'
     lv4_plot_dir = lv4_root_dir + 'Plots'          
     lv4_coawst_varinfo_full = lv4_run_dir + '/LV4_coawst_varinfo.dat'
     PFM['lv4_coawst_varinfo_full'] = lv4_coawst_varinfo_full
@@ -441,10 +472,10 @@ def create_model_info_dict():
     # this is the switch to use restart files
     PFM['restart_files_dir'] =  pfm_root_dir + 'restart_data' 
 
-    # right now there are restarts from 2024-10-12 to 2024-10-19
+# right now there are restarts from 2024-10-12 to 2024-10-19
     # using restarts is now automatic based on assuming 20241011
     # is the very first hindcast day
-    if sim_start_time == '2024101100':
+    if sim_start_time == '2025010100':
         use_restart_files = 0
     else:
         use_restart_files = 1
@@ -461,7 +492,6 @@ def create_model_info_dict():
         PFM['lv3_use_restart']         = 1
         PFM['lv4_use_restart']         = 1
         PFM['lv4_swan_use_rst']        = 1
-
 
     # now do the timing information
     start_time = datetime.now()

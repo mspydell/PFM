@@ -51,7 +51,11 @@ def create_model_info_dict():
     # PFM is the dictionary that contains all of the model information
     PFM = dict()
     PFM['run_type'] = run_type
-
+    d0b = 0.001
+    PFM['lv1_bottom_roughness'] = d0b # bottom roughness in meters
+    PFM['lv2_bottom_roughness'] = d0b # bottom roughness in meters
+    PFM['lv3_bottom_roughness'] = d0b # bottom roughness in meters
+    PFM['lv4_bottom_roughness'] = d0b # bottom roughness in meters
     pfm_dir = '/scratch/PFM_Simulations/' # this stays fixed for Grids and executables
                                          # both forecasting and hindcasting use the same ones.
     

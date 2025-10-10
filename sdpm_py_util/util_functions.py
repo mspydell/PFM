@@ -6,10 +6,21 @@ import pickle
 import shutil
 import sys
 import subprocess
-import datetime
 sys.path.append('../sdpm_py_util')
 import init_funs_forecast as initfuns
 
+
+def archive_hind_nc(nc_type,lvl_str,pkl_fnm):
+    PFM = initfuns.get_model_info(pkl_fnm)
+    if nc_type == 'his':
+        input_file = PFM['lv'+lvl_str+'_his_name_full']
+        archive_dir = PFM['hind_lv'+lvl_str+'_archive_dir'] 
+    elif nc_type == 'river':
+        input_file = PFM['lv4_forc_dir'] +'/' + PFM['lv4_river_file']
+        archive_dir = PFM['hind_river_archive_dir'] 
+
+    cmd = ['mv',input_file,archive_dir]
+    subprocess.Popen(cmd)
 
 def copy_mv_nc_file(nc_type,lvl,pkl_fnm):
     # this copies an atm.nc or river.nc file to the archive location

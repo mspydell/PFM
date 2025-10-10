@@ -11,15 +11,18 @@ dateZ=$(date '+%Y%m%d')
 
 ##
 
-##  first delete netcdf files on website
-rm -rf /projects/www-users/falk/PFM_Forecast/LV4_His/LV*.nc
 
 ## copy webdata to /dataSIO and website
 
+#cp -f  /scratch/PFM_Simulations/LV4_Forecast/His/web*.nc     /dataSIO/PFM_Simulations/Archive/for_web/web_data_latest.nc
 cp -f  /scratch/PFM_Simulations/LV4_Forecast/His/web*.nc     /projects/www-users/falk/PFM_Forecast/LV4_His/web_data_latest.nc
-cp -f  /scratch/PFM_Simulations/LV4_Forecast/His/web*.nc     /dataSIO/PFM_Simulations/Archive/for_web/web_data_latest.nc
+#cp -f  /scratch/PFM_Simulations/LV4_Forecast/His/web*.nc     /dataSIO/PFM_Simulations/Archive/web
+
 #cp -f  /scratch/PFM_Simulations/LV4_Forecast/His/LV4*.nc     /projects/www-users/falk/PFM_Forecast/LV4_His
-cp -f  /scratch/PFM_Simulations/LV4_Forecast/His/web*.nc     /dataSIO/PFM_Simulations/Archive/web
+
+##  first delete netcdf files on website
+rm -rf /projects/www-users/falk/PFM_Forecast/LV4_His/LV*.nc
+
 
 ## copy LV1-LV3 plots to /dataSIO and
 #cp -f  /scratch/PFM_Simulations/LV1_Forecast/Plots/his*png    /dataSIO/PFM_Simulations/Plots
@@ -28,6 +31,7 @@ cp -f  /scratch/PFM_Simulations/LV4_Forecast/His/web*.nc     /dataSIO/PFM_Simula
 ## copy LV4 plots to /dataSIO 
 cp -f  /scratch/PFM_Simulations/LV4_Forecast/Plots/his*png    /dataSIO/PFM_Simulations/Plots
 cp -f  /scratch/PFM_Simulations/LV4_Forecast/Plots/dye*png    /dataSIO/PFM_Simulations/Plots
+cp -f  /scratch/PFM_Simulations/LV4_Forecast/Plots/river*png    /dataSIO/PFM_Simulations/Plots
 
 
 ##  copy history files to /dataSIO and to website for LV4
@@ -61,9 +65,9 @@ cp -f  /scratch/PFM_Simulations/LV4_Forecast/Run/LV4_forecast.log  /dataSIO/PFM_
 ## next deal with the plots on website
 ## first delete
 mv -f  /projects/www-users/falk/PFM_Forecast/Plots/dye*.png  /projects/www-users/falk/PFM_Forecast/OLD_PLOTS/LV4
-mv -f  /projects/www-users/falk/PFM_Forecast/Plots/LV1*.gif  /projects/www-users/falk/PFM_Forecast/OLD_PLOTS/LV1
-mv -f  /projects/www-users/falk/PFM_Forecast/Plots/LV2*.gif  /projects/www-users/falk/PFM_Forecast/OLD_PLOTS/LV2
-mv -f  /projects/www-users/falk/PFM_Forecast/Plots/LV3*.gif  /projects/www-users/falk/PFM_Forecast/OLD_PLOTS/LV3
+#mv -f  /projects/www-users/falk/PFM_Forecast/Plots/LV1*.gif  /projects/www-users/falk/PFM_Forecast/OLD_PLOTS/LV1
+#mv -f  /projects/www-users/falk/PFM_Forecast/Plots/LV2*.gif  /projects/www-users/falk/PFM_Forecast/OLD_PLOTS/LV2
+#mv -f  /projects/www-users/falk/PFM_Forecast/Plots/LV3*.gif  /projects/www-users/falk/PFM_Forecast/OLD_PLOTS/LV3
 mv -f  /projects/www-users/falk/PFM_Forecast/Plots/LV4*.gif  /projects/www-users/falk/PFM_Forecast/OLD_PLOTS/LV4
 mv -f  /projects/www-users/falk/PFM_Forecast/Plots/his*.png  /projects/www-users/falk/PFM_Forecast/OLD_PLOTS
 rm -f /projects/www-users/falk/PFM_Forecast/OLD_PLOTS/his*png
@@ -76,14 +80,14 @@ cd /projects/www-users/falk/PFM_Forecast/Plots
 
 # set up making the animated gifs
 
-fname1=LV1_tempuv_${dateZ}0600Z.gif
-fname2=LV2_tempuv_${dateZ}0600Z.gif
-fname3=LV3_tempuv_${dateZ}0600Z.gif
+#fname1=LV1_tempuv_${dateZ}0600Z.gif
+#fname2=LV2_tempuv_${dateZ}0600Z.gif
+#fname3=LV3_tempuv_${dateZ}0600Z.gif
 fname4=LV4_tempuv_${dateZ}0600Z.gif
 
-/usr/bin/ffmpeg -loglevel quiet -y -r 2  -pattern_type glob -i 'his_tempuv_LV1*.png'  ${fname1} 
-/usr/bin/ffmpeg -loglevel quiet -y -r 2  -pattern_type glob -i 'his_tempuv_LV2*.png'  ${fname2} 
-/usr/bin/ffmpeg -loglevel quiet -y -r 2  -pattern_type glob -i 'his_tempuv_LV3*.png'  ${fname3}
+#/usr/bin/ffmpeg -loglevel quiet -y -r 2  -pattern_type glob -i 'his_tempuv_LV1*.png'  ${fname1} 
+#/usr/bin/ffmpeg -loglevel quiet -y -r 2  -pattern_type glob -i 'his_tempuv_LV2*.png'  ${fname2} 
+#/usr/bin/ffmpeg -loglevel quiet -y -r 2  -pattern_type glob -i 'his_tempuv_LV3*.png'  ${fname3}
 /usr/bin/ffmpeg -loglevel quiet -y -r 2  -pattern_type glob -i 'his_tempuv_LV4*.png'  ${fname4} 
 
 rm -f his_tempuv_LV1*.png  his_tempuv_LV2*.png  his_tempuv_LV3*.png

@@ -80,33 +80,44 @@ def mk_swan_wnd_file(fout,pkl_fnm):
     dtw = np.round( 24.0 * np.diff(tw)) # this is the time between atm data in hours
 
     nt,nlt,nln = np.shape(U)
+    #u2 = []
+    #v2 = []
     with open(fout,'w') as f:
         for aa in np.arange(nt):
             if aa < nt-1 and int(dtw[aa])==3 and PFM['atm_model'] == 'ecmwf': # hard coded assuming that ecmwf goes from dt = 1 to dt=3 hrs 
                                                                             # this happens 3.75 days after the start of the ecmwf simulation
                 for dd in np.arange(3):
-                    d1=(dd+3)/3.0  # these are the coefficents for linear interpolation from 3 hrs to 1 hr
+                    d1=(3-dd)/3.0  # these are the coefficents for linear interpolation from 3 hrs to 1 hr
                     d2=dd/3.0
                     for bb in np.arange(nlt):
                         for cc in np.arange(nln):
                             f.write(f'{d1*Ur[aa,bb,cc]+d2*Ur[aa+1,bb,cc] : >7.2f}')
+                            #if bb==0 and cc==0:
+                                #u2.append(d1*Ur[aa,bb,cc]+d2*Ur[aa+1,bb,cc])
                         f.write('\n')
 
                     for bb in np.arange(nlt):
                         for cc in np.arange(nln):
                             f.write(f'{d1*Vr[aa,bb,cc]+d2*Vr[aa+1,bb,cc] : >7.2f}')
+                            #if bb==0 and cc==0:
+                                #v2.append(d1*Vr[aa,bb,cc]+d2*Vr[aa+1,bb,cc])
                         f.write('\n')                    
             else:
                 for bb in np.arange(nlt):
                     for cc in np.arange(nln):
                         f.write(f'{Ur[aa,bb,cc] : >7.2f}')
+                        #if bb==0 and cc==0:
+                            #u2.append(Ur[aa,bb,cc])
                     f.write('\n')
 
                 for bb in np.arange(nlt):
                     for cc in np.arange(nln):
                         f.write(f'{Vr[aa,bb,cc] : >7.2f}')
+                        #if bb==0 and cc==0:
+                            #v2.append(Vr[aa,bb,cc])
                     f.write('\n')
 
+    #return u2, v2
 
 def mk_swan_bnd_file(fout,pkl_fnm):
 
