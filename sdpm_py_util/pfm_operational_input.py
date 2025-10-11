@@ -59,7 +59,6 @@ def create_model_info_dict():
     pfm_dir = '/scratch/PFM_Simulations/' # this stays fixed for Grids and executables
                                          # both forecasting and hindcasting use the same ones.
     
-    PFM['swan_wind_wave_generation'] = True
     #model_root_dir = '/scratch/matt/PFM_Simulations_v2/'  
     model_root_dir = '/scratch/PFM_Simulations/'
     

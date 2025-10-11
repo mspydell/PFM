@@ -1688,7 +1688,12 @@ def run_fore_LV4(pkl_fnm):
     print('...done. swan wnd file return code: ' + str(ret3.returncode) + ' (0=good)')  
     t2 = datetime.now()
 
-    if ret1.returncode != 0 or ret2.returncode != 0 or ret3.returncode != 0: 
+    if MI['swan_wind_wave_generation'] and ret3.returncode !=0:
+        print('supposed to use winds in swan and')
+        print('something bad happened making swan wind file, aborting simulation!')
+        sys.exit(1)
+       
+    if ret1.returncode != 0 or ret2.returncode != 0: 
         print('something bad happened making swan files, aborting simulation!')
         sys.exit(1)
 
