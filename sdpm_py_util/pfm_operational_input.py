@@ -479,8 +479,8 @@ def create_model_info_dict():
     PFM['lv2_use_restart']         = 1
     PFM['lv3_use_restart']         = 1
     PFM['lv4_use_restart']         = 1
-    #PFM['lv4_swan_use_rst']        = 1
-    PFM['lv4_swan_use_rst']        = 0
+    PFM['lv4_swan_use_rst']        = 1
+    #PFM['lv4_swan_use_rst']        = 0
 
     PFM['use_IBWC'] = True # True mean use the new MSS method for TJR river flow. True is operational
     PFM['use_constant_flow'] = False # True means use constant flow, for debugging purposes. False is operational
