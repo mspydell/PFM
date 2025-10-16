@@ -484,6 +484,7 @@ def create_model_info_dict():
 
     PFM['use_IBWC'] = True # True mean use the new MSS method for TJR river flow. True is operational
     PFM['use_constant_flow'] = False # True means use constant flow, for debugging purposes. False is operational
+    PFM['nwm_fore_dir'] = '/scratch/PFM_Simulations/nwm_ncs/'
 
     # now do the timing information
     start_time = datetime.now()

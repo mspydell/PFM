@@ -5366,26 +5366,31 @@ def mk_lv4_river_nc(pkl_fnm):
         QQ['discharge'] = Qs
     else:
         print('making the river discharge pickle file')
-        tnwm = t0 - 6 * timedelta(hours = 1) # river is always 6 hours before forecast start.
-        tnwm_str = tnwm.strftime('%Y%m%d%H')
+        # this is the PFM forecast start time string
         tpfm_str = t0.strftime('%Y%m%d%H')
-        print('using the nwm river forecast from the start time:')
-        print(tnwm_str)
-        print('to ensure that the forecast can be found on their server')
-        #print(tpfm_str)
-        ret_code = rivfuns.get_river_flow_nwm(tnwm_str,tpfm_str,pkl_fnm)
-        if ret_code == 1:
-            print('river file wasnt made, exiting...')
-            sys.exit(1)
+        
+        use_old_method = 0
+        if use_old_method == 1:
+            tnwm = t0 - 6 * timedelta(hours = 1) # river is always 6 hours before forecast start.
+            tnwm_str = tnwm.strftime('%Y%m%d%H')
+            print('using the nwm river forecast from the start time:')
+            print(tnwm_str)
+            print('to ensure that the forecast can be found on their server')
+            #print(tpfm_str)
+            ret_code = rivfuns.get_river_flow_nwm(tnwm_str,tpfm_str,pkl_fnm)
+            if ret_code == 1:
+                print('river file wasnt made, exiting...')
+                sys.exit(1)
+        else:
+            print('using the new method to get river flow from nwm')
+            ret_code = rivfuns.make_nwm_q_pkl_file(pkl_fnm)
+
 
         print('loading the river discharge pickle file...')
         file_in= PFM['river_pckl_file_full']
         #file_in = '/scratch/PFM_Simulations/LV4_Forecast/Forc/river_Q.pkl'
         with open(file_in,'rb') as fp:
             QQ = pickle.load(fp)
-
-    #print( QQ['time'] )
-    #print( PFM['modtime0'] + triv * timedelta(days = 1 ) )
 
     nt = len(triv)
     D['river_time'] = triv
@@ -5680,9 +5685,7 @@ def mk_lv4_hind_river_nc(pkl_fnm):
     t0 = PFM['sim_time_1']
     nday  = PFM['forecast_days']    
     t2 = t0 + nday * timedelta(days=1)
-    
     dt_riv = timedelta(minutes=15) # this is the dt for the river file
-
     t_riv = np.arange(t0-dt_riv,t2+2*dt_riv,dt_riv)
 
     # get the river flow from observations and NWM on the t_riv time stamps!

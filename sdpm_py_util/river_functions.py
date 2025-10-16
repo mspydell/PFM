@@ -5,7 +5,8 @@ import os
 import urllib.request
 from urllib.error import URLError, HTTPError
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+import cftime
 from scipy.interpolate import interp1d
 
 import pickle
@@ -17,6 +18,576 @@ from netCDF4 import num2date
 sys.path.append('../sdpm_py_util')
 import grid_functions as grdfuns
 import init_funs_forecast as initfuns
+import subprocess
+
+def floor_datetime_to_nearest_6_hours(dt):
+    """
+    Floors a datetime object to the nearest 6-hour interval.
+    The 6-hour intervals are 00:00, 06:00, 12:00, 18:00.
+    """
+    # Define the duration of 6 hours
+    six_hours = timedelta(hours=6)
+
+    # Calculate the total seconds from a reference point (e.g., epoch start)
+    # Using timestamp() is convenient for this.
+    total_seconds_since_epoch = dt.timestamp()
+
+    # Calculate the number of 6-hour intervals since the epoch start, floored
+    num_intervals = int(total_seconds_since_epoch // six_hours.total_seconds())
+
+    # Reconstruct the datetime object from the floored number of intervals
+    floored_dt = datetime.fromtimestamp(num_intervals * six_hours.total_seconds())
+
+    return floored_dt
+
+
+def make_new_nwm_files():
+    
+    # get the current hour in UTC
+    t_now = datetime.now(timezone.utc)
+    t_now_hr = t_now.hour
+    if t_now_hr >=0 and t_now_hr < 6:
+        t_now_floored = datetime(t_now.year,t_now.month,t_now.day,0,0,0)
+    elif t_now_hr >=6 and t_now_hr < 12:
+        t_now_floored = datetime(t_now.year,t_now.month,t_now.day,6,0,0)
+    elif t_now_hr >=12 and t_now_hr < 18:
+        t_now_floored = datetime(t_now.year,t_now.month,t_now.day,12,0,0)
+    elif t_now_hr >=18 and t_now_hr < 24:
+        t_now_floored = datetime(t_now.year,t_now.month,t_now.day,18,0,0)
+
+    t_fore_last = t_now_floored - 6 * timedelta(hours=1)
+    
+    # get the last full forecast time...
+    t0 = get_youngest_full_nwm_forecast()
+    t0_dt = datetime.strptime(t0,'%Y%m%d%H') + 6 * timedelta(hours=1)
+    # t_to_get is the list of times of nwm forecasts that we don't have.
+    t_to_get = []
+    t=t0_dt
+    while t<=t_fore_last:
+        t_to_get.append(t)
+        t = t + 6 * timedelta(hours=1)
+        
+    if len(t_to_get)==0: # there are no files to get when there is only 1 full file.
+        yyyymmddhh = t0
+        file_out = '/scratch/PFM_Simulations/nwm_ncs/nwm_forecast_Q_'+yyyymmddhh+'.nc'
+        print('the most recent nwm file is: ', file_out)
+        print('do we have it...')
+        have_it = os.path.exists(file_out)
+        if have_it:
+            print('we already have the latest file. nothing to do. exiting.')
+            return
+
+
+    # we reverse the order so we try and get the most recent first
+    t_to_get.reverse()
+
+
+    for t in t_to_get:
+        yyyymmddhh = t.strftime('%Y%m%d%H')
+        file_out = '/scratch/PFM_Simulations/nwm_ncs/nwm_forecast_Q_'+yyyymmddhh+'.nc'
+        print('going to make: ', file_out)
+        make_nwm_nc_file(yyyymmddhh,file_out)
+        print('checking for missing times...')
+        T = return_missing_hours_from_nwm_ncs([file_out])
+        if len(T[file_out]) == 0:
+            print('all times were there, done.')
+            break
+        else:
+            print('missing times. missing ', str(len( T[file_out]) ) , ' hours')
+            print('getting another forecast...')
+
+
+def get_nwm_fores_we_have():
+
+    directory_path = '/scratch/PFM_Simulations/nwm_ncs'
+    all_files = os.listdir(directory_path)
+    filtered_files = [s for s in all_files if "forecast" in s]
+    extracted_substrings = []
+    for s in filtered_files:
+        # Ensure n1 and n2 are within the bounds of the current string
+        start_index = 15
+        end_index = 25
+        extracted_substrings.append(s[start_index:end_index])
+    
+    # Convert to a set to get unique values, then convert back to a list
+    yyyymmddhhs = list(set(extracted_substrings))
+    files = []
+    file0 = 'nwm_forecast_Q_'
+    for date in yyyymmddhhs:
+        files.append( file0 + date + '.nc')
+
+    return yyyymmddhhs, files
+
+
+
+
+def get_youngest_full_nwm_forecast():
+    dates, file_names = get_nwm_fores_we_have()
+    dir0 = '/scratch/PFM_Simulations/nwm_ncs/'
+    fns_tot = []
+    for fn in file_names:
+        fns_tot.append(dir0+fn)
+
+    T = return_missing_hours_from_nwm_ncs(fns_tot)
+    ref_dict = dict(zip(dates,list(T.keys()))) 
+    tf = []
+    num_missing = []
+    for date in dates:
+        tf.append( datetime.strptime(date,'%Y%m%d%H'))
+        num_missing.append( len(T[ref_dict[date] ] ))
+
+    num_missing = np.array( num_missing ) 
+    i1 = np.where(num_missing == 0)
+    if len(i1)==0:
+        # this means there are no full forecasts
+        youngest = 'none'
+    else:
+        tf = np.array( tf )
+        tf = tf[i1]
+        tt = np.sort(tf)
+        youngest = tt[-1].strftime('%Y%m%d%H')
+
+    return youngest
+
+def remove_unneeded_nwm_forecasts():
+
+    tgood = get_youngest_full_nwm_forecast()
+    dates, file_names = get_nwm_fores_we_have()
+    ref_dict = dict(zip(dates,file_names)) 
+    t0 = datetime.strptime(tgood,'%Y%m%d%H')
+
+    dir0 = '/scratch/PFM_Simulations/nwm_ncs/'
+    files_to_remove = []
+    for date in dates:
+        dt = datetime.strptime(date,'%Y%m%d%H')
+        if dt<t0:
+            files_to_remove.append( dir0 + ref_dict[date] )
+
+    if len(files_to_remove)>0:
+        for file in files_to_remove:
+            cmd_lst = ['rm',file]
+            print('removing unneeded nwm file: ', file)
+            subprocess.run(cmd_lst)
+    else:
+        print('not removing any nwm files.')
+
+
+def return_missing_hours_from_nwm_ncs(file_names):
+
+    T = dict()
+    for fnm in file_names:
+        t_str = fnm[-13:-3]
+        t_fore = cftime.DatetimeGregorian(int(t_str[0:4]),int(t_str[4:6]),int(t_str[6:8]),int(t_str[8:10]))
+        t,_,_ = get_data_from_nwm_file(fnm)
+        t = t.data
+
+        t_hrs = []
+        hrs_0 = list(range(1,241))
+        for ti in t:
+            dt = ti - t_fore
+            t_hrs.append( int( dt.total_seconds() / 3600.0 ) )
+        
+        missing_hrs = [item for item in hrs_0 if item not in t_hrs]        
+        T[fnm] = missing_hrs
+
+    return T
+
+def get_nwm_fore_url_list(yyyymmddhh):
+    yyyymmdd = yyyymmddhh[0:8]
+    hh = yyyymmddhh[8:]
+    fore_type = 'medium_range_blend' # short_range, long_range, etc.
+    hrs = np.arange(1,241,1) # hours go from 1 to 240...
+    url = 'https://nomads.ncep.noaa.gov/pub/data/nccf/com/nwm/v3.0/nwm.' + yyyymmdd + '/' + fore_type
+    fname = ['nwm.t','z.'+fore_type+'.channel_rt.f','.conus.nc']
+
+    url_list = []
+    for hr in hrs:
+        hr_str = str(int(hr)).zfill(3)
+        fn = fname[0] + hh + fname[1] + hr_str + fname[2]
+        url_tot = url + '/' + fn
+        url_list.append(url_tot)
+
+    return url_list
+
+def  get_nwm_from_url(url):
+    # this dumps the url to a tmp.nc file
+    # loads this tmp.nc file, extracts time and Q for
+    reach_ids = [948070199, 20331702, 20324441]
+                #SW         Otay      TJR 20324441 is last segment near ocean.
+    # and return the time and Q at these reach_ids    
+    
+    tmpnc = '/scratch/PFM_Simulations/nwm_ncs/nwm_tmp.nc'
+    response = requests.get(url)
+    # Check if the request was successful
+    t4 = []
+    Q3 = []
+    if response.status_code == 200:
+        # get data from the url and write to tmp file
+        with open(tmpnc, "wb") as f:
+            f.write(response.content)
+
+        # load the tmp file
+        with nc.Dataset(tmpnc) as ds:
+            # Access the data variables
+            rids = ds.variables['feature_id'][:]
+            t = ds.variables['time']
+            qq = ds.variables['streamflow'][:]
+            t2 = num2date(t[:],t.units)
+            t3 = t2.data
+
+        # note, this block of code is in the hour loop and grabs only the data for the rivers we want.
+        ig = [None]*3
+        cnt_rid=0 # this is the reach_id index counter
+        q2 = np.zeros((1,3))
+        rids_out = np.zeros((1,3))
+        for rids0 in reach_ids: # loops through in order
+            ig= np.argwhere(rids==rids0)
+            q2[0,cnt_rid] = qq[ig]
+            rids_out[0,cnt_rid] = rids[ig]
+            cnt_rid=cnt_rid+1
+
+        t4 = t3
+        q2np = np.array(q2)
+
+    return t4, q2np, rids_out
+
+
+def get_all_nwm_fore_data(yyyymmddhh):
+    # this function gets all of the possible data currently on the 
+    # nwm server for a specific forecast time
+    # returns np arrays of time, discharge, and reach ids
+
+    # list of urls needed for the yyyymmddhh forecast
+    url_list = get_nwm_fore_url_list(yyyymmddhh)
+    
+    # check and see if the url_file exists on the nwm server
+    got_url = []
+    for url in url_list:
+        got_it = file_url_exists(url)
+        got_url.append(got_it)
+
+    cnt = 0
+    t3 = np.empty((0))
+    Q3 = np.empty((0,3))
+    
+    # loop through urls and download the file that exists
+    # and put data into some arrays...
+    for url in url_list:
+        if got_url[cnt]:
+            t, Q, rids = get_nwm_from_url(url)
+            if len(t)>0:
+                # we got data so start appending
+                t3 = np.concatenate((t3,t))
+                Q3 = np.concatenate((Q3,Q),axis=0)
+
+    # sort times...
+    i_sort = np.argsort(t3)
+    t4 = t3[i_sort]
+    Q4 = Q3
+    for cnt in np.arange(0,len(rids)):
+        Q4[:,cnt] = Q3[i_sort,cnt]
+
+    return t4, Q4, rids
+            
+def make_nwm_nc_file(yyyymmddhh,file_out):
+    # this function makes an nc file of nwm discharge data
+    # for the forecast starting at yyyymmddhh 
+    # and output the data as a netcdf file in file_out    
+
+    t, q, rids = get_all_nwm_fore_data(yyyymmddhh)
+    # t is np array of cfdatetimeGregorians, 
+    # convert to datetimes 
+    # 2. Use a list comprehension to convert each cftime object
+    dt_dates_list = [datetime.fromisoformat(d.isoformat()) for d in t]
+    # 3. Convert the list back to a numpy array
+    t_dt = np.array(dt_dates_list, dtype='object')
+
+    nhrs = 240 # there should be 240 hours of data
+    if len(t) == nhrs:
+        # we only want to save the nwm file if it is full    
+        print('full nwm forecast, making ', file_out)
+        make_Qnc(t_dt,q,rids,file_out)
+        return True
+    else:
+        print('not full nwm forecast, not making ',file_out)
+        return False
+
+def make_Qnc(t2,Q,rids,file_name_out):
+    # makes an nc file of discharge data for multiple rivers
+    # t2 is the time stamps of the flow as an array of datetimes
+    # Q is the nt by n_river np array of discharge
+    # rids are the reach ids of the data
+    # riv_name is a np array of strings that name each river.
+
+    #reach_ids = [948070199, 20331702, 20324441]
+    # the order of reach_ids and names should correspond.
+    station_ids = np.array(['Sweewater','Otay','TJRE'])
+    num_stations = len(station_ids)
+
+
+    with nc.Dataset(file_name_out, 'w', format='NETCDF4') as nc_file:
+        # Create dimensions
+        nc_file.createDimension('time', None)  # Unlimited dimension for time
+        nc_file.createDimension('station', num_stations)
+
+        # Create variables
+        time_var = nc_file.createVariable('time', 'f8', ('time',))
+        q_var = nc_file.createVariable('discharge', 'f8', ('time', 'station'))
+        station_id_var = nc_file.createVariable('station_id', str, ('station',)) # For string station IDs
+        reach_id_var = nc_file.createVariable('reach_id', int, ('station',)) # For string station IDs
+
+        # Add attributes to variables (optional, but recommended for CF-compliance)
+        time_var.units = 'days since 1999-01-01 00:00:00'
+        time_var.calendar = 'gregorian'
+        q_var.units = 'm^3/s'
+        q_var.long_name = 'river discharge'
+        station_id_var.long_name = 'river name'
+        reach_id_var.long_name = 'reach ids from National Water Model'
+
+        # Add global attributes (optional)
+        nc_file.title = 'discharge from National Water Model: medium range blend forecast'
+        nc_file.history = f'Created on {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}'
+
+        # 3. Write data to variables
+        time_var[:] = nc.date2num(t2, units=time_var.units, calendar=time_var.calendar)
+        q_var[:] = Q
+        station_id_var[:] = station_ids
+        reach_id_var[:] = rids
+
+def check_for_enough_data(t_riv,t):
+    t_beg = t_riv[0] - 45 * timedelta(minutes=1) # t_riv is 15 overlap of forecast
+    t_end = t_riv[-1] + 45 * timedelta(minutes=1)
+    
+    t_beg_cf = datetime_to_cftime(np.array([t_beg]))
+    t_beg_cf = t_beg_cf[0]
+    t_end_cf = datetime_to_cftime(np.array([t_end]))
+    t_end_cf = t_end_cf[0]
+   
+    # cant have the river times before or after the nwm times
+    if t[0] > t_beg or t[-1] < t_end:
+        print('river times do not coincide with nwm times. need a different file.')
+        print(t[0],t[-1])
+        print(t_beg,t_end)
+        return False
+    
+    dt_riv_hrs = int( (t_end - t_beg).total_seconds() / 3600.0 )
+    condition = ((t>=t_beg_cf) & (t<=t_end_cf))
+    i_nwm = np.argwhere( condition )
+    if len(i_nwm) == dt_riv_hrs+1:
+        print('the nwm has all the the data we need.')
+        return True
+    elif len(i_nwm) > dt_riv_hrs / 2:
+        print('we have at least half of all the hours. good.')
+        return True
+    else:
+        print('this nwm file will not work')
+        return False
+
+def datetime_to_cftime(times):
+
+    times_cf = []
+    for dt_obj in times:
+        cftime_obj = cftime.DatetimeGregorian(
+                            dt_obj.year,
+                            dt_obj.month,
+                            dt_obj.day,
+                            dt_obj.hour,
+                            dt_obj.minute,
+                            dt_obj.second,
+                            dt_obj.microsecond
+                            )
+        times_cf.append(cftime_obj)
+    
+    return np.array(times_cf)
+
+def convert_cftime_to_datetime_array(cftime_array):
+
+    dt_list = []
+    for cf_obj in cftime_array:
+        dt_obj = datetime(
+                            cf_obj.year,
+                            cf_obj.month,
+                            cf_obj.day,
+                            cf_obj.hour,
+                            cf_obj.minute,
+                            cf_obj.second,
+                            cf_obj.microsecond
+                            )
+        
+        dt_list.append(dt_obj)
+
+    return np.array(dt_list)
+
+def get_best_Q_nwm(t_riv):
+    dates, file_names = get_nwm_fores_we_have()
+    file_names = np.array( file_names ) 
+
+    # sort the dates...
+    d_dt = []
+    for date in dates:
+        d_dt.append(datetime.strptime(date,'%Y%m%d%H'))
+    
+    d_dt = np.array(d_dt)
+    i_sort = np.argsort(d_dt)
+    d_dt = d_dt[i_sort]
+
+    file_names = file_names[i_sort]
+    # now they are sorted, reverse them to start with the most recent...
+    file_names_rev = file_names[::-1]
+    
+    dir0 = '/scratch/PFM_Simulations/nwm_ncs/'
+    for fnm in file_names_rev:
+        t,Q,rid = get_data_from_nwm_file( dir0 + fnm )
+        reach_ids = [948070199, 20331702, 20324441]
+        #location_names = ['SW','Otay','TJR']
+        # it is in this order.
+        print(rid)
+        got_enough_nwm = check_for_enough_data(t_riv,t)   
+        if got_enough_nwm:
+            print('interpolating nwm to t_riv...')
+            t_dt = convert_cftime_to_datetime_array(t)
+            t_nc64 = t_dt.astype('datetime64[ns]')
+            t_riv64 = t_riv.astype('datetime64[ns]')
+            i_sw = np.argwhere(rid == reach_ids[0])
+            i_om = np.argwhere(rid == reach_ids[1])
+            i_tj = np.argwhere(rid == reach_ids[2])
+            q_sw = np.squeeze(Q[:,i_sw])
+            q_om = np.squeeze(Q[:,i_om])
+            q_tj = np.squeeze(Q[:,i_tj])
+            qi_sw = np.interp(t_riv64.astype('int64'),t_nc64.astype('int64'),q_sw)
+            qi_om = np.interp(t_riv64.astype('int64'),t_nc64.astype('int64'),q_om)
+            qi_tj = np.interp(t_riv64.astype('int64'),t_nc64.astype('int64'),q_tj)
+
+
+            fig, ax = plt.subplots()
+            ax.plot(t_riv, qi_tj )
+            ax.plot(t, q_tj, '--' )
+
+
+    return qi_sw, qi_om, qi_tj
+
+
+def check_nwm_for_times(tpfm_str,fnm_full,fore_days):
+    t,Q,rid = get_data_from_nwm_file( fnm_full )
+    t_dt = convert_cftime_to_datetime_array(t)
+    t_pfm = datetime.strptime(tpfm_str,'%Y%m%d%H')
+    dt = t_dt - t_pfm # these are time deltas 
+
+    # some checks
+    if (dt[0]<=0) and (dt[-1].total_seconds()/3600.0/24.0 > fore_days):
+        print('the nwm forecast in ', fnm_full)
+        print('spans the times required for the pfm forecast ', tpfm_str)
+        i1 = np.argwhere(t_dt == t_pfm)
+        i2 = np.argwhere(t_dt == t_pfm + fore_days * timedelta(days=1))
+        nt = i2-i1+1
+        nmissing = 24*fore_days + 1 - nt
+        return nmissing
+    else:
+        print('something is wrong and the nwm nc file doesnt have the right times')
+        return -1
+    
+def make_nwm_pkl_from_nc(nwm_nc_fnm,info_pkl):
+    PFM = initfuns.get_model_info(info_pkl)
+    t,Q,rid = get_data_from_nwm_file( nwm_nc_fnm )
+    reach_ids = [948070199, 20331702, 20324441]
+    #location_names = ['SW','Otay','TJR']
+    # it is in this order.
+    t_dt = convert_cftime_to_datetime_array(t)
+    t_nc64 = t_dt.astype('datetime64[ns]')
+
+    t0 = PFM['fetch_time']
+    nday  = PFM['forecast_days']    
+    t2 = t0 + nday * timedelta(days=1)
+    dt_riv = timedelta(hours=1) # this is the dt for the river file
+    # needs to extend past the forecast times.
+    t_riv = np.arange(t0,t2+3*dt_riv,dt_riv) # using 2 extra times on left. not sure why.
+    t_riv64 = t_riv.astype('datetime64[ns]')
+
+    i_sw = np.argwhere(rid == reach_ids[0])
+    i_om = np.argwhere(rid == reach_ids[1])
+    i_tj = np.argwhere(rid == reach_ids[2])
+    q_sw = np.squeeze(Q[:,i_sw])
+    q_om = np.squeeze(Q[:,i_om])
+    q_tj = np.squeeze(Q[:,i_tj])
+    qi_sw = np.interp(t_riv64.astype('int64'),t_nc64.astype('int64'),q_sw)
+    qi_om = np.interp(t_riv64.astype('int64'),t_nc64.astype('int64'),q_om)
+    qi_tj = np.interp(t_riv64.astype('int64'),t_nc64.astype('int64'),q_tj)
+    # note if t_riv64 < t_nc64, then q_sw end points are used, for example
+
+    go = True
+    if go:    
+        QQ = dict()
+        Q = np.zeros((len(t_riv),3))
+        QQ['time'] = t_riv # t3 = list? of np.array datetimes ?
+        # previous XWu LV4 simulations capped TJR Q at 150 m3/s. We might want to do that here?
+        Q[:,0] = qi_sw
+        Q[:,1] = qi_om
+        Q[:,2] = qi_tj
+        QQ['discharge'] = Q
+        QQ['reach_ids'] = reach_ids
+        QQ['readme'] = 'discharge is in m3/s. reach_ids correspond to Sweetwater, Otay, TJR. they are the columns of discharge'
+
+        plot_it = 0
+        if plot_it == 1:
+            fig, ax = plt.subplots()
+            p1=ax.plot(QQ['time'],QQ['discharge'][:,0],label='Sweet Water')
+            p2=ax.plot(QQ['time'],QQ['discharge'][:,1],label='Otay Mesa')
+            p3=ax.plot(QQ['time'],QQ['discharge'][:,2],label='TJ')
+
+            plt.legend()
+            plt.setp(plt.xticks()[1], rotation=30, ha='right') # ha is the same as horizontalalignment
+            plt.ylabel('discharge [m3/s]')
+            plt.title('PFM forecast time is: ' + t0.strftime('%Y%m%d%H') + ' | river forecast time is: ' + t_dt[0].strftime('%Y%m%d%H') )
+
+        file_out = PFM['river_pckl_file_full']
+        with open(file_out,'wb') as fp:
+            pickle.dump(QQ,fp, protocol=pickle.HIGHEST_PROTOCOL)
+            print('\nriver discharge data saved as pickle file')
+        
+        return 0
+
+
+
+def make_nwm_q_pkl_file(info_pkl):
+
+    PFM = initfuns.get_model_info(info_pkl)
+    if 'nwm_fore_dir' not in PFM:
+        PFM['nwm_fore_dir'] = '/scratch/PFM_Simulations/nwm_ncs/'
+    
+    dir0 = PFM['nwm_fore_dir']
+    t_try = PFM['fetch_time']
+    t_last = t_try - 3 * timedelta(days=1)
+    use_nwm_nc = True # we hope to use an nwm nc file we have stored
+
+    while t_try >= t_last:
+        t_try_str = t_try.strftime('%Y%m%d%H')
+        nwm_nc_fnm = dir0 + 'nwm_forecast_Q_' + t_try_str + '.nc'
+        if os.path.exists(nwm_nc_fnm):
+            print('for the PFM forecast starting ', PFM['fetch_time'])
+            print('we will use ', nwm_nc_fnm)
+            print('for the predicted SW, OM, and TJ flow.')
+            t_try = t_try - 5 * timedelta(days=1)
+        else:
+            print('we did not have the file. trying to make ', nwm_nc_fnm)
+            made_file = make_nwm_nc_file(t_try_str,nwm_nc_fnm)
+            if made_file:
+                print('the file ', nwm_nc_fnm, ' was made, exiting loop.')
+                t_try = t_try - 5 * timedelta(days=1)
+            else: # move to the previous 6 hour forecast
+                t_try = t_try - 6 * timedelta(hours=1)
+                if t_try < t_last:
+                    print('shouldnt really get here')
+                    print('no nwm files had the data to make the nwm Q pickle file')
+                    print('as a last resort, we will assume constant flow.')
+                    use_nwm_nc = False
+                
+    if use_nwm_nc:
+        print('using nc file')
+        make_nwm_pkl_from_nc(nwm_nc_fnm,info_pkl)
+    else:
+        #make_nwm_pkl_constants(info_pkl)
+        print('got here, use constant')
+
 
 def get_hind_nwm_urls(t1,t2):
 
@@ -543,7 +1114,7 @@ def get_river_flow_nwm(yyyymmddhh,t_pfm_str,pkl_fnm):
         plt.savefig(fn_out, dpi=300)
 
     QQ = dict()
-    QQ['time'] = t3
+    QQ['time'] = t3 # t3 = list? of np.array datetimes ?
     # previous XWu LV4 simulations capped TJR Q at 150 m3/s. We might want to do that here?
     QQ['discharge'] = Q
     QQ['reach_ids'] = reach_ids
