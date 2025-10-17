@@ -1323,13 +1323,13 @@ def get_forecasted_Q_IBWC(pkl_fnm):
     Qf_sp = Qb2*np.ones(np.shape(t_nwm))
 
     # here is persistence + NMW'
-    Qf_pnwm = Qf_p[:,0] + q_nwm - q_nwm[0]
+    Qf_pnwm = Qf_p + q_nwm - q_nwm[0]
     
     # set up alpha
     dt = t_nwm - t_nwm[0]
     dt_sec = []
     for dtt in dt:
-        dt_sec.append(dtt[0].total_seconds())
+        dt_sec.append(dtt / np.timedelta64(1, 's'))
     dt_day = np.array(dt_sec) / 3600 /24
     tau_day = 0.5 # time scale to go from flow to dry
     alpha = np.exp(-dt_day / tau_day)
@@ -1374,17 +1374,17 @@ def get_forecasted_Q_IBWC(pkl_fnm):
             print('no forecasted increased flow...')
             if Qb1 < Qb2:
                 print('1 day < 5 day, use Q_1day')
-                QQ = Qf_p[:,0]
+                QQ = Qf_p
             else:
                 print('1 day > 5 day, use Q_1 * alpha + Q_5 * (1-alpha)')
-                QQ = Qf_p[:,0] * alpha + Qf_sp[:,0] * (1 - alpha)
+                QQ = Qf_p * alpha + Qf_sp * (1 - alpha)
     elif use_old == 1:
         QQ = q_nwm
 
     Q3 = dict()
     Q3['Q_nwm'] = q_nwm
-    Q3['Q_p'] = Qf_p[:,0]
-    Q3['Q_sp'] = Qf_sp[:,0]
+    Q3['Q_p'] = Qf_p
+    Q3['Q_sp'] = Qf_sp
     Q3['Q_pnwm'] = Qf_pnwm
     Q3['time'] = t_nwm
 
