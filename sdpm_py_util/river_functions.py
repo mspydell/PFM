@@ -855,9 +855,46 @@ def get_nwm_analysis_flow(t_riv,pkl_fnm):
     return qi_sw, qi_om, qi_tj
 
 def get_tj_flow_version_PFM(t_riv,pkl_fnm):
-    q_tj = 0
+    # load the observations...
 
-    return q_tj
+    dt_riv = timedelta(minutes=15)
+    t = np.arange(t_riv[0]-5*timedelta(days=1),t_riv[-1],dt_riv)
+    t5_1 = t_riv[0]-5*timedelta(days=1)
+    t1_1 = t_riv[0]-1*timedelta(days=1)
+    t_2  = t_riv[0]
+    mask1 = (t >= t1_1) & (t <= t_2)
+    mask5 = (t >= t5_1) & (t <= t_2)
+    i1 = np.where(mask1)[0]
+    i5 = np.where(mask5)[0]
+
+    q_obs = get_tj_observed_flow(t,pkl_fnm,method='raw_interp')
+    Q_1 = np.mean(q_obs[i1])
+    Q_5 = np.mean(q_obs[i5])
+
+    # set up alpha
+    dt = t_riv - t_riv[0]
+    dt_sec = []
+    for dtt in dt:
+        dt_sec.append(dtt / np.timedelta64(1, 's'))
+    dt_day = np.array(dt_sec) / 3600 /24
+    tau_day = 0.5 # time scale to go from flow to dry
+    alpha = np.exp(-dt_day / tau_day)
+
+    _, _, q_tjnwm = get_nwm_analysis_flow(t_riv,pkl_fnm)    
+
+    std_cut = 1
+    if np.std(q_tjnwm) > std_cut:
+        print('nwm suggests rain, use nwm!')
+        q_pfm = q_tjnwm
+    elif Q_5 > Q_1:
+        print('using 1 day persistence')
+        q_pfm = Q_1 * np.ones(np.shape(t_riv))
+    else:
+        print('using 1 day to 5 day persistence')
+        q_pfm = Q_1 * alpha + Q_5 * (1 - alpha)
+
+
+    return q_pfm
 
 def get_pb_flow_and_dye(t_riv,pkl_fnm):
     

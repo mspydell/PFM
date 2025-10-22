@@ -56,8 +56,8 @@ def create_model_info_dict():
        pfm_root_dir = '/scratch/PFM_Simulations/'       
     else:
        #pfm_root_dir = '/scratch/PHM_Simulations/riv_nwm/'  # other options are:     
-       pfm_root_dir = '/scratch/PHM_Simulations/riv_ibwc_raw/'  # other options are:     
-       #pfm_root_dir = '/scratch/PHM_Simulations/riv_vpfm/'  # other options are:     
+       #pfm_root_dir = '/scratch/PHM_Simulations/riv_ibwc_raw/'  # other options are:     
+       pfm_root_dir = '/scratch/PHM_Simulations/riv_vpfm/'  # other options are:     
         #['/riv_nwm','/riv_ibwc_raw','/riv_vpfm']
     
     PFM = dict()

@@ -772,10 +772,15 @@ def run_hind_LV4(t1str,pkl_fnm):
     print('making swan wnd file...')
     cmd_list = ['python','-u','-W','ignore','swan_functions.py','mk_swan_wnd_file',fout,pkl_fnm]
     ret3 = subprocess.run(cmd_list)   
-    print('...done. swan wnd file return code: ' + str(ret3.returncode) + ' (0=good)')  
+    print('...done. swan wnd file return code: ' + str(ret3.returncode) + ' (0 or 1 =good)')  
     t2 = datetime.now()
 
-    if ret1.returncode != 0 or ret2.returncode != 0 or ret3.returncode != 0: 
+    if MI['swan_wind_wave_generation'] and ret3.returncode !=0:
+        print('supposed to use winds in swan and')
+        print('something bad happened making swan wind file, aborting simulation!')
+        sys.exit(1)
+       
+    if ret1.returncode != 0 or ret2.returncode != 0: 
         print('something bad happened making swan files, aborting simulation!')
         sys.exit(1)
 
@@ -1685,7 +1690,7 @@ def run_fore_LV4(pkl_fnm):
     print('making swan wnd file...')
     cmd_list = ['python','-u','-W','ignore','swan_functions.py','mk_swan_wnd_file',fout,pkl_fnm]
     ret3 = subprocess.run(cmd_list)   
-    print('...done. swan wnd file return code: ' + str(ret3.returncode) + ' (0=good)')  
+    print('...done. swan wnd file return code: ' + str(ret3.returncode) + ' (0 or 1=good)')  
     t2 = datetime.now()
 
     if MI['swan_wind_wave_generation'] and ret3.returncode !=0:

@@ -5696,7 +5696,6 @@ def mk_lv4_hind_river_nc(pkl_fnm):
     elif PFM['hind_river_type'] == 'NWM':
         q_tj = q_tjnwm
     elif PFM['hind_river_type'] == 'vPFM':
-        # this function isnt completely written yet !!!
         q_tj = rivfuns.get_tj_flow_version_PFM(t_riv,pkl_fnm)
     else:
         print('somethings wrong. didnt specify the right tj river flow type!')
