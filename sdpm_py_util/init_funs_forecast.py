@@ -68,6 +68,64 @@ def get_hindcast_days(t1,tend,dt):
 
     return t1s, t2s
 
+def get_hind_end_time( start_time_dt , MINFO ):
+    # this function figures out what the last hindcast day to run is
+    # it assumes that dt = 1 sec for 4 days for the ibwc runs where
+    # there is strong flow.
+
+    if 'dt1_days_ibwc' in MINFO:
+        dt1_days_ibwc = MINFO['dt1_days_ibwc']
+    else:
+        dt1_days_ibwc = [datetime(2025,1,27),
+                         datetime(2025,2,14),
+                         datetime(2025,3,13),
+                         datetime(2025,3,14)]
+    
+    if 'dt1_days_pfm' in MINFO:
+        dt1_days_pfm = MINFO['dt1_days_pfm']
+    else:
+        dt1_days_ibwc = []
+    
+    if 'dt1_days_nwm' in MINFO:
+        dt1_days_nwm = MINFO['dt1_days_nwm']
+    else:
+        dt1_days_nwm = []
+
+    total_time = 0
+    day1 = start_time_dt
+    lv1_time = 5.0 / 60
+    lv2_time = 4.5 / 60
+    lv3_time = 7.5 / 60
+    lv4_time = 50.0 / 60
+
+    #max_run_time = 15 # number of hours we will run all 3 PHMs
+    max_run_time = 6 # number of hours we will run all 3 PHMs
+
+    while total_time < max_run_time: # doing this in hours        
+        end_time_dt = day1 + timedelta(days=1)
+        if day1 in dt1_days_ibwc:
+            lv4_time_ibwc = 1.5
+        else:
+            lv4_time_ibwc = lv4_time
+        if day1 in dt1_days_pfm:
+            lv4_time_pfm = 1.5
+        else:
+            lv4_time_pfm = lv4_time
+        if day1 in dt1_days_nwm:
+            lv4_time_nwm = 1.5
+        else:
+            lv4_time_nwm = lv4_time
+
+        total_1day_time = ( 3*(lv1_time+lv2_time+lv3_time) + 
+                            lv4_time_ibwc+lv4_time_nwm+lv4_time_pfm )
+        
+        total_time = total_time + total_1day_time
+        day1 = day1 + timedelta(days=1)
+
+    print('all 3 hindcast simulations should take about')
+    print(str(total_time), ' hours')
+
+    return end_time_dt
 
 def initialize_model(input_py_full,modinfo_pkl_full):
     # this makes the pickle file from the model_input_dictionary
@@ -80,7 +138,18 @@ def initialize_model(input_py_full,modinfo_pkl_full):
 
     if MINFO['run_type'] == 'hindcast':
         # get list of strings start and end days for the simulation
+        if MINFO['auto_start_hind']:
+            # we are going to auto start the hindcast
+            # this will search for the last his.nc file time stamp
+            # and set the start times appropriately.
+            # start_time_dt is a datetime of the 1st 
+            start_time_dt = set_up_for_autostart_hindcast( MINFO )
+            end_time_dt = get_hind_end_time( start_time_dt, MINFO )  
+            MINFO['sim_start_time'] = start_time_dt
+            MINFO['sim_end_time'] = end_time_dt
+        
         t_starts, t_ends = get_hindcast_days(MINFO['sim_start_time'],MINFO['sim_end_time'],MINFO['forecast_days'])
+        
         MINFO['start_times_str'] = t_starts
         MINFO['end_times_str'] = t_ends
 
@@ -371,6 +440,40 @@ def edit_and_save_MI(dict_in,pkl_fnm):
         pickle.dump(PFM,fout, protocol=pickle.HIGHEST_PROTOCOL)
         print('PFM info was edited and resaved')
     
+
+def set_up_for_autostart_hindcast( PFM ):
+    # this function returns the restart time as a datetime object
+
+    
+    # will check to see what dates are in the archive dirs...
+    archive_dirs = [ PFM['hind_lv1_archive_dir'],
+                     PFM['hind_lv2_archive_dir'], 
+                     PFM['hind_lv3_archive_dir'], 
+                     PFM['hind_lv4_archive_dir'] ] 
+    
+    t_max = []
+    for dir in archive_dirs:
+        file_names = glob.glob(dir+'*.nc')
+        t_dt = []
+        for fnm in file_names:
+            t_str = fnm[-15:-3]
+            t_dt.append( datetime.strptime(t_str,'%Y%m%d%H%M') )
+        
+        t_np = np.array(t_dt)
+        t_max.append( np.max(t_np) ) # get the maximum time for all his files in each dir
+
+    t_max = np.array(t_max)
+    if np.all( t_max == t_max[0]):
+        print('all history files in PHM archive dir have the same last time. good.')
+    else:
+        print('history files have different last times, using the minimum of these to restart...')
+
+    t_restart = np.min(t_max) # get the minimum time, this will be the restart time
+    t_restart = t_restart + timedelta(days=1) # now we are on the right day!
+
+    return t_restart
+
+
 def remove_old_swan_rst(pkl_fnm):
     PFM = get_model_info(pkl_fnm)
     PFM['restart_file_dir'] = '/scratch/PFM_Simulations/restart_data'

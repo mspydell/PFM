@@ -632,8 +632,22 @@ def  make_LV4_coawst_dotins_dotsb(pkl_fnm,mod_type):
     D['lv4_river_file'] = PFM['lv4_forc_dir'] +'/' + PFM['lv4_river_file']
 
     # timing info
-    dtsec         = PFM['tinfo']['L4','dtsec']
+    # the default here is 2 sec.
+    dtsec   = PFM['tinfo']['L4','dtsec']
+    # the default here is 8. so 1/4 sec for barotropic waves?
     D['ndtfast']  = PFM['tinfo']['L4','ndtfast']
+    
+    # here we switch to 1 sec if there are large TJR flows
+    if (mod_type == 'hind') and (PFM['hind_river_type'] == 'vPFM') and (PFM['sim_time_1'] in PFM['dt1_days_pfm']) :
+        dtsec        = 1
+        D['ndtfast'] = 4
+    if (mod_type == 'hind') and (PFM['hind_river_type'] == 'NWM') and (PFM['sim_time_1'] in PFM['dt1_days_nwm']) :
+        dtsec        = 1
+        D['ndtfast'] = 4
+    if (mod_type == 'hind') and (PFM['hind_river_type'] == 'ibwc_raw') and (PFM['sim_time_1'] in PFM['dt1_days_ibwc']) :
+        dtsec        = 1
+        D['ndtfast'] = 4
+
 #    forecast_days = PFM['tinfo']['L4','forecast_days']  #   forecast_days=2;
     forecast_days = PFM['forecast_days']  #   forecast_days=2;
     days_to_run   = forecast_days  #float(Ldir['forecast_days'])

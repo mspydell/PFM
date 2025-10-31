@@ -148,7 +148,7 @@ def get_atm_data_as_dict(pkl_fnm):
         # and the data is rectilinear, lon and lat are both vectors
 
         # nam_nest is at 3 hr resolution, for 2.5 days
-        # 0.03 deg horizontal resolution
+        # 0.03 deg horizontal resolution (3 km)
         nam_nest = 'https://nomads.ncep.noaa.gov/dods/nam/nam' + yyyymmdd + '/nam_conusnest_' + hhmm[0:2] + 'z'
 
         # nam_1hr is at 1 hr resolution, for 1.5 days

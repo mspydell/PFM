@@ -5405,6 +5405,8 @@ def mk_lv4_river_nc(pkl_fnm):
 
     if PFM['use_IBWC']: 
         _, Q_new = rivfuns.get_forecasted_Q_IBWC(pkl_fnm)
+        Qmax = 75 # maximum TJR Q,
+        Q_new = rivfuns.make_flat_q(Q_new,Qmax)
     else:
         Q_new = QQ['discharge'][:,2]
 
@@ -5692,11 +5694,19 @@ def mk_lv4_hind_river_nc(pkl_fnm):
     q_sw, q_om, q_tjnwm = rivfuns.get_nwm_analysis_flow(t_riv,pkl_fnm)
     q_pb, dye_pb = rivfuns.get_pb_flow_and_dye(t_riv,pkl_fnm)
     if PFM['hind_river_type'] == 'IBWC_raw':
-        q_tj = rivfuns.get_tj_observed_flow(t_riv,pkl_fnm,method='raw_interp')
+        print('using raw IBWC data for TJR Q')
+        #q_tj = rivfuns.get_tj_observed_flow(t_riv,pkl_fnm,method='raw_interp')
+        q_tj = rivfuns.get_tj_observed_flow_qmax(t_riv,pkl_fnm)
     elif PFM['hind_river_type'] == 'NWM':
+        print('using nwm hindcast data for TJR Q')
         q_tj = q_tjnwm
+        Qmax = 75 # maximum Q in m3/s
+        q_tj = rivfuns.make_flat_q(q_tj,Qmax)
     elif PFM['hind_river_type'] == 'vPFM':
+        print('using PFM style flow for TJR Q')
         q_tj = rivfuns.get_tj_flow_version_PFM(t_riv,pkl_fnm)
+        Qmax = 75 # maximum Q in m3/s
+        q_tj = rivfuns.make_flat_q(q_tj,Qmax)
     else:
         print('somethings wrong. didnt specify the right tj river flow type!')
         sys.exit(1)

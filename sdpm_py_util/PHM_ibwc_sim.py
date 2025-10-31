@@ -62,15 +62,15 @@ def create_model_info_dict():
     
     PFM = dict()
     if pfm_root_dir == '/scratch/PHM_Simulations/riv_nwm/':       
-        d0b = 0.001
+        d0b = 0.0007
         PFM['hind_river_type'] = 'NWM' 
         hind_archive_dir = '/dataSIO/PHM_Simulations/riv_nwm/'
     elif pfm_root_dir == '/scratch/PHM_Simulations/riv_ibwc_raw/':
-        d0b = 0.0005
+        d0b = 0.001
         PFM['hind_river_type'] = 'IBWC_raw' 
         hind_archive_dir = '/dataSIO/PHM_Simulations/riv_ibwc_raw/'
     elif pfm_root_dir == '/scratch/PHM_Simulations/riv_vpfm/':
-        d0b = 0.0001
+        d0b = 0.0004
         PFM['hind_river_type'] = 'vPFM' 
         hind_archive_dir = '/dataSIO/PHM_Simulations/riv_vpfm/'
 
@@ -91,9 +91,13 @@ def create_model_info_dict():
         sim_start_time = '2025010100' # the simulation start time is in yyyymmddhh format
         # 2024101100 is the 1st day of hycom with tides hycom data.
         sim_end_time   = '2025010300' # this is the very last time of the full simulation
+        # must do at least 2 days at a time!!!
         PFM['forecast_days'] = 1.0 # for now we do 1 day sub simulations
         # set the simulation end time. An integer number of days past the start time
         # We will loop over days until we get to this time.
+        PFM['TJR_Qmax'] = 150 # m3/s the maximum TJR flow rate, flat-topped at this value
+        PFM['auto_start_hind'] = True
+        PFM['hindcast_duration'] = 2 # how long the hindcast will be in days
         PFM['sim_start_time'] = datetime.strptime(sim_start_time,'%Y%m%d%H')
         PFM['sim_end_time'] = datetime.strptime(sim_end_time,'%Y%m%d%H')
         PFM['sim_time_1'] = PFM['sim_start_time']
@@ -112,6 +116,12 @@ def create_model_info_dict():
         PFM['qtj_obs_fname_full'] = '/dataSIO/PHM_Simulations/raw_download/qtj_obs_data/qtj_raw_20200101_20250901.csv'
         PFM['pb_time_switch'] = datetime(2025,4,1)
         PFM['nwm_dir'] = '/dataSIO/PHM_Simulations/raw_download/nwm_files/'
+        PFM['dt1_days_ibwc'] = [datetime(2025,1,27),
+                                datetime(2025,2,14),
+                                datetime(2025,3,13),
+                                datetime(2025,3,14)]
+        PFM['dt1_days_nwm'] = []
+        PFM['dt1_days_pfm'] = []
     else:
         # hycom_new is the only forecast option
         ocn_model = 'hycom_new' # worked with 'hycom' but that is now (9/13/24) depricated      
@@ -272,21 +282,21 @@ def create_model_info_dict():
     NN['L1','Lm']  = 251     # Lm in input file
     NN['L1','Mm']  = 388     # Mm in input file
     NN['L1','ntilei'] = 9    # 6 number of tiles in I-direction
-    NN['L1','ntilej'] = 28   # 18 number of tiles in J-direction
+    NN['L1','ntilej'] = 20   # 18 number of tiles in J-direction
     NN['L1','np'] = NN['L1','ntilei'] * NN['L1','ntilej'] # total number of processors
     NN['L1','nnodes'] =  int( NN['L1','np'] / 36 )  # 3 number of nodes to be used.  not for .in file but for slurm!
 
     NN['L2','Lm']  = 264     # Lm in input file
     NN['L2','Mm']  = 396     # Mm in input file
     NN['L2','ntilei'] = 9    # 6 number of tiles in I-direction
-    NN['L2','ntilej'] = 28   # 18 number of tiles in J-direction
+    NN['L2','ntilej'] = 20   # 18 number of tiles in J-direction
     NN['L2','np'] = NN['L2','ntilei'] * NN['L2','ntilej'] # total number of processors
     NN['L2','nnodes'] = int( NN['L2','np'] / 36 )  # 3 number of nodes to be used.  not for .in file but for slurm!
 
     NN['L3','Lm']  = 249     # Lm in input file
     NN['L3','Mm']  = 411     # Mm in input file
     NN['L3','ntilei'] = 9    # 6 number of tiles in I-direction
-    NN['L3','ntilej'] = 28    # 18 number of tiles in J-direction
+    NN['L3','ntilej'] = 20    # 18 number of tiles in J-direction
     NN['L3','np'] = NN['L3','ntilei'] * NN['L3','ntilej'] # total number of processors
     NN['L3','nnodes'] = int( NN['L3','np'] / 36  )  # 3 number of nodes to be used.  not for .infile but for slurm!
 
@@ -321,8 +331,14 @@ def create_model_info_dict():
     tt['L3','ndtfast'] = 15
     tt['L3','forecast_days'] = PFM['forecast_days']
 
+    # original
     tt['L4','dtsec'] = 2
     tt['L4','ndtfast'] = 8
+
+    # Qmax testing
+    #tt['L4','dtsec'] = 1
+    #tt['L4','ndtfast'] = 4
+
     tt['L4','forecast_days'] = PFM['forecast_days']
 
 #  max slurm time for level 1,2,3,4, in minutes
@@ -475,10 +491,17 @@ def create_model_info_dict():
 # right now there are restarts from 2024-10-12 to 2024-10-19
     # using restarts is now automatic based on assuming 20241011
     # is the very first hindcast day
-    if sim_start_time == '2025010100':
+    if (sim_start_time == '2025010100') or (sim_start_time == '2025031300'):
         use_restart_files = 0
     else:
         use_restart_files = 1
+
+    # hook to test if LV4 can handle Qtj > 200 m3/s
+    # on 20250313 Qtj <= 325 m3/s or so.
+    # LV4 blew up when Qtj just above 200.
+    #if sim_start_time == '2025031300':
+    #    tt['L4','dtsec'] = 1
+
 
     if use_restart_files == 0:
         PFM['lv1_use_restart']         = 0 # use_restart

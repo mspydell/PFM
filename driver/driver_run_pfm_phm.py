@@ -8,6 +8,8 @@ import util_functions as utilfuns
 sys.path.append('../driver')
 
 def driver_run_pfm_phm( input_py_full, pkl_fnm ):
+    print('!!!starting the model!!!')
+    print('current time is: ', datetime.now())
     print('initializing model and making the info.pkl file.')
     initfuns.initialize_model( input_py_full, pkl_fnm )
     
@@ -28,6 +30,7 @@ def driver_run_pfm_phm( input_py_full, pkl_fnm ):
         ret1 = subprocess.run(cmd_list)
         print('\n!Finished the hindcast subprocess!\n')
         print('return code:',str(ret1.returncode),' (0=good)')     
+        print('current time is: ', datetime.now())
     else:
         os.chdir('../driver')
         print('\n===========================')

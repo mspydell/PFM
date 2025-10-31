@@ -848,9 +848,11 @@ def get_nwm_analysis_flow(t_riv,pkl_fnm):
     q_om = np.squeeze(q_nc[:,i_om])
     q_tj = np.squeeze(q_nc[:,i_tj])
 
-    qi_sw = np.interp(t_riv.astype('int64'),t_nc64.astype('int64'),q_sw)
-    qi_om = np.interp(t_riv.astype('int64'),t_nc64.astype('int64'),q_om)
-    qi_tj = np.interp(t_riv.astype('int64'),t_nc64.astype('int64'),q_tj)
+    t_riv64 = t_riv.astype('datetime64[ns]')
+
+    qi_sw = np.interp(t_riv64.astype('int64'),t_nc64.astype('int64'),q_sw)
+    qi_om = np.interp(t_riv64.astype('int64'),t_nc64.astype('int64'),q_om)
+    qi_tj = np.interp(t_riv64.astype('int64'),t_nc64.astype('int64'),q_tj)
 
     return qi_sw, qi_om, qi_tj
 
@@ -1007,6 +1009,121 @@ def get_tj_observed_flow(t_riv,pkl_fnm,method='raw_interp'):
         t_i = (t_riv.astype('datetime64[ns]')).astype('int64')
         q_tj = np.interp(t_i, t_original, q_tj_raw)
         # now q_tj_raw is interpolated to the time stamps of t_riv
+
+    return q_tj
+
+
+def make_flat_q(qi,qcut):
+    # this flattens a time series of qi so that values don't excede qcut
+    # it redistributes the flow to later times
+    ib = np.argwhere(qi>qcut)
+    if len(ib)>0:
+        print('there was TJR flow > ', qcut, ' m3/s')
+        print('so Q TJR will be capped at ', qcut, ' m3/s')
+        
+    # need to remove ib if it equals len(qi)
+    i_last = np.argwhere( ib == len(qi)-1 )
+    if len(i_last)>0:
+        ib = np.delete(ib,i_last)
+    
+    # main loop to move q to later times...
+    while len(ib)>0:
+        dq = qi-qcut
+        q2 = qi.copy()
+        q2[ib] = qcut
+        q2[ib+1] = q2[ib+1] + dq[ib]
+        ib = np.argwhere(q2>qcut)
+
+        if len(ib) > 0:
+            i_last = np.argwhere( ib == len(qi)-1 )
+            # remove last index.
+            if len(i_last)>0:
+                ib = np.delete(ib,i_last)
+                # hook in case piles up at the end...
+                q2[-1]=qcut
+                if len(ib) == 1:
+                    ib = []
+ 
+        qi = q2
+
+    return qi
+
+
+def get_tj_observed_flow_qmax(t_riv,pkl_fnm):
+
+    PFM = initfuns.get_model_info(pkl_fnm)
+
+    # first check to see if the observations exist for the times t_riv
+    # for testing
+#    PFM['qtj_obs_fname_full'] = '/dataSIO/PHM_Simulations/raw_download/qtj_obs_data/qtj_raw_20200101_20250901.csv'
+
+    fn_qtj_obs = PFM['qtj_obs_fname_full']
+    print('the raw tj river discharge is in the file ', fn_qtj_obs)
+    print('check and see if this file has the data...')
+    if os.path.exists(fn_qtj_obs):
+        print(f"'{fn_qtj_obs}' exists. Checking to see if the data in it covers the time range:")
+        t1 = t_riv[0]  - 7 * timedelta(days=1)
+        t2 = t_riv[-1] + 7 * timedelta(days=1)
+        print(f"'{t1}' to '{t2}'")
+        has_data = check_qtj_obs_file(fn_qtj_obs,t1,t2)
+        if has_data:
+            print(f"'{fn_qtj_obs}' has the data we need. Retrieving it from the file...")
+            t_tj_raw, q_tj_raw = get_all_tj_observed_data(fn_qtj_obs)
+        else:
+            print(f"'{fn_qtj_obs}' did not have data we need. Making a new file...")
+            get_more_qtj_obs_data(fn_qtj_obs,t1,t2)
+            t_tj_raw, q_tj_raw = get_all_tj_observed_data(fn_qtj_obs)
+
+    else:    
+        print(f"'{fn_qtj_obs}' does not exist. Need to make.")
+        print(f"Making it based on the hindcast times and padding by 7 days on each end.")
+        t1 = PFM['sim_start_time'] - 7 * timedelta(days=1)
+        t2 = PFM['sim_end_time']   + 7 * timedelta(days=1)
+        t1_str = t1.strftime('%Y-%m-%d')
+        t2_str = t2.strftime('%Y-%m-%d')
+        make_obs_Qtj_file(t1_str,t2_str,fn_qtj_obs)
+        t_tj_raw, q_tj_raw = get_all_tj_observed_data(fn_qtj_obs)    
+
+
+    t_original = (t_tj_raw.astype('datetime64[ns]')).astype('int64')
+
+    t0 = datetime(2025,1,1,0,0,0)
+    t2 = datetime(2025,9,1,0,0,0)
+    dt_riv = timedelta(minutes=15) # this is the dt for the river file
+    t2 = np.arange(t0-dt_riv,t2+dt_riv,dt_riv)
+
+    t_i = (t2.astype('datetime64[ns]')).astype('int64')
+    q_tj_i = np.interp(t_i, t_original, q_tj_raw)
+
+    if 'TJR_Qmax' in PFM:
+        Qmax = PFM['TJR_Qmax']
+    else:
+        Qmax = 100
+
+    print('cutting off Q with a maximum value of ', str(Qmax), ' m3/s')
+    q_flat = make_flat_q(q_tj_i,Qmax)
+
+    t_og = (t_i.astype('datetime64[ns]')).astype('int64')
+    t_riv2 = (t_riv.astype('datetime64[ns]')).astype('int64')
+    q_tj = np.interp(t_riv2, t_og, q_flat)
+    # now q_tj_raw is interpolated to the time stamps of t_riv
+
+    make_plot = 1
+    if make_plot == 1:
+        fig, ax = plt.subplots()
+        p1=ax.plot(t_tj_raw,q_tj_raw,label='raw')
+        p2=ax.plot(t_i,q_tj_i,label='interp')
+        p3=ax.plot(t_i,q_flat,label='flattened')
+        p4=ax.plot(t_riv,q_tj,color='k',label='Q_TJhind')
+        t1 = np.min(t_riv) - timedelta(hours = 12)
+        t2 = np.max(t_riv) + timedelta(hours = 12)
+        ax.set_xlim(t1,t2)
+
+        plt.ylabel('discharge [m3/s]')
+        fn_out = '/scratch/PHM_Simulations/riv_ibwc_raw/LV4_Forecast/Plot/riv_plot.png'
+        print('made figure: ', fn_out)
+        plt.savefig(fn_out, dpi=300)
+
 
     return q_tj
 

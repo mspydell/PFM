@@ -9,12 +9,14 @@ sys.path.append('../driver')
 
 
 def driver_run_hind_LV123( pkl_fnm ):
+    print('starting driver_run_hind_LV123!!!')
     t00 = datetime.now()
-    MI = initfuns.get_model_info( pkl_fnm )
+    MI = initfuns.get_model_info( pkl_fnm )    
     nt  = len(MI['start_times_str'])
     nlv = len(MI['levels_to_run'])
     time_tots = [0]*nt
     time_lvls = [[0] * nt for i in range(nlv)]
+
 
     # this is the loop over the different separate simulations
     cnt_t = 0
