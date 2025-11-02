@@ -209,45 +209,96 @@ def get_nwm_fore_url_list(yyyymmddhh):
 
     return url_list
 
+
+def load_tmp_nc_data(tmpnc):    
+
+    reach_ids = [948070199, 20331702, 20324441]
+                #SW         Otay      TJR 20324441 is last segment near ocean.
+
+    # load the tmp file
+    with nc.Dataset(tmpnc) as ds:
+        # Access the data variables
+        rids = ds.variables['feature_id'][:]
+        t = ds.variables['time']
+        qq = ds.variables['streamflow'][:]
+        t2 = num2date(t[:],t.units)
+        t3 = t2.data
+
+    # note, this block of code is in the hour loop and grabs only the data for the rivers we want.
+    ig = [None]*3
+    cnt_rid=0 # this is the reach_id index counter
+    q2 = np.zeros((1,3))
+    rids_out = np.zeros((1,3))
+    for rids0 in reach_ids: # loops through in order
+        ig= np.argwhere(rids==rids0)
+        q2[0,cnt_rid] = qq[ig]
+        rids_out[0,cnt_rid] = rids[ig]
+        cnt_rid=cnt_rid+1
+
+    t4 = t3
+    q2np = np.array(q2)
+
+    return t4, q2np, rids_out
+
+
 def  get_nwm_from_url(url):
+
     # this dumps the url to a tmp.nc file
     # loads this tmp.nc file, extracts time and Q for
     reach_ids = [948070199, 20331702, 20324441]
                 #SW         Otay      TJR 20324441 is last segment near ocean.
     # and return the time and Q at these reach_ids    
-    
-    tmpnc = '/scratch/PFM_Simulations/nwm_ncs/nwm_tmp.nc'
-    response = requests.get(url)
-    # Check if the request was successful
-    t4 = []
-    Q3 = []
-    if response.status_code == 200:
-        # get data from the url and write to tmp file
-        with open(tmpnc, "wb") as f:
-            f.write(response.content)
 
-        # load the tmp file
-        with nc.Dataset(tmpnc) as ds:
-            # Access the data variables
-            rids = ds.variables['feature_id'][:]
-            t = ds.variables['time']
-            qq = ds.variables['streamflow'][:]
-            t2 = num2date(t[:],t.units)
-            t3 = t2.data
+    tmpnc = "/scratch/PFM_Simulations/LV4_Forecast/Forc/nwm_data/nwm_tmp.nc"
 
-        # note, this block of code is in the hour loop and grabs only the data for the rivers we want.
-        ig = [None]*3
-        cnt_rid=0 # this is the reach_id index counter
-        q2 = np.zeros((1,3))
-        rids_out = np.zeros((1,3))
-        for rids0 in reach_ids: # loops through in order
-            ig= np.argwhere(rids==rids0)
-            q2[0,cnt_rid] = qq[ig]
-            rids_out[0,cnt_rid] = rids[ig]
-            cnt_rid=cnt_rid+1
+    new_way = 1
+    if new_way == 1:
+        print('double checking whether nwm has data now.')
+        try:
+            response = requests.get(url)
+            response.raise_for_status()  # Raise an exception for bad status codes (4xx or 5xx)
+            print("Request successful:", response.json())
+            resp = {"status": "no error"}
+        except requests.exceptions.ConnectionError as e:
+            print(f"Error: Remote end closed connection without response. Details: {e}")
+            # Perform alternative action here, e.g., retry, log, or use fallback data
+            print("Performing alternative action: Using fallback data.")
+            resp = {"status": "error", "message": "Failed to retrieve data, using fallback."}
+        except requests.exceptions.Timeout as e:
+            print(f"Error: Request timed out. Details: {e}")
+            # Handle timeout specifically if needed
+            print("Performing alternative action: Handling timeout.")
+            resp = {"status": "error", "message": "Request timed out, using fallback."}
+        except requests.exceptions.RequestException as e:
+            print(f"An unexpected request error occurred: {e}")
+            # Handle other types of requests exceptions
+            resp = {"status": "error", "message": "An unexpected error occurred."}
+        except Exception as e:
+            print(f"An unhandled error occurred: {e}")
+            # Catch any other unexpected errors
+            resp = {"status": "error", "message": "An unhandled error occurred."}
 
-        t4 = t3
-        q2np = np.array(q2)
+        if resp['status'] == "no error":
+            with open(tmpnc, "wb") as f:
+                f.write(response.content)
+
+            t4, q2np, rids_out = load_tmp_nc_data(tmpnc)
+        else:
+            print('nwm says it has the file, but there was a problem.')
+            t4 =[]
+            q2np = []
+            rids_out = []    
+    else:
+        response = requests.get(url)
+
+        # Check if the request was successful
+        if response.status_code == 200:
+            # get data from the url and write to tmp file
+            with open(tmpnc, "wb") as f:
+                f.write(response.content)
+
+            t4, q2np, rids_out = load_tmp_nc_data(tmpnc)    
+
 
     return t4, q2np, rids_out
 
@@ -275,7 +326,7 @@ def get_all_nwm_fore_data(yyyymmddhh):
     for url in url_list:
         if got_url[cnt]:
             t, Q, rids = get_nwm_from_url(url)
-            if len(t)>0:
+            if len(t)>0: # extra check.
                 # we got data so start appending
                 t3 = np.concatenate((t3,t))
                 Q3 = np.concatenate((Q3,Q),axis=0)
