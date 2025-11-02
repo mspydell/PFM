@@ -147,7 +147,20 @@ def initialize_model(input_py_full,modinfo_pkl_full):
             end_time_dt = get_hind_end_time( start_time_dt, MINFO )  
             MINFO['sim_start_time'] = start_time_dt
             MINFO['sim_end_time'] = end_time_dt
-        
+            if start_time_dt == datetime(2025,1,1):
+                MINFO['lv1_use_restart']         = 0 # don't use_restart !!!
+                MINFO['lv2_use_restart']         = 0
+                MINFO['lv3_use_restart']         = 0
+                MINFO['lv4_use_restart']         = 0
+                MINFO['lv4_swan_use_rst']        = 0
+            else:
+                MINFO['lv1_use_restart']         = 1 # use_restart
+                MINFO['lv2_use_restart']         = 1
+                MINFO['lv3_use_restart']         = 1
+                MINFO['lv4_use_restart']         = 1
+                MINFO['lv4_swan_use_rst']        = 1
+
+
         t_starts, t_ends = get_hindcast_days(MINFO['sim_start_time'],MINFO['sim_end_time'],MINFO['forecast_days'])
         
         MINFO['start_times_str'] = t_starts
@@ -444,7 +457,6 @@ def edit_and_save_MI(dict_in,pkl_fnm):
 def set_up_for_autostart_hindcast( PFM ):
     # this function returns the restart time as a datetime object
 
-    
     # will check to see what dates are in the archive dirs...
     archive_dirs = [ PFM['hind_lv1_archive_dir'],
                      PFM['hind_lv2_archive_dir'], 
@@ -455,16 +467,22 @@ def set_up_for_autostart_hindcast( PFM ):
     for dir in archive_dirs:
         file_names = glob.glob(dir+'*.nc')
         t_dt = []
-        for fnm in file_names:
-            t_str = fnm[-15:-3]
-            t_dt.append( datetime.strptime(t_str,'%Y%m%d%H%M') )
+        if len(file_names)<1:
+            t_dt.append( datetime(2024,12,31) )
+        else:
+            for fnm in file_names:
+                t_str = fnm[-15:-3]
+                t_dt.append( datetime.strptime(t_str,'%Y%m%d%H%M') )
         
         t_np = np.array(t_dt)
         t_max.append( np.max(t_np) ) # get the maximum time for all his files in each dir
 
     t_max = np.array(t_max)
     if np.all( t_max == t_max[0]):
-        print('all history files in PHM archive dir have the same last time. good.')
+        if t_max[0] == datetime(2024,12,31):
+            print('starting PHM from Jan 1, 2025')
+        else:
+            print('all history files in PHM archive dir have the same last time. good.')
     else:
         print('history files have different last times, using the minimum of these to restart...')
 

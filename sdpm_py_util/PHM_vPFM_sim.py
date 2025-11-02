@@ -88,13 +88,13 @@ def create_model_info_dict():
     PFM['swan_wind_wave_generation'] = False # make or do not make wind waves in swan.
 
     if run_type == 'hindcast': # note hycom with tides starts on 2024-10-10 1200...
-        sim_start_time = '2025010100' # the simulation start time is in yyyymmddhh format
+        sim_start_time = '2025010600' # the simulation start time is in yyyymmddhh format
         # 2024101100 is the 1st day of hycom with tides hycom data.
-        sim_end_time   = '2025010300' # this is the very last time of the full simulation
+        sim_end_time   = '2025010800' # this is the very last time of the full simulation
         PFM['forecast_days'] = 1.0 # for now we do 1 day sub simulations
         # set the simulation end time. An integer number of days past the start time
         # We will loop over days until we get to this time.
-        PFM['auto_start_hind'] = True
+        PFM['auto_start_hind'] = False
         PFM['hindcast_duration'] = 2 # how long the hindcast will be in days
         PFM['sim_start_time'] = datetime.strptime(sim_start_time,'%Y%m%d%H')
         PFM['sim_end_time'] = datetime.strptime(sim_end_time,'%Y%m%d%H')
@@ -334,9 +334,9 @@ def create_model_info_dict():
     tt['L4','forecast_days'] = PFM['forecast_days']
 
 #  max slurm time for level 1,2,3,4, in minutes
-    lv1_mins = int( np.round( 8.0 * 60.0 * PFM['forecast_days'] / (2.5 * tt['L1','dtsec']) ) )
-    lv2_mins = int( np.round( 10.0 * 30.0 * PFM['forecast_days'] / (2.5 * tt['L2','dtsec']) ) )
-    lv3_mins = int( np.round( 15.0 * 15.0 * PFM['forecast_days'] / (2.5 * tt['L3','dtsec']) ) )
+    lv1_mins = int( np.round( 10.0 * 60.0 * PFM['forecast_days'] / (2.5 * tt['L1','dtsec']) ) )
+    lv2_mins = int( np.round( 15.0 * 30.0 * PFM['forecast_days'] / (2.5 * tt['L2','dtsec']) ) )
+    lv3_mins = int( np.round( 20.0 * 15.0 * PFM['forecast_days'] / (2.5 * tt['L3','dtsec']) ) )
     lv4_mins = int( np.round( 180.0 * 2.0 * PFM['forecast_days'] / (2.5 * tt['L4','dtsec']) ) )
 #  this 180 minutes is more than it takes for current (12/12/24) tiling and dt=2sec, Tf=2.5 days (135 min).
 #  we add a buffer and we scale linearly with forecast days and dt.   
