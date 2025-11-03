@@ -313,23 +313,39 @@ def get_all_nwm_fore_data(yyyymmddhh):
     
     # check and see if the url_file exists on the nwm server
     got_url = []
+    got_it = True
+    print('testing for nwm files...')
     for url in url_list:
         got_it = file_url_exists(url)
         got_url.append(got_it)
+        if not got_it:
+            print('there was a problem with the file, exiting loop.')
+            break
 
-    cnt = 0
     t3 = np.empty((0))
     Q3 = np.empty((0,3))
     
     # loop through urls and download the file that exists
     # and put data into some arrays...
-    for url in url_list:
-        if got_url[cnt]:
-            t, Q, rids = get_nwm_from_url(url)
-            if len(t)>0: # extra check.
-                # we got data so start appending
-                t3 = np.concatenate((t3,t))
-                Q3 = np.concatenate((Q3,Q),axis=0)
+    if False in got_url:
+        good = False
+    else:
+        good = True
+
+    cnt = 0
+    if good:
+        for url in url_list:
+            if got_url[cnt]:
+                t, Q, rids = get_nwm_from_url(url)
+                if len(t)>0: # extra check.
+                    # we got data so start appending
+                    t3 = np.concatenate((t3,t))
+                    Q3 = np.concatenate((Q3,Q),axis=0)
+                else:
+                    # replace all Trues with Falses
+                    new_list = [False if item is True else item for item in got_url]
+                    got_url = new_list
+            cnt = cnt + 1
 
     # sort times...
     i_sort = np.argsort(t3)
@@ -607,12 +623,14 @@ def make_nwm_q_pkl_file(info_pkl):
     
     dir0 = PFM['nwm_fore_dir']
     t_try = PFM['fetch_time']
-    t_last = t_try - 3 * timedelta(days=1)
+    # the oldest nwm forecast we will use is from 4 days prior.
+    t_last = t_try - 4 * timedelta(days=1)
     use_nwm_nc = True # we hope to use an nwm nc file we have stored
 
     while t_try >= t_last:
         t_try_str = t_try.strftime('%Y%m%d%H')
         nwm_nc_fnm = dir0 + 'nwm_forecast_Q_' + t_try_str + '.nc'
+        print('trying to use ', nwm_nc_fnm)
         if os.path.exists(nwm_nc_fnm):
             print('for the PFM forecast starting ', PFM['fetch_time'])
             print('we will use ', nwm_nc_fnm)
@@ -623,8 +641,9 @@ def make_nwm_q_pkl_file(info_pkl):
             made_file = make_nwm_nc_file(t_try_str,nwm_nc_fnm)
             if made_file:
                 print('the file ', nwm_nc_fnm, ' was made, exiting loop.')
-                t_try = t_try - 5 * timedelta(days=1)
+                t_try = t_try - 10 * timedelta(days=1)
             else: # move to the previous 6 hour forecast
+                print('nwm didnt have this forecast, so trying a previous one.')
                 t_try = t_try - 6 * timedelta(hours=1)
                 if t_try < t_last:
                     print('shouldnt really get here')
@@ -633,11 +652,11 @@ def make_nwm_q_pkl_file(info_pkl):
                     use_nwm_nc = False
                 
     if use_nwm_nc:
-        print('using nc file')
+        print('using nc file, ', nwm_nc_fnm, ' to make river.nc file.')
         make_nwm_pkl_from_nc(nwm_nc_fnm,info_pkl)
     else:
         #make_nwm_pkl_constants(info_pkl)
-        print('got here, use constant')
+        print('got here, there will be a problem and LV4 will not run!')
 
 
 def get_hind_nwm_urls(t1,t2):
