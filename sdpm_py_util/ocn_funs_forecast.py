@@ -5383,6 +5383,7 @@ def mk_lv4_river_nc(pkl_fnm):
                 sys.exit(1)
         else:
             print('using the new method to get river flow from nwm')
+            print('using make_nwm_q_pkl_file')
             ret_code = rivfuns.make_nwm_q_pkl_file(pkl_fnm)
 
 

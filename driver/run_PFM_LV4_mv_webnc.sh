@@ -31,7 +31,9 @@ conda activate PHM-env
 
 dateZ=$(date '+%Y%m%d%H')
 fstdout=/home/mspydell/models/PFM_root/PFM/log/LV4_pfm_system_${dateZ}.log
-info_pkl="/scratch/matt/PFM_Simulations_v2/forecast_info.pkl"
-python -u -W "ignor" driver_run_forecast_LV4_only.py $info_pkl > ${fstdout} 2>&1
+#info_pkl="/scratch/matt/PFM_Simulations_v2/forecast_info.pkl"
+info_pkl="/scratch/PFM_Simulations/forecast_info.pkl" # FF version
+
+python -u -W "ignore" driver_run_forecast_LV4_only.py $info_pkl > ${fstdout} 2>&1
 
 cd /home/mspydell/models/PFM_root/PFM

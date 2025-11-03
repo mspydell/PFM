@@ -253,6 +253,7 @@ def  get_nwm_from_url(url):
 
     new_way = 1
     if new_way == 1:
+        print('for, ', url)
         print('double checking whether nwm has data now.')
         try:
             response = requests.get(url)
@@ -270,9 +271,10 @@ def  get_nwm_from_url(url):
             print("Performing alternative action: Handling timeout.")
             resp = {"status": "error", "message": "Request timed out, using fallback."}
         except requests.exceptions.RequestException as e:
-            print(f"An unexpected request error occurred: {e}")
+            #print(f"An unexpected request error occurred: {e}")
+            #print('But going to try writing nc file anyway!')
             # Handle other types of requests exceptions
-            resp = {"status": "error", "message": "An unexpected error occurred."}
+            resp = {"status": "no error", "message": "An unexpected error occurred."}
         except Exception as e:
             print(f"An unhandled error occurred: {e}")
             # Catch any other unexpected errors
@@ -313,47 +315,39 @@ def get_all_nwm_fore_data(yyyymmddhh):
     
     # check and see if the url_file exists on the nwm server
     got_url = []
-    got_it = True
     print('testing for nwm files...')
     for url in url_list:
         got_it = file_url_exists(url)
         got_url.append(got_it)
         if not got_it:
-            print('there was a problem with the file, exiting loop.')
-            break
+            print('the file, ', url, ' is not there.')
+            print('got_it is, ', got_it)
+            # if there is no file, just return nothing
+            return [], [], []
 
     t3 = np.empty((0))
-    Q3 = np.empty((0,3))
-    
-    # loop through urls and download the file that exists
-    # and put data into some arrays...
-    if False in got_url:
-        good = False
-    else:
-        good = True
-
-    cnt = 0
-    if good:
-        for url in url_list:
-            if got_url[cnt]:
-                t, Q, rids = get_nwm_from_url(url)
-                if len(t)>0: # extra check.
-                    # we got data so start appending
-                    t3 = np.concatenate((t3,t))
-                    Q3 = np.concatenate((Q3,Q),axis=0)
-                else:
-                    # replace all Trues with Falses
-                    new_list = [False if item is True else item for item in got_url]
-                    got_url = new_list
-            cnt = cnt + 1
+    Q3 = np.empty((0,3)) 
+    for url in url_list:
+        t, Q, rids = get_nwm_from_url(url)
+        if len(t)>0: # extra check.
+            # we got data so start appending
+            t3 = np.concatenate((t3,t))
+            Q3 = np.concatenate((Q3,Q),axis=0)
+        else:
+            # if something wrong return nothing
+            return [], [], []
 
     # sort times...
+    # if times are not in increasing order
+    # we will only get here if things are good.
+
     i_sort = np.argsort(t3)
     t4 = t3[i_sort]
     Q4 = Q3
-    for cnt in np.arange(0,len(rids)):
-        Q4[:,cnt] = Q3[i_sort,cnt]
-
+    if len(rids)>0:
+        for cnt in np.arange(0,len(rids)):
+            Q4[:,cnt] = Q3[i_sort,cnt]
+    
     return t4, Q4, rids
             
 def make_nwm_nc_file(yyyymmddhh,file_out):
@@ -362,6 +356,9 @@ def make_nwm_nc_file(yyyymmddhh,file_out):
     # and output the data as a netcdf file in file_out    
 
     t, q, rids = get_all_nwm_fore_data(yyyymmddhh)
+    if len(t)==0:
+        return False
+
     # t is np array of cfdatetimeGregorians, 
     # convert to datetimes 
     # 2. Use a list comprehension to convert each cftime object
