@@ -5431,14 +5431,23 @@ def mk_lv4_river_nc(pkl_fnm):
     D['river_transport'][:,5] = PFM['Q_PB'] + D['river_transport'][:,5] # this is PB. 5/2/25 value
     # based on FF email with Liden
 
-    D['river_transport'][:,6] = - 0.5 * QQ['discharge'][:,0] # sweetwater discharge
+    Q_SW = QQ['discharge'][:,0]
+    Q_OM = QQ['discharge'][:,1]
+    cap_SW_OM = False
+    if cap_SW_OM:
+        ## we may need to cap SW if the flow gets too strong
+        Qmax_SW = 100
+        # here we cap the sweetwater and otay mesa discharge at 100 m3/s
+        Q_SW = rivfuns.make_flat_q(Q_SW,Qmax_SW)
+        Q_OM = rivfuns.make_flat_q(Q_OM,Qmax_SW)
+
+    D['river_transport'][:,6] = - 0.5 * Q_SW # sweetwater discharge
     D['river_transport'][:,7] = D['river_transport'][:,6]
     print('the time-mean discharge for Sweetwater is ')
     print(str( 2*np.mean(D['river_transport'][:,6]) ) + ' m3/s')
     print('or ', str( 22.824*2*np.mean(D['river_transport'][:,6]) ) + ' MGD')
 
-    D['river_transport'][:,8] = - QQ['discharge'][:,1] # Otay discharge
-    #D['river_transport'][:,6:] = -0.01 + D['river_transport'][:,6:] # these are in SD Bay
+    D['river_transport'][:,8] = - Q_OM # Otay discharge
     print('the time-mean discharge for Otay Mesa is ')
     print(str( np.mean(D['river_transport'][:,8]) ) + ' m3/s')
     print('or ', str( 22.824*np.mean(D['river_transport'][:,8]) ) + ' MGD')
@@ -5514,6 +5523,18 @@ def mk_lv4_river_nc(pkl_fnm):
         WW2 = R2*Q2 + (R1-R2)*Q00
         msk = Q2>Q00
         WW1[msk] = WW2[msk]
+        # below added on Dec 15,2025 to cap the total WW coming out of TJ at 5
+        # for those very large flow events.
+        cap_Qww = True
+        if cap_Qww:
+            print('checking for Q > 5')
+            WWmax = 5.0
+            msk2 = (WW1 > WWmax)
+            print('length of Q>5',str(len(msk2)))
+            WW1[msk2] = WWmax
+            print('WW1=')
+            print(WW1)
+
         dye2 = WW1 / Q2
         # below this ensures that if Q2=0 we don't get nans for dye.
         msk0 = (Q2 <= Q00)

@@ -637,6 +637,12 @@ def  make_LV4_coawst_dotins_dotsb(pkl_fnm,mod_type):
     # the default here is 8. so 1/4 sec for barotropic waves?
     D['ndtfast']  = PFM['tinfo']['L4','ndtfast']
     
+    #print('\nmod type is, hind_river_type, sim_time_1, dt1_days_ibwc are:')
+    #print(mod_type)
+    #print(PFM['hind_river_type'])
+    #print(PFM['sim_time_1'])
+    #print(PFM['dt1_days_ibwc'])
+
     # here we switch to 1 sec if there are large TJR flows
     if (mod_type == 'hind') and (PFM['hind_river_type'] == 'vPFM') and (PFM['sim_time_1'] in PFM['dt1_days_pfm']) :
         dtsec        = 1
@@ -644,9 +650,12 @@ def  make_LV4_coawst_dotins_dotsb(pkl_fnm,mod_type):
     if (mod_type == 'hind') and (PFM['hind_river_type'] == 'NWM') and (PFM['sim_time_1'] in PFM['dt1_days_nwm']) :
         dtsec        = 1
         D['ndtfast'] = 4
-    if (mod_type == 'hind') and (PFM['hind_river_type'] == 'ibwc_raw') and (PFM['sim_time_1'] in PFM['dt1_days_ibwc']) :
+    if (mod_type == 'hind') and (PFM['hind_river_type'] == 'IBWC_raw') and (PFM['sim_time_1'] in PFM['dt1_days_ibwc']) :
         dtsec        = 1
         D['ndtfast'] = 4
+
+    print('dtsec = ')
+    print(dtsec)
 
 #    forecast_days = PFM['tinfo']['L4','forecast_days']  #   forecast_days=2;
     forecast_days = PFM['forecast_days']  #   forecast_days=2;

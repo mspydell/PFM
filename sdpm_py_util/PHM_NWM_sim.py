@@ -88,21 +88,21 @@ def create_model_info_dict():
     PFM['swan_wind_wave_generation'] = False # make or do not make wind waves in swan.
 
     if run_type == 'hindcast': # note hycom with tides starts on 2024-10-10 1200...
-        sim_start_time = '2025010600' # the simulation start time is in yyyymmddhh format
+        sim_start_time = '2025050200' # the simulation start time is in yyyymmddhh format
         # 2024101100 is the 1st day of hycom with tides hycom data.
-        sim_end_time   = '2025010800' # this is the very last time of the full simulation
+        sim_end_time   = '2025050400' # this is the very last time of the full simulation
         PFM['forecast_days'] = 1.0 # for now we do 1 day sub simulations
         # set the simulation end time. An integer number of days past the start time
         # We will loop over days until we get to this time.
         PFM['auto_start_hind'] = False
-        PFM['hindcast_duration'] = 2 # how long the hindcast will be in days
+        PFM['hindcast_duration'] = 19 # how long the hindcast will be in days
         PFM['sim_start_time'] = datetime.strptime(sim_start_time,'%Y%m%d%H')
         PFM['sim_end_time'] = datetime.strptime(sim_end_time,'%Y%m%d%H')
         PFM['sim_time_1'] = PFM['sim_start_time']
         PFM['sim_time_2'] = PFM['sim_time_1'] + PFM['forecast_days'] * timedelta(days=1)
         # sim_start_time is the overall 1st time of the full simulation
         # sim_end_time is the overall last time of the full simulation
-        # sim_time_1 is the inital time of the sub simulation
+        # sim_time_1 is the inital time of the sub simulationt
         # sim_time_2 is the last time of the sub simulation 
         # we loop through levels_to_run
         PFM['levels_to_run'] = ['LV1','LV2','LV3','LV4']
@@ -287,14 +287,14 @@ def create_model_info_dict():
     NN['L2','Lm']  = 264     # Lm in input file
     NN['L2','Mm']  = 396     # Mm in input file
     NN['L2','ntilei'] = 9    # 6 number of tiles in I-direction
-    NN['L2','ntilej'] = 20   # 18 number of tiles in J-direction
+    NN['L2','ntilej'] = 24   # 18 number of tiles in J-direction
     NN['L2','np'] = NN['L2','ntilei'] * NN['L2','ntilej'] # total number of processors
     NN['L2','nnodes'] = int( NN['L2','np'] / 36 )  # 3 number of nodes to be used.  not for .in file but for slurm!
 
     NN['L3','Lm']  = 249     # Lm in input file
     NN['L3','Mm']  = 411     # Mm in input file
-    NN['L3','ntilei'] = 9    # 6 number of tiles in I-direction
-    NN['L3','ntilej'] = 20    # 18 number of tiles in J-direction
+    NN['L3','ntilei'] = 12    # 6 number of tiles in I-direction
+    NN['L3','ntilej'] = 30    # 18 number of tiles in J-direction
     NN['L3','np'] = NN['L3','ntilei'] * NN['L3','ntilej'] # total number of processors
     NN['L3','nnodes'] = int( NN['L3','np'] / 36  )  # 3 number of nodes to be used.  not for .infile but for slurm!
 
