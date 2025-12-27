@@ -96,8 +96,8 @@ def get_atm_data_as_dict(pkl_fnm):
             print('...done.') 
 
         print('deleting grb and idx files from ', PFM['ecmwf_dir'], ' ...')
-        delete_files_by_pattern(PFM['ecmwf_dir'], "T*")
-        delete_files_by_pattern(PFM['ecmwf_dir'], "*.idx")
+        #delete_files_by_pattern(PFM['ecmwf_dir'], "T*")
+        #delete_files_by_pattern(PFM['ecmwf_dir'], "*.idx")
         print('...done')
 
         print('\ngoing from ecmwf variables to roms variables...')
@@ -900,7 +900,8 @@ def get_ecmwf_grib_files_lists_v2(yyyymmddhh0,t0_str,pkl_fnm):
     cmds_tot = []
 
     while hr_f <= hr_max:
-        yyyymmddhh = t_f.strftime("%Y%m%d%H") # the timestamp of the file we will get
+        yyyymmddhh = yyyy0 + t_f.strftime("%m%d%H")
+        #yyyymmddhh = t_f.strftime("%Y%m%d%H") # the timestamp of the file we will get
         txt3 = txt2 + yyyymmddhh + mm + '1'
         fnms.append(txt3)
         txt4 = url_txt + txt3
