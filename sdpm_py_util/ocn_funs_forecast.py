@@ -5264,7 +5264,7 @@ def mk_lv4_nud_nc(pkl_fnm):
         decay_rate = 0.143
 
     print('the decay time scale for dye1 and dye2 is ', str(decay_rate), ' in 1/days')
-    decay_rate = PFM['decay_time_inv_days']
+    #decay_rate = PFM['decay_time_inv_days']
     for vn in vnms:
         D[vn] = np.zeros((Nz,nlt,nln))
         if vn in ['temp_NudgeCoef','salt_NudgeCoef']:
