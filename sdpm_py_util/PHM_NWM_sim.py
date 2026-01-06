@@ -88,14 +88,14 @@ def create_model_info_dict():
     PFM['swan_wind_wave_generation'] = False # make or do not make wind waves in swan.
 
     if run_type == 'hindcast': # note hycom with tides starts on 2024-10-10 1200...
-        sim_start_time = '2025061100' # the simulation start time is in yyyymmddhh format
+        sim_start_time = '2025061200' # the simulation start time is in yyyymmddhh format
         # 2024101100 is the 1st day of hycom with tides hycom data.
-        sim_end_time   = '2025061300' # this is the very last time of the full simulation
+        sim_end_time   = '2025061400' # this is the very last time of the full simulation
         PFM['forecast_days'] = 1.0 # for now we do 1 day sub simulations
         # set the simulation end time. An integer number of days past the start time
         # We will loop over days until we get to this time.
-        PFM['auto_start_hind'] = False
-        PFM['hindcast_duration'] = 10 # how long the hindcast will be in days
+        PFM['auto_start_hind'] = True
+        PFM['hindcast_duration'] = 7 # how long the hindcast will be in days
         PFM['sim_start_time'] = datetime.strptime(sim_start_time,'%Y%m%d%H')
         PFM['sim_end_time'] = datetime.strptime(sim_end_time,'%Y%m%d%H')
         PFM['sim_time_1'] = PFM['sim_start_time']

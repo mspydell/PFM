@@ -5257,12 +5257,20 @@ def mk_lv4_nud_nc(pkl_fnm):
 
     Nz   = PFM['stretching']['L4','Nz']                              
     vnms = ['temp_NudgeCoef','salt_NudgeCoef','tracer_NudgeCoef']
+    if PFM['run_type'] == 'forecast':
+        # originally 1/10 t<7/11/25, then 1/7 (0.143) t<1/6/26, then 1/5
+        decay_rate = 0.2
+    else:
+        decay_rate = 0.143
+
+    print('the decay time scale for dye1 and dye2 is ', str(decay_rate), ' in 1/days')
+    decay_rate = PFM['decay_time_inv_days']
     for vn in vnms:
         D[vn] = np.zeros((Nz,nlt,nln))
         if vn in ['temp_NudgeCoef','salt_NudgeCoef']:
             D[vn] = 9.9e36 + D[vn]
         else:
-            D[vn] = 0.143 + D[vn] # was 0.1 before 7/11/25. after 0.143
+            D[vn] = decay_rate + D[vn] # was 0.1 before 7/11/25. after 0.143
 
     D['vinfo']['temp_NudgeCoef'] = {'long_name':'temp inverse nudging coefficient',
                         'units':'day-1',

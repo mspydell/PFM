@@ -96,7 +96,7 @@ def create_model_info_dict():
         # We will loop over days until we get to this time.
         PFM['TJR_Qmax'] = 150 # m3/s the maximum TJR flow rate, flat-topped at this value
         PFM['auto_start_hind'] = True # will automatically find start time and use hindcast duration
-        PFM['hindcast_duration'] = 8 # how long the hindcast will be in days
+        PFM['hindcast_duration'] = 2 # how long the hindcast will be in days
             # must do at least 2 days at a time!!!
         PFM['sim_start_time'] = datetime.strptime(sim_start_time,'%Y%m%d%H')
         PFM['sim_end_time'] = datetime.strptime(sim_end_time,'%Y%m%d%H')
