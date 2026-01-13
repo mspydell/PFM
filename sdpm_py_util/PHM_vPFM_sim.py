@@ -95,7 +95,7 @@ def create_model_info_dict():
         # set the simulation end time. An integer number of days past the start time
         # We will loop over days until we get to this time.
         PFM['auto_start_hind'] = True
-        PFM['hindcast_duration'] = 10 # how long the hindcast will be in days
+        PFM['hindcast_duration'] = 7 # how long the hindcast will be in days
         PFM['sim_start_time'] = datetime.strptime(sim_start_time,'%Y%m%d%H')
         PFM['sim_end_time'] = datetime.strptime(sim_end_time,'%Y%m%d%H')
         PFM['sim_time_1'] = PFM['sim_start_time']
