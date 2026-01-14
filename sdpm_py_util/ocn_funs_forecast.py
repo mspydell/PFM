@@ -6,6 +6,7 @@ import time
 import gc
 import resource
 import pickle
+import matplotlib.pyplot as plt
 
 sys.path.append('../sdpm_py_util')
 import init_funs_forecast as initfuns
@@ -5306,7 +5307,6 @@ def mk_lv4_nud_nc(pkl_fnm):
     ds.close()
 
 
-
 def mk_lv4_river_nc(pkl_fnm):
     print('making river tracer dictionary')
     PFM = initfuns.get_model_info(pkl_fnm)
@@ -5509,8 +5509,8 @@ def mk_lv4_river_nc(pkl_fnm):
     D['river_dye_02'] = np.zeros((nt,Nz,9)) # this is always zero.
     Q2 = - 5 * D['river_transport'][:,0] # - sign to insure positive
     # this is Qtot of TJRE
-    old_way = 2
-    if old_way == 1:
+    Cmethod = 3
+    if Cmethod == 1:
         mgd2m3s = 1.01/23    # a conversion factor, from MGD to m3/s
         Qd = 12.5 * mgd2m3s  # the amount of sewage discharge if Q > Qcrit
         dye2 = Qd  / Q2      # the fraction of raw sewage for Q > Qcrit
@@ -5521,11 +5521,38 @@ def mk_lv4_river_nc(pkl_fnm):
 
         ic = np.argwhere(Q2 < Qcrit) # where 
         dye2[ic] = dye0 # is now the correct dye concentration for TJRE
-    else:
+    elif Cmethod == 2:
         # this is based on Biggs data. we were underestimate WW fraction
-        # this formula better matches his data
+        # this formula better matches his data (used for Apr, 2025 < t < Jan 15, 2026)
         R1 = 0.65
         R2 = 0.045
+        Q00 = 2.25
+        WW1 = R1*Q2
+        WW2 = R2*Q2 + (R1-R2)*Q00
+        msk = Q2>Q00
+        WW1[msk] = WW2[msk]
+        # below added on Dec 15,2025 to cap the total WW coming out of TJ at 5
+        # for those very large flow events.
+        cap_Qww = True
+        if cap_Qww:
+            print('checking for Q > 5')
+            WWmax = 5.0
+            msk2 = (WW1 > WWmax)
+            print('length of Q>5',str(len(msk2)))
+            WW1[msk2] = WWmax
+            print('WW1=')
+            print(WW1)
+
+        dye2 = WW1 / Q2
+        # below this ensures that if Q2=0 we don't get nans for dye.
+        msk0 = (Q2 <= Q00)
+        dye2[msk0] = R1
+    elif Cmethod == 3:
+        # this is based on Biggs data. But after 9/1/25, TJ has 10 MGD less Qww 
+        # using Biggs data and this offset, the new curve that fits the data well 
+        # is used here. implemented on Jan 13, 2026 (MSS)
+        R1 = 0.3
+        R2 = 0.04
         Q00 = 2.25
         WW1 = R1*Q2
         WW2 = R2*Q2 + (R1-R2)*Q00
@@ -5630,6 +5657,49 @@ def mk_lv4_river_nc(pkl_fnm):
     
     river_dict_to_nc(D,fout)
     #print(fout)
+    make_river_nc_fig_flag = 1
+    if make_river_nc_fig_flag == 1:
+        yyyymmddhh = PFM['fetch_time'].strftime('%Y%m%d%H')
+        fn_fig_out = PFM['lv4_plot_dir'] + '/river_ncfilefig_' + yyyymmddhh + '.png'
+        make_river_nc_fig(fout,fn_fig_out)
+
+
+def make_river_nc_fig(fn_riv_nc,fn_out):
+    ds = nc.Dataset(fn_riv_nc)
+    fig, axs = plt.subplots(nrows=3,ncols=1,figsize=(10,8))
+    t = ds.variables['river_time'][:]
+    t_dt = datetime(1999,1,1,0,0,0) + t * timedelta(days=1)
+    Q_tj = -5 * ds.variables['river_transport'][:,0]
+    Q_sw = -2 * ds.variables['river_transport'][:,6]
+    Q_om =  -1 * ds.variables['river_transport'][:,8]
+    Q_pb =  -1 * ds.variables['river_transport'][:,5]
+    axs[0].plot(t_dt,Q_tj,label='Q TJ')
+    axs[0].plot(t_dt,Q_sw,label='Q SW')
+    axs[0].plot(t_dt,Q_om,label='Q OM')
+    axs[0].plot(t_dt,Q_pb,label='Q PB')
+    axs[0].legend()
+    axs[0].set_ylabel('Q [m3/s, 1 m3/s = 23 MGD]')
+    axs[0].set_title('River Variables in: ' + fn_riv_nc)
+
+    dye_tj = ds.variables['river_dye_02'][:,0,0]
+    dye_pb = ds.variables['river_dye_01'][:,0,5]
+    axs[1].plot(t_dt,dye_tj,label='dye TJ')
+    axs[1].plot(t_dt,dye_pb,label='dye PB')
+    axs[1].legend()
+    axs[1].set_ylabel('C [fraction]')
+
+    Qww_tj = dye_tj * Q_tj
+    Qww_pb = dye_pb * Q_pb
+    axs[2].plot(t_dt,Qww_tj,label='Qww TJ')
+    axs[2].plot(t_dt,Qww_pb,label='Qww PB')
+    axs[2].legend()
+    axs[2].set_ylabel('Q [m3/s, 1 m3/s = 23 MGD]')
+
+    plt.savefig(fn_out, dpi=300)
+
+
+
+
 
 def convert_datetime64_to_datetime(np_datetime64_array):
     """
@@ -5928,6 +5998,7 @@ def mk_lv4_hind_river_nc(pkl_fnm):
 		                        'field':'river_time, scalar, series'}		            
   
     river_dict_to_nc(D,fout)
+    # make plot of Qtot, Qww, and concentration for TJ
 
 
 
