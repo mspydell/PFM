@@ -1653,17 +1653,15 @@ def check_and_redownload_ncfiles(yyyymmdd):
 
     nc_in_names = get_hycom_nc_file_names(yyyymmdd,t1str,t2str)
 
-    print('\n *** done with: nc_in_names = get_hycom_nc_file_names(yyyymmdd,t1str,t2str) ***')
     chk = 1
     cnt2 = 0
     eecode = 1 # assume there are bad files...
 
-    print('\n ** checking for bad files **\n')
+
     while chk==1 and cnt2<3:
         bad_files = []
         urls = []
         for fn in nc_in_names:
-            print(fn)
             if "_ssh_" in fn:
                 mnfsz = 0.4 # this is the minimum filesize for ssh in Mb
             else:
@@ -1681,7 +1679,7 @@ def check_and_redownload_ncfiles(yyyymmdd):
             #    data_var = 'water_v' # still 'water_v'
 
             file_size_mb = os.path.getsize(fn) / (1024*1024)
-            print(' ** done with file_size_mb = ... **\n')
+
             with nc.Dataset(fn) as ds:
                 vars = list(ds.variables.keys())
                 for var_nm in vars:
@@ -1690,8 +1688,6 @@ def check_and_redownload_ncfiles(yyyymmdd):
                 data = ds.variables[data_var][:]
                 mnd = np.nanmin(data[:])
                 mxd = np.nanmax(data[:])
-
-            print(' ** done with nc.Dataset(fn) as ds: ')
 
             bad_data = 0
             if (mnd < -10 or mxd > 100) and ("_s3z_" in fn or "_t3z_" in fn):

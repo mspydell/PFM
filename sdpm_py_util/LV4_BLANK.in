@@ -421,7 +421,7 @@ LtracerSponge == F F F F                           ! temperature, salinity, iner
 
 ! Minimum depth for wetting and drying.
 
-       DCRIT == 0.25d0                     ! m
+       DCRIT == 0.35d0                     ! m
 
 ! Various parameters.
 
