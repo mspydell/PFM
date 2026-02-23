@@ -55,6 +55,13 @@ def list_to_dict_of_chunks(long_list, chunk_size=10):
 
 def get_nam_hindcast_filelists(t1str,t2str,pkl_fnm):
 
+    # new amazon url
+    # https://noaa-nam-pds.s3.amazonaws.com.nam.YYYYMMDD/nam.tHHz.[product]FF.tm00.grib2
+    # for example, the 2025-08-23 00:00 forecast, 00 hours out (analysis) is:
+    # https://noaa-nam-pds.s3.amazonaws.com/nam.20250823/nam.t00z.awip1200.tm00.grib2'
+    # for example, the 2025-08-23 00:00 forecast, 03 hours out (NOT analysis) is:
+    # https://noaa-nam-pds.s3.amazonaws.com/nam.20250823/nam.t00z.awip1203.tm00.grib2'
+
     PFM = initfuns.get_model_info( pkl_fnm )
 
     atm_hind_dir = PFM['atm_hind_dir']

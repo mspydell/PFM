@@ -972,7 +972,7 @@ def get_hycom_data_1hr_v2(yyyymmdd,pkl_fnm):
     # this function gets all of the new hycom data as separate files for each field (ssh,temp,salt,u,v) and each time
     # and puts each .nc file in the directory for hycom data
 
-    print('in get_hycom_data_1hr_v2')
+    #print('in get_hycom_data_1hr_v2')
 
     PFM = initfuns.get_model_info(pkl_fnm)
 
