@@ -396,7 +396,10 @@ def create_model_info_dict():
         PFM['cdip_data_dir'] = pfm_root_dir + 'cdip_data'
     else:
         PFM['hycom_data_dir'] = '/dataSIO/PHM_Simulations/raw_download/hycom_nc/'
-        PFM['cdip_data_dir'] =  '/dataSIO/PHM_Simulations/raw_download/cdip_data'
+        # data through 1/1/2026 is below
+        PFM['cdip_data_dir'] =  '/dataSIO/PHM_Simulations/raw_download/cdip_data/data_2025'
+        # original data location
+        #PFM['cdip_data_dir'] =  '/dataSIO/PHM_Simulations/raw_download/cdip_data'
 
 
     PFM['lv1_tides_file']          = 'ocean_tide.nc'
