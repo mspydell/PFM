@@ -1832,6 +1832,131 @@ def run_fore_simulation(lvl,pkl_fnm):
         print('return code: ' + str(ret1.returncode) + ' (0=good)')  
         #run_fore_LV4(pkl_fnm)
 
+def run_fore_lv4_fillin(pkl_fnm):
+    MI = initfuns.get_model_info(pkl_fnm)
+    level = 4
+
+    # make the LV2_OCN_BC.pkl file
+    print('driver_run_forcast_LV4: saving LV4_OCN_BC pickle file')
+    os.chdir('../sdpm_py_util')
+    cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','mk_LV2_BC_dict_edges',str(level),pkl_fnm]
+    ret5 = subprocess.run(cmd_list)   
+    print('return code: ' + str(ret5.returncode) + ' (0=good)')  
+    os.chdir('../sdpm_py_util')
+    print('driver_run_forecast_LV4:  done with writing LV4_OCN_BC.pkl file.') 
+    print('\n')
+
+    # convert LV4_BC.pkl to LV4_BC.nc
+    lv4_ocnBC_pckl = MI['lv4_forc_dir'] + '/' + MI['lv4_ocnBC_tmp_pckl_file']
+    lv4_bc_file_out = MI['lv4_forc_dir'] + '/' + MI['lv4_bc_file']
+    print('driver_run_forcast_LV4: saving LV4_OCN_BC netcdf file')
+    os.chdir('../sdpm_py_util')
+    cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','ocn_roms_BC_dict_to_netcdf_pckl',lv4_ocnBC_pckl,lv4_bc_file_out]
+    ret5 = subprocess.run(cmd_list)   
+    print('return code: ' + str(ret5.returncode) + ' (0=good)')  
+    os.chdir('../sdpm_py_util')
+    print('driver_run_forecast_LV4:  done with writing LV4_OCN_BC.nc file.') 
+ 
+    # make and save the LV3_IC.pkl file
+    if MI['lv4_use_restart']==0:
+        print('driver_run_forcast_LV4: making and saving LV4_OCN_IC pickle file')
+        os.chdir('../sdpm_py_util')
+        #cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','mk_LV2_IC_dict',str(level),pkl_fnm]
+        cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','mk_LV2_IC_dict_from_hisnc',str(level),pkl_fnm]
+        ret5 = subprocess.run(cmd_list)   
+        print('return code: ' + str(ret5.returncode) + ' (0=good)')  
+        os.chdir('../sdpm_py_util')
+        print('driver_run_forecast_LV4:  done with writing LV4_OCN_IC.pkl file.') 
+
+        # convert the LV2_IC.pkl file to LV2_IC.nc
+        lv4_ocnIC_pckl = MI['lv4_forc_dir'] + '/' + MI['lv4_ocnIC_tmp_pckl_file']
+        lv4_ic_file_out = MI['lv4_forc_dir'] + '/' + MI['lv4_ini_file']
+        print('driver_run_forcast_LV4: saving LV4_OCN_IC netcdf file')
+        os.chdir('../sdpm_py_util')
+        cmd_list = ['python','-u','-W','ignore','ocn_funs_forecast.py','ocn_roms_IC_dict_to_netcdf_pckl',lv4_ocnIC_pckl,lv4_ic_file_out]
+        ret5 = subprocess.run(cmd_list)   
+        print('return code: ' + str(ret5.returncode) + ' (0=good)')  
+        os.chdir('../sdpm_py_util')
+        print('driver_run_forecast_LV4:  done with writing LV4_OCN_IC.nc file.') 
+        print('this took:')
+    else:
+        print('going to use a restart file for the LV4 IC. Setting this up...')
+        cmd_list = ['python','-u','-W','ignore','init_funs_forecast.py','restart_setup','LV4',pkl_fnm]
+        os.chdir('../sdpm_py_util')
+        ret4 = subprocess.run(cmd_list)     
+        os.chdir('../driver')
+        print('...done setting up for restart.')
+        print('this took:')
+        MI = initfuns.get_model_info(pkl_fnm)
+        print('\nGoing to use the file ' + MI['lv4_ini_file'] + ' to restart the simulation')
+        print('with time index ' + str(MI['lv4_nrrec']))
+        print('\n')
+        if MI['lv4_nrrec'] < 0:
+            print('WARNING RESTARTING LV4 WILL NOT WORK!!!')
+
+    t1=datetime.now()
+    print('driver_run_forcast_LV4: making clm.nc, nud.nc, and river.nc files...')
+    os.chdir('../sdpm_py_util')
+    cmd_list = ['python','-u','-W','ignore','ocn_funs_forecast.py','mk_lv4_clm_nc',pkl_fnm]
+    ret1 = subprocess.run(cmd_list)   
+    print('clm return code: ' + str(ret1.returncode) + ' (0=good)')  
+    cmd_list = ['python','-u','-W','ignore','ocn_funs_forecast.py','mk_lv4_nud_nc',pkl_fnm]
+    ret2 = subprocess.run(cmd_list)   
+    print('nud return code: ' + str(ret2.returncode) + ' (0=good)')  
+    if ret1.returncode != 0 or ret2.returncode != 0:
+        print('one or both clm or nud nc files were made incorrectly, aborting simulation!')
+        sys.exit(1)
+
+
+    ##############
+    # make swan files
+    print('driver_run_forcast_LV4: making swan bnd and wnd files...')
+    os.chdir('../sdpm_py_util')
+    cmd_list = ['python','-u','-W','ignore','swan_functions.py','cdip_ncs_to_dict_fillin','no_refresh',pkl_fnm]
+    ret1 = subprocess.run(cmd_list)   
+    print('cdip to dictionary return code: ' + str(ret1.returncode) + ' (0=good)')  
+    fout = MI['lv4_forc_dir'] + '/' + MI['lv4_swan_bnd_file']
+    print('making swan .bnd file...')
+    cmd_list = ['python','-u','-W','ignore','swan_functions.py','mk_swan_bnd_file',fout,pkl_fnm]
+    ret2 = subprocess.run(cmd_list)   
+    print('...done. swan bnd file return code: ' + str(ret2.returncode) + ' (0=good)')  
+    fout = MI['lv4_forc_dir'] + '/' + MI['lv4_swan_wnd_file']
+    print('making swan wnd file...')
+    cmd_list = ['python','-u','-W','ignore','swan_functions.py','mk_swan_wnd_file',fout,pkl_fnm]
+    ret3 = subprocess.run(cmd_list)   
+    print('...done. swan wnd file return code: ' + str(ret3.returncode) + ' (0 or 1=good)')  
+
+    if MI['swan_wind_wave_generation'] and ret3.returncode !=0:
+        print('supposed to use winds in swan and')
+        print('something bad happened making swan wind file, aborting simulation!')
+        sys.exit(1)
+       
+    if ret1.returncode != 0 or ret2.returncode != 0: 
+        print('something bad happened making swan files, aborting simulation!')
+        sys.exit(1)
+
+    print('...done. making swan .bnd and .wnd files took:')
+
+    # make all of the dotins
+    print('making LV4 ocean, swan, coupling .in and .sb...')
+    os.chdir('../sdpm_py_util')
+    runfuns.make_LV4_coawst_dotins_dotsb(pkl_fnm,'fore')
+    print('...done')
+
+    ################
+    # run coawst LV4
+    print('now running Coawst LV4 with slurm.')
+    print('using ' + str(MI['gridinfo']['L4','nnodes']) + ' nodes (= ' + str(36 * MI['gridinfo']['L4','nnodes']) + ' CPUs.)')
+    print('using ' + str( MI['gridinfo']['L4','ntilei']*MI['gridinfo']['L4','ntilej'] ) + ' CPUs for ROMS, with tiling:')
+    print('Ni = ' + str(MI['gridinfo']['L4','ntilei']) + ', NJ = ' + str(MI['gridinfo']['L4','ntilej']))
+    print('and using ' + str(MI['gridinfo']['L4','np_swan']) + ' CPUs for SWAN.')
+    print('working...')
+
+    runfuns.run_slurm_LV4(pkl_fnm, 'fore')
+
+    os.chdir('../driver')
+    print('...done.')
+
 
 if __name__ == "__main__":
     args = sys.argv

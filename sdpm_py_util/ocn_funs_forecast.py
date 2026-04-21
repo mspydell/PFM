@@ -2367,6 +2367,82 @@ def load_tmp_pkl(var_name,pkl_fnm):
 
     return tmp_dat
 
+def get_vinfo_dict():
+    
+    OCN_IC = dict()
+
+    OCN_IC['ocean_time'] = {'long_name':'time since initialization',
+                    'units':'days',
+                    'coordinates':'temp_time',
+                    'field':'ocean_time, scalar, series'}
+    OCN_IC['ocean_time_ref'] = {'long_name': 'the reference date tref (initialization time)'}
+
+    OCN_IC['lon_rho'] = {'long_name':'rho point longitude',
+                        'units':'degrees_east'}
+    OCN_IC['lat_rho'] = {'long_name':'rho point latitude',
+                        'units':'degrees_north'}
+    OCN_IC['lon_u'] = {'long_name':'rho point longitude',
+                        'units':'degrees_east'}
+    OCN_IC['lat_u'] = {'long_name': 'u point latitude',
+                        'units':'degrees_north'}
+    OCN_IC['lon_v'] = {'long_name':'v point longitude',
+                        'units':'degrees_east'}
+    OCN_IC['lat_v'] = {'long_name':'v point latitude',
+                        'units':'degrees_north'}
+    OCN_IC['Nz'] = {'long_name':'number of vertical rho levels',
+                             'units':'none'}
+    OCN_IC['Vtr'] = {'long_name':'vertical terrain-following transformation equation'}
+    OCN_IC['Vst'] = {'long_name':'vertical terrain-following stretching function'}
+    OCN_IC['th_s'] = {'long_name':'S-coordinate surface control parameter',
+                               'units':'nondimensional',
+                               'field': 'theta_s, scalar, series'}
+    OCN_IC['th_b'] = {'long_name':'S-coordinate bottom control parameter',
+                               'units':'nondimensional',
+                               'field': 'theta_b, scalar, series'}
+    OCN_IC['Tcl'] = {'long_name':'S-coordinate surface/bottom layer width',
+                               'units':'meter',
+                               'field': 'Tcline, scalar, series'}
+    OCN_IC['hc'] = {'long_name':'S-coordinate parameter, critical depth',
+                               'units':'meter',
+                               'field': 'hc, scalar, series'}
+    OCN_IC['temp'] = {'long_name':'ocean potential temperature',
+                        'units':'degrees C',
+                        'coordinates':'time,s,lat_rho,lon_rho',
+                        'time':'ocean_time'}
+    OCN_IC['salt'] = {'long_name':'ocean salinity',
+                        'units':'psu',
+                        'coordinates':'tiem,s,lat_rho,lon_rho',
+                        'time':'ocean_time'}
+    OCN_IC['zeta'] = {'long_name':'ocean sea surface height',
+                        'units':'m',
+                        'coordinates':'time,lat_rho,lon_rho',
+                        'time':'ocean_time'}
+    OCN_IC['u'] = {'long_name':'ocean xi velocity',
+                        'units':'m/s',
+                        'coordinates':'time,s,lat_u,lon_u',
+                        'time':'ocean_time'}
+    OCN_IC['v'] = {'long_name':'ocean eta velocity',
+                        'units':'m/s',
+                        'coordinates':'time,s,lat_v,lon_v',
+                        'time':'ocean_time'}
+    OCN_IC['ubar'] = {'long_name':'ocean xi depth avg velocity',
+                        'units':'m/s',
+                        'coordinates':'time,lat_u,lon_u',
+                        'note':'uses roms depths'}
+    OCN_IC['vbar'] = {'long_name':'ocean eta depth avg velocity',
+                        'units':'m/s',
+                        'coordinates':'time,lat_v,lon_v',
+                        'note':'uses roms depths'}
+    OCN_IC['Cs_r'] = {'long_name':'S-coordinate stretching curves at RHO-points',
+                        'units':'nondimensional',
+                        'valid min':'-1',
+                        'valid max':'0',
+                        'field':'Cs_r, scalar, series'}
+    
+    return OCN_IC
+
+
+
 def ocnr_2_ICdict_from_tmppkls(fname_out,pkl_fnm):
     # this slices the OCN_R dictionary at the first time for all needed 
     # variables for the initial condition for roms
@@ -4558,6 +4634,469 @@ def mk_LV2_IC_dict(lvl,pkl_fnm):
     with open(fn_out,'wb') as fout:
         pickle.dump(OCN_IC,fout, protocol=pickle.HIGHEST_PROTOCOL)
         print('OCN_LV'+lvl+'_IC dict saved with pickle')
+
+def mk_LV2_IC_dict_from_hisnc(lvl,pkl_fnm):
+
+    PFM=initfuns.get_model_info(pkl_fnm)  
+    if lvl == '2':
+        G1 = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
+        G2 = grdfuns.roms_grid_to_dict(PFM['lv2_grid_file'])
+        fn = PFM['lv1_his_name_full']
+        lv1 = 'L1'
+        lv2 = 'L2'
+        fn_out = PFM['lv2_forc_dir'] + '/' + PFM['lv2_ocnIC_tmp_pckl_file']
+    elif lvl == '3':
+        G1 = grdfuns.roms_grid_to_dict(PFM['lv2_grid_file'])
+        G2 = grdfuns.roms_grid_to_dict(PFM['lv3_grid_file'])
+        fn = PFM['lv2_his_name_full']
+        lv1 = 'L2'
+        lv2 = 'L3'
+        fn_out = PFM['lv3_forc_dir'] + '/' + PFM['lv3_ocnIC_tmp_pckl_file']
+    elif lvl == '4':
+        G1 = grdfuns.roms_grid_to_dict(PFM['lv3_grid_file'])
+        G2 = grdfuns.roms_grid_to_dict(PFM['lv4_grid_file'])
+        fn = PFM['lv3_his_name_full']
+        lv1 = 'L3'
+        lv2 = 'L4'
+        fn_out = PFM['lv4_forc_dir'] + '/' + PFM['lv4_ocnIC_tmp_pckl_file']
+     
+    # parent vertical stretching info 
+    Nz1   = PFM['stretching'][lv1,'Nz']                              # number of vertical levels: 40
+    Vtr1  = PFM['stretching'][lv1,'Vtransform']                       # transformation equation: 2
+    Vst1  = PFM['stretching'][lv1,'Vstretching']                    # stretching function: 4 
+    th_s1 = PFM['stretching'][lv1,'THETA_S']                      # surface stretching parameter: 8
+    th_b1 = PFM['stretching'][lv1,'THETA_B']                      # bottom  stretching parameter: 3
+    Tcl1  = PFM['stretching'][lv1,'TCLINE']                      # critical depth (m): 50
+    hc1   = PFM['stretching'][lv1,'hc']
+    
+    # child vertical stretching info
+    Nz2   = PFM['stretching'][lv2,'Nz']                              # number of vertical levels: 40
+    Vtr2  = PFM['stretching'][lv2,'Vtransform']                       # transformation equation: 2
+    Vst2  = PFM['stretching'][lv2,'Vstretching']                    # stretching function: 4 
+    th_s2 = PFM['stretching'][lv2,'THETA_S']                      # surface stretching parameter: 8
+    th_b2 = PFM['stretching'][lv2,'THETA_B']                      # bottom  stretching parameter: 3
+    Tcl2  = PFM['stretching'][lv2,'TCLINE']                      # critical depth (m): 50
+    hc2   = PFM['stretching'][lv2,'hc']
+
+    ltr1 = G1['lat_rho']
+    lnr1 = G1['lon_rho']
+    ltr2 = G2['lat_rho']
+    lnr2 = G2['lon_rho']
+    ltu1 = G1['lat_u']
+    lnu1 = G1['lon_u']
+    ltu2 = G2['lat_u']
+    lnu2 = G2['lon_u']
+    ltv1 = G1['lat_v']
+    lnv1 = G1['lon_v']
+    ltv2 = G2['lat_v']
+    lnv2 = G2['lon_v']
+    
+    his_ds = nc.Dataset(fn)
+
+    OCN_IC = dict()
+    OCN_IC['vinfo'] = get_vinfo_dict()
+
+    OCN_IC['Nz'] = np.squeeze(Nz2)
+    OCN_IC['Vtr'] = np.squeeze(Vtr2)
+    OCN_IC['Vst'] = np.squeeze(Vst2)
+    OCN_IC['th_s'] = np.squeeze(th_s2)
+    OCN_IC['th_b'] = np.squeeze(th_b2)
+    OCN_IC['Tcl'] = np.squeeze(Tcl2)
+    OCN_IC['hc'] = np.squeeze(hc2)
+
+    #OCN_IC['ocean_time']     = his_ds.variables['ocean_time'][0]
+    OCN_IC['ocean_time']     = his_ds.variables['ocean_time'][0:1] / (3600.0 * 24)  # his.nc ocean_time is seconds; convert to days
+
+    OCN_IC['ocean_time_ref'] = datetime(1999,1,1,0,0,0)
+
+    OCN_IC['lat_rho'] = ltr2
+    OCN_IC['lon_rho'] = lnr2
+    OCN_IC['lat_u']   = ltu2
+    OCN_IC['lon_u']   = lnu2
+    OCN_IC['lat_v']   = ltv2
+    OCN_IC['lon_v']   = lnv2
+
+    nlt, nln = np.shape(ltr2)
+    OCN_IC_0 = dict()
+    OCN_IC_0['temp'] = np.zeros((1,Nz1,nlt,nln))
+    OCN_IC_0['salt'] = np.zeros((1,Nz1,nlt,nln))
+    OCN_IC_0['u'] = np.zeros((1,Nz1,nlt,nln-1))
+    OCN_IC_0['v'] = np.zeros((1,Nz1,nlt-1,nln))
+
+
+    OCN_IC['temp'] = np.zeros((1,Nz2,nlt,nln))
+    OCN_IC['salt'] = np.zeros((1,Nz2,nlt,nln))
+    OCN_IC['u'] = np.zeros((1,Nz2,nlt,nln-1))
+    OCN_IC['v'] = np.zeros((1,Nz2,nlt-1,nln))
+    OCN_IC['zeta'] = np.zeros((1,nlt,nln))
+    OCN_IC['ubar'] = np.zeros((1,nlt,nln-1))
+    OCN_IC['vbar'] = np.zeros((1,nlt-1,nln))
+
+    # get a dict of depths that the interpolation thinks it is on
+    ZZ = dict() 
+    ZZ['rho'] = np.zeros((1,Nz1,nlt,nln))
+    ZZ['u'] = np.zeros((1,Nz1,nlt,nln-1))
+    ZZ['v'] = np.zeros((1,Nz1,nlt-1,nln))
+
+    # get (x,y) grids, note zi = interp_r( (eta,xi) )
+    xi_r2, eta_r2, interp_r = get_child_xi_eta_interp(lnr1,ltr1,lnr2,ltr2,'zeta')
+    xi_u2, eta_u2, interp_u = get_child_xi_eta_interp(lnu1,ltu1,lnu2,ltu2,'u')
+    xi_v2, eta_v2, interp_v = get_child_xi_eta_interp(lnv1,ltv1,lnv2,ltv2,'v')
+
+    # get nearest indices, from bad indices, so that land can be filled
+    indr = get_indices_to_fill(G1['mask_rho'])
+    indu = get_indices_to_fill(G1['mask_u'])
+    indv = get_indices_to_fill(G1['mask_v'])
+
+    # bookkeeping so that everything needed for each variable is associated with that variable
+    v_list1 = ['zeta','ubar','vbar']
+    v_list2 = ['temp','salt','u','v']
+
+    msk_d1 = dict()
+    msk_d1['zeta'] = G1['mask_rho']
+    msk_d1['ubar'] = G1['mask_u']
+    msk_d1['vbar'] = G1['mask_v']
+    msk_d2 = dict()
+    msk_d2['temp'] = G1['mask_rho']
+    msk_d2['salt'] = G1['mask_rho']
+    msk_d2['u']    = G1['mask_u']
+    msk_d2['v']    = G1['mask_v']
+
+    msk2_d1 = dict()
+    msk2_d1['zeta'] = G2['mask_rho']
+    msk2_d1['ubar'] = G2['mask_u']
+    msk2_d1['vbar'] = G2['mask_v']
+    msk2_d2 = dict()
+    msk2_d2['temp'] = G2['mask_rho']
+    msk2_d2['salt'] = G2['mask_rho']
+    msk2_d2['u']    = G2['mask_u']
+    msk2_d2['v']    = G2['mask_v']
+
+
+    ind_d1 = dict()
+    ind_d1['zeta'] = indr
+    ind_d1['ubar'] = indu
+    ind_d1['vbar'] = indv
+    ind_d2 = dict()
+    ind_d2['temp'] = indr
+    ind_d2['salt'] = indr
+    ind_d2['u']    = indu
+    ind_d2['v']    = indv
+
+    lat_d1 = dict()
+    lat_d1['zeta'] = eta_r2
+    lat_d1['ubar'] = eta_u2
+    lat_d1['vbar'] = eta_v2
+    lat_d2 = dict()
+    lat_d2['temp'] = eta_r2
+    lat_d2['salt'] = eta_r2
+    lat_d2['u']    = eta_u2
+    lat_d2['v']    = eta_v2
+
+    lon_d1 = dict()
+    lon_d1['zeta'] = xi_r2
+    lon_d1['ubar'] = xi_u2
+    lon_d1['vbar'] = xi_v2
+    lon_d2 = dict()
+    lon_d2['temp'] = xi_r2
+    lon_d2['salt'] = xi_r2
+    lon_d2['u']    = xi_u2
+    lon_d2['v']    = xi_v2
+
+    intf_d1 = dict()
+    intf_d1['zeta'] = interp_r
+    intf_d1['ubar'] = interp_u
+    intf_d1['vbar'] = interp_v
+    intf_d2 = dict()
+    intf_d2['temp'] = interp_r
+    intf_d2['salt'] = interp_r
+    intf_d2['u']    = interp_u
+    intf_d2['v']    = interp_v
+    
+    old = 0
+    if old == 1:
+        for vn in v_list1: # loop through all 2d variables and horizontally interpolate 
+            msk = msk_d1[vn] # get mask on LV1
+            msk2 = msk2_d1[vn] # get mask on LV2
+            ind = ind_d1[vn] # get indices so that land can be filled with nearest neighbor
+            xx2 = lon_d1[vn] # get xi_LV2 on LV1
+            yy2 = lat_d1[vn] # get eta_LV2 on LV1, to use with the interpolator
+            interpfun = intf_d1[vn]
+            tind = 0
+            z0 = np.squeeze(his_ds.variables[vn][tind,:,:] )
+            z0[msk==0] = z0[msk==1][ind] # fill the mask with nearest neighbor
+            setattr(interpfun,'values',z0) # change the interpolator z values
+            z2 = interpfun((yy2,xx2)) # perhaps change here to directly interpolate to (xi,eta) on the edges?
+            z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the land
+            OCN_IC[vn][tind,:,:] = z2[:,:] # fill correctly
+    else:
+        vn = 'zeta'
+        msk = msk_d1[vn] # get mask on LV1
+        msk2 = msk2_d1[vn] # get mask on LV2
+        ind = ind_d1[vn] # get indices so that land can be filled with nearest neighbor
+        xx2 = lon_d1[vn] # get xi_LV2 on LV1
+        yy2 = lat_d1[vn] # get eta_LV2 on LV1, to use with the interpolator
+        interpfun = intf_d1[vn]
+        tind = 0
+        z0 = np.squeeze(his_ds.variables[vn][tind,:,:] )
+        z0[msk==0] = z0[msk==1][ind] # fill the mask with nearest neighbor
+        setattr(interpfun,'values',z0) # change the interpolator z values
+        z2 = interpfun((yy2,xx2)) # perhaps change here to directly interpolate to (xi,eta) on the edges?
+        z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the land
+        OCN_IC[vn][tind,:,:] = z2[:,:] # fill correctly
+
+    # get vertical gridding for both levels
+    hraw = None
+    if Vst1 == 4:
+        zrom1 = s_coordinate_4(G1['h'], th_b1 , th_s1 , Tcl1 , Nz1, hraw=hraw, zeta=np.squeeze(his_ds.variables['zeta'][0,:,:]))
+    if Vst2 == 4:    
+        zrom2 = s_coordinate_4(G2['h'], th_b2 , th_s2 , Tcl2 , Nz2, hraw=hraw, zeta=np.squeeze(OCN_IC['zeta'][0,:,:]))
+
+    ZZ2 = np.squeeze(zrom2.z_r[0,:,:,:])    
+    OCN_IC['Cs_r'] = np.squeeze(zrom2.Cs_r)
+
+    # now loop through all 3d variables and horizontally interpolate at each S level
+    for vn in v_list2:
+        msk = msk_d2[vn]
+        msk2 = msk2_d2[vn]
+        ind = ind_d2[vn]
+        xx2 = lon_d2[vn]
+        yy2 = lat_d2[vn]
+        interpfun = intf_d2[vn]
+        tind = 0 
+        for zind in np.arange(Nz1):  # first we horizontally interpolate at each S level
+            z0 = np.squeeze( his_ds.variables[vn][tind,zind,:,:] )
+            z0[msk==0] = z0[msk==1][ind]
+            setattr(interpfun,'values',z0)
+            z2 = interpfun((yy2,xx2))
+            z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the mask
+            OCN_IC_0[vn][tind,zind,:,:] = z2[:,:]
+            if vn == 'temp':
+                z0 = np.squeeze( zrom1.z_r[tind,zind,:,:])
+                z0[msk==0] = z0[msk==1][ind] # fill in masked areas with nearest neighbor
+                setattr(interpfun,'values',z0)
+                z2 = interpfun((yy2,xx2))
+                ZZ['rho'][tind,zind,:,:] = z2 # we need the depths that the horizontal interpolation thinks it is
+            if vn == 'u':
+                z0 = np.squeeze( zrom1.z_r[tind,zind,:,:])
+                z0 = 0.5 * ( z0[:,0:-1] + z0[:,1:] )
+                z0[msk==0] = z0[msk==1][ind] # fill in masked areas with nearest neighbor
+                setattr(interpfun,'values',z0)
+                z2 = interpfun((yy2,xx2))
+                ZZ['u'][tind,zind,:,:] = z2
+            if vn == 'v':
+                z0 = np.squeeze( zrom1.z_r[tind,zind,:,:])
+                z0 = 0.5 * ( z0[0:-1,:] + z0[1:,:] )
+                z0[msk==0] = z0[msk==1][ind] # fill in masked areas with nearest neighbor
+                setattr(interpfun,'values',z0)
+                z2 = interpfun((yy2,xx2))
+                ZZ['v'][tind,zind,:,:] = z2
+
+
+    if lvl == '4': # we need to rotate the velocities
+        method = 1
+        if method == 1: # this method works for making BC(u_edge) = IC(u_edge)
+            #print('using method 1 for IC rotation')
+            ang2on2 = G2['angle']
+            ang2on2u = .5*( ang2on2[:,0:-1] + ang2on2[:,1:] )
+            ang2on2v = .5*( ang2on2[0:-1,:] + ang2on2[1:,:] )
+            
+            # this part rotates ubar. we need vb1on2
+            interpfun = intf_d1['zeta'] 
+            msk = msk_d1['vbar']
+            msk2 = msk2_d1['ubar']
+            ind = ind_d1['vbar']
+            xx2 = lon_d1['ubar']
+            yy2 = lat_d1['ubar']
+            z0 = G1['angle'][:]
+            setattr(interpfun,'values',z0)
+            ang1on2u = interpfun((yy2,xx2))
+            #print('ang1on2u[0,0:5]')
+            #print(ang1on2u[0,0:5])
+            cos_ang = np.cos( ang2on2u - ang1on2u )
+            sin_ang = np.sin( ang2on2u - ang1on2u )
+            
+            interpfun = intf_d1['vbar']
+
+            for zind in np.arange(Nz1): # now rotate to new u
+                z0 = np.squeeze( his_ds.variables['v'][tind,zind,:,:] )
+                z0[msk==0] = z0[msk==1][ind]
+                setattr(interpfun,'values',z0)
+                z2 = interpfun((yy2,xx2))
+                z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the mask
+                OCN_IC_0['u'][tind,zind,:,:] = cos_ang * np.squeeze( OCN_IC_0['u'][tind,zind,:,:]) + sin_ang * z2[:,:]
+
+            interpfun = intf_d1['zeta'] 
+            msk = msk_d1['ubar']
+            msk2 = msk2_d1['vbar']
+            ind = ind_d1['ubar']
+            xx2 = lon_d1['vbar']
+            yy2 = lat_d1['vbar']
+            z0 = G1['angle'][:]
+            setattr(interpfun,'values',z0)
+            ang1on2v = interpfun((yy2,xx2))
+            cos_ang = np.cos( ang2on2v - ang1on2v )
+            sin_ang = np.sin( ang2on2v - ang1on2v )
+            
+            #z0 = np.squeeze( IC1['ubar'][tind,:,:] )
+            #z0[msk==0] = z0[msk==1][ind]
+            interpfun = intf_d1['ubar']
+            
+            for zind in np.arange(Nz1): # now rotate to new v
+                z0 = np.squeeze( his_ds.variables['u'][tind,zind,:,:] )
+                z0[msk==0] = z0[msk==1][ind]
+                setattr(interpfun,'values',z0)
+                z2 = interpfun((yy2,xx2))
+                z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the mask
+                OCN_IC_0['v'][tind,zind,:,:] = cos_ang * np.squeeze( OCN_IC_0['v'][tind,zind,:,:]) - sin_ang * z2[:,:]
+        else:
+            print('using method 2 for IC rotation')
+            ang2on2 = G2['angle']
+            ang2on2u = .5*( ang2on2[:,0:-1] + ang2on2[:,1:] )
+            ang2on2v = .5*( ang2on2[0:-1,:] + ang2on2[1:,:] )
+            
+            # get angle 1 on 2u, 2v
+            interpfun = intf_d1['zeta'] 
+            z0 = G1['angle'][:]
+            setattr(interpfun,'values',z0)
+            xx2 = lon_d1['ubar']
+            yy2 = lat_d1['ubar']
+            ang1on2u = interpfun((yy2,xx2))
+            xx2 = lon_d1['vbar']
+            yy2 = lat_d1['vbar']
+            ang1on2v = interpfun((yy2,xx2))
+
+            ang2m1u = ang2on2u - ang1on2u 
+            ang2m1v = ang2on2v - ang1on2v 
+
+            cos_u = np.cos(ang2m1u)
+            sin_u = np.sin(ang2m1u)
+            cos_v = np.sin(ang2m1v)
+            sin_v = np.sin(ang2m1v)
+
+
+            # this part rotates ubar. we need vb1on2
+            TMP = dict()
+            TMP['v_on_ubar'] = np.zeros((1,Nz1,nlt,nln-1))
+            TMP['vbar_on_ubar'] = np.zeros((1,nlt,nln-1))
+            TMP['u_on_vbar'] = np.zeros((1,Nz1,nlt-1,nln))
+            TMP['ubar_on_vbar'] = np.zeros((1,nlt-1,nln))
+
+
+            vns = ['vbar','v','ubar','u']
+            gr2 = dict() 
+            gr2['vbar'] = 'ubar'
+            gr2['v'] = 'ubar'
+            gr2['ubar'] = 'vbar'
+            gr2['u'] = 'vbar'
+            gr1 = dict()
+            gr1['vbar'] = 'vbar'
+            gr1['v'] = 'vbar'
+            gr1['ubar'] = 'ubar'
+            gr1['u'] = 'ubar'
+
+
+            for vn in vns:
+                interpfun = intf_d1[gr1[vn]]
+                ind = ind_d1[gr1[vn]]
+                msk = msk_d1[gr1[vn]]
+                msk2 = msk2_d1[gr2[vn]]
+                xx2 = lon_d1[gr2[vn]]
+                yy2 = lon_d1[gr2[vn]]
+                if vn in ['vbar','ubar']:
+                    z0 = np.squeeze( his_ds.variables[vn][tind,:,:] )
+                    z0[msk==0] = z0[msk==1][ind]
+                    setattr(interpfun,'values',z0)
+                    z2 = interpfun((yy2,xx2))
+                    z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the mask
+                    TMP[vn+'_on_'+gr2[vn]][0,:,:] = z2
+                else:
+                    for zind in np.arange(Nz1):
+                        z0 = np.squeeze( his_ds.variables[vn][tind,zind,:,:] )
+                        z0[msk==0] = z0[msk==1][ind]
+                        setattr(interpfun,'values',z0)
+                        z2 = interpfun((yy2,xx2))
+                        z2[msk2==0] = np.mean(z2[msk2==1]) # put mean on the mask
+                        TMP[vn+'_on_'+gr2[vn]][0,zind,:,:] = z2
+
+            OCN_IC['ubar'] = cos_u[None,:,:] * OCN_IC['ubar'] + sin_u[None,:,:] * TMP['vbar_on_ubar']
+            OCN_IC['vbar'] = cos_v[None,:,:] * OCN_IC['vbar'] - sin_v[None,:,:] * TMP['ubar_on_vbar']
+            OCN_IC_0['u'] = cos_u[None,None,:,:] * OCN_IC_0['u'] + sin_u[None,None,:,:] * TMP['v_on_ubar']
+            OCN_IC_0['v'] = cos_v[None,None,:,:] * OCN_IC_0['v'] - sin_v[None,None,:,:] * TMP['u_on_vbar']
+
+
+    zlist = dict()
+    zlist['temp'] = 'rho'
+    zlist['salt'] = 'rho'
+    zlist['u'] = 'u'
+    zlist['v'] = 'v'
+
+    # now loop through all 3d variables and vertically interpolate to the correct z levels.
+    old = 0
+    if old == 1:
+        for vn in v_list2:
+            tind = 0
+            v1 = OCN_IC_0[vn][tind,:,:,:] # the horizontally interpolated field
+            z1 = ZZ[zlist[vn]][tind,:,:,:] # the depths that the interpolation thinks it is on
+            nnz,nnlt,nnln = np.shape(v1)
+            for aa in np.arange(nnlt):
+                for bb in np.arange(nnln):
+                    if vn in ['temp','salt']:
+                        z2 = np.squeeze( ZZ2[:,aa,bb])
+                    if vn == 'u':
+                        z2 = np.squeeze( 0.5*( ZZ2[:,aa,bb]+ZZ2[:,aa,bb+1] ) )
+                    if vn == 'v':
+                        z2 = np.squeeze( 0.5*( ZZ2[:,aa,bb]+ZZ2[:,aa+1,bb] ) )
+
+                    Fz = interp1d(np.squeeze(z1[:,aa,bb]),np.squeeze(v1[:,aa,bb]),bounds_error=False,kind='linear',fill_value = 'extrapolate') 
+                    v2 =  np.squeeze(Fz(z2))
+                    OCN_IC[vn][tind,:,aa,bb] = v2                
+    else:
+        for vn in ['temp','salt']:
+            tind = 0
+            v1 = OCN_IC_0[vn][tind,:,:,:] # the horizontally interpolated field
+            z1 = ZZ[zlist[vn]][tind,:,:,:] # the depths that the interpolation thinks it is on
+            nnz,nnlt,nnln = np.shape(v1)
+            for aa in np.arange(nnlt):
+                for bb in np.arange(nnln):
+                    z2 = np.squeeze( ZZ2[:,aa,bb])
+                    Fz = interp1d(np.squeeze(z1[:,aa,bb]),np.squeeze(v1[:,aa,bb]),bounds_error=False,kind='linear',fill_value = 'extrapolate') 
+                    v2 =  np.squeeze(Fz(z2))
+                    OCN_IC[vn][tind,:,aa,bb] = v2    
+        vn = 'u'                        
+        tind = 0
+        v1 = OCN_IC_0[vn][tind,:,:,:] # the horizontally interpolated field
+        z1 = ZZ[zlist[vn]][tind,:,:,:] # the depths that the interpolation thinks it is on
+        nnz,nnlt,nnln = np.shape(v1)
+        for aa in np.arange(nnlt):
+            for bb in np.arange(nnln):
+                z2 = np.squeeze( 0.5*( ZZ2[:,aa,bb]+ZZ2[:,aa,bb+1] ) )
+                Fz = interp1d(np.squeeze(z1[:,aa,bb]),np.squeeze(v1[:,aa,bb]),bounds_error=False,kind='linear',fill_value = 'extrapolate') 
+                v2 =  np.squeeze(Fz(z2))
+                OCN_IC[vn][tind,:,aa,bb] = v2
+                zeta = 0.5 * ( OCN_IC['zeta'][tind,aa,bb] + OCN_IC['zeta'][tind,aa,bb+1] )
+                hb = 0.5 * ( G2['h'][aa,bb] + G2['h'][aa,bb+1])
+                OCN_IC['ubar'][tind,aa,bb] = get_depth_avg_v(v2,z2,zeta,hb)
+        vn = 'v'                        
+        tind = 0
+        v1 = OCN_IC_0[vn][tind,:,:,:] # the horizontally interpolated field
+        z1 = ZZ[zlist[vn]][tind,:,:,:] # the depths that the interpolation thinks it is on
+        nnz,nnlt,nnln = np.shape(v1)
+        for aa in np.arange(nnlt):
+            for bb in np.arange(nnln):
+                z2 = np.squeeze( 0.5*( ZZ2[:,aa,bb]+ZZ2[:,aa+1,bb] ) )
+                Fz = interp1d(np.squeeze(z1[:,aa,bb]),np.squeeze(v1[:,aa,bb]),bounds_error=False,kind='linear',fill_value = 'extrapolate') 
+                v2 =  np.squeeze(Fz(z2))
+                OCN_IC[vn][tind,:,aa,bb] = v2
+                zeta = 0.5 * ( OCN_IC['zeta'][tind,aa,bb] + OCN_IC['zeta'][tind,aa+1,bb] )
+                hb = 0.5 * ( G2['h'][aa,bb] + G2['h'][aa+1,bb])
+                OCN_IC['vbar'][tind,aa,bb] = get_depth_avg_v(v2,z2,zeta,hb)
+
+
+    with open(fn_out,'wb') as fout:
+        pickle.dump(OCN_IC,fout, protocol=pickle.HIGHEST_PROTOCOL)
+        print('OCN_LV'+lvl+'_IC dict saved with pickle')
+
 
 
 def ocn_roms_IC_dict_to_netcdf_pckl(fname_in,fn_out):

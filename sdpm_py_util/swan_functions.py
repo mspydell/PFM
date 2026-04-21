@@ -366,6 +366,118 @@ def cdip_ncs_to_dict(refresh,pkl_fnm):
         pickle.dump(cdip,fp)
         print('\nCDIP data saved as pickle file')
 
+def cdip_ncs_to_dict_fillin(refresh,pkl_fnm):
+    
+    PFM=initfuns.get_model_info(pkl_fnm)
+    cdip_dir = PFM['cdip_data_dir']
+    if refresh == 'refresh':
+        print('removing previous cdip .nc files...')
+        for f in glob.glob(cdip_dir + '/*.nc'):
+            os.remove(f)        
+        print('...done. getting new cdip .nc files...')
+        get_cdip_data(pkl_fnm)
+    else:
+        print('using the existing cdip .nc data.')
+
+    cdip_txt = PFM['cdip_data_dir'] + '/cdip_*_' + datetime.strftime(PFM['fetch_time'],'%Y%m%d%H' + '.nc')
+
+    fns = glob.glob( cdip_txt )
+    nlocs = len(fns)
+    #print('there are ', nlocs, ' cdip locations on the LV4 boundary.')
+    
+
+    print('...done. Now making dictionary of cdip data...')
+    dd = nc.Dataset(fns[0])
+    # these don't depend on the location
+    f     = np.array( dd['waveFrequency'][:].data )
+    fmn   = 0.04
+    fmx   = 0.26
+    msk   = (f >= fmn) & (f <= fmx)
+    ii    = np.arange(len(f))
+    igf   = ii[msk]
+    f2    = f[igf]
+    nf    = len(f2)
+    dir   = np.array( dd['waveDirection'][:].data )
+    dmx   = 360.0
+    dmn   = 155.0
+    msk   = (dir >= dmn) & (dir <= dmx)
+    ii    = np.arange(len(dir))
+    igd   = ii[msk]
+    dir2  = dir[igd]
+    ndir  = len(dir2)
+    t     = dd.variables['waveTime']
+
+    t2 = nc.num2date(t[:], t.units)
+    t2 = np.array([datetime(year=date.year, month=date.month, day=date.day, 
+                              hour=date.hour, minute=date.minute, second=date.second) for date in t2])
+
+
+    t00 = PFM['fetch_time'] # the first forecast time
+    t10 = t00 + PFM['forecast_days'] * timedelta(days=1)    # need to find the right t's for the forecast...
+    # t10 is the last forecast time
+    msk = (t2 >= t00) & (t2 <= t10)
+    ii = np.arange(len(t2))
+    igt = ii[msk] # these are now the indices of the cdip forecast that match the timeframe of the PFM forecast
+    nt = len(igt)
+
+    cdip = dict()
+    cdip['f'] = f2
+    cdip['dir'] = dir2
+    cdip['time'] = t2[igt]
+    cdip['lats']=np.zeros(nlocs)
+    cdip['lons']=np.zeros(nlocs)
+    
+    lons = np.zeros(nlocs)
+    lats = np.zeros(nlocs)
+    cdip['Spp'] = np.zeros([nlocs,nt,nf,ndir])
+
+    i=0
+    for fn in fns:
+        dd = xr.open_dataset(fn)
+        lat   = dd['metaLatitude'].values
+        lon   = dd['metaLongitude'].values
+        lats[i] = lat
+        lons[i] = lon
+        i = i + 1
+ 
+    i_sort = np.argsort(lons)
+
+    i_sort2 = i_sort.copy()
+    # this rearranging gets the locations to go CCW around the boundary
+    i_sort2[[0,2,3]] = i_sort[[3,0,2]]   
+
+    # flipping gets the locations to go CW around the boundary
+    i_sort2 = np.flip(i_sort2)
+    # i_sort is now the proper ording of the locations.
+
+    fns_sorted = []
+    for ii in i_sort2:
+        fns_sorted.append(fns[ii])
+
+    i=0
+    for fn in fns_sorted:
+        dd = xr.open_dataset(fn)
+        cdip['lats'][i] = dd['metaLatitude'].values
+        cdip['lons'][i] = dd['metaLongitude'].values
+        cdip['Spp'][i,:,:,:] = dd['waveDirectionalSpectrum'][igt,igf,igd]
+        i = i + 1
+
+    # two grid points are not in the right place... fudge them just a tad.
+    gr4 = nc.Dataset(PFM['lv4_grid_file'])
+    cdip['lons'][-2] = gr4['lon_rho'][-1,0]
+    cdip['lats'][-2] = gr4['lat_rho'][-1,0]
+    cdip['lons'][-1] = gr4['lon_rho'][-1,10]
+    cdip['lats'][-1] = gr4['lat_rho'][-1,10]
+
+
+    print('...done.')
+
+    fn_out = PFM['lv4_forc_dir'] + '/' + PFM['lv4_swan_pckl_file']
+    with open(fn_out,'wb') as fp:
+        pickle.dump(cdip,fp)
+        print('\nCDIP data saved as pickle file')
+
+
 
 def cdip_ncs_to_dict_hind(pkl_fnm):
     
