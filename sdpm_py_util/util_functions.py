@@ -336,6 +336,11 @@ def make_web_nc_file(pkl_fnm):
         sys.exit(1)
 
     os.chdir('../driver')
+
+    if MI['testing_hook_web']:
+        print('we are in testing mode (in util_functions). we will exit this function  now before moving web.nc to the archive.')
+        return
+
     #fn_wb = MI['lv4_web_name_full'] 
     #print('moving and copying', fn_wb, ' file')
     web_dir = MI['lv4_for_web_dir']

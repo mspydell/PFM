@@ -380,8 +380,11 @@ def cdip_ncs_to_dict_fillin(refresh,pkl_fnm):
         print('using the existing cdip .nc data.')
 
     cdip_txt = PFM['cdip_data_dir'] + '/cdip_*_' + datetime.strftime(PFM['fetch_time'],'%Y%m%d%H' + '.nc')
-
+    print('we are lookking for the files is')
+    print(cdip_txt)
     fns = glob.glob( cdip_txt )
+    print('the cdip .nc files are:')
+    print(fns)
     nlocs = len(fns)
     #print('there are ', nlocs, ' cdip locations on the LV4 boundary.')
     
@@ -585,7 +588,7 @@ def check_and_move(fname,dt_sec,nfiles,pkl_fnm):
     #PFM['lv4_swan_rst_name']  = 'LV4_swan_rst_' + yyyymmdd + hhmm + '.dat' 
                     # becomes: LV4_swan_rst_202412010600.dat-001 etc
 
-    rst_dir = PFM['restart_files_dir'] + '/'
+    rst_dir = PFM['restart_swanfiles_dir_out'] + '/'
     dt_sec = int(dt_sec)
     nfiles = int(nfiles)
 
@@ -603,12 +606,7 @@ def check_and_move(fname,dt_sec,nfiles,pkl_fnm):
     
     dtf = int( PFM['lv4_swan_rst_int_hr'] )
 
-    #print('swan restart files are made every: ' + str(dtf) + ' hrs')
-    #thr_max = PFM['fore_days'] * 24 
-    #thr_max = 36
-
-    # make sure we are working with brand new files and time stamps.
- 
+    
 
     """Watches the source file and copies it to the destination when it's written."""
     while True: # an endless while loop, be careful!

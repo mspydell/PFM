@@ -26,7 +26,9 @@ def driver_run_forecast_LV4_only( pkl_fnm ):
         print('\n--------------------------')
         print('starting ' + lvl)
         os.chdir('../driver')
-        cmd_list = ['python','-u','-W','ignore','driver_functions.py','run_fore_simulation',lvl,pkl_fnm]
+        cmd_list = ['python','-u','-W','ignore','driver_functions.py','run_fore_lv4_fillin',pkl_fnm]
+        print('now doing:')
+        print(cmd_list)
         ret1 = subprocess.run(cmd_list)     
         print('done with ' + lvl)
         print(lvl, ' forecast ran correctly? ' + str(ret1.returncode) + ' (0=yes)')

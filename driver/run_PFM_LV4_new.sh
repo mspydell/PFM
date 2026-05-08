@@ -29,11 +29,10 @@ conda activate PHM-env
 
 ########
 
-dateZ=$(date '+%Y%m%d')
-fstdout=/home/mspydell/models/PFM_root/PFM/log/LVs_forecast_system_${dateZ}.log
+dateZ=$(date '+%Y%m%d%H')
+fstdout=/home/mspydell/models/PFM_root/PFM/log/LV4_pfm_system_new.log
+info_pkl="/scratch/PFM_Simulations/forecast_info_mss_testing.pkl"
 
-in_py="/home/mspydell/models/PFM_root/PFM/sdpm_py_util/pfm_operational_input_new.py"
-info_pkl="/scratch/PFM_Simulations/forecast_info_mss_new.pkl"
-python -u -W "ignore" driver_run_pfm_phm.py $in_py $info_pkl > ${fstdout} 2>&1
+python -u -W "ignore" driver_run_LV4_new.py $info_pkl > ${fstdout} 2>&1
 
 cd /home/mspydell/models/PFM_root/PFM

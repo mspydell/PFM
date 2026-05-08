@@ -1,13 +1,13 @@
 #!/bin/bash
 
 # job name
-#SBATCH --job-name=LV1_$mod_type$
+#SBATCH --job-name=LV4_FORECAST
 
 # slurm job output file
 #SBATCH --output=%j.out
 
 # partition of nodes to use
-#SBATCH --partition=$partition$
+#SBATCH --partition=fast-hiprio
 
 # number of cpus for a task
 #SBATCH --cpus-per-task=1
@@ -17,10 +17,10 @@
 #SBATCH --ntasks-per-node=36
 
 # number of nodes to use
-#SBATCH --nodes=$nnodes$
+#SBATCH --nodes=14
 
 # max time for the simulation, D-HH:MM
-#SBATCH --time=$lv1_max_time$
+#SBATCH --time=0-06:00
 
 module purge
 module load slurm
@@ -34,11 +34,9 @@ module load netcdf-fortran/ifort/mvapich2/4.6.1
 module load mvapich2/ifort/2.3.7
 
 export MV2_HOMOGENEOUS_CLUSTER=1
-#export LD_LIBRARY_PATH=/cm/shared/apps/netcdf/gcc/64/4.8.1/lib:$LD_LIBRARY_PATH
 
-MYAPP=$lv1_executable$
+MYAPP=/scratch/matt/testing/LV4/coawst_new/coawstM
 
-srun --mpi=pmi2 -v $MYAPP  $lv1_infile_local$  > $lv1_logfile_local$
+srun --mpi=pmi2 -v  $MYAPP LV4_forecast_coupled.in  > LV4_forecast.log
 
-sleep 60
-seff $SLURM_JOB_ID
+

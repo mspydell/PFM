@@ -37,6 +37,38 @@ def driver_run_forecast_LV4_fillin_apr26( input_py_full, pkl_fnm ):
     cmd_list = ['python','-u','-W','ignore','driver_functions.py','run_fore_lv4_fillin',pkl_fnm]
     ret1 = subprocess.run(cmd_list)     
     print('done')
+
+    print('removing the Boundary condition file...')
+    BC_nc_fname = MI['lv4_forc_dir'] + '/' + MI['lv4_bc_file']
+    if os.path.isfile(BC_nc_fname):
+        print('the file exists, removing it.')
+        cmd_lst = ['rm',BC_nc_fname]
+        subprocess.run(cmd_lst)
+        print('done')
+    else:
+        print('there was no BC file to remove:')
+        print(BC_nc_fname)
+
+
+    if MI['fetch_time'] <= datetime(2025,4,6,0,0,0):
+        move_his = 0
+    else:
+        move_his = 1
+    
+    if move_his == 1:
+        print('moving the history file to the archive')
+        his_name = MI['lv4_his_name_full']
+        his_basename = os.path.basename(his_name)
+        his_archive_name = '/dataSIO/PFM_Simulations/Archive/LV4_His/' + his_basename
+        if os.path.isfile(his_name):
+            cmd_list = ['mv',his_name,his_archive_name]
+            subprocess.run(cmd_list)
+            print('done moving it.')
+        else:
+            print('couldnt find the file:')
+            print(his_name)
+    else:
+        print('we are not moving this history file!')
         
 
 if __name__ == "__main__":

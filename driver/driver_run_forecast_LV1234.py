@@ -37,6 +37,9 @@ def driver_run_forecast_LV1234( pkl_fnm ):
         print(t2-t1)
         print('\n')
         
+        print('done with level:')
+        print(lvl)
+
         if lvl == 'LV4':
             print('making web.nc file...')
             t01 = datetime.now()
@@ -55,7 +58,6 @@ def driver_run_forecast_LV1234( pkl_fnm ):
             print('copying and moving LV4 river to Archive with Popen...')
             utilfuns.copy_mv_nc_file_v2('river','lv4',pkl_fnm)
             print('moving on...')
-
 
     #lvs_to_plt = ['LV1','LV2','LV3','LV4','LV4dye']
     lvs_to_plt = ['LV4','LV4dye']

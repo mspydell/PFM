@@ -289,7 +289,7 @@ def remove_old_restart_ncs(pkl_fnm):
     PFM = get_model_info(pkl_fnm)
     #PFM['restart_files_dir'] = '/scratch/PFM_Simulations/restart_data'
     for lvl in ['LV1','LV2','LV3','LV4']:
-        rst_files = glob.glob(PFM['restart_files_dir'] + '/' + lvl + '*.nc')
+        rst_files = glob.glob(PFM['restart_ncfiles_dir_in'] + '/' + lvl + '*.nc')
         for rf in rst_files:
             head, tail = os.path.split(rf)
             yyyymmddhh = tail[14:24]
@@ -325,7 +325,7 @@ def get_swan_restart_file_name(pkl_fnm):
         
     print('going to restart swan, forecast start time is')
     print(t_fore)
-    rst_files = glob.glob(PFM['restart_files_dir'] + '/*_???.dat-001') # only examine cpu 1 files for timing
+    rst_files = glob.glob(PFM['restart_swanfiles_dir_in'] + '/*_???.dat-001') # only examine cpu 1 files for timing
  
     #print(rst_files)
 
@@ -372,7 +372,7 @@ def get_restart_file_and_index(lvl,pkl_fnm):
 
     print('going to restart ' + lvl + ' from')
     print(t_fore)
-    rst_files = glob.glob(PFM['restart_files_dir'] + '/' + lvl + '*.nc')
+    rst_files = glob.glob(PFM['restart_ncfiles_dir_in'] + '/' + lvl + '*.nc')
     dts = []
     for rf in rst_files:
         head, tail = os.path.split(rf)
@@ -499,8 +499,7 @@ def set_up_for_autostart_hindcast( PFM ):
 
 def remove_old_swan_rst(pkl_fnm):
     PFM = get_model_info(pkl_fnm)
-    PFM['restart_file_dir'] = '/scratch/PFM_Simulations/restart_data'
-    rst_files = glob.glob(PFM['restart_file_dir'] + '/LV4*dat*')
+    rst_files = glob.glob(PFM['restart_file_dir_in'] + '/LV4*dat*')
     if len(rst_files)>0:
         for rf in rst_files:
             head, tail = os.path.split(rf)
@@ -520,13 +519,13 @@ def get_old_restart_files_list(ftype,older_than_days,pkl_fnm):
     dt_test = dt_now - older_than_days * timedelta(days=1)
 
     if ftype == 'ocean':
-        rst_files = glob.glob(PFM['restart_files_dir'] + '/LV*.nc')
+        rst_files = glob.glob(PFM['restart_ncfiles_dir_in'] + '/LV*.nc')
         #itail = np.arange(14,25)
         #itail = list(range(14,25))
         i1 = 14
         i2 = 24
     elif ftype == 'swan':
-        rst_files = glob.glob(PFM['restart_files_dir'] + '/LV4*dat*')
+        rst_files = glob.glob(PFM['restart_swanfiles_dir_in'] + '/LV4*dat*')
         #itail = np.arange(13,24)
         #itail = list(range(13,24))
         i1 = 13
@@ -557,7 +556,7 @@ def remove_old_restart_files(ftype,older_than_days,pkl_fnm):
 def remove_old_swan_hind_restarts(pkl_fnm):
     PFM = get_model_info(pkl_fnm)
     t_hind = PFM['sim_time_1']
-    f_names = glob.glob(PFM['restart_files_dir'] + '/LV4*_???.dat*')
+    f_names = glob.glob(PFM['restart_swanfiles_dir_in'] + '/LV4*_???.dat*')
     for fn in f_names:
         t_fn = datetime.strptime(fn[-24:-16],'%Y%m%d')
         # only remvoe files older than the current hindcast - 14 days.
@@ -572,7 +571,7 @@ def remove_swan_restarts_eq_foretime(pkl_fnm):
     else:
         t_fore = PFM['sim_time_1']
 
-    rst_files = glob.glob(PFM['restart_files_dir'] + '/LV4*dat*')
+    rst_files = glob.glob(PFM['restart_swanfiles_dir_in'] + '/LV4*dat*')
     i1 = 13
     i2 = 23
     rmd = 0
@@ -596,7 +595,7 @@ def remove_swan_rst_nohour(pkl_fnm):
     # this removes the files swan writes to that do not have hr time stamps, just keeps the restart directory clean.
     # we will call at the beginning of a PFM run.
     PFM = get_model_info(pkl_fnm)
-    fns = glob.glob(PFM['restart_files_dir'] + '/LV4_swan_rst_????????????.dat-*')
+    fns = glob.glob(PFM['restart_swanfiles_dir_in'] + '/LV4_swan_rst_????????????.dat-*')
     print('going to deleting swan base rst files...')
     if len(fns)>0:
         print('deleting some files...')
@@ -702,11 +701,12 @@ def delete_zero_size_files(directory_path):
 
 def remove_zero_size_files( pkl_fnm ):
     PFM = get_model_info(pkl_fnm)
-    dir_rst = PFM['restart_files_dir']
+    dir_rstnc = PFM['restart_ncfiles_dir_in']
+    dir_rstswan = PFM['restart_swanfiles_dir_in']
     dir_cdip = PFM['cdip_data_dir']
     dir_hyc = PFM['hycom_dir']
     # remove zero size files in these directories...
-    for dr_path in [dir_rst,dir_cdip,dir_hyc]:
+    for dr_path in [dir_rstnc,dir_rstswan,dir_cdip,dir_hyc]:
         delete_zero_size_files(dr_path)
 
     # remove *.tmp files in dir_hyc if there are any

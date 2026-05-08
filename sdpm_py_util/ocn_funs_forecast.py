@@ -4635,6 +4635,84 @@ def mk_LV2_IC_dict(lvl,pkl_fnm):
         pickle.dump(OCN_IC,fout, protocol=pickle.HIGHEST_PROTOCOL)
         print('OCN_LV'+lvl+'_IC dict saved with pickle')
 
+def make_IC_from_his(grd_fn, his_fn, IC_nc_fn, time_index=0):
+    # Build a sanitized ROMS IC netCDF from a history file.
+    #   grd_fn     : path to the grid .nc (used for static masks)
+    #   his_fn     : path to a ROMS history .nc
+    #   IC_nc_fn   : output IC .nc path (overwritten if it exists)
+    #   time_index : which time record of his_fn to use (default 0 = first)
+    #
+    # Sanitization: temp clipped to [5,30] C and salt to [0,36] PSU at static-wet
+    # cells (per-layer median for out-of-range), and u/v/ubar/vbar fill values
+    # (1e+37) or NaNs at static-wet cells set to 0. Land-fill values (mask=0)
+    # are left untouched.
+
+    with nc.Dataset(grd_fn) as g:
+        mask_rho = g.variables['mask_rho'][:].astype(bool)
+        mask_u   = g.variables['mask_u'][:].astype(bool)
+        mask_v   = g.variables['mask_v'][:].astype(bool)
+    masks = {'temp': mask_rho, 'salt': mask_rho, 'zeta': mask_rho,
+             'dye_01': mask_rho, 'dye_02': mask_rho,
+             'u': mask_u, 'ubar': mask_u,
+             'v': mask_v, 'vbar': mask_v}
+
+    def _clip_tracer(a, mk, lo, hi):
+        # replace static-wet cells out of [lo,hi] with per-layer median (excluding fills)
+        for k in range(a.shape[1]):
+            slab = a[0, k]
+            wet  = mk
+            ok   = (slab >= lo) & (slab <= hi) & (slab < 1e30) & wet
+            if not ok.any():
+                continue
+            med  = float(np.median(slab[ok]))
+            bad  = (~((slab >= lo) & (slab <= hi))) & (slab < 1e30) & wet
+            if bad.any():
+                slab[bad] = med
+            a[0, k] = slab
+        return a
+
+    if os.path.exists(IC_nc_fn):
+        os.remove(IC_nc_fn)
+
+    with nc.Dataset(his_fn, 'r') as src, nc.Dataset(IC_nc_fn, 'w', format='NETCDF4_CLASSIC') as dst:
+        dst.setncatts({a: src.getncattr(a) for a in src.ncattrs()})
+        for dname, d in src.dimensions.items():
+            dst.createDimension(dname, None if dname == 'ocean_time' else len(d))
+        for vname, vsrc in src.variables.items():
+            fv = vsrc.getncattr('_FillValue') if '_FillValue' in vsrc.ncattrs() else None
+            vd = dst.createVariable(vname, vsrc.dtype, vsrc.dimensions, fill_value=fv)
+            vd.setncatts({a: vsrc.getncattr(a) for a in vsrc.ncattrs() if a != '_FillValue'})
+        for vname, vsrc in src.variables.items():
+            vd = dst.variables[vname]
+            if 'ocean_time' in vsrc.dimensions:
+                a = np.array(vsrc[time_index:time_index+1])
+                if vname == 'salt':
+                    a = _clip_tracer(a, mask_rho, 0.0, 36.0)
+                elif vname == 'temp':
+                    a = _clip_tracer(a, mask_rho, 5.0, 30.0)
+                elif vname in ('u', 'v', 'ubar', 'vbar'):
+                    bm  = np.broadcast_to(masks[vname], a.shape)
+                    bad = bm & ((a > 1e30) | np.isnan(a) | (np.abs(a) > 100.0))
+                    if bad.any():
+                        a[bad] = 0.0
+                vd[:] = a
+            else:
+                vd[:] = vsrc[:]
+
+    print(f'make_IC_from_his: wrote {IC_nc_fn}  (time_index={time_index} of {his_fn})')
+
+
+def mk_LV4_IC_nc_from_hisnc(pkl_fnm,lv4_ic_file_out):
+
+    PFM=initfuns.get_model_info(pkl_fnm)
+    fore_dt = PFM['fetch_time']
+    grd_fn = PFM['lv4_grid_file']
+    dir_0 = '/dataSIO/PFM_Simulations/Archive/LV4_His/'
+    t_his = fore_dt - timedelta(days=1)
+    t_his_str = t_his.strftime('%Y%m%d%H%M')
+    his_fn = dir_0 + 'LV4_ocean_his_' + t_his_str + '.nc'
+    make_IC_from_his(grd_fn,his_fn,lv4_ic_file_out,24)
+
 def mk_LV2_IC_dict_from_hisnc(lvl,pkl_fnm):
 
     PFM=initfuns.get_model_info(pkl_fnm)  

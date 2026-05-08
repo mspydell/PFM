@@ -1756,6 +1756,32 @@ def run_fore_LV4(pkl_fnm):
         pickle.dump(dt_LV4,fout)
         print('OCN_LV4 timing info dict saved with pickle to: ',fn_timing)
 
+def run_fore_LV4_dotin_and_run(pkl_fnm):
+    MI = initfuns.get_model_info(pkl_fnm)
+    level = 4
+
+    # make all of the dotins
+    print('making LV4 ocean, swan, coupling .in and .sb...')
+    os.chdir('../sdpm_py_util')
+    runfuns.make_LV4_coawst_dotins_dotsb(pkl_fnm,'fore')
+    print('...done')
+
+    ################
+    # run coawst LV4
+    print('now running Coawst LV4 with slurm.')
+    print('using ' + str(MI['gridinfo']['L4','nnodes']) + ' nodes (= ' + str(36 * MI['gridinfo']['L4','nnodes']) + ' CPUs.)')
+    print('using ' + str( MI['gridinfo']['L4','ntilei']*MI['gridinfo']['L4','ntilej'] ) + ' CPUs for ROMS, with tiling:')
+    print('Ni = ' + str(MI['gridinfo']['L4','ntilei']) + ', NJ = ' + str(MI['gridinfo']['L4','ntilej']))
+    print('and using ' + str(MI['gridinfo']['L4','np_swan']) + ' CPUs for SWAN.')
+    print('working...')
+
+    t0 = datetime.now()
+    runfuns.run_slurm_LV4(pkl_fnm, 'fore')
+    os.chdir('../driver')
+    print('...done.')
+    print('this took:')
+    print(datetime.now()-t0)
+
 def run_hind_simulation(t1str,lvl,pkl_fnm):
     if lvl == 'LV1':
         os.chdir('../driver')
@@ -1836,49 +1862,88 @@ def run_fore_lv4_fillin(pkl_fnm):
     MI = initfuns.get_model_info(pkl_fnm)
     level = 4
 
-    # make the LV2_OCN_BC.pkl file
-    print('driver_run_forcast_LV4: saving LV4_OCN_BC pickle file')
-    os.chdir('../sdpm_py_util')
-    cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','mk_LV2_BC_dict_edges',str(level),pkl_fnm]
-    ret5 = subprocess.run(cmd_list)   
-    print('return code: ' + str(ret5.returncode) + ' (0=good)')  
-    os.chdir('../sdpm_py_util')
-    print('driver_run_forecast_LV4:  done with writing LV4_OCN_BC.pkl file.') 
-    print('\n')
+    river_nc_file = MI['lv4_forc_dir'] + '/' + MI['lv4_river_file']
+    if os.path.isfile(river_nc_file):  
+        print('the river file file exists: '+ river_nc_file)
+        print('using it')
+    else:
+        print('need to make the river.nc file...')
+        cmd_list = ['python','-u','-W','ignore','ocn_funs_forecast.py','mk_lv4_river_nc',pkl_fnm]
+        os.chdir('../sdpm_py_util')
+        ret3 = subprocess.run(cmd_list)   
+        print('river return code: ' + str(ret3.returncode) + ' (0=good)')  
 
-    # convert LV4_BC.pkl to LV4_BC.nc
-    lv4_ocnBC_pckl = MI['lv4_forc_dir'] + '/' + MI['lv4_ocnBC_tmp_pckl_file']
-    lv4_bc_file_out = MI['lv4_forc_dir'] + '/' + MI['lv4_bc_file']
-    print('driver_run_forcast_LV4: saving LV4_OCN_BC netcdf file')
-    os.chdir('../sdpm_py_util')
-    cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','ocn_roms_BC_dict_to_netcdf_pckl',lv4_ocnBC_pckl,lv4_bc_file_out]
-    ret5 = subprocess.run(cmd_list)   
-    print('return code: ' + str(ret5.returncode) + ' (0=good)')  
-    os.chdir('../sdpm_py_util')
-    print('driver_run_forecast_LV4:  done with writing LV4_OCN_BC.nc file.') 
+    # check for atm file:
+    ATM_nc_fname = MI['lv4_forc_dir'] + '/' + MI['lv4_atm_file']
+    if os.path.isfile(ATM_nc_fname):  
+        print('going to use the existing atm forcing file:')  
+        print(ATM_nc_fname)
+    else:
+        print('the atm forcing file is not in the working directory')
+        print('is it stored in the Archive?')
+        atm_nc = 'atm_ecmwf_LV4_' + MI['yyyymmdd'] + '00.nc'
+        ATM_nc_arch_name = '/dataSIO/PFM_Simulations/Archive/Forcing/' + atm_nc
+        if os.path.isfile(ATM_nc_arch_name):
+            print('the archived atm.nc file exists, copying it to the working directory')
+            cmd_list = ['cp',ATM_nc_arch_name,ATM_nc_fname]
+        else:
+            print('no working directory or archive atm file.')
+            print('need to make the atm file...')
+            print('\nwe are now putting the fore atm data on the roms LV4 grid...')
+            cmd_list = ['python','atm_functions.py','get_atm_data_on_roms_grid',str(level),pkl_fnm]
+            os.chdir('../sdpm_py_util')
+            ret5 = subprocess.run(cmd_list)   
+            print('return code: ' + str(ret5.returncode) + ' (0=good)')  
+            os.chdir('../sdpm_py_util')
+            print('...done.')
+
+            # fn_out is the name of the atm.nc file used by roms
+            fn_atm_out = MI['lv4_forc_dir'] + '/' + MI['lv4_atm_file'] # LV1 atm forcing filename
+            print('we are now saving ATM LV4 to ' + fn_atm_out + ' ...')
+            cmd_list = ['python','-W','ignore','atm_functions.py','atm_roms_dict_to_netcdf',str(level),pkl_fnm]
+            os.chdir('../sdpm_py_util')
+            ret5 = subprocess.run(cmd_list)   
+            print('return code: ' + str(ret5.returncode) + ' (0=good)')  
+            os.chdir('../sdpm_py_util')
+            print('...done.') 
+
+    # make the LV2_OCN_BC.pkl file
+    # check to see if file exists in working directory
+    BC_nc_fname = MI['lv4_forc_dir'] + '/' + MI['lv4_bc_file']
+    if not os.path.isfile(BC_nc_fname):
+        print('driver_run_forcast_LV4: saving LV4_OCN_BC pickle file')
+        os.chdir('../sdpm_py_util')
+        cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','mk_LV2_BC_dict_edges',str(level),pkl_fnm]
+        ret5 = subprocess.run(cmd_list)   
+        print('return code: ' + str(ret5.returncode) + ' (0=good)')  
+        os.chdir('../sdpm_py_util')
+        print('driver_run_forecast_LV4:  done with writing LV4_OCN_BC.pkl file.') 
+        print('\n')
+
+        # convert LV4_BC.pkl to LV4_BC.nc
+        lv4_ocnBC_pckl = MI['lv4_forc_dir'] + '/' + MI['lv4_ocnBC_tmp_pckl_file']
+        lv4_bc_file_out = MI['lv4_forc_dir'] + '/' + MI['lv4_bc_file']
+        print('driver_run_forcast_LV4: saving LV4_OCN_BC netcdf file')
+        os.chdir('../sdpm_py_util')
+        cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','ocn_roms_BC_dict_to_netcdf_pckl',lv4_ocnBC_pckl,lv4_bc_file_out]
+        ret5 = subprocess.run(cmd_list)   
+        print('return code: ' + str(ret5.returncode) + ' (0=good)')  
+        os.chdir('../sdpm_py_util')
+        print('driver_run_forecast_LV4:  done with writing LV4_OCN_BC.nc file.') 
+    else:
+        print('using existing BC.nc file: ' + BC_nc_fname)
  
     # make and save the LV3_IC.pkl file
     if MI['lv4_use_restart']==0:
         print('driver_run_forcast_LV4: making and saving LV4_OCN_IC pickle file')
         os.chdir('../sdpm_py_util')
-        #cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','mk_LV2_IC_dict',str(level),pkl_fnm]
-        cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','mk_LV2_IC_dict_from_hisnc',str(level),pkl_fnm]
-        ret5 = subprocess.run(cmd_list)   
-        print('return code: ' + str(ret5.returncode) + ' (0=good)')  
-        os.chdir('../sdpm_py_util')
-        print('driver_run_forecast_LV4:  done with writing LV4_OCN_IC.pkl file.') 
-
-        # convert the LV2_IC.pkl file to LV2_IC.nc
-        lv4_ocnIC_pckl = MI['lv4_forc_dir'] + '/' + MI['lv4_ocnIC_tmp_pckl_file']
         lv4_ic_file_out = MI['lv4_forc_dir'] + '/' + MI['lv4_ini_file']
-        print('driver_run_forcast_LV4: saving LV4_OCN_IC netcdf file')
-        os.chdir('../sdpm_py_util')
-        cmd_list = ['python','-u','-W','ignore','ocn_funs_forecast.py','ocn_roms_IC_dict_to_netcdf_pckl',lv4_ocnIC_pckl,lv4_ic_file_out]
+        cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','mk_LV4_IC_nc_from_hisnc',pkl_fnm,lv4_ic_file_out]
         ret5 = subprocess.run(cmd_list)   
         print('return code: ' + str(ret5.returncode) + ' (0=good)')  
         os.chdir('../sdpm_py_util')
         print('driver_run_forecast_LV4:  done with writing LV4_OCN_IC.nc file.') 
-        print('this took:')
+
     else:
         print('going to use a restart file for the LV4 IC. Setting this up...')
         cmd_list = ['python','-u','-W','ignore','init_funs_forecast.py','restart_setup','LV4',pkl_fnm]

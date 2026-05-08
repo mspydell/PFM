@@ -40,4 +40,6 @@ MYAPP=$lv2_executable$
 
 srun --mpi=pmi2 -v  $MYAPP  $lv2_infile_local$  > $lv2_logfile_local$
 
+sleep 60
+seff $SLURM_JOB_ID
 

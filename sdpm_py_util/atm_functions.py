@@ -490,8 +490,16 @@ def get_atm_data_on_roms_grid(lv,pkl_fnm):
     # and returns the ATM data but on the roms grid. It returns atm2
     # the wind directions in atm2 are rotated to be in ROMS xi,eta directions.
 
+    print('in the atm function!')
     PFM=initfuns.get_model_info(pkl_fnm)
     fname_atm  = PFM['lv1_forc_dir'] + '/' + PFM['atm_tmp_pckl_file']
+    print('the atm pickle file is:')
+    print(fname_atm)
+    if os.path.isfile(fname_atm):
+        print('and this file exists!')
+    else:
+        print('does not exist. strange.')
+
     with open(fname_atm,'rb') as fp:
         print('loading ' + fname_atm + ' ...')
         ATM = pickle.load(fp)

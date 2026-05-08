@@ -98,7 +98,7 @@ def  make_LV1_dotin_and_SLURM( pkl_fnm , mod_type ):
     start_type = PFM['lv1_use_restart'] # 0=new solution. 1=from a restart file
     if start_type == 1:
         nrrec        = str(PFM['lv1_nrrec']) # 
-        lv1_ini_dir  = PFM['restart_files_dir']
+        lv1_ini_dir  = PFM['restart_ncfiles_dir_in']
     else: 
         nrrec        = '0' # '0' for a new solution
         lv1_ini_dir  = PFM['lv1_forc_dir']
@@ -128,7 +128,7 @@ def  make_LV1_dotin_and_SLURM( pkl_fnm , mod_type ):
     # might want a check to see if you are here. If not, then
     # cd here?
     dot_in_dir   = '.'
-    blank_infile = dot_in_dir +'/' +  'LV1_BLANK.in'
+    blank_infile = dot_in_dir +'/' +  PFM['lv1_blank_name'] 
     if "INTEL" in D['lv1_executable']:
         blank_sbfile = dot_in_dir +'/' +  'LV1_SLURM_intel_BLANK.sb'
     else:        
@@ -293,7 +293,7 @@ def  make_LV2_dotin_and_SLURM( pkl_fnm , mod_type ):
     start_type = PFM['lv2_use_restart'] # 0=new solution. 1=from a restart file
     if start_type == 1:
         nrrec        = str(PFM['lv2_nrrec']) # 
-        lv2_ini_dir  = PFM['restart_files_dir']
+        lv2_ini_dir  = PFM['restart_ncfiles_dir_in']
     else: 
         nrrec        = '0' # '0' for a new solution
         lv2_ini_dir  = PFM['lv2_forc_dir']
@@ -333,7 +333,7 @@ def  make_LV2_dotin_and_SLURM( pkl_fnm , mod_type ):
     print(D['lv2_executable'])
 
     dot_in_dir   = '.'
-    blank_infile = dot_in_dir +'/' +  'LV2_BLANK.in'
+    blank_infile = dot_in_dir +'/' +  PFM['lv2_blank_name'] 
     if "INTEL" in D['lv2_executable']:
         blank_sbfile = dot_in_dir +'/' +  'LV2_SLURM_intel_BLANK.sb'
     else:        
@@ -479,7 +479,7 @@ def  make_LV3_dotin_and_SLURM( pkl_fnm , mod_type ):
     
     if start_type == 1:
         nrrec        = str(PFM['lv3_nrrec']) # 
-        lv3_ini_dir  = PFM['restart_files_dir']
+        lv3_ini_dir  = PFM['restart_ncfiles_dir_in']
     else: 
         nrrec        = '0' # '0' for a new solution
         lv3_ini_dir  = PFM['lv3_forc_dir']
@@ -516,8 +516,9 @@ def  make_LV3_dotin_and_SLURM( pkl_fnm , mod_type ):
     print('we are using')
     print(D['lv3_executable'])
 
+
     dot_in_dir   = '.'
-    blank_infile = dot_in_dir +'/' +  'LV3_BLANK.in'
+    blank_infile = dot_in_dir +'/' +  PFM['lv3_blank_name'] 
     if "INTEL" in D['lv3_executable']:
         blank_sbfile = dot_in_dir +'/' +  'LV3_SLURM_intel_BLANK.sb'
     else:        
@@ -610,7 +611,8 @@ def  make_LV4_coawst_dotins_dotsb(pkl_fnm,mod_type):
     # the original location was 
     # VARNAME = /home/matt/models/roms/ROMS/External/varinfo.yaml
     # but now it is
-    D['varinfo_full'] = PFM['lv4_coawst_varinfo_full'] 
+    if PFM['pfm_new'] == False:
+        D['varinfo_full'] = PFM['lv4_coawst_varinfo_full'] 
 
     # grid info
     D['ncols']  = PFM['gridinfo']['L4','Lm']   # number in x
@@ -724,7 +726,7 @@ def  make_LV4_coawst_dotins_dotsb(pkl_fnm,mod_type):
             nrrec        = str(PFM['lv4_nrrec']) # 
         else:
             nrrec        = '1'
-        lv4_ini_dir  = PFM['restart_files_dir']
+        lv4_ini_dir  = PFM['restart_ncfiles_dir_in']
     else: 
         nrrec        = '0' # '0' for a new solution
         lv4_ini_dir  = PFM['lv4_forc_dir']
@@ -760,11 +762,13 @@ def  make_LV4_coawst_dotins_dotsb(pkl_fnm,mod_type):
     dot_in_dir   = '.'
     blank_infile = dot_in_dir +'/' +  PFM['lv4_blank_name'] 
     #blank_sbfile = dot_in_dir +'/' +  'LV4_SLURM_BLANK.sb'
-    if D['lv4_executable'] == '/scratch/PFM_Simulations/executables/coawstM_intel':
-        blank_sbfile = dot_in_dir +'/' +  'LV4_SLURM_intel_BLANK.sb'
-    else:        
-        blank_sbfile = dot_in_dir +'/' +  'LV4_SLURM_BLANK.sb'
-    
+    #if D['lv4_executable'] == '/scratch/PFM_Simulations/executables/coawstM_Apr26':
+    blank_sbfile = dot_in_dir +'/' +  'LV4_SLURM_intel_BLANK.sb'
+    #else:        
+    #blank_sbfile = dot_in_dir +'/' +  'LV4_SLURM_intel_BLANK.sb'
+    # note for old gcc it is
+    # blank_sbfile = dot_in_dir +'/' +  'LV4_SLURM_BLANK.sb'
+
     
     blank_coupling = dot_in_dir + '/' + 'LV4_COUPLING_BLANK.in'
     blank_swan     = dot_in_dir + '/' + 'LV4_SWAN_BLANK.in'
