@@ -6566,7 +6566,10 @@ def mk_lv4_hind_river_nc(pkl_fnm):
     D['vinfo']['river_direction'] = {'long_name':'river runoff direction, XI=0, ETA>0',
                         'units':'scalar',
                         'field':'river runoff direction, scalar, series'}
-    D['river_Vshape'] = np.array( [[0.1068243,  0.1068243,  0.1068243,  0.1068243,  0.1068243,  0.1068243,
+    
+    # vsahpe_raw was the initial shape. It puts the majority of the flow at the bottom
+    # noticed on 6/9/2026
+    vshape_raw = np.array( [[0.1068243,  0.1068243,  0.1068243,  0.1068243,  0.1068243,  0.1068243,
                                     0.1068243,  0.1068243,  0.1068243 ],
                                     [0.16414651, 0.16414651, 0.16414651, 0.16414651, 0.16414651, 0.16414651,
                                     0.16414651, 0.16414651, 0.16414651],
@@ -6586,6 +6589,8 @@ def mk_lv4_hind_river_nc(pkl_fnm):
                                     0.02325146, 0.02325146, 0.02325146],
                                     [0.00736032, 0.00736032, 0.00736032, 0.00736032, 0.00736032, 0.00736032,
                                     0.00736032, 0.00736032, 0.00736032]] )
+    # we now flip it, so that the majority of the flow is at the top. 6/9/2026
+    D['river_Vshape'] = np.flipud(vshape_raw)
     D['vinfo']['river_Vshape'] = {'long_name':'river runoff mass transport vertical profile',
                         'units':'scalar',
                         'field':'river runoff vertical profile, scalar, series'}
