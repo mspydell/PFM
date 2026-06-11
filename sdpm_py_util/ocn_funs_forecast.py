@@ -6590,7 +6590,9 @@ def mk_lv4_hind_river_nc(pkl_fnm):
                                     [0.00736032, 0.00736032, 0.00736032, 0.00736032, 0.00736032, 0.00736032,
                                     0.00736032, 0.00736032, 0.00736032]] )
     # we now flip it, so that the majority of the flow is at the top. 6/9/2026
-    D['river_Vshape'] = np.flipud(vshape_raw)
+    # D['river_Vshape'] = np.flipud(vshape_raw)
+    D['river_Vshape'] = vshape_raw
+    
     D['vinfo']['river_Vshape'] = {'long_name':'river runoff mass transport vertical profile',
                         'units':'scalar',
                         'field':'river runoff vertical profile, scalar, series'}
