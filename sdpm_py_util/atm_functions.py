@@ -839,6 +839,9 @@ def get_ecmwf_grib_files_lists(yyyymmddhh0,pkl_fnm):
 
     return fnms, fnms_tot, fnms_out, cmds_tot
 
+
+
+
 def check_file_exists_and_is_not_empty(file_path):
     """
     Checks if a file exists and is larger than zero bytes.
@@ -856,7 +859,12 @@ def check_file_exists_and_is_not_empty(file_path):
     
 def got_ecmwf_files(yyyymmddhh0,t0_str,pkl_fnm):
     # get the list of file names
-    _, _, fns_out, _ = get_ecmwf_grib_files_lists_v2(yyyymmddhh0,t0_str,pkl_fnm)
+    from_cdip = False
+    if from_cdip:
+        _, _, fns_out, _ = get_ecmwf_grib_files_lists_v2(yyyymmddhh0,t0_str,pkl_fnm)
+    else:
+        _, _, fns_out, _ = get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm)
+
     got_all_files = 0
     # loop through file names
     for fn in fns_out:
@@ -929,6 +937,76 @@ def get_ecmwf_grib_files_lists_v2(yyyymmddhh0,t0_str,pkl_fnm):
 
     return fnms, fnms_tot, fnms_out, cmds_tot
 
+def get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm):
+    # this gets the ecmwf grib files from the ecmwf server for the forecast starting at yyyymmddhh
+    yyyy0 = yyyymmddhh0[0:4]
+    mm0 = yyyymmddhh0[4:6]
+    dd0 = yyyymmddhh0[6:8]
+    hh0 = yyyymmddhh0[8:]
+
+    url_txt = "ftp://diss.ecmwf.int/" + yyyy0 + mm0 + dd0 + "/" 
+
+    #if hh0 == '00' or hh0 == '12':
+    #    txt1 = 'D'
+    #else:
+    #    txt1 = 'S'
+    # I'm not finding any 'T1S*' files at ecmwf, at this url_txt
+
+    txt1 = 'D'
+
+    txt2 = 'T1' + txt1 + mm0 + dd0 + hh0
+
+    PFM = initfuns.get_model_info(pkl_fnm)
+    # stuff to be set with PFM structure.
+    #PFM['forecast_days'] = 5.0
+    #PFM['ecmwf_dir'] =  '/scratch/PFM_Simulations/ecmwf_data/'
+
+    t_fore = datetime.strptime(yyyymmddhh0,'%Y%m%d%H') # this is the time stamp of the forecast
+    t_0 = datetime.strptime(t0_str,'%Y%m%d%H') # this is when the PFM forecast starts
+    # note start time of PFM must be equal to or after start time of ecmwf
+
+    t_f = t_0
+    hr_f = int( (t_0 - t_fore).total_seconds()/3600 )# this is the forecast hour, the 1st time we want
+    hr_max = int( hr_f + 24 * PFM['forecast_days'] )
+
+    hr_max = 24 * PFM['forecast_days']
+    #hr_max = 5.0 * 24.0  # the length in hours of the forecast files we are going to download
+    dir_out = PFM['ecmwf_dir']
+
+    mm = '01' # this is the first mm string. after the first file, it is '00
+
+    fnms = []
+    fnms_tot = []
+    fnms_out = []
+    cmds_tot = []
+
+    while hr_f <= hr_max:
+        # we add the year of the forecast start time for a complete name.
+        yyyymmddhh = yyyy0 + t_f.strftime("%m%d%H")
+        mmddhh = t_f.strftime("%m%d%H")
+        txt3 = txt2 + yyyymmddhh + mm + '1'
+        txt3e = txt2 + '00' + mmddhh + mm + '1'
+        fnms.append(txt3)
+        txt4 = url_txt + txt3e
+        fnms_tot.append(txt4)
+        txt5 = dir_out + txt3
+        fnms_out.append(txt5)
+        #cmds = ['wget','-q','--user','syntool','--password','cdip','-O',txt5,txt4]
+        cmds = ["wget", "--user=R_Bucciarelli","--password=TWhgzpz5", "-O",txt5, txt4]
+
+        cmds_tot.append(cmds)
+        mm = '00'
+
+        if hr_f < 90:
+            hr_dt = 1.0 # the first 90 hrs is 1 hr dt
+        else: 
+            hr_dt = 3.0 # after that it is 3 hr dt
+        hr_f = hr_f + hr_dt
+        t_f = t_f + hr_dt * timedelta(hours=1)
+
+    return fnms, fnms_tot, fnms_out, cmds_tot
+
+
 
 def get_ecmwf_forecast_grbs(yyyymmddhh0):
     _, _, _, cmd_list = get_ecmwf_grib_files_lists(yyyymmddhh0)
@@ -953,26 +1031,54 @@ def get_ecmwf_forecast_grbs(yyyymmddhh0):
             # report the result
 
 def get_ecmwf_forecast_grbs_v2(yyyymmddhh0,t0_str,pkl_fnm):
-    _, _, _, cmd_list = get_ecmwf_grib_files_lists_v2(yyyymmddhh0,t0_str,pkl_fnm)
+   
+    from_cdip = False
+    if from_cdip:
+        _, _, _, cmd_list = get_ecmwf_grib_files_lists_v2(yyyymmddhh0,t0_str,pkl_fnm)
+    else:
+        _, _, _, cmd_list = get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm)
 
-   # create parallel executor
-    with ThreadPoolExecutor() as executor:
+    # create parallel executor capped at 10 concurrent threads
+    with ThreadPoolExecutor(max_workers=10) as executor:
         threads = []
-        cnt = 0
+        
+        # Submit all commands to the pool queue
         for cmd in cmd_list:
-            fun =  ecmwf_grabber #define function
-            args = [cmd] #define args to function
-            kwargs = {} #
-            # start thread by submitting it to the executor
+            fun = ecmwf_grabber  # your download function
+            args = [cmd]
+            kwargs = {}
+            
+            # This queues the job; it will only execute if an active slot is open (< 10)
             threads.append(executor.submit(fun, *args, **kwargs))
-            cnt=cnt+1
 
+        # Process results dynamically as they finish
         result2 = []
         for future in as_completed(threads):
-            # retrieve the result
-            result = future.result()
-            result2.append(result)
-            # report the result
+            try:
+                result = future.result()
+                result2.append(result)
+                # You can report or log individual success here
+            except Exception as e:
+                print(f"A thread encountered an error: {e}")
+            
+    # create parallel executor
+    #with ThreadPoolExecutor() as executor:
+    #    threads = []
+    #    cnt = 0
+    #    for cmd in cmd_list:
+    #        fun =  ecmwf_grabber #define function
+    #        args = [cmd] #define args to function
+    #        kwargs = {} #
+    #        # start thread by submitting it to the executor
+    #        threads.append(executor.submit(fun, *args, **kwargs))
+    #        cnt=cnt+1
+
+    #    result2 = []
+    #    for future in as_completed(threads):
+    #        # retrieve the result
+    #        result = future.result()
+    #        result2.append(result)
+    #        # report the result
 
 
 def ecmwf_grib_2_dict(fn_in):
@@ -1024,7 +1130,12 @@ def ecmwf_grib_2_dict_all_v2(yyyymmddhh0,t0_str,pkl_fnm):
     # this saves the ecmwf grib data as a dictionary pkl file. Variables will be in ROMS units with ROMS
     # variable names, but on the ecmwf grid
 
-    _, _, fn_grbs, _ = get_ecmwf_grib_files_lists_v2(yyyymmddhh0,t0_str,pkl_fnm)
+    from_cdip = False
+    if from_cdip:
+        _, _, fn_grbs, _ = get_ecmwf_grib_files_lists_v2(yyyymmddhh0,t0_str,pkl_fnm)
+    else:
+        _, _, fn_grbs, _ = get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm)
+
     nt = len(fn_grbs) # the number of files is the number of time stamps (101 for a 5 day ecmwf forecast)
     print('there are ' + str(nt) + ' ecmwf grib files to stack in time.')
     
