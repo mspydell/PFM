@@ -14,6 +14,7 @@ import init_funs_forecast as initfuns
 import subprocess
 import cfgrib
 import os
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 def delete_files_by_pattern(directory, pattern):
@@ -992,7 +993,7 @@ def get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm):
         txt5 = dir_out + txt3
         fnms_out.append(txt5)
         #cmds = ['wget','-q','--user','syntool','--password','cdip','-O',txt5,txt4]
-        cmds = ["wget", "--user=R_Bucciarelli","--password=TWhgzpz5", "-O",txt5, txt4]
+        cmds = ["wget",'--quiet', '--connect-timeout=10','--read-timeout=15','--tries=3',"--user=R_Bucciarelli","--password=TWhgzpz5", "-O",txt5, txt4]
 
         cmds_tot.append(cmds)
         mm = '00'
@@ -1007,6 +1008,65 @@ def get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm):
     return fnms, fnms_tot, fnms_out, cmds_tot
 
 
+# --- 1. Robust wget Command Generator ---
+# Ensure every command string in your cmd_list includes these safety flags:
+# '--tries=5'          -> Automatically retry individual connection drops 5 times
+# '--timeout=30'       -> Give up and retry if the server freezes for more than 30 seconds
+# '--passive-ftp'      -> Crucial for passing cleanly through the UCSD proxy firewall
+
+def download_file_safely(cmd):
+    """Wrapper function to execute your ecmwf_grabber."""
+    # Ensure the target filename is extracted from the command to track size later
+    # Assumes the filename comes right after the '-O' switch in your array
+    try:
+        out_idx = cmd.index('-O')
+        file_path = cmd[out_idx + 1]
+    except ValueError:
+        file_path = None
+
+    # Execute the actual download
+    result = ecmwf_grabber(cmd)
+    
+    # Validation Check: If the file is empty, delete it so it can be retried
+    if file_path and os.path.exists(file_path) and os.path.getsize(file_path) == 0:
+        print(f"⚠️ Ghost file detected (0 bytes): {os.path.basename(file_path)}. Cleaning up for retry.")
+        os.remove(file_path)
+        return (cmd, False) # Mark as failed
+        
+    return (cmd, True) # Mark as successfully downloaded
+
+# --- 2. Managed Execution Queue Loop ---
+def download_all_with_retry(all_commands):
+    pending_commands = list(all_commands)
+    attempt = 1
+    
+    while pending_commands and attempt <= 5:
+        print(f"\n🚀 Starting Download Batch Attempt #{attempt} ({len(pending_commands)} files remaining)...")
+        failed_commands = []
+        
+        # Capping at 3-4 workers prevents ECMWF concurrent connection account bans
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            futures = {executor.submit(download_file_safely, cmd): cmd for cmd in pending_commands}
+            
+            for future in as_completed(futures):
+                cmd, success = future.result()
+                if not success:
+                    failed_commands.append(cmd)
+        
+        # Update the queue for the next loop pass
+        pending_commands = failed_commands
+        if pending_commands:
+            attempt += 1
+            print("⏳ Sleeping 10 seconds to let the server connection pool clear...")
+            time.sleep(10)
+            
+    if not pending_commands:
+        print("\n🎉 Success! All files downloaded with non-zero sizes.")
+    else:
+        print(f"\n❌ Warning: {len(pending_commands)} files failed completely after 5 overall batch attempts.")
+
+# To run it, just pass your original list of commands:
+# download_all_with_retry(cmd_list)
 
 def get_ecmwf_forecast_grbs(yyyymmddhh0):
     _, _, _, cmd_list = get_ecmwf_grib_files_lists(yyyymmddhh0)
@@ -1038,28 +1098,30 @@ def get_ecmwf_forecast_grbs_v2(yyyymmddhh0,t0_str,pkl_fnm):
     else:
         _, _, _, cmd_list = get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm)
 
+    download_all_with_retry(cmd_list)
+
     # create parallel executor capped at 10 concurrent threads
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        threads = []
+    #with ThreadPoolExecutor(max_workers=10) as executor:
+    #    threads = []
         
         # Submit all commands to the pool queue
-        for cmd in cmd_list:
-            fun = ecmwf_grabber  # your download function
-            args = [cmd]
-            kwargs = {}
+    #    for cmd in cmd_list:
+    #        fun = ecmwf_grabber  # your download function
+    #        args = [cmd]
+    #        kwargs = {}
             
             # This queues the job; it will only execute if an active slot is open (< 10)
-            threads.append(executor.submit(fun, *args, **kwargs))
+    #        threads.append(executor.submit(fun, *args, **kwargs))
 
         # Process results dynamically as they finish
-        result2 = []
-        for future in as_completed(threads):
-            try:
-                result = future.result()
-                result2.append(result)
-                # You can report or log individual success here
-            except Exception as e:
-                print(f"A thread encountered an error: {e}")
+    #    result2 = []
+    #    for future in as_completed(threads):
+    #        try:
+    #            result = future.result()
+    #            result2.append(result)
+    #            # You can report or log individual success here
+    #        except Exception as e:
+    #            print(f"A thread encountered an error: {e}")
             
     # create parallel executor
     #with ThreadPoolExecutor() as executor:
