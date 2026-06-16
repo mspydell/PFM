@@ -9,3 +9,5 @@ log/
 # wget-log files
 wget-log
 wget-log.*
+# ignore .env file
+.env

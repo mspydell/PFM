@@ -819,6 +819,9 @@ def get_ecmwf_grib_files_lists(yyyymmddhh0,pkl_fnm):
     fnms_out = []
     cmds_tot = []
 
+    cdip_user  = os.getenv("WGET_CDIP_USER")
+    cdip_pword = os.getenv("WGET_CDIP_PASS")
+
     while hr_f <= hr_max:
         yyyymmddhh = t_f.strftime("%Y%m%d%H")
         txt3 = txt2 + yyyymmddhh + mm + '1'
@@ -827,7 +830,7 @@ def get_ecmwf_grib_files_lists(yyyymmddhh0,pkl_fnm):
         fnms_tot.append(txt4)
         txt5 = dir_out + txt3
         fnms_out.append(txt5)
-        cmds = ['wget','-q','--user','syntool','--password','cdip','-O',txt5,txt4]
+        cmds = ['wget','-q','--user',cdip_user,'--password',cdip_pword,'-O',txt5,txt4]
         cmds_tot.append(cmds)
         mm = '00'
 
@@ -916,6 +919,9 @@ def get_ecmwf_grib_files_lists_v2(yyyymmddhh0,t0_str,pkl_fnm):
     fnms_out = []
     cmds_tot = []
 
+    cdip_user  = os.getenv("WGET_CDIP_USER")
+    cdip_pword = os.getenv("WGET_CDIP_PASS")
+
     while hr_f <= hr_max:
         yyyymmddhh = yyyy0 + t_f.strftime("%m%d%H")
         #yyyymmddhh = t_f.strftime("%Y%m%d%H") # the timestamp of the file we will get
@@ -925,7 +931,7 @@ def get_ecmwf_grib_files_lists_v2(yyyymmddhh0,t0_str,pkl_fnm):
         fnms_tot.append(txt4)
         txt5 = dir_out + txt3
         fnms_out.append(txt5)
-        cmds = ['wget','-q','--user','syntool','--password','cdip','-O',txt5,txt4]
+        cmds = ['wget','-q','--user',cdip_user,'--password',cdip_pword,'-O',txt5,txt4]
         cmds_tot.append(cmds)
         mm = '00'
 
@@ -981,6 +987,9 @@ def get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm):
     fnms_out = []
     cmds_tot = []
 
+    ecmwf_user  = os.getenv("WGET_ECMWF_USER")
+    ecmwf_pword = os.getenv("WGET_ECMWF_PASS")
+
     while hr_f <= hr_max:
         # we add the year of the forecast start time for a complete name.
         yyyymmddhh = yyyy0 + t_f.strftime("%m%d%H")
@@ -992,8 +1001,7 @@ def get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm):
         fnms_tot.append(txt4)
         txt5 = dir_out + txt3
         fnms_out.append(txt5)
-        #cmds = ['wget','-q','--user','syntool','--password','cdip','-O',txt5,txt4]
-        cmds = ["wget",'--quiet', '--connect-timeout=10','--read-timeout=15','--tries=3',"--user=R_Bucciarelli","--password=TWhgzpz5", "-O",txt5, txt4]
+        cmds = ["wget",'--quiet', '--connect-timeout=10','--read-timeout=15','--tries=3',"--user="+ecmwf_user,"--password="+ecmwf_pword, "-O",txt5, txt4]
 
         cmds_tot.append(cmds)
         mm = '00'
