@@ -62,7 +62,6 @@ def get_atm_data_as_dict(pkl_fnm):
             print('return code: ' + str(ret5.returncode) + ' (0=good)')  
             print('...done.') 
         else:
-            print('trying the new more robust method of getting and using ecmwf data from cdip...')
             tfore0 = PFM['fetch_time']
             tstart = tfore0
             yyyymmddhh0 = tfore0.strftime("%Y%m%d%H")
@@ -71,7 +70,7 @@ def get_atm_data_as_dict(pkl_fnm):
             cnt = 0
             while got_files >= 1 and cnt<4:   
                 yyyymmddhh0 = tfore0.strftime("%Y%m%d%H")
-                print('getting the ecmwf data from cdip for the ' + yyyymmddhh0 + ' forecast...')
+                print('getting the ecmwf data for the ' + yyyymmddhh0 + ' forecast...')
                 # download the ecmwf data...
                 cmd_list = ['python','-W','ignore','atm_functions.py','get_ecmwf_forecast_grbs_v2',yyyymmddhh0,tstart_str,pkl_fnm]
                 os.chdir('../sdpm_py_util')
@@ -1108,7 +1107,7 @@ def get_ecmwf_forecast_grbs_v2(yyyymmddhh0,t0_str,pkl_fnm):
     if from_cdip:
         _, _, _, cmd_list = get_ecmwf_grib_files_lists_v2(yyyymmddhh0,t0_str,pkl_fnm)
     else:
-        print('getting data directly from ecmwf!')
+        print('getting ecmwf file list...')
         _, _, _, cmd_list = get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm)
 
     print('downloading with retry...')
