@@ -570,8 +570,12 @@ def get_atm_data_on_roms_grid(lv,pkl_fnm):
             if got_F == 0:
                 F = RegularGridInterpolator((lat,lon),f2)
                 got_F = 1
-            else:                
-                setattr(F,'values',f2)
+            else:
+                # change made by MSS on Jun 24, 2026.
+                # newer scipy makes it such that 'values' is not 
+                # settable.                
+                #setattr(F,'values',f2)
+                F._values = f2
 
             froms = F((Lt_r,Ln_r),method='linear')
             atm2[a][b,:,:] = froms
@@ -1048,12 +1052,12 @@ def download_all_with_retry(all_commands):
     pending_commands = list(all_commands)
     attempt = 1
     
-    while pending_commands and attempt <= 5:
+    while pending_commands and attempt <= 15:
         print(f"\n🚀 Starting Download Batch Attempt #{attempt} ({len(pending_commands)} files remaining)...")
         failed_commands = []
         
         # Capping at 3-4 workers prevents ECMWF concurrent connection account bans
-        with ThreadPoolExecutor(max_workers=3) as executor:
+        with ThreadPoolExecutor(max_workers=2) as executor:
             futures = {executor.submit(download_file_safely, cmd): cmd for cmd in pending_commands}
             
             for future in as_completed(futures):
@@ -1104,6 +1108,7 @@ def get_ecmwf_forecast_grbs_v2(yyyymmddhh0,t0_str,pkl_fnm):
     if from_cdip:
         _, _, _, cmd_list = get_ecmwf_grib_files_lists_v2(yyyymmddhh0,t0_str,pkl_fnm)
     else:
+        print('getting data directly from ecmwf!')
         _, _, _, cmd_list = get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm)
 
     download_all_with_retry(cmd_list)
