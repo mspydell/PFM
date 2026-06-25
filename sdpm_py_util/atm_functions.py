@@ -1111,6 +1111,7 @@ def get_ecmwf_forecast_grbs_v2(yyyymmddhh0,t0_str,pkl_fnm):
         print('getting data directly from ecmwf!')
         _, _, _, cmd_list = get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm)
 
+    print('downloading with retry...')
     download_all_with_retry(cmd_list)
 
     # create parallel executor capped at 10 concurrent threads
