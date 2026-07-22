@@ -992,6 +992,7 @@ def get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm):
 
     ecmwf_user  = os.getenv("WGET_ECMWF_USER")
     ecmwf_pword = os.getenv("WGET_ECMWF_PASS")
+ 
 
     while hr_f <= hr_max:
         # we add the year of the forecast start time for a complete name.

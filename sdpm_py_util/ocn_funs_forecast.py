@@ -459,17 +459,32 @@ def get_hycom_foretime_v2(t1str,t2str,pkl_fnm):
     hycom_dir = PFM['hycom_data_dir'] # this has the trailing /
     
     t0s = stored_hycom_dates(pkl_fnm)
-    print('we currently have hycom forecasts starting from:')
-    print(t0s)
-    print('checking to see if we are missing any files...')
-    miss_dict = {}
-    total_missing = []
-    for tt in t0s:
-        t1 = datetime.strptime(tt,'%Y-%m-%d') + 0.5* timedelta(days=1)
+
+    if t0s:
+        print('we currently have hycom forecasts starting from:')
+        print(t0s)
+        print('checking to see if we are missing any files...')
+        miss_dict = {}
+        total_missing = []
+        for tt in t0s:
+            t1 = datetime.strptime(tt,'%Y-%m-%d') + 0.5* timedelta(days=1)
+            yyyymmdd = t1.strftime('%Y%m%d')
+            t2 = t1+8.0*timedelta(days=1)
+            times = [t1,t2]
+            n0, num_missing, miss_dict[tt] = check_hycom_data(yyyymmdd,times,pkl_fnm)
+            for mm in miss_dict[tt]:
+                total_missing.append(mm)
+    else:
+        print('there are no hycom files. Getting fresh ones...')
+        total_missing = []
+        tt = PFM['fetch_time'].strftime('%Y%m%d')
+        t1 = datetime.strptime(tt,'%Y%m%d') - 0.5* timedelta(days=1)
         yyyymmdd = t1.strftime('%Y%m%d')
         t2 = t1+8.0*timedelta(days=1)
         times = [t1,t2]
         n0, num_missing, miss_dict[tt] = check_hycom_data(yyyymmdd,times,pkl_fnm)
+        print(n0)
+        print(miss_dict)
         for mm in miss_dict[tt]:
             total_missing.append(mm)
 
@@ -972,7 +987,7 @@ def get_hycom_data_1hr_v2(yyyymmdd,pkl_fnm):
     # this function gets all of the new hycom data as separate files for each field (ssh,temp,salt,u,v) and each time
     # and puts each .nc file in the directory for hycom data
 
-    #print('in get_hycom_data_1hr_v2')
+    print('in get_hycom_data_1hr_v2')
 
     PFM = initfuns.get_model_info(pkl_fnm)
 
