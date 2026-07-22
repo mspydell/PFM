@@ -2,6 +2,10 @@
 #script to run PFMv2
 cd /home/mspydell/models/PFM_root/PFM
 source /home/mspydell/.bashrc
+set -a
+source /home/mspydell/models/PFM_root/PFM/.env
+set +a
+
 
 # check to see what git branch we are on
 EXPECTED_BRANCH="PHM_development" # Or "master", "develop", etc.

@@ -531,9 +531,6 @@ def get_atm_data_on_roms_grid(lv,pkl_fnm):
     Ln_r = RMG['lon_rho']
     nlt,nln = np.shape(Lt_r)
 
-    # set the flag to determine if we have created the interpolant yet.
-    got_F = 0 
-    
     # this is the complete list of variables that need to be in the netcdf file
     vlist = ['lon','lat','ocean_time','ocean_time_ref','lwrad','lwrad_down','swrad','rain','Tair','Pair','Qair','Uwind','Vwind','tair_time','pair_time','qair_time','wind_time','rain_time','srf_time','lrf_time']
 
@@ -565,16 +562,12 @@ def get_atm_data_on_roms_grid(lv,pkl_fnm):
 
         for b in range(nt):
             f2 = np.squeeze( f1[b,:,:] )
-
-            if got_F == 0:
-                F = RegularGridInterpolator((lat,lon),f2)
-                got_F = 1
-            else:
-                # change made by MSS on Jun 24, 2026.
-                # newer scipy makes it such that 'values' is not 
-                # settable.                
-                #setattr(F,'values',f2)
-                F._values = f2
+            # Rebuild the interpolator every iteration. The older "reuse F, poke
+            # F.values / F._values" hack silently fails in scipy >= 1.14 (the
+            # values cache set at __init__ is what __call__ actually reads),
+            # producing an atm.nc where every field is a copy of the first slice.
+            # Rebuild cost is ~12 ms on a 91x91 grid — negligible vs the interp.
+            F = RegularGridInterpolator((lat, lon), f2)
 
             froms = F((Lt_r,Ln_r),method='linear')
             atm2[a][b,:,:] = froms
@@ -824,8 +817,8 @@ def get_ecmwf_grib_files_lists(yyyymmddhh0,pkl_fnm):
 
     cdip_user  = os.getenv("WGET_CDIP_USER")
     cdip_pword = os.getenv("WGET_CDIP_PASS")
-    print(cdip_user)
-    print(cdip_pword)
+    #print(cdip_user)
+    #print(cdip_pword)
 
 
     while hr_f <= hr_max:
@@ -927,8 +920,8 @@ def get_ecmwf_grib_files_lists_v2(yyyymmddhh0,t0_str,pkl_fnm):
 
     cdip_user  = os.getenv("WGET_CDIP_USER")
     cdip_pword = os.getenv("WGET_CDIP_PASS")
-    print(cdip_user)
-    print(cdip_pword)
+    #print(cdip_user)
+    #print(cdip_pword)
 
     while hr_f <= hr_max:
         yyyymmddhh = yyyy0 + t_f.strftime("%m%d%H")
@@ -997,8 +990,8 @@ def get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm):
 
     ecmwf_user  = os.getenv("WGET_ECMWF_USER")
     ecmwf_pword = os.getenv("WGET_ECMWF_PASS")
-    print(ecmwf_user)
-    print(ecmwf_pword)
+    #print(ecmwf_user)
+    #print(ecmwf_pword)
  
 
     while hr_f <= hr_max:
