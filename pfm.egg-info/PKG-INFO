@@ -1,0 +1,7 @@
+Metadata-Version: 2.4
+Name: pfm
+Version: 0.1.0.dev0
+Summary: PFM v3 — Pathogen Forecast Model refactor
+Requires-Python: >=3.10
+License-File: LICENSE
+Dynamic: license-file

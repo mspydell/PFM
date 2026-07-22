@@ -62,7 +62,6 @@ def get_atm_data_as_dict(pkl_fnm):
             print('return code: ' + str(ret5.returncode) + ' (0=good)')  
             print('...done.') 
         else:
-            print('trying the new more robust method of getting and using ecmwf data from cdip...')
             tfore0 = PFM['fetch_time']
             tstart = tfore0
             yyyymmddhh0 = tfore0.strftime("%Y%m%d%H")
@@ -71,7 +70,7 @@ def get_atm_data_as_dict(pkl_fnm):
             cnt = 0
             while got_files >= 1 and cnt<4:   
                 yyyymmddhh0 = tfore0.strftime("%Y%m%d%H")
-                print('getting the ecmwf data from cdip for the ' + yyyymmddhh0 + ' forecast...')
+                print('getting the ecmwf data for the ' + yyyymmddhh0 + ' forecast...')
                 # download the ecmwf data...
                 cmd_list = ['python','-W','ignore','atm_functions.py','get_ecmwf_forecast_grbs_v2',yyyymmddhh0,tstart_str,pkl_fnm]
                 os.chdir('../sdpm_py_util')
@@ -570,8 +569,12 @@ def get_atm_data_on_roms_grid(lv,pkl_fnm):
             if got_F == 0:
                 F = RegularGridInterpolator((lat,lon),f2)
                 got_F = 1
-            else:                
-                setattr(F,'values',f2)
+            else:
+                # change made by MSS on Jun 24, 2026.
+                # newer scipy makes it such that 'values' is not 
+                # settable.                
+                #setattr(F,'values',f2)
+                F._values = f2
 
             froms = F((Lt_r,Ln_r),method='linear')
             atm2[a][b,:,:] = froms
@@ -987,8 +990,9 @@ def get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm):
     fnms_out = []
     cmds_tot = []
 
-    #ecmwf_user  = os.getenv("WGET_ECMWF_USER")
-    #ecmwf_pword  = os.getenv("WGET_ECMWF_PASS")                                                                                                         
+    ecmwf_user  = os.getenv("WGET_ECMWF_USER")
+    ecmwf_pword = os.getenv("WGET_ECMWF_PASS")
+
     while hr_f <= hr_max:
         # we add the year of the forecast start time for a complete name.
         yyyymmddhh = yyyy0 + t_f.strftime("%m%d%H")
@@ -1052,7 +1056,7 @@ def download_all_with_retry(all_commands):
         failed_commands = []
         
         # Capping at 3-4 workers prevents ECMWF concurrent connection account bans
-        with ThreadPoolExecutor(max_workers=3) as executor:
+        with ThreadPoolExecutor(max_workers=2) as executor:
             futures = {executor.submit(download_file_safely, cmd): cmd for cmd in pending_commands}
             
             for future in as_completed(futures):
@@ -1103,8 +1107,10 @@ def get_ecmwf_forecast_grbs_v2(yyyymmddhh0,t0_str,pkl_fnm):
     if from_cdip:
         _, _, _, cmd_list = get_ecmwf_grib_files_lists_v2(yyyymmddhh0,t0_str,pkl_fnm)
     else:
+        print('getting ecmwf file list...')
         _, _, _, cmd_list = get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm)
 
+    print('downloading with retry...')
     download_all_with_retry(cmd_list)
 
     # create parallel executor capped at 10 concurrent threads

@@ -261,6 +261,7 @@ def cdip_ncs_to_dict(refresh,pkl_fnm):
     
     PFM=initfuns.get_model_info(pkl_fnm)
     cdip_dir = PFM['cdip_data_dir']
+    refresh = 'refresh'
     if refresh == 'refresh':
         print('removing previous cdip .nc files...')
         for f in glob.glob(cdip_dir + '/*.nc'):
@@ -370,6 +371,7 @@ def cdip_ncs_to_dict_fillin(refresh,pkl_fnm):
     
     PFM=initfuns.get_model_info(pkl_fnm)
     cdip_dir = PFM['cdip_data_dir']
+    refresh = 'refresh'
     if refresh == 'refresh':
         print('removing previous cdip .nc files...')
         for f in glob.glob(cdip_dir + '/*.nc'):

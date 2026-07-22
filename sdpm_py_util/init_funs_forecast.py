@@ -362,7 +362,6 @@ def get_swan_restart_file_name(pkl_fnm):
 
     return fnm_swan
 
-
 def round_to_hour(dt):
     return (dt + timedelta(minutes=30)).replace(minute=0, second=0, microsecond=0)
 
