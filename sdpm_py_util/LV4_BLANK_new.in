@@ -73,7 +73,7 @@
 ! Input variable information file name.  This file needs to be processed
 ! first so all information arrays can be initialized properly.
 
-     VARNAME = /scratch/matt/testing/PFM_Simulations/LV4_Forecast/Run/coawst_mss.yaml
+     VARNAME = /scratch/PFM_Simulations/LV4_Forecast/Run/coawst_mss.yaml
 !     VARNAME = /scratch/PFM_Simulations/LV4_Forecast/Run/coawst_mss.yaml
 
 ! NetCDF I/O library:  [1] Standard NetCDF-3 or NetCDF-4

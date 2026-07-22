@@ -283,8 +283,8 @@ def create_model_info_dict():
     if lv4_model == 'COAWST':
         # swan = 60, ni=12, nj=37. swan too slow.
         NN['L4','np_swan']   = 72    # 60 number of CPUs for swan,
-        NN['L4','ntilei'] = 12    # 12 number of tiles in I-direction
-        NN['L4','ntilej'] = 36    # 37 number of tiles in J-direction
+        NN['L4','ntilei'] = 10    # 10 number of tiles in I-direction
+        NN['L4','ntilej'] = 36    # 36 number of tiles in J-direction
         NN['L4','np_roms'] = NN['L4','ntilei'] * NN['L4','ntilej'] # total number of processors
         NN['L4','np_tot'] = NN['L4','np_swan'] + NN['L4','np_roms']
         NN['L4','nnodes'] = int( NN['L4','np_tot'] / 36  )  # 3 number of nodes to be used.  not for .infile but for slurm!         

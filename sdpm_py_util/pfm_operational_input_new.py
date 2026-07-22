@@ -122,9 +122,9 @@ def create_model_info_dict():
         PFM['lv1_blank_name'] = 'LV1_BLANK_new.in'
         PFM['lv2_blank_name'] = 'LV2_BLANK_new.in'
         PFM['lv3_blank_name'] = 'LV3_BLANK_new.in'
-        PFM['lv1_executable'] = 'romsM_INTEL_Apr26'
-        PFM['lv2_executable'] = 'romsM_INTEL_Apr26'
-        PFM['lv3_executable'] = 'romsM_INTEL_Apr26'
+        PFM['lv1_executable'] = 'LV3_romsM_INTEL'
+        PFM['lv2_executable'] = 'LV3_romsM_INTEL'
+        PFM['lv3_executable'] = 'LV3_romsM_INTEL'
         PFM['restart_ncfiles_dir_in'] =  model_root_dir + 'restart_roms_data_new' 
         PFM['restart_ncfiles_dir_out'] = model_root_dir + 'restart_roms_data_new'
         PFM['restart_swanfiles_dir_in'] =  model_root_dir + 'restart_swan_data' 
@@ -158,11 +158,11 @@ def create_model_info_dict():
             PFM['lv4_blank_name'] = 'LV4_BLANK_new.in'
             PFM['lv4_yaml_file'] = 'LV4_varinfo.yaml'
             PFM['lv4_coupling_name'] = 'LV4_COUPLING_BLANK_new.in'
-            PFM['lv4_executable'] = 'coawstM_Apr26'
+            PFM['lv4_executable'] = 'coawstM_INTEL'
         else:
             PFM['lv4_blank_name'] = 'LV4_BLANK.in'
             PFM['lv4_coupling_name'] = 'LV4_COUPLING_BLANK.in'
-            PFM['lv4_executable'] = 'coawstM_intel'
+            PFM['lv4_executable'] = 'coawstM_INTEL'
             lv4_coawst_varinfo_full = lv4_run_dir + '/coawst_mss.yaml'
             PFM['lv4_coawst_varinfo_full'] = lv4_coawst_varinfo_full
 
@@ -179,7 +179,7 @@ def create_model_info_dict():
 # grid file locations
     lv1_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV1_rx020_hmask.nc'
     lv2_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV2_rx020.nc'
-    lv3_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV3_rx020.nc'
+    lv3_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV3_rx020_maskCoast.nc'
     lv4_grid_file = str(pfm_grid_dir) + '/GRID_SDTJRE_LV4_mss_oct2024.nc'
 
     PFM['lv1_grid_file_full'] = lv1_grid_file
@@ -290,8 +290,8 @@ def create_model_info_dict():
     NN['L4','Lm']  = 484     # Lm in input file
     NN['L4','Mm']  = 1139     # Mm in input file
     if lv4_model == 'ROMS':
-        NN['L4','ntilei'] = 14    # 6 number of tiles in I-direction
-        NN['L4','ntilej'] = 36    # 18 number of tiles in J-direction
+        NN['L4','ntilei'] = 14    # number of tiles in I-direction
+        NN['L4','ntilej'] = 36    # number of tiles in J-direction
         NN['L4','np'] = NN['L4','ntilei'] * NN['L4','ntilej'] # total number of processors
         NN['L4','nnodes'] = int( NN['L4','np'] / 36  )  # 3 number of nodes to be used.  not for .infile but for slurm!
     if lv4_model == 'COAWST':
@@ -318,8 +318,8 @@ def create_model_info_dict():
     tt['L3','ndtfast'] = 15
     tt['L3','forecast_days'] = PFM['forecast_days']
 
-    tt['L4','dtsec'] = 2
-    tt['L4','ndtfast'] = 8
+    tt['L4','dtsec'] = 1.8
+    tt['L4','ndtfast'] = 6
     tt['L4','forecast_days'] = PFM['forecast_days']
 
 #  max slurm time for level 1,2,3,4, in minutes
@@ -477,7 +477,7 @@ def create_model_info_dict():
     # and where the restart files are read from.
 
 
-    PFM['lv1_use_restart']         = 1 # 1 == use_restart 
+    PFM['lv1_use_restart']         = 1 
     PFM['lv2_use_restart']         = 1
     PFM['lv3_use_restart']         = 1
     PFM['lv4_use_restart']         = 1

@@ -360,25 +360,25 @@ def make_web_nc_file(pkl_fnm):
             print('going to copy ', web_full_orig, ' to')
             print(web_full_v1, ' and ', web_full_v2)
             cmd_lst1 = ['cp',web_full_orig,web_full_v1]
-            retv1 = subprocess.run(cmd_lst1)
-            print('done copying to /for_web/.')
+            retv1 = subprocess.run(cmd_lst1)  # FF changed 7-July-26
+            print('done copying to /for_web/.') # FF changed 7-July-26
             cmd_lst2 = ['cp',web_full_orig,web_full_v2]
-            retv2 = subprocess.run(cmd_lst2)
-            print('done copying to /web/')
+            retv2 = subprocess.run(cmd_lst2)  # FF changed 7-July-26
+            print('done copying to /web/')  # FF changed 7-July-26
 
         else:
             web_dir_2 = web_dir[0:-1]
             print(f"The file '{MI['lv4_web_name_full']}' exists.")
             print('copying web.nc to /dataSIO/... now...')
-            shutil.copy(MI['lv4_web_name_full'],web_dir)
-            shutil.copy(MI['lv4_web_name_full'],archive_web_dir)    
+            #shutil.copy(MI['lv4_web_name_full'],web_dir)  # FF changed 7-july-26
+            #shutil.copy(MI['lv4_web_name_full'],archive_web_dir)    # FF changed 7-july-26
             # Rename the web.nc file on website to web_data_latest.nc
             print('copied ', MI['lv4_web_name_full'], ' to /dataSIO/ locations. Renaming in for_web/')
             original_name_in_dest = os.path.join(web_dir, os.path.basename(MI['lv4_web_name_full']))
             new_path_in_dest = os.path.join(web_dir, 'web_data_latest.nc')
             print('renaming ', original_name_in_dest, ' to ')
             print(new_path_in_dest)
-            shutil.move(original_name_in_dest, new_path_in_dest)
+            #shutil.move(original_name_in_dest, new_path_in_dest)  #FF changed 7-july-26
             print('...done!')
     else:
         print(f"The file '{MI['lv4_web_name_full']}' does not exist. Aborting function!")
