@@ -362,6 +362,10 @@ def get_swan_restart_file_name(pkl_fnm):
 
     return fnm_swan
 
+
+def round_to_hour(dt):
+    return (dt + timedelta(minutes=30)).replace(minute=0, second=0, microsecond=0)
+
 def get_restart_file_and_index(lvl,pkl_fnm):
     PFM = get_model_info(pkl_fnm)
     # get the start time of the simulation
@@ -391,7 +395,8 @@ def get_restart_file_and_index(lvl,pkl_fnm):
         t_units = t_var.units
         t = netCDF4.num2date(t_var[:],t_units)
         t = convert_cftime_to_datetime(t)
-        index = find_restart_index(t, t_fore)
+        t2 = [round_to_hour(dt) for dt in t]
+        index = find_restart_index(t2, t_fore)
         if index != -99:
             found = 1
             print('found the time index!')

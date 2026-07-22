@@ -987,9 +987,8 @@ def get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm):
     fnms_out = []
     cmds_tot = []
 
-    ecmwf_user  = os.getenv("WGET_ECMWF_USER")
-    ecmwf_pword = os.getenv("WGET_ECMWF_PASS")
-
+    #ecmwf_user  = os.getenv("WGET_ECMWF_USER")
+    #ecmwf_pword  = os.getenv("WGET_ECMWF_PASS")                                                                                                         
     while hr_f <= hr_max:
         # we add the year of the forecast start time for a complete name.
         yyyymmddhh = yyyy0 + t_f.strftime("%m%d%H")
@@ -1048,7 +1047,7 @@ def download_all_with_retry(all_commands):
     pending_commands = list(all_commands)
     attempt = 1
     
-    while pending_commands and attempt <= 5:
+    while pending_commands and attempt <= 15:
         print(f"\n🚀 Starting Download Batch Attempt #{attempt} ({len(pending_commands)} files remaining)...")
         failed_commands = []
         

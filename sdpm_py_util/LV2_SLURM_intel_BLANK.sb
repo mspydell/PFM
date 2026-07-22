@@ -34,6 +34,7 @@ module load netcdf-fortran/ifort/mvapich2/4.6.1
 module load mvapich2/ifort/2.3.7
 
 export MV2_HOMOGENEOUS_CLUSTER=1
+export MV2_SMP_USE_CMA=0
 #export LD_LIBRARY_PATH=/cm/shared/apps/netcdf/gcc/64/4.8.1/lib:$LD_LIBRARY_PATH
 
 MYAPP=$lv2_executable$

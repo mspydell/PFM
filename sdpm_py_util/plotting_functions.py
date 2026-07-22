@@ -1955,7 +1955,7 @@ def make_all_his_figures(lvl,pkl_fnm):
     dir_out = PFM[key_txt]
     key_txt = 'lv'+lvl[2]+'_grid_file_full'
     fn_grd = PFM[key_txt]
-    plot_ssh_his_tseries_v2(fn,fn_grd,Ix,Iy,sv_fig,lvl,dir_out) # uncommented on 2/10/25, does this break things?
+    #plot_ssh_his_tseries_v2(fn,fn_grd,Ix,Iy,sv_fig,lvl,dir_out) # uncommented on 2/10/25, does this break things?
                                                  # maybe need to turn this into a subprocess
                                                  # or use "with" in the function?
     os.chdir('../sdpm_py_util')
