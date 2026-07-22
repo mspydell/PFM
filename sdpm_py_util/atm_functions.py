@@ -824,6 +824,9 @@ def get_ecmwf_grib_files_lists(yyyymmddhh0,pkl_fnm):
 
     cdip_user  = os.getenv("WGET_CDIP_USER")
     cdip_pword = os.getenv("WGET_CDIP_PASS")
+    print(cdip_user)
+    print(cdip_pword)
+
 
     while hr_f <= hr_max:
         yyyymmddhh = t_f.strftime("%Y%m%d%H")
@@ -924,6 +927,8 @@ def get_ecmwf_grib_files_lists_v2(yyyymmddhh0,t0_str,pkl_fnm):
 
     cdip_user  = os.getenv("WGET_CDIP_USER")
     cdip_pword = os.getenv("WGET_CDIP_PASS")
+    print(cdip_user)
+    print(cdip_pword)
 
     while hr_f <= hr_max:
         yyyymmddhh = yyyy0 + t_f.strftime("%m%d%H")
@@ -992,6 +997,8 @@ def get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm):
 
     ecmwf_user  = os.getenv("WGET_ECMWF_USER")
     ecmwf_pword = os.getenv("WGET_ECMWF_PASS")
+    print(ecmwf_user)
+    print(ecmwf_pword)
  
 
     while hr_f <= hr_max:
@@ -1017,6 +1024,7 @@ def get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm):
         hr_f = hr_f + hr_dt
         t_f = t_f + hr_dt * timedelta(hours=1)
 
+    print(cmds_tot)
     return fnms, fnms_tot, fnms_out, cmds_tot
 
 
