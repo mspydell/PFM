@@ -1017,7 +1017,7 @@ def get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm):
         hr_f = hr_f + hr_dt
         t_f = t_f + hr_dt * timedelta(hours=1)
 
-    print(cmds_tot)
+    #print(cmds_tot)
     return fnms, fnms_tot, fnms_out, cmds_tot
 
 
