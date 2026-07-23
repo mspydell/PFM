@@ -392,7 +392,8 @@ def get_swan_restart_file_name():
 
     return fnm_swan
 
-def round_rst_to_hour(fname, index=None, hour_step=6, tol_hours=1.0):
+def round_rst_to_hour(fname, index=None, hour_step=6, tol_hours=1.0,
+                      open_retries=3, retry_wait=2.0):
     """Snap ocean_time value(s) in a ROMS restart .nc to the nearest exact
     hour_step-hour boundary (default 6-hourly: 00/06/12/18 UTC) so ROMS
     dstart matches the restart record exactly.
@@ -401,10 +402,32 @@ def round_rst_to_hour(fname, index=None, hour_step=6, tol_hours=1.0):
     snapped record drifts by more than tol_hours from its target — that
     would indicate the wrong record was picked, not a benign 1-timestep
     drift.
+
+    The initial r+ open is retried up to open_retries times (retry_wait
+    seconds between attempts) to survive transient BeeGFS/HDF errors that
+    have been observed intermittently on /scratch.
     """
+    import time
     step_sec = hour_step * 3600.0
     tol_sec  = tol_hours * 3600.0
-    with netCDF4.Dataset(fname, 'r+') as d:
+
+    # retry the r+ open to survive transient HDF/BeeGFS errors
+    d = None
+    for attempt in range(open_retries):
+        try:
+            d = netCDF4.Dataset(fname, 'r+')
+            break
+        except OSError as e:
+            if attempt < open_retries - 1:
+                print(f'  round_rst_to_hour: open r+ attempt '
+                      f'{attempt+1}/{open_retries} failed on '
+                      f'{os.path.basename(fname)}: {e} — retrying in '
+                      f'{retry_wait}s')
+                time.sleep(retry_wait)
+            else:
+                raise
+
+    try:
         ot     = d.variables['ocean_time']
         units  = getattr(ot, 'units', '')
         t_orig = np.asarray(ot[:], dtype=float).copy()
@@ -435,6 +458,8 @@ def round_rst_to_hour(fname, index=None, hour_step=6, tol_hours=1.0):
                   f'{n_shift}/{len(t_orig)} rec(s) shifted, max |shift| = '
                   f'{max_shift_s:.2f} s')
         ot[:] = t_new
+    finally:
+        d.close()
 
 def get_restart_file_and_index(lvl,pkl_fnm):
     PFM = get_model_info(pkl_fnm)
@@ -474,7 +499,17 @@ def get_restart_file_and_index(lvl,pkl_fnm):
             # cycle mark (00/06/12/18Z). ROMS dstart is set to that mark
             # in the .in file; a benign ~60 s drift from the previous
             # WRT_RST would otherwise trip a "wrong initial time" failure.
-            round_rst_to_hour(fname, index=index)
+            # NON-FATAL: if the sanitizer fails (e.g. transient HDF/BeeGFS
+            # error), warn and continue so restart_setup can still persist
+            # the correct fname/index to the pickle. Otherwise ROMS would
+            # silently fall back to the default LV{N}_OCEAN_IC.nc and die.
+            try:
+                round_rst_to_hour(fname, index=index)
+            except Exception as e:
+                print(f'WARNING round_rst_to_hour failed on {fname}: '
+                      f'{type(e).__name__}: {e}')
+                print('WARNING proceeding with un-snapped restart file; '
+                      'ROMS may fail on time mismatch if drift is large.')
             break
 
         #print('didnt find the right time in ' + fname)
