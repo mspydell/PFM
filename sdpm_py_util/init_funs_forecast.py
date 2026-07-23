@@ -365,6 +365,50 @@ def get_swan_restart_file_name(pkl_fnm):
 def round_to_hour(dt):
     return (dt + timedelta(minutes=30)).replace(minute=0, second=0, microsecond=0)
 
+def round_rst_to_hour(fname, index=None, hour_step=6, tol_hours=1.0):
+    """Snap ocean_time value(s) in a ROMS restart .nc to the nearest exact
+    hour_step-hour boundary (default 6-hourly: 00/06/12/18 UTC) so ROMS
+    dstart matches the restart record exactly.
+
+    Modifies the file in place. Preserves ocean_time.units. Raises if any
+    snapped record drifts by more than tol_hours from its target — that
+    would indicate the wrong record was picked, not a benign 1-timestep
+    drift.
+    """
+    step_sec = hour_step * 3600.0
+    tol_sec  = tol_hours * 3600.0
+    with netCDF4.Dataset(fname, 'r+') as d:
+        ot     = d.variables['ocean_time']
+        units  = getattr(ot, 'units', '')
+        t_orig = np.asarray(ot[:], dtype=float).copy()
+        if 'second' in units.lower():
+            t_sec = t_orig.copy()
+        elif 'day' in units.lower():
+            t_sec = t_orig * 86400.0
+        else:
+            raise ValueError(f'{fname}: unrecognized ocean_time units: {units!r}')
+
+        recs = [index] if index is not None else list(range(len(t_sec)))
+        for i in recs:
+            snap  = round(t_sec[i] / step_sec) * step_sec
+            drift = t_sec[i] - snap
+            if abs(drift) > tol_sec:
+                raise ValueError(
+                    f'{fname}: rec {i} at t={t_sec[i]:.2f}s drifts '
+                    f'{drift:+.2f}s from nearest {hour_step}h mark; '
+                    f'> {tol_hours}h tolerance.')
+            t_sec[i] = snap
+
+        t_new = t_sec if 'second' in units.lower() else t_sec / 86400.0
+        n_shift = int((t_new != t_orig).sum())
+        if n_shift:
+            unit_scale = 1.0 if 'second' in units.lower() else 86400.0
+            max_shift_s = float(np.max(np.abs(t_new - t_orig))) * unit_scale
+            print(f'  round_rst_to_hour({os.path.basename(fname)}): '
+                  f'{n_shift}/{len(t_orig)} rec(s) shifted, max |shift| = '
+                  f'{max_shift_s:.2f} s')
+        ot[:] = t_new
+
 def get_restart_file_and_index(lvl,pkl_fnm):
     PFM = get_model_info(pkl_fnm)
     # get the start time of the simulation
@@ -399,6 +443,11 @@ def get_restart_file_and_index(lvl,pkl_fnm):
         if index != -99:
             found = 1
             print('found the time index!')
+            # snap the chosen record's ocean_time to the nearest 6-hourly
+            # cycle mark (00/06/12/18Z). ROMS dstart is set to that mark
+            # in the .in file; a benign ~60 s drift from the previous
+            # WRT_RST would otherwise trip a "wrong initial time" failure.
+            round_rst_to_hour(fname, index=index)
             break
 
         #print('didnt find the right time in ' + fname)
