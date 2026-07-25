@@ -461,6 +461,58 @@ def round_rst_to_hour(fname, index=None, hour_step=6, tol_hours=1.0,
     finally:
         d.close()
 
+def sanitize_all_restart_files(pkl_fnm, hour_step=6, verbose=True):
+    """Scan every ROMS restart file in PFM['restart_ncfiles_dir_in'] and
+    snap any drifted ocean_time values to the nearest hour_step-hour mark
+    (default 6-hourly: 00/06/12/18 UTC).
+
+    Meant to be called once at the top of the hindcast/forecast driver,
+    before any per-level restart_setup fires. This guarantees every
+    candidate restart file has clean timestamps by the time ROMS reads
+    it, so the per-level sanitizer inside get_restart_file_and_index
+    becomes a fast no-op and ROMS's bc/dstart consistency check can't be
+    tripped by 1-timestep or float32-accumulation drift.
+
+    Non-fatal: files that can't be opened/snapped are logged and skipped —
+    the per-level sanitizer gets another chance later.
+
+    Returns (n_scanned, n_snapped, n_failed).
+    """
+    PFM = get_model_info(pkl_fnm)
+    dir_in = PFM['restart_ncfiles_dir_in']
+    step_sec = hour_step * 3600.0
+    files = sorted(glob.glob(os.path.join(dir_in, 'LV*_ocean_rst_*.nc')))
+    if verbose:
+        print(f'sanitize_all_restart_files: scanning {len(files)} files in {dir_in}')
+    n_snapped = 0
+    n_failed  = 0
+    for fp in files:
+        try:
+            with netCDF4.Dataset(fp, 'r') as d:
+                t = np.asarray(d.variables['ocean_time'][:], dtype=float)
+        except Exception as e:
+            if verbose:
+                print(f'  skip (read failed): {os.path.basename(fp)}: '
+                      f'{type(e).__name__}: {e}')
+            n_failed += 1
+            continue
+        drift_max = float(np.max(np.abs(t - np.round(t / step_sec) * step_sec)))
+        if drift_max == 0.0:
+            continue
+        try:
+            round_rst_to_hour(fp)
+            n_snapped += 1
+        except Exception as e:
+            if verbose:
+                print(f'  WARNING snap failed: {os.path.basename(fp)}: '
+                      f'{type(e).__name__}: {e}')
+            n_failed += 1
+    if verbose:
+        n_clean_now = len(files) - n_snapped - n_failed
+        print(f'sanitize_all_restart_files: {n_snapped} snapped, '
+              f'{n_failed} failed, {n_clean_now} already clean')
+    return len(files), n_snapped, n_failed
+
 def get_restart_file_and_index(lvl,pkl_fnm):
     PFM = get_model_info(pkl_fnm)
     # get the start time of the simulation

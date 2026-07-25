@@ -11,7 +11,15 @@ sys.path.append('../driver')
 def driver_run_hind_LV123( pkl_fnm ):
     print('starting driver_run_hind_LV123!!!')
     t00 = datetime.now()
-    MI = initfuns.get_model_info( pkl_fnm )    
+    MI = initfuns.get_model_info( pkl_fnm )
+
+    # pre-flight: snap any ocean_time drift in the restart files so ROMS's
+    # bc-time vs dstart check (compared at sub-ms precision) doesn't reject
+    # a restart that's only drifted by 1 dt or float32 accumulation.
+    # Runs before any sub-simulation's restart_setup so nothing has file
+    # locks yet.
+    initfuns.sanitize_all_restart_files( pkl_fnm )
+
     nt  = len(MI['start_times_str'])
     nlv = len(MI['levels_to_run'])
     time_tots = [0]*nt
