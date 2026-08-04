@@ -84,7 +84,7 @@ def create_model_info_dict():
     # where do we find, and save, the raw hycom data to...
     PFM['hycom_dir'] = pfm_dir + 'hycom_data/'
     PFM['Q_PB'] = -2.0 # m3/s flow at Punta Bandera
-    PFM['dye_PB'] = 0.5 # fraction of Q_PB that is raw WW
+    PFM['dye_PB'] = 0.39 # fraction of Q_PB that is raw WW
     # this is where PFM saves atm forcing and river discharge to at end of PFM simulation
     PFM['archive_dir'] = '/dataSIO/PFM_Simulations/Archive/Forcing/'
     PFM['archive_web_dir'] = '/dataSIO/PFM_Simulations/Archive/web/'
@@ -318,8 +318,8 @@ def create_model_info_dict():
     tt['L3','ndtfast'] = 15
     tt['L3','forecast_days'] = PFM['forecast_days']
 
-    tt['L4','dtsec'] = 1.8
-    tt['L4','ndtfast'] = 6
+    tt['L4','dtsec'] = 2
+    tt['L4','ndtfast'] = 8
     tt['L4','forecast_days'] = PFM['forecast_days']
 
 #  max slurm time for level 1,2,3,4, in minutes
