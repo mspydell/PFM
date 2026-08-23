@@ -192,12 +192,39 @@ def return_missing_hours_from_nwm_ncs(file_names):
 
     return T
 
+# NCEP publishes NWM under a versioned path and bumps the version on upgrades;
+# the old path stops publishing on cutover day. v3.0 went dark after 2026-08-18
+# and v3.1 took over, which silently broke every nwm fetch. Probe newest-first
+# instead of hardcoding.
+NWM_NOMADS_ROOT = 'https://nomads.ncep.noaa.gov/pub/data/nccf/com/nwm'
+NWM_VERSIONS    = ['v3.1', 'v3.0']   # newest first
+
+def get_nwm_nomads_base(yyyymmddhh, fore_type='medium_range_blend', versions=None):
+    # returns the nomads base url for this forecast cycle, using whichever
+    # NWM version actually has the data. probes the f001 file for each
+    # candidate version in turn and returns the first base that exists.
+    # if none respond, falls back to the newest so the caller still gets a
+    # well-formed (if 404-ing) url list and the existing error paths run.
+    if versions is None:
+        versions = NWM_VERSIONS
+    yyyymmdd = yyyymmddhh[0:8]
+    hh = yyyymmddhh[8:]
+    probe_fn = 'nwm.t' + hh + 'z.' + fore_type + '.channel_rt.f001.conus.nc'
+    for ver in versions:
+        base = NWM_NOMADS_ROOT + '/' + ver + '/nwm.' + yyyymmdd + '/' + fore_type
+        if file_url_exists(base + '/' + probe_fn):
+            print('nwm: using ' + ver + ' for forecast ' + yyyymmddhh)
+            return base
+    print('nwm: none of ' + str(versions) + ' has forecast ' + yyyymmddhh +
+          '; falling back to ' + versions[0])
+    return NWM_NOMADS_ROOT + '/' + versions[0] + '/nwm.' + yyyymmdd + '/' + fore_type
+
 def get_nwm_fore_url_list(yyyymmddhh):
     yyyymmdd = yyyymmddhh[0:8]
     hh = yyyymmddhh[8:]
     fore_type = 'medium_range_blend' # short_range, long_range, etc.
     hrs = np.arange(1,241,1) # hours go from 1 to 240...
-    url = 'https://nomads.ncep.noaa.gov/pub/data/nccf/com/nwm/v3.0/nwm.' + yyyymmdd + '/' + fore_type
+    url = get_nwm_nomads_base(yyyymmddhh, fore_type)
     fname = ['nwm.t','z.'+fore_type+'.channel_rt.f','.conus.nc']
 
     url_list = []
@@ -1270,7 +1297,7 @@ def get_river_flow_nwm(yyyymmddhh,t_pfm_str,pkl_fnm):
     hrs = delta_t_hr + np.arange(0,nhr+3,1) # data is at 1 hr intervals, we will loop through this to get the data...
                                             # the +3 here is to get 2 extra hours of data. this is needed to get riv.nc 
                                             # to work correctly.
-    url = 'https://nomads.ncep.noaa.gov/pub/data/nccf/com/nwm/v3.0/nwm.' + yyyymmdd + '/' + fore_type
+    url = get_nwm_nomads_base(yyyymmddhh, fore_type)
     fname = ['nwm.t','z.'+fore_type+'.channel_rt.f','.conus.nc']
     #nwm.t00z.medium_range_blend.channel_rt.f001.conus.nc
 
