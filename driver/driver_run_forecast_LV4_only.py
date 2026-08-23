@@ -8,6 +8,49 @@ import init_funs_forecast as initfuns
 import util_functions as utilfuns
 sys.path.append('../driver')
 
+# ---------------------------------------------------------------------------
+# Post-processing memory guard.
+#
+# make_web_nc_file reads the ~33 GB LV4 history file and make_simulation_plots
+# is nearly as hungry. Each user is capped at 8 GiB on the login node, so both
+# get SIGKILLed there -- web.nc returns 137 and the LV4 plot subprocess returns
+# -9, and because make_web_nc_file calls sys.exit(1) on a bad return code that
+# also kills the rest of this driver (archive copies and plots never run).
+#
+# So hand those two steps to a small slurm allocation. They run after the LV4
+# sbatch has finished, so the nodes are already free and there is no risk of
+# waiting on resources we are ourselves holding.
+#
+# If this driver is already running inside an allocation, call them in-process:
+# we have the memory, and nesting srun inside srun invites trouble.
+# ---------------------------------------------------------------------------
+SRUN_PARTITION = 'fast-hiprio'
+SRUN_MEM       = '96G'
+SRUN_CPUS      = '4'          # make_simulation_plots runs 2 subprocesses in parallel
+SRUN_TIME      = '02:00:00'
+
+def in_slurm_allocation():
+    return bool(os.environ.get('SLURM_JOB_ID'))
+
+def run_utilfun_under_srun(call_src, job_name):
+    # run utilfuns.<call_src> in a one-node slurm allocation. srun inherits the
+    # cwd (.../PFM/driver) and the environment (so the active conda env carries
+    # over). returns the CompletedProcess so callers read .returncode as before.
+    py_src = ('import sys; sys.path.append("../sdpm_py_util"); '
+              'import util_functions as utilfuns; ' + call_src)
+    cmd = ['srun',
+           '--partition=' + SRUN_PARTITION,
+           '--mem=' + SRUN_MEM,
+           '--cpus-per-task=' + SRUN_CPUS,
+           '--time=' + SRUN_TIME,
+           '--job-name=' + job_name,
+           'python', '-u', '-W', 'ignore', '-c', py_src]
+    print('  -> ' + job_name + ' via srun: --partition=' + SRUN_PARTITION +
+          ' --mem=' + SRUN_MEM + ' --cpus-per-task=' + SRUN_CPUS +
+          ' --time=' + SRUN_TIME)
+    return subprocess.run(cmd)
+
+
 def driver_run_forecast_LV4_only( pkl_fnm ):
     t00 = datetime.now()
     # upon initialization, make the model_info.pkl file
@@ -42,9 +85,15 @@ def driver_run_forecast_LV4_only( pkl_fnm ):
             t01 = datetime.now()
             print('current time is:')
             print(t01)
-            ret = utilfuns.make_web_nc_file(pkl_fnm)
+            if in_slurm_allocation():
+                ret = utilfuns.make_web_nc_file(pkl_fnm)
+            else:
+                ret = run_utilfun_under_srun(
+                    'utilfuns.make_web_nc_file(' + repr(pkl_fnm) + ')',
+                    'PFM_webnc')
             t02 = datetime.now()
-            print('...done making web nc file: ' + str(ret.returncode) + ' (0=good)')  
+            print('...done making web nc file: ' +
+                  str(getattr(ret, 'returncode', 'n/a')) + ' (0=good)')  
             print('this took:')
             print(t02-t01)
             print('current time is:')
@@ -65,7 +114,13 @@ def driver_run_forecast_LV4_only( pkl_fnm ):
     print('current time is:')
     print(t01)
 
-    utilfuns.make_simulation_plots(lvs_to_plt,pkl_fnm)
+    if in_slurm_allocation():
+        utilfuns.make_simulation_plots(lvs_to_plt,pkl_fnm)
+    else:
+        run_utilfun_under_srun(
+            'utilfuns.make_simulation_plots(' + repr(lvs_to_plt) + ', ' +
+            repr(pkl_fnm) + ')',
+            'PFM_lv4plots')
     t02 = datetime.now()
     print('...done. plotting took:')
     print(t02-t01)
