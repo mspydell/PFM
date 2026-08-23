@@ -19,6 +19,8 @@ sys.path.append('../sdpm_py_util')
 import grid_functions as grdfuns
 import init_funs_forecast as initfuns
 import subprocess
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 def floor_datetime_to_nearest_6_hours(dt):
     """
@@ -197,34 +199,44 @@ def return_missing_hours_from_nwm_ncs(file_names):
 # and v3.1 took over, which silently broke every nwm fetch. Probe newest-first
 # instead of hardcoding.
 NWM_NOMADS_ROOT = 'https://nomads.ncep.noaa.gov/pub/data/nccf/com/nwm'
+NWM_S3_ROOT     = 'https://noaa-nwm-pds.s3.amazonaws.com'
 NWM_VERSIONS    = ['v3.1', 'v3.0']   # newest first
+NWM_MAX_WORKERS = 8      # parallel http fetches; nwm files are ~12.5 MB each
+NWM_HTTP_TIMEOUT= 120    # seconds, per request
 
-def get_nwm_nomads_base(yyyymmddhh, fore_type='medium_range_blend', versions=None):
-    # returns the nomads base url for this forecast cycle, using whichever
-    # NWM version actually has the data. probes the f001 file for each
-    # candidate version in turn and returns the first base that exists.
-    # if none respond, falls back to the newest so the caller still gets a
-    # well-formed (if 404-ing) url list and the existing error paths run.
+def get_nwm_base_url(yyyymmddhh, fore_type='medium_range_blend', versions=None):
+    # returns the base url for this forecast cycle from whichever source
+    # actually has it. probes the f001 file for each candidate in turn.
+    # nomads first (official realtime, but only ~2 days of retention), then
+    # the public S3 mirror, which carries the same files and keeps them far
+    # longer -- that retention gap is what turned the v3.0 -> v3.1 bump into
+    # five lost days.
+    # if nothing responds, falls back to the first candidate so the caller
+    # still gets a well-formed url list and the existing error paths run.
     if versions is None:
         versions = NWM_VERSIONS
     yyyymmdd = yyyymmddhh[0:8]
     hh = yyyymmddhh[8:]
     probe_fn = 'nwm.t' + hh + 'z.' + fore_type + '.channel_rt.f001.conus.nc'
-    for ver in versions:
-        base = NWM_NOMADS_ROOT + '/' + ver + '/nwm.' + yyyymmdd + '/' + fore_type
+
+    cands = [(v, NWM_NOMADS_ROOT + '/' + v + '/nwm.' + yyyymmdd + '/' + fore_type)
+             for v in versions]
+    cands.append(('s3', NWM_S3_ROOT + '/nwm.' + yyyymmdd + '/' + fore_type))
+
+    for tag, base in cands:
         if file_url_exists(base + '/' + probe_fn):
-            print('nwm: using ' + ver + ' for forecast ' + yyyymmddhh)
+            print('nwm: using ' + tag + ' for forecast ' + yyyymmddhh)
             return base
-    print('nwm: none of ' + str(versions) + ' has forecast ' + yyyymmddhh +
-          '; falling back to ' + versions[0])
-    return NWM_NOMADS_ROOT + '/' + versions[0] + '/nwm.' + yyyymmdd + '/' + fore_type
+    print('nwm: no source (' + ', '.join(t for t, _ in cands) + ') has forecast '
+          + yyyymmddhh + '; falling back to ' + cands[0][0])
+    return cands[0][1]
 
 def get_nwm_fore_url_list(yyyymmddhh):
     yyyymmdd = yyyymmddhh[0:8]
     hh = yyyymmddhh[8:]
     fore_type = 'medium_range_blend' # short_range, long_range, etc.
     hrs = np.arange(1,241,1) # hours go from 1 to 240...
-    url = get_nwm_nomads_base(yyyymmddhh, fore_type)
+    url = get_nwm_base_url(yyyymmddhh, fore_type)
     fname = ['nwm.t','z.'+fore_type+'.channel_rt.f','.conus.nc']
 
     url_list = []
@@ -268,115 +280,114 @@ def load_tmp_nc_data(tmpnc):
     return t4, q2np, rids_out
 
 
-def  get_nwm_from_url(url):
-
-    # this dumps the url to a tmp.nc file
-    # loads this tmp.nc file, extracts time and Q for
+def load_nwm_bytes(buf):
+    # same extraction as load_tmp_nc_data, but straight off an in-memory
+    # netcdf buffer. writing each 12.5 MB file to /scratch first cost ~90 s
+    # per forecast cycle and funnelled every fetch through one shared temp
+    # path, which made parallel fetching impossible.
     reach_ids = [948070199, 20331702, 20324441]
                 #SW         Otay      TJR 20324441 is last segment near ocean.
-    # and return the time and Q at these reach_ids    
 
-    tmpnc = "/scratch/PFM_Simulations/LV4_Forecast/Forc/nwm_data/nwm_tmp.nc"
+    with nc.Dataset('inmem', mode='r', memory=buf) as ds:
+        rids = ds.variables['feature_id'][:]
+        t = ds.variables['time']
+        qq = ds.variables['streamflow'][:]
+        t2 = num2date(t[:],t.units)
+        t3 = t2.data
 
-    new_way = 1
-    if new_way == 1:
-        print('for, ', url)
-        print('double checking whether nwm has data now.')
+    cnt_rid=0
+    q2 = np.zeros((1,3))
+    rids_out = np.zeros((1,3))
+    for rids0 in reach_ids: # loops through in order
+        ig = np.argwhere(rids==rids0)
+        q2[0,cnt_rid] = qq[ig]
+        rids_out[0,cnt_rid] = rids[ig]
+        cnt_rid=cnt_rid+1
+
+    return t3, np.array(q2), rids_out
+
+
+def  get_nwm_from_url(url, retries=3, backoff=2.0):
+    # fetch one nwm channel_rt file and return (time, Q[1,3], reach_ids[1,3])
+    # for our three reaches. parsed in memory -- no temp file.
+    # returns ([], [], []) if the file can't be fetched after `retries`.
+    last_err = None
+    for attempt in range(retries):
         try:
-            response = requests.get(url)
-            response.raise_for_status()  # Raise an exception for bad status codes (4xx or 5xx)
-            print("Request successful:", response.json())
-            resp = {"status": "no error"}
-        except requests.exceptions.ConnectionError as e:
-            print(f"Error: Remote end closed connection without response. Details: {e}")
-            # Perform alternative action here, e.g., retry, log, or use fallback data
-            print("Performing alternative action: Using fallback data.")
-            resp = {"status": "error", "message": "Failed to retrieve data, using fallback."}
-        except requests.exceptions.Timeout as e:
-            print(f"Error: Request timed out. Details: {e}")
-            # Handle timeout specifically if needed
-            print("Performing alternative action: Handling timeout.")
-            resp = {"status": "error", "message": "Request timed out, using fallback."}
-        except requests.exceptions.RequestException as e:
-            #print(f"An unexpected request error occurred: {e}")
-            #print('But going to try writing nc file anyway!')
-            # Handle other types of requests exceptions
-            resp = {"status": "no error", "message": "An unexpected error occurred."}
+            response = requests.get(url, timeout=NWM_HTTP_TIMEOUT)
+            response.raise_for_status()
+            return load_nwm_bytes(response.content)
         except Exception as e:
-            print(f"An unhandled error occurred: {e}")
-            # Catch any other unexpected errors
-            resp = {"status": "error", "message": "An unhandled error occurred."}
-
-        if resp['status'] == "no error":
-            with open(tmpnc, "wb") as f:
-                f.write(response.content)
-
-            t4, q2np, rids_out = load_tmp_nc_data(tmpnc)
-        else:
-            print('nwm says it has the file, but there was a problem.')
-            t4 =[]
-            q2np = []
-            rids_out = []    
-    else:
-        response = requests.get(url)
-
-        # Check if the request was successful
-        if response.status_code == 200:
-            # get data from the url and write to tmp file
-            with open(tmpnc, "wb") as f:
-                f.write(response.content)
-
-            t4, q2np, rids_out = load_tmp_nc_data(tmpnc)    
-
-
-    return t4, q2np, rids_out
+            last_err = e
+            if attempt < retries - 1:
+                time.sleep(backoff * (attempt + 1))
+    print('nwm: fetch failed for ' + url + ' after ' + str(retries) +
+          ' tries: ' + type(last_err).__name__ + ': ' + str(last_err))
+    return [], [], []
 
 
 def get_all_nwm_fore_data(yyyymmddhh):
-    # this function gets all of the possible data currently on the 
+    # this function gets all of the possible data currently on the
     # nwm server for a specific forecast time
     # returns np arrays of time, discharge, and reach ids
+    #
+    # both passes are threaded: these are ~240 network-bound requests, so the
+    # GIL is irrelevant and NWM_MAX_WORKERS streams cut the cycle from minutes
+    # to well under one.
 
-    # list of urls needed for the yyyymmddhh forecast
     url_list = get_nwm_fore_url_list(yyyymmddhh)
-    
-    # check and see if the url_file exists on the nwm server
-    got_url = []
+
+    # existence pass -- bail before pulling ~3 GB if the cycle is only
+    # partly published.
     print('testing for nwm files...')
-    for url in url_list:
-        got_it = file_url_exists(url)
-        got_url.append(got_it)
-        if not got_it:
-            print('the file, ', url, ' is not there.')
-            print('got_it is, ', got_it)
-            # if there is no file, just return nothing
-            return [], [], []
+    with ThreadPoolExecutor(max_workers=NWM_MAX_WORKERS) as ex:
+        got_url = list(ex.map(file_url_exists, url_list))
+    if not all(got_url):
+        missing = [u for u, g in zip(url_list, got_url) if not g]
+        print('the file, ', missing[0], ' is not there.')
+        print('got_it is, ', False)
+        print('(' + str(len(missing)) + ' of ' + str(len(url_list)) +
+              ' nwm files missing for this forecast)')
+        return [], [], []
+
+    # fetch pass -- results are stored by index so the assembled arrays stay
+    # in f001..f240 order regardless of completion order.
+    print('downloading ' + str(len(url_list)) + ' nwm files with ' +
+          str(NWM_MAX_WORKERS) + ' workers...')
+    results = [None] * len(url_list)
+    with ThreadPoolExecutor(max_workers=NWM_MAX_WORKERS) as ex:
+        futs = {ex.submit(get_nwm_from_url, u): i for i, u in enumerate(url_list)}
+        for fut in as_completed(futs):
+            i = futs[fut]
+            try:
+                results[i] = fut.result()
+            except Exception as e:
+                print('nwm: unexpected error on ' + url_list[i] + ': ' +
+                      type(e).__name__ + ': ' + str(e))
+                results[i] = ([], [], [])
 
     t3 = np.empty((0))
-    Q3 = np.empty((0,3)) 
-    for url in url_list:
-        t, Q, rids = get_nwm_from_url(url)
-        if len(t)>0: # extra check.
-            # we got data so start appending
+    Q3 = np.empty((0,3))
+    rids = []
+    for t, Q, r in results:
+        if len(t) > 0:
             t3 = np.concatenate((t3,t))
             Q3 = np.concatenate((Q3,Q),axis=0)
+            rids = r
         else:
             # if something wrong return nothing
             return [], [], []
 
-    # sort times...
-    # if times are not in increasing order
-    # we will only get here if things are good.
-
+    # sort times, in case they are not in increasing order.
+    # NOTE: sort every discharge column, not just the first. the old loop ran
+    # over len(rids), which is 1 for a (1,3) array, so columns 1 and 2 were
+    # left unsorted -- harmless only while fetches were sequential.
     i_sort = np.argsort(t3)
     t4 = t3[i_sort]
-    Q4 = Q3
-    if len(rids)>0:
-        for cnt in np.arange(0,len(rids)):
-            Q4[:,cnt] = Q3[i_sort,cnt]
-    
+    Q4 = Q3[i_sort, :]
+
     return t4, Q4, rids
-            
+
 def make_nwm_nc_file(yyyymmddhh,file_out):
     # this function makes an nc file of nwm discharge data
     # for the forecast starting at yyyymmddhh 
@@ -1297,7 +1308,7 @@ def get_river_flow_nwm(yyyymmddhh,t_pfm_str,pkl_fnm):
     hrs = delta_t_hr + np.arange(0,nhr+3,1) # data is at 1 hr intervals, we will loop through this to get the data...
                                             # the +3 here is to get 2 extra hours of data. this is needed to get riv.nc 
                                             # to work correctly.
-    url = get_nwm_nomads_base(yyyymmddhh, fore_type)
+    url = get_nwm_base_url(yyyymmddhh, fore_type)
     fname = ['nwm.t','z.'+fore_type+'.channel_rt.f','.conus.nc']
     #nwm.t00z.medium_range_blend.channel_rt.f001.conus.nc
 
