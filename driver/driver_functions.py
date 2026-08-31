@@ -9,6 +9,46 @@ import init_funs_forecast as initfuns
 import util_functions as utilfuns
 import ocn_funs_forecast as ocnfuns_fore
 
+# ---------------------------------------------------------------------------
+# LV4 atm steps need more memory than the login node allows.
+#
+# The LV4 grid is 1141x486 -- 5.6x LV1 -- so stacking 9 atm fields over 101
+# time steps needs ~3.8 GB. Each user is capped at 8 GiB on the login node and
+# an interactive session routinely leaves only ~2.5 GiB free, so both atm
+# steps get SIGKILLed (return code -9). Worse, atm_roms_dict_to_netcdf deletes
+# the existing file before writing the new one, so a kill leaves NO atm file
+# at all -- which is how 2026-08-31 lost LV4_ATM_FORCING.nc entirely.
+#
+# LV1/2/3 need only ~0.7 GB and are fine in-process; this is LV4-only.
+#
+# If we are already inside an allocation, run in-process: we have the memory,
+# and nesting srun inside srun invites trouble.
+# ---------------------------------------------------------------------------
+LV4_SRUN_PARTITION = 'fast-hiprio'
+LV4_SRUN_MEM       = '64G'
+LV4_SRUN_CPUS      = '2'
+LV4_SRUN_TIME      = '00:40:00'
+
+def in_slurm_allocation():
+    return bool(os.environ.get('SLURM_JOB_ID'))
+
+def run_cmd_maybe_srun(cmd_list, job_name):
+    # run cmd_list, wrapping it in a slurm allocation when on the login node.
+    # srun inherits cwd and environment, so the caller's chdir into
+    # ../sdpm_py_util and the active conda env both carry over.
+    if in_slurm_allocation():
+        return subprocess.run(cmd_list)
+    full = ['srun',
+            '--partition='     + LV4_SRUN_PARTITION,
+            '--mem='           + LV4_SRUN_MEM,
+            '--cpus-per-task=' + LV4_SRUN_CPUS,
+            '--time='          + LV4_SRUN_TIME,
+            '--job-name='      + job_name] + cmd_list
+    print('  -> ' + job_name + ' via srun (--mem=' + LV4_SRUN_MEM +
+          ', --time=' + LV4_SRUN_TIME + ')')
+    return subprocess.run(full)
+
+
 #from make_LV1_dotin_and_SLURM import make_LV1_dotin_and_SLURM
 #from run_slurm_LV1 import run_slurm_LV1
 # the functions in here are used to make the 
@@ -1529,10 +1569,16 @@ def run_fore_LV4(pkl_fnm):
     level = 4
     print('\nwe are now putting the fore atm data on the roms LV4 grid...')
     t01 = datetime.now()
-    cmd_list = ['python','atm_functions.py','get_atm_data_on_roms_grid',str(level),pkl_fnm]
+    cmd_list = ['python','-u','-W','ignore','atm_functions.py','get_atm_data_on_roms_grid',str(level),pkl_fnm]
     os.chdir('../sdpm_py_util')
-    ret5 = subprocess.run(cmd_list)   
+    ret5 = run_cmd_maybe_srun(cmd_list, 'PFM_lv4_atm2grid')
     print('return code: ' + str(ret5.returncode) + ' (0=good)')  
+    if ret5.returncode != 0:
+        raise RuntimeError(
+            'LV4 get_atm_data_on_roms_grid FAILED (rc=' + str(ret5.returncode) +
+            '). rc=-9 means the OOM killer. atm_roms_dict_to_netcdf '
+            'deletes before it writes, so continuing would run ROMS '
+            'with a missing or stale LV4_ATM_FORCING.nc.')
     os.chdir('../sdpm_py_util')
     print('...done.')
     # all the fields plotted with the data on roms grid
@@ -1547,10 +1593,16 @@ def run_fore_LV4(pkl_fnm):
     fn_atm_out = MI['lv4_forc_dir'] + '/' + MI['lv4_atm_file'] # LV1 atm forcing filename
     print('we are now saving ATM LV4 to ' + fn_atm_out + ' ...')
     t01 = datetime.now()
-    cmd_list = ['python','-W','ignore','atm_functions.py','atm_roms_dict_to_netcdf',str(level),pkl_fnm]
+    cmd_list = ['python','-u','-W','ignore','atm_functions.py','atm_roms_dict_to_netcdf',str(level),pkl_fnm]
     os.chdir('../sdpm_py_util')
-    ret5 = subprocess.run(cmd_list)   
+    ret5 = run_cmd_maybe_srun(cmd_list, 'PFM_lv4_atm2nc')
     print('return code: ' + str(ret5.returncode) + ' (0=good)')  
+    if ret5.returncode != 0:
+        raise RuntimeError(
+            'LV4 atm_roms_dict_to_netcdf FAILED (rc=' + str(ret5.returncode) +
+            '). rc=-9 means the OOM killer. atm_roms_dict_to_netcdf '
+            'deletes before it writes, so continuing would run ROMS '
+            'with a missing or stale LV4_ATM_FORCING.nc.')
     os.chdir('../sdpm_py_util')
     print('...done.') 
     # put in a function to plot the atm.nc file if we want to
@@ -1890,20 +1942,32 @@ def run_fore_lv4_fillin(pkl_fnm):
             print('no working directory or archive atm file.')
             print('need to make the atm file...')
             print('\nwe are now putting the fore atm data on the roms LV4 grid...')
-            cmd_list = ['python','atm_functions.py','get_atm_data_on_roms_grid',str(level),pkl_fnm]
+            cmd_list = ['python','-u','-W','ignore','atm_functions.py','get_atm_data_on_roms_grid',str(level),pkl_fnm]
             os.chdir('../sdpm_py_util')
-            ret5 = subprocess.run(cmd_list)   
+            ret5 = run_cmd_maybe_srun(cmd_list, 'PFM_lv4_atm2grid')
             print('return code: ' + str(ret5.returncode) + ' (0=good)')  
+            if ret5.returncode != 0:
+                raise RuntimeError(
+                    'LV4 get_atm_data_on_roms_grid FAILED (rc=' + str(ret5.returncode) +
+                    '). rc=-9 means the OOM killer. atm_roms_dict_to_netcdf '
+                    'deletes before it writes, so continuing would run ROMS '
+                    'with a missing or stale LV4_ATM_FORCING.nc.')
             os.chdir('../sdpm_py_util')
             print('...done.')
 
             # fn_out is the name of the atm.nc file used by roms
             fn_atm_out = MI['lv4_forc_dir'] + '/' + MI['lv4_atm_file'] # LV1 atm forcing filename
             print('we are now saving ATM LV4 to ' + fn_atm_out + ' ...')
-            cmd_list = ['python','-W','ignore','atm_functions.py','atm_roms_dict_to_netcdf',str(level),pkl_fnm]
+            cmd_list = ['python','-u','-W','ignore','atm_functions.py','atm_roms_dict_to_netcdf',str(level),pkl_fnm]
             os.chdir('../sdpm_py_util')
-            ret5 = subprocess.run(cmd_list)   
+            ret5 = run_cmd_maybe_srun(cmd_list, 'PFM_lv4_atm2nc')
             print('return code: ' + str(ret5.returncode) + ' (0=good)')  
+            if ret5.returncode != 0:
+                raise RuntimeError(
+                    'LV4 atm_roms_dict_to_netcdf FAILED (rc=' + str(ret5.returncode) +
+                    '). rc=-9 means the OOM killer. atm_roms_dict_to_netcdf '
+                    'deletes before it writes, so continuing would run ROMS '
+                    'with a missing or stale LV4_ATM_FORCING.nc.')
             os.chdir('../sdpm_py_util')
             print('...done.') 
 
