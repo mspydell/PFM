@@ -15,6 +15,7 @@ import subprocess
 import cfgrib
 import os
 import time
+import tempfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 def delete_files_by_pattern(directory, pattern):
@@ -57,9 +58,15 @@ def get_atm_data_as_dict(pkl_fnm):
             print('...done.') 
 
             print('\nputting all grib data into a single pickle file...')
-            cmd_list = ['python','-W','ignore','atm_functions.py','ecmwf_grib_2_dict_all',yyyymmddhh0]
+            cmd_list = ['python','-u','-W','ignore','atm_functions.py','ecmwf_grib_2_dict_all',yyyymmddhh0]
             ret5 = subprocess.run(cmd_list)   
             print('return code: ' + str(ret5.returncode) + ' (0=good)')  
+            if ret5.returncode != 0:
+                raise RuntimeError(
+                    'ecmwf_grib_2_dict_all FAILED (rc=' + str(ret5.returncode) +
+                    '). Aborting: continuing would leave the previous cycle\'s '
+                    'ecmwf_all.pkl in place and silently build atm forcing for '
+                    'the wrong day.')
             print('...done.') 
         else:
             tfore0 = PFM['fetch_time']
@@ -90,9 +97,15 @@ def get_atm_data_as_dict(pkl_fnm):
             print('...done.') 
 
             print('\nputting all grib data into a single pickle file...')
-            cmd_list = ['python','-W','ignore','atm_functions.py','ecmwf_grib_2_dict_all_v2',yyyymmddhh0, tstart_str,pkl_fnm]
+            cmd_list = ['python','-u','-W','ignore','atm_functions.py','ecmwf_grib_2_dict_all_v2',yyyymmddhh0, tstart_str,pkl_fnm]
             ret5 = subprocess.run(cmd_list)   
             print('return code: ' + str(ret5.returncode) + ' (0=good)')  
+            if ret5.returncode != 0:
+                raise RuntimeError(
+                    'ecmwf_grib_2_dict_all_v2 FAILED (rc=' + str(ret5.returncode) +
+                    '). Aborting: continuing would leave the previous cycle\'s '
+                    'ecmwf_all.pkl in place and silently build atm forcing for '
+                    'the wrong day (this is exactly what happened 2026-08-31).')
             print('...done.') 
 
         print('deleting grb and idx files from ', PFM['ecmwf_dir'], ' ...')
@@ -945,6 +958,81 @@ def get_ecmwf_grib_files_lists_v2(yyyymmddhh0,t0_str,pkl_fnm):
 
     return fnms, fnms_tot, fnms_out, cmds_tot
 
+# ---------------------------------------------------------------------------
+# ECMWF dissemination layout.
+#
+# Around 2026-08-31 ECMWF flattened diss.ecmwf.int: the grib files moved from
+# dated subdirectories (/YYYYMMDD/T1D...) to the server root (/T1D...). The
+# dated directories still EXIST but are empty, so a request for a file there
+# returns a ~454 byte HTML directory listing WITH A SUCCESS STATUS -- not an
+# error. That is what silently poisoned the 2026-08-31 forecast: 101 HTML
+# pages passed the old "size > 0" check, cfgrib then failed, and the
+# unchecked return code let a day-old atm file through to ROMS.
+#
+# So probe both layouts and use whichever actually serves GRIB bytes.
+# ---------------------------------------------------------------------------
+ECMWF_FTP_ROOT = 'ftp://diss.ecmwf.int/'
+
+def get_ecmwf_creds():
+    # loud failure -- these live in PFM/.env and nothing sources it
+    # automatically, so a missing value here means the caller's environment
+    # was never populated.
+    u = os.getenv("WGET_ECMWF_USER")
+    p = os.getenv("WGET_ECMWF_PASS")
+    if not u or not p:
+        raise RuntimeError(
+            'ECMWF credentials missing: WGET_ECMWF_USER / WGET_ECMWF_PASS are '
+            'not set in the environment. They live in PFM/.env; load them with '
+            '"set -a; source <PFM>/.env; set +a" before running.')
+    return u, p
+
+def is_grib_file(path):
+    # a real grib starts with the ascii magic 'GRIB'. an html directory
+    # listing does not. this is the check that "size > 0" should have been.
+    try:
+        if os.path.getsize(path) < 4:
+            return False
+        with open(path, 'rb') as f:
+            return f.read(4) == b'GRIB'
+    except OSError:
+        return False
+
+def ecmwf_url_serves_grib(url, timeout=60):
+    # fetch `url` to a temp file and report whether it is really grib
+    u, p = get_ecmwf_creds()
+    fd, tmp = tempfile.mkstemp(prefix='ecmwf_probe_', suffix='.bin')
+    os.close(fd)
+    try:
+        subprocess.run(['wget','--quiet','--connect-timeout=10',
+                        '--read-timeout=20','--tries=2',
+                        '--user='+u,'--password='+p,'-O',tmp,url],
+                       timeout=timeout)
+        return is_grib_file(tmp)
+    except Exception:
+        return False
+    finally:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+
+def get_ecmwf_base_url(yyyymmddhh0, probe_fname):
+    # return the base url that actually serves grib for this cycle.
+    # historical dated-subdirectory layout is tried first so that a revert on
+    # ECMWF's side needs no code change here; the flat root is the fallback
+    # (and, as of 2026-08-31, the one that works).
+    yyyymmdd = yyyymmddhh0[0:8]
+    cands = [('dated-subdir', ECMWF_FTP_ROOT + yyyymmdd + '/'),
+             ('server-root',  ECMWF_FTP_ROOT)]
+    for tag, base in cands:
+        if ecmwf_url_serves_grib(base + probe_fname):
+            print('ecmwf: ' + tag + ' layout serves grib -> ' + base)
+            return base
+    print('ecmwf: WARNING neither layout served valid grib for forecast '
+          + yyyymmddhh0 + ' (probe ' + probe_fname + '); defaulting to '
+          + cands[-1][1])
+    return cands[-1][1]
+
 def get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm):
     # this gets the ecmwf grib files from the ecmwf server for the forecast starting at yyyymmddhh
     yyyy0 = yyyymmddhh0[0:4]
@@ -952,7 +1040,6 @@ def get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm):
     dd0 = yyyymmddhh0[6:8]
     hh0 = yyyymmddhh0[8:]
 
-    url_txt = "ftp://diss.ecmwf.int/" + yyyy0 + mm0 + dd0 + "/" 
 
     #if hh0 == '00' or hh0 == '12':
     #    txt1 = 'D'
@@ -963,6 +1050,11 @@ def get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm):
     txt1 = 'D'
 
     txt2 = 'T1' + txt1 + mm0 + dd0 + hh0
+
+    # first file of the cycle, used to probe which layout is live.
+    # remote names carry '00' where the local names carry the year.
+    probe_fname = txt2 + '00' + t0_str[4:10] + '011'
+    url_txt = get_ecmwf_base_url(yyyymmddhh0, probe_fname)
 
     PFM = initfuns.get_model_info(pkl_fnm)
     # stuff to be set with PFM structure.
@@ -1040,12 +1132,24 @@ def download_file_safely(cmd):
     # Execute the actual download
     result = ecmwf_grabber(cmd)
     
-    # Validation Check: If the file is empty, delete it so it can be retried
-    if file_path and os.path.exists(file_path) and os.path.getsize(file_path) == 0:
-        print(f"⚠️ Ghost file detected (0 bytes): {os.path.basename(file_path)}. Cleaning up for retry.")
-        os.remove(file_path)
-        return (cmd, False) # Mark as failed
-        
+    # Validation Check: the file must be a REAL grib, not just non-empty.
+    # An empty ECMWF directory returns a ~454 byte HTML listing with a success
+    # status; the old "size == 0" test happily accepted 101 of those on
+    # 2026-08-31 and reported total success.
+    if file_path and os.path.exists(file_path):
+        sz = os.path.getsize(file_path)
+        if sz == 0:
+            print(f"⚠️ Ghost file detected (0 bytes): {os.path.basename(file_path)}. Cleaning up for retry.")
+            os.remove(file_path)
+            return (cmd, False)
+        if not is_grib_file(file_path):
+            with open(file_path, 'rb') as _f:
+                head = _f.read(64)
+            print(f"⚠️ Not a GRIB file ({sz} bytes, starts {head[:16]!r}): "
+                  f"{os.path.basename(file_path)}. Cleaning up for retry.")
+            os.remove(file_path)
+            return (cmd, False)
+
     return (cmd, True) # Mark as successfully downloaded
 
 # --- 2. Managed Execution Queue Loop ---
@@ -1074,9 +1178,15 @@ def download_all_with_retry(all_commands):
             time.sleep(10)
             
     if not pending_commands:
-        print("\n🎉 Success! All files downloaded with non-zero sizes.")
+        print("\n🎉 Success! All files downloaded and verified as GRIB.")
     else:
-        print(f"\n❌ Warning: {len(pending_commands)} files failed completely after 5 overall batch attempts.")
+        print(f"\n❌ FATAL: {len(pending_commands)} ecmwf files failed to download as valid GRIB.")
+        for _c in pending_commands[:5]:
+            print('    still failing: ' + _c[-1])
+        raise RuntimeError(
+            f'{len(pending_commands)} ecmwf grib files could not be downloaded. '
+            'Refusing to continue -- proceeding here is what produced a '
+            'silently stale atm forcing file on 2026-08-31.')
 
 # To run it, just pass your original list of commands:
 # download_all_with_retry(cmd_list)
