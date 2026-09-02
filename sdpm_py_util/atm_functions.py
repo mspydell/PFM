@@ -987,6 +987,12 @@ LOCAL_PREFIX    = 'T1D'          # local filenames, whatever the source
 ATM_SRC_PIPELINE = 'pipeline'
 ATM_SRC_ECMWF    = 'ecmwf'
 
+# pipeline publishes a cycle ~6-7 h after its init time, which is usually after
+# PFM asks for it. so if the requested cycle is not up yet, fall back one cycle
+# (-6 h) on pipeline before giving up and going to ecmwf. a -6 h cycle still
+# covers the full forecast because the forecast hours shift to compensate.
+PIPELINE_CYCLE_BACKOFF_HRS = [0, 6]
+
 _SSH_OPTS = ['-o','StrictHostKeyChecking=accept-new',
              '-o','ConnectTimeout=15',
              '-o','LogLevel=ERROR']
@@ -1010,38 +1016,95 @@ def pipeline_scp_cmd(remote_name, local_path):
             [u + '@' + PIPELINE_HOST + ':' + PIPELINE_DIR + '/' + remote_name,
              local_path])
 
-def pipeline_has_file(remote_name):
+# sshpass eats ssh's own stderr on an auth failure, so a bare exit code is all
+# we get. these are sshpass's documented codes.
+_SSHPASS_RC = {
+    1: 'sshpass: invalid argument',
+    2: 'sshpass: conflicting arguments',
+    3: 'sshpass: general runtime error',
+    4: 'sshpass: could not parse ssh prompt',
+    5: 'sshpass: password rejected -- check WGET_PIPELINE_PASS',
+    6: 'sshpass: host key unknown or rejected',
+    7: 'sshpass: host key changed -- clear the stale ~/.ssh/known_hosts entry',
+}
+
+def pipeline_probe(remote_name):
+    """Try to fetch one file from pipeline. Returns (ok, reason).
+
+    The reason is what makes a fallback debuggable: 'not published yet' and
+    'host unreachable' and 'auth rejected' all used to look identical in the
+    log because scp's stderr went to DEVNULL and every exception became False.
+    """
+    try:
+        u, pw = get_pipeline_creds()
+    except Exception as e:
+        return False, str(e)
+    os.environ['SSHPASS'] = pw
+
     # scp exits 0 when the file exists, 1 when it does not, and leaves no stub
     # behind on failure. sftp -b returns 255 either way, so it is useless here.
-    os.environ['SSHPASS'] = get_pipeline_creds()[1]
     fd, tmp = tempfile.mkstemp(prefix='pipeline_probe_', suffix='.bin')
     os.close(fd)
     try:
         r = subprocess.run(pipeline_scp_cmd(remote_name, tmp),
                            timeout=60,
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        return r.returncode == 0 and is_grib_file(tmp)
-    except Exception:
-        return False
+                           stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if r.returncode != 0:
+            err = (r.stderr or b'').decode('utf-8', 'replace').strip()
+            err = ' / '.join(err.split('\n'))[:300]
+            if not err:
+                # only trust the sshpass table when ssh itself said nothing,
+                # otherwise scp's own small exit codes would be mislabelled.
+                err = _SSHPASS_RC.get(r.returncode, '(no stderr)')
+            return False, 'scp rc=' + str(r.returncode) + ': ' + err
+        if not is_grib_file(tmp):
+            return False, ('fetched ' + str(os.path.getsize(tmp)) +
+                           ' B but it is not GRIB')
+        return True, 'ok'
+    except subprocess.TimeoutExpired:
+        return False, 'scp timed out after 60 s'
+    except Exception as e:
+        return False, type(e).__name__ + ': ' + str(e)
     finally:
         try:
             os.remove(tmp)
         except OSError:
             pass
 
-def pick_atm_source(remote_probe_name):
-    # pipeline first, ecmwf as fallback. the probe fetches one real file and
-    # checks the GRIB magic, so a reachable-but-empty pipeline still falls back.
-    try:
-        if pipeline_has_file(remote_probe_name):
-            print('atm source: pipeline sftp (' + PIPELINE_HOST + ':' +
-                  PIPELINE_DIR + ')')
-            return ATM_SRC_PIPELINE
-    except Exception as e:
-        print('atm source: pipeline probe failed (' + type(e).__name__ + ': ' +
-              str(e) + ')')
-    print('atm source: falling back to ecmwf over ' + ECMWF_FTP_ROOT)
-    return ATM_SRC_ECMWF
+def atm_cycle_marker(dir_out, requested_cycle):
+    # records which cycle the download actually came from. the source='local'
+    # callers run as separate processes and never probe, so without this they
+    # would rebuild filenames from the requested cycle -- wrong '011' suffix and
+    # a 1 h/3 h transition in the wrong place -- and miss files on disk.
+    return os.path.join(dir_out, '.atm_cycle_' + requested_cycle)
+
+def pipeline_probe_name(cycle_str, t0_str):
+    # the '011' suffix belongs to the single file whose valid time equals the
+    # cycle's init time; every other file in the cycle ends '001'. so probing
+    # an earlier cycle for a mid-forecast valid time must ask for '001'.
+    seq = '011' if cycle_str == t0_str else '001'
+    return PIPELINE_PREFIX + cycle_str[4:10] + '00' + t0_str[4:10] + seq
+
+def pick_atm_source(yyyymmddhh0, t0_str):
+    """Choose where the grib files come from, and from which cycle.
+
+    Returns (source, cycle). pipeline is tried first at the requested cycle,
+    then at each earlier cycle in PIPELINE_CYCLE_BACKOFF_HRS. ecmwf is the last
+    resort and always uses the originally requested cycle.
+    """
+    t_req = datetime.strptime(yyyymmddhh0, '%Y%m%d%H')
+    for back in PIPELINE_CYCLE_BACKOFF_HRS:
+        cyc = (t_req - back * timedelta(hours=1)).strftime('%Y%m%d%H')
+        ok, why = pipeline_probe(pipeline_probe_name(cyc, t0_str))
+        if ok:
+            note = '' if back == 0 else ' (-' + str(back) + ' h from requested)'
+            print('atm source: pipeline sftp ' + PIPELINE_HOST + ':' +
+                  PIPELINE_DIR + ', cycle ' + cyc + note)
+            return ATM_SRC_PIPELINE, cyc
+        print('atm source: pipeline cycle ' + cyc + ' unusable -- ' + why)
+    print('atm source: falling back to ecmwf over ' + ECMWF_FTP_ROOT +
+          ', cycle ' + yyyymmddhh0)
+    return ATM_SRC_ECMWF, yyyymmddhh0
 
 
 # ---------------------------------------------------------------------------
@@ -1138,41 +1201,74 @@ def get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm,source=None):
     cycle_tag = mm0 + dd0 + hh0
     txt2 = LOCAL_PREFIX + cycle_tag          # local filenames, source-independent
 
-    # remote name of the cycle's first file, used to probe which source is live
-    probe_pipeline = PIPELINE_PREFIX + cycle_tag + '00' + t0_str[4:10] + '011'
-    probe_ecmwf    = ECMWF_PREFIX    + cycle_tag + '00' + t0_str[4:10] + '011'
+    # pick the source and, with it, the cycle we actually pull from. pipeline
+    # may only have an earlier cycle up yet, in which case eff_cycle is behind
+    # yyyymmddhh0 and the forecast hours below shift to compensate. local names
+    # stay pinned to the requested cycle so the source='local' callers, which
+    # run in separate processes and never probe, still agree on every filename.
+    PFM = initfuns.get_model_info(pkl_fnm)
+    dir_out = PFM['ecmwf_dir']
+    marker = atm_cycle_marker(dir_out, yyyymmddhh0)
+
     if source is None:
-        source = pick_atm_source(probe_pipeline)
+        source, eff_cycle = pick_atm_source(yyyymmddhh0, t0_str)
+        try:
+            with open(marker, 'w') as fp:
+                fp.write(eff_cycle)
+        except OSError as e:
+            print('warning: could not record the atm cycle marker (' + str(e) +
+                  '); a later source=local call may rebuild the wrong names')
+    elif source == 'local':
+        # recover the cycle the download used, so the names we hand back match
+        # what is actually on disk. missing marker => the requested cycle, which
+        # is what every pre-marker run did.
+        eff_cycle = yyyymmddhh0
+        try:
+            with open(marker) as fp:
+                c = fp.read().strip()
+            if len(c) == 10 and c.isdigit():
+                eff_cycle = c
+        except OSError:
+            pass
+    else:
+        eff_cycle = yyyymmddhh0
+    eff_tag = eff_cycle[4:10]
+
     if source == 'local':
         # caller only wants the local filenames -- skip every network probe.
-        # safe because local names never depend on the source.
-        txt2_remote = LOCAL_PREFIX + cycle_tag
+        # safe because local names never depend on the source or the cycle.
+        txt2_remote = LOCAL_PREFIX + eff_tag
         url_txt = None
     elif source == ATM_SRC_PIPELINE:
-        txt2_remote = PIPELINE_PREFIX + cycle_tag
+        txt2_remote = PIPELINE_PREFIX + eff_tag
         url_txt = None
     else:
-        txt2_remote = ECMWF_PREFIX + cycle_tag
-        url_txt = get_ecmwf_base_url(yyyymmddhh0, probe_ecmwf)
+        # ecmwf is only ever used at the requested cycle, so its first file is
+        # the one whose valid time equals the init time ('011').
+        txt2_remote = ECMWF_PREFIX + eff_tag
+        probe_ecmwf = ECMWF_PREFIX + eff_tag + '00' + t0_str[4:10] + '011'
+        url_txt = get_ecmwf_base_url(eff_cycle, probe_ecmwf)
 
-    PFM = initfuns.get_model_info(pkl_fnm)
     # stuff to be set with PFM structure.
     #PFM['forecast_days'] = 5.0
     #PFM['ecmwf_dir'] =  '/scratch/PFM_Simulations/ecmwf_data/'
 
-    t_fore = datetime.strptime(yyyymmddhh0,'%Y%m%d%H') # this is the time stamp of the forecast
+    t_fore = datetime.strptime(eff_cycle,'%Y%m%d%H') # time stamp of the cycle we pull from
     t_0 = datetime.strptime(t0_str,'%Y%m%d%H') # this is when the PFM forecast starts
     # note start time of PFM must be equal to or after start time of ecmwf
 
     t_f = t_0
     hr_f = int( (t_0 - t_fore).total_seconds()/3600 )# this is the forecast hour, the 1st time we want
+    # hr_max must be measured from the cycle's init time, not from t_0. pulling
+    # a -6 h cycle with hr_max = 24*forecast_days would stop 6 h short and give
+    # ROMS an atm file that does not span the run.
     hr_max = int( hr_f + 24 * PFM['forecast_days'] )
-
-    hr_max = 24 * PFM['forecast_days']
     #hr_max = 5.0 * 24.0  # the length in hours of the forecast files we are going to download
-    dir_out = PFM['ecmwf_dir']
 
-    mm = '01' # this is the first mm string. after the first file, it is '00
+    # '01' marks the single file whose valid time equals the cycle's init time.
+    # when we pull an earlier cycle, t_0 is mid-forecast and every file we want
+    # is '00'.
+    mm = '01' if t_0 == t_fore else '00'
 
     fnms = []
     fnms_tot = []
