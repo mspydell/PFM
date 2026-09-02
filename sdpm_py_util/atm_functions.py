@@ -879,7 +879,7 @@ def got_ecmwf_files(yyyymmddhh0,t0_str,pkl_fnm):
     if from_cdip:
         _, _, fns_out, _ = get_ecmwf_grib_files_lists_v2(yyyymmddhh0,t0_str,pkl_fnm)
     else:
-        _, _, fns_out, _ = get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm)
+        _, _, fns_out, _ = get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm,source='local')
 
     got_all_files = 0
     # loop through file names
@@ -959,6 +959,92 @@ def get_ecmwf_grib_files_lists_v2(yyyymmddhh0,t0_str,pkl_fnm):
     return fnms, fnms_tot, fnms_out, cmds_tot
 
 # ---------------------------------------------------------------------------
+# Primary atm source: UCSD pipeline over SFTP.
+#
+# pipeline.ucsd.edu serves the same 91x91 0.1deg ECMWF fields as A3D* files in
+# a flat directory. It exposes ONLY ssh/sftp (port 22); 80/443/21 are filtered,
+# so wget cannot reach it and we shell out to scp instead.
+#
+# Naming is structurally identical to the old T1D feed, just a different
+# 3-char prefix:  <PREFIX><init mmddhh>00<valid mmddhh><seq>
+#
+# NOTE ON LOCAL NAMES: files are always stored locally with the T1D prefix
+# regardless of which source they came from. The local name is an internal
+# convention that got_ecmwf_files() and ecmwf_grib_2_dict_all_v2() rely on, and
+# keeping it source-independent means those two never need to know or agree on
+# where the bytes came from -- which matters because they run in separate
+# subprocesses and could otherwise disagree.
+#
+# 'str' (net longwave) is absent from A3D. That is fine: ecmwf_grib_2_dict()
+# already aliases it from 'strd', and every level is compiled LONGWAVE_OUT so
+# ROMS reads only the downward flux and never touches lwrad.
+# ---------------------------------------------------------------------------
+PIPELINE_HOST   = 'pipeline.ucsd.edu'
+PIPELINE_DIR    = '/transfer/FALK'
+PIPELINE_PREFIX = 'A3D'
+ECMWF_PREFIX    = 'T1D'
+LOCAL_PREFIX    = 'T1D'          # local filenames, whatever the source
+ATM_SRC_PIPELINE = 'pipeline'
+ATM_SRC_ECMWF    = 'ecmwf'
+
+_SSH_OPTS = ['-o','StrictHostKeyChecking=accept-new',
+             '-o','ConnectTimeout=15',
+             '-o','LogLevel=ERROR']
+
+def get_pipeline_creds():
+    # loud failure; these live in PFM/.env and nothing sources it automatically
+    u = os.getenv("WGET_PIPELINE_USER")
+    p = os.getenv("WGET_PIPELINE_PASS")
+    if not u or not p:
+        raise RuntimeError(
+            'pipeline credentials missing: WGET_PIPELINE_USER / '
+            'WGET_PIPELINE_PASS are not set in the environment. They live in '
+            'PFM/.env; load them with "set -a; source <PFM>/.env; set +a".')
+    return u, p
+
+def pipeline_scp_cmd(remote_name, local_path):
+    # scp reads the password from the SSHPASS env var, so it never appears in
+    # the process table the way "curl -u user:pass" would.
+    u, _ = get_pipeline_creds()
+    return (['sshpass','-e','scp'] + _SSH_OPTS +
+            [u + '@' + PIPELINE_HOST + ':' + PIPELINE_DIR + '/' + remote_name,
+             local_path])
+
+def pipeline_has_file(remote_name):
+    # scp exits 0 when the file exists, 1 when it does not, and leaves no stub
+    # behind on failure. sftp -b returns 255 either way, so it is useless here.
+    os.environ['SSHPASS'] = get_pipeline_creds()[1]
+    fd, tmp = tempfile.mkstemp(prefix='pipeline_probe_', suffix='.bin')
+    os.close(fd)
+    try:
+        r = subprocess.run(pipeline_scp_cmd(remote_name, tmp),
+                           timeout=60,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return r.returncode == 0 and is_grib_file(tmp)
+    except Exception:
+        return False
+    finally:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+
+def pick_atm_source(remote_probe_name):
+    # pipeline first, ecmwf as fallback. the probe fetches one real file and
+    # checks the GRIB magic, so a reachable-but-empty pipeline still falls back.
+    try:
+        if pipeline_has_file(remote_probe_name):
+            print('atm source: pipeline sftp (' + PIPELINE_HOST + ':' +
+                  PIPELINE_DIR + ')')
+            return ATM_SRC_PIPELINE
+    except Exception as e:
+        print('atm source: pipeline probe failed (' + type(e).__name__ + ': ' +
+              str(e) + ')')
+    print('atm source: falling back to ecmwf over ' + ECMWF_FTP_ROOT)
+    return ATM_SRC_ECMWF
+
+
+# ---------------------------------------------------------------------------
 # ECMWF dissemination layout.
 #
 # Around 2026-08-31 ECMWF flattened diss.ecmwf.int: the grib files moved from
@@ -1033,7 +1119,7 @@ def get_ecmwf_base_url(yyyymmddhh0, probe_fname):
           + cands[-1][1])
     return cands[-1][1]
 
-def get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm):
+def get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm,source=None):
     # this gets the ecmwf grib files from the ecmwf server for the forecast starting at yyyymmddhh
     yyyy0 = yyyymmddhh0[0:4]
     mm0 = yyyymmddhh0[4:6]
@@ -1049,12 +1135,25 @@ def get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm):
 
     txt1 = 'D'
 
-    txt2 = 'T1' + txt1 + mm0 + dd0 + hh0
+    cycle_tag = mm0 + dd0 + hh0
+    txt2 = LOCAL_PREFIX + cycle_tag          # local filenames, source-independent
 
-    # first file of the cycle, used to probe which layout is live.
-    # remote names carry '00' where the local names carry the year.
-    probe_fname = txt2 + '00' + t0_str[4:10] + '011'
-    url_txt = get_ecmwf_base_url(yyyymmddhh0, probe_fname)
+    # remote name of the cycle's first file, used to probe which source is live
+    probe_pipeline = PIPELINE_PREFIX + cycle_tag + '00' + t0_str[4:10] + '011'
+    probe_ecmwf    = ECMWF_PREFIX    + cycle_tag + '00' + t0_str[4:10] + '011'
+    if source is None:
+        source = pick_atm_source(probe_pipeline)
+    if source == 'local':
+        # caller only wants the local filenames -- skip every network probe.
+        # safe because local names never depend on the source.
+        txt2_remote = LOCAL_PREFIX + cycle_tag
+        url_txt = None
+    elif source == ATM_SRC_PIPELINE:
+        txt2_remote = PIPELINE_PREFIX + cycle_tag
+        url_txt = None
+    else:
+        txt2_remote = ECMWF_PREFIX + cycle_tag
+        url_txt = get_ecmwf_base_url(yyyymmddhh0, probe_ecmwf)
 
     PFM = initfuns.get_model_info(pkl_fnm)
     # stuff to be set with PFM structure.
@@ -1080,8 +1179,12 @@ def get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm):
     fnms_out = []
     cmds_tot = []
 
-    ecmwf_user  = os.getenv("WGET_ECMWF_USER")
-    ecmwf_pword = os.getenv("WGET_ECMWF_PASS")
+    # only needed on the ecmwf fallback path -- a pipeline-only install need
+    # not carry ECMWF credentials at all.
+    if source == ATM_SRC_ECMWF:
+        ecmwf_user, ecmwf_pword = get_ecmwf_creds()
+    else:
+        ecmwf_user = ecmwf_pword = None
     #print(ecmwf_user)
     #print(ecmwf_pword)
  
@@ -1090,14 +1193,22 @@ def get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm):
         # we add the year of the forecast start time for a complete name.
         yyyymmddhh = yyyy0 + t_f.strftime("%m%d%H")
         mmddhh = t_f.strftime("%m%d%H")
-        txt3 = txt2 + yyyymmddhh + mm + '1'
-        txt3e = txt2 + '00' + mmddhh + mm + '1'
+        txt3 = txt2 + yyyymmddhh + mm + '1'            # local name (T1D...)
+        txt3e = txt2_remote + '00' + mmddhh + mm + '1'  # remote name (A3D... or T1D...)
         fnms.append(txt3)
-        txt4 = url_txt + txt3e
-        fnms_tot.append(txt4)
         txt5 = dir_out + txt3
         fnms_out.append(txt5)
-        cmds = ["wget",'--quiet', '--connect-timeout=10','--read-timeout=15','--tries=3',"--user="+ecmwf_user,"--password="+ecmwf_pword, "-O",txt5, txt4]
+        if source == ATM_SRC_PIPELINE:
+            txt4 = 'sftp://' + PIPELINE_HOST + PIPELINE_DIR + '/' + txt3e
+            cmds = pipeline_scp_cmd(txt3e, txt5)
+        elif source == ATM_SRC_ECMWF:
+            txt4 = url_txt + txt3e
+            cmds = ["wget",'--quiet', '--connect-timeout=10','--read-timeout=15','--tries=3',"--user="+ecmwf_user,"--password="+ecmwf_pword, "-O",txt5, txt4]
+        else:
+            # source == 'local': names only, no transport
+            txt4 = txt3e
+            cmds = []
+        fnms_tot.append(txt4)
 
         cmds_tot.append(cmds)
         mm = '00'
@@ -1123,11 +1234,13 @@ def download_file_safely(cmd):
     """Wrapper function to execute your ecmwf_grabber."""
     # Ensure the target filename is extracted from the command to track size later
     # Assumes the filename comes right after the '-O' switch in your array
-    try:
-        out_idx = cmd.index('-O')
-        file_path = cmd[out_idx + 1]
-    except ValueError:
-        file_path = None
+    # wget puts the destination after '-O'; scp puts it last. Without this,
+    # scp downloads would skip the GRIB validation below entirely.
+    file_path = None
+    if '-O' in cmd:
+        file_path = cmd[cmd.index('-O') + 1]
+    elif 'scp' in cmd[:3]:
+        file_path = cmd[-1]
 
     # Execute the actual download
     result = ecmwf_grabber(cmd)
@@ -1221,6 +1334,11 @@ def get_ecmwf_forecast_grbs_v2(yyyymmddhh0,t0_str,pkl_fnm):
     else:
         print('getting ecmwf file list...')
         _, _, _, cmd_list = get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm)
+
+    # scp reads the password from SSHPASS; set it once here so every worker
+    # thread's subprocess inherits it (never passed on a command line).
+    if any('scp' in c[:3] for c in cmd_list):
+        os.environ['SSHPASS'] = get_pipeline_creds()[1]
 
     print('downloading with retry...')
     download_all_with_retry(cmd_list)
@@ -1321,7 +1439,7 @@ def ecmwf_grib_2_dict_all_v2(yyyymmddhh0,t0_str,pkl_fnm):
     if from_cdip:
         _, _, fn_grbs, _ = get_ecmwf_grib_files_lists_v2(yyyymmddhh0,t0_str,pkl_fnm)
     else:
-        _, _, fn_grbs, _ = get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm)
+        _, _, fn_grbs, _ = get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm,source='local')
 
     nt = len(fn_grbs) # the number of files is the number of time stamps (101 for a 5 day ecmwf forecast)
     print('there are ' + str(nt) + ' ecmwf grib files to stack in time.')
