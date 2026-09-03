@@ -980,7 +980,12 @@ def get_ecmwf_grib_files_lists_v2(yyyymmddhh0,t0_str,pkl_fnm):
 # ROMS reads only the downward flux and never touches lwrad.
 # ---------------------------------------------------------------------------
 PIPELINE_HOST   = 'pipeline.ucsd.edu'
-PIPELINE_DIR    = '/transfer/FALK'
+# a new cycle lands in /transfer first and is moved into /transfer/FALK later,
+# so /transfer is the fresher source but holds only the current cycle. search
+# both, newest location first, so the -6 h cycle fallback can still find the
+# previous cycle after it has been filed away.
+PIPELINE_DIRS   = ['/transfer', '/transfer/FALK']
+PIPELINE_DIR    = PIPELINE_DIRS[0]   # primary, for messages
 PIPELINE_PREFIX = 'A3D'
 ECMWF_PREFIX    = 'T1D'
 LOCAL_PREFIX    = 'T1D'          # local filenames, whatever the source
@@ -1008,12 +1013,14 @@ def get_pipeline_creds():
             'PFM/.env; load them with "set -a; source <PFM>/.env; set +a".')
     return u, p
 
-def pipeline_scp_cmd(remote_name, local_path):
+def pipeline_scp_cmd(remote_name, local_path, remote_dir=None):
+    if remote_dir is None:
+        remote_dir = PIPELINE_DIR
     # scp reads the password from the SSHPASS env var, so it never appears in
     # the process table the way "curl -u user:pass" would.
     u, _ = get_pipeline_creds()
     return (['sshpass','-e','scp'] + _SSH_OPTS +
-            [u + '@' + PIPELINE_HOST + ':' + PIPELINE_DIR + '/' + remote_name,
+            [u + '@' + PIPELINE_HOST + ':' + remote_dir + '/' + remote_name,
              local_path])
 
 # sshpass eats ssh's own stderr on an auth failure, so a bare exit code is all
@@ -1028,7 +1035,7 @@ _SSHPASS_RC = {
     7: 'sshpass: host key changed -- clear the stale ~/.ssh/known_hosts entry',
 }
 
-def pipeline_probe(remote_name):
+def pipeline_probe(remote_name, remote_dir=None):
     """Try to fetch one file from pipeline. Returns (ok, reason).
 
     The reason is what makes a fallback debuggable: 'not published yet' and
@@ -1046,7 +1053,7 @@ def pipeline_probe(remote_name):
     fd, tmp = tempfile.mkstemp(prefix='pipeline_probe_', suffix='.bin')
     os.close(fd)
     try:
-        r = subprocess.run(pipeline_scp_cmd(remote_name, tmp),
+        r = subprocess.run(pipeline_scp_cmd(remote_name, tmp, remote_dir),
                            timeout=60,
                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if r.returncode != 0:
@@ -1088,23 +1095,29 @@ def pipeline_probe_name(cycle_str, t0_str):
 def pick_atm_source(yyyymmddhh0, t0_str):
     """Choose where the grib files come from, and from which cycle.
 
-    Returns (source, cycle). pipeline is tried first at the requested cycle,
-    then at each earlier cycle in PIPELINE_CYCLE_BACKOFF_HRS. ecmwf is the last
-    resort and always uses the originally requested cycle.
+    Returns (source, cycle, remote_dir). pipeline is tried first at the
+    requested cycle and then at each earlier cycle in
+    PIPELINE_CYCLE_BACKOFF_HRS, checking every directory in PIPELINE_DIRS at
+    each cycle. ecmwf is the last resort and always uses the originally
+    requested cycle; its remote_dir is None.
     """
     t_req = datetime.strptime(yyyymmddhh0, '%Y%m%d%H')
     for back in PIPELINE_CYCLE_BACKOFF_HRS:
         cyc = (t_req - back * timedelta(hours=1)).strftime('%Y%m%d%H')
-        ok, why = pipeline_probe(pipeline_probe_name(cyc, t0_str))
-        if ok:
-            note = '' if back == 0 else ' (-' + str(back) + ' h from requested)'
-            print('atm source: pipeline sftp ' + PIPELINE_HOST + ':' +
-                  PIPELINE_DIR + ', cycle ' + cyc + note)
-            return ATM_SRC_PIPELINE, cyc
-        print('atm source: pipeline cycle ' + cyc + ' unusable -- ' + why)
+        nm = pipeline_probe_name(cyc, t0_str)
+        for d in PIPELINE_DIRS:
+            ok, why = pipeline_probe(nm, d)
+            if ok:
+                note = '' if back == 0 else (' (-' + str(back) +
+                                             ' h from requested)')
+                print('atm source: pipeline sftp ' + PIPELINE_HOST + ':' + d +
+                      ', cycle ' + cyc + note)
+                return ATM_SRC_PIPELINE, cyc, d
+            print('atm source: pipeline ' + d + ' cycle ' + cyc +
+                  ' unusable -- ' + why)
     print('atm source: falling back to ecmwf over ' + ECMWF_FTP_ROOT +
           ', cycle ' + yyyymmddhh0)
-    return ATM_SRC_ECMWF, yyyymmddhh0
+    return ATM_SRC_ECMWF, yyyymmddhh0, None
 
 
 # ---------------------------------------------------------------------------
@@ -1211,7 +1224,7 @@ def get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm,source=None):
     marker = atm_cycle_marker(dir_out, yyyymmddhh0)
 
     if source is None:
-        source, eff_cycle = pick_atm_source(yyyymmddhh0, t0_str)
+        source, eff_cycle, eff_dir = pick_atm_source(yyyymmddhh0, t0_str)
         try:
             with open(marker, 'w') as fp:
                 fp.write(eff_cycle)
@@ -1223,6 +1236,7 @@ def get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm,source=None):
         # what is actually on disk. missing marker => the requested cycle, which
         # is what every pre-marker run did.
         eff_cycle = yyyymmddhh0
+        eff_dir = PIPELINE_DIR
         try:
             with open(marker) as fp:
                 c = fp.read().strip()
@@ -1232,6 +1246,7 @@ def get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm,source=None):
             pass
     else:
         eff_cycle = yyyymmddhh0
+        eff_dir = PIPELINE_DIR
     eff_tag = eff_cycle[4:10]
 
     if source == 'local':
@@ -1295,8 +1310,8 @@ def get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm,source=None):
         txt5 = dir_out + txt3
         fnms_out.append(txt5)
         if source == ATM_SRC_PIPELINE:
-            txt4 = 'sftp://' + PIPELINE_HOST + PIPELINE_DIR + '/' + txt3e
-            cmds = pipeline_scp_cmd(txt3e, txt5)
+            txt4 = 'sftp://' + PIPELINE_HOST + eff_dir + '/' + txt3e
+            cmds = pipeline_scp_cmd(txt3e, txt5, eff_dir)
         elif source == ATM_SRC_ECMWF:
             txt4 = url_txt + txt3e
             cmds = ["wget",'--quiet', '--connect-timeout=10','--read-timeout=15','--tries=3',"--user="+ecmwf_user,"--password="+ecmwf_pword, "-O",txt5, txt4]
