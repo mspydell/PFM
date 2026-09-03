@@ -1085,6 +1085,62 @@ def atm_cycle_marker(dir_out, requested_cycle):
     # a 1 h/3 h transition in the wrong place -- and miss files on disk.
     return os.path.join(dir_out, '.atm_cycle_' + requested_cycle)
 
+def forecast_steps(t_fore, t_0, forecast_days):
+    """Yield (hr_f, t_f) for every file a cycle must supply.
+
+    hr_f is the forecast hour measured from the cycle init t_fore, which is
+    what decides the 1 h / 3 h spacing and therefore which files exist. t_f is
+    the valid time. Shared by the download list and the completeness check so
+    the two can never disagree about what a cycle owes us.
+    """
+    hr_f = int((t_0 - t_fore).total_seconds() / 3600)
+    hr_max = int(hr_f + 24 * forecast_days)
+    t_f = t_0
+    while hr_f <= hr_max:
+        yield hr_f, t_f
+        hr_dt = 1.0 if hr_f < 90 else 3.0
+        hr_f = hr_f + hr_dt
+        t_f = t_f + hr_dt * timedelta(hours=1)
+
+def pipeline_cycle_files(cycle_str, t0_str, forecast_days):
+    # every remote name the cycle must have for us to use it
+    t_fore = datetime.strptime(cycle_str, '%Y%m%d%H')
+    t_0 = datetime.strptime(t0_str, '%Y%m%d%H')
+    out = []
+    for _, t_f in forecast_steps(t_fore, t_0, forecast_days):
+        mm = '01' if t_f == t_fore else '00'
+        out.append(PIPELINE_PREFIX + cycle_str[4:10] + '00' +
+                   t_f.strftime('%m%d%H') + mm + '1')
+    return out
+
+def pipeline_list_dir(remote_dir):
+    """Return (set_of_names, reason). One listing beats N probes."""
+    try:
+        u, pw = get_pipeline_creds()
+    except Exception as e:
+        return None, str(e)
+    os.environ['SSHPASS'] = pw
+    try:
+        r = subprocess.run(['sshpass', '-e', 'sftp'] + _SSH_OPTS +
+                           [u + '@' + PIPELINE_HOST],
+                           input='ls -1 ' + remote_dir + '\n',
+                           stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                           text=True, timeout=120)
+    except subprocess.TimeoutExpired:
+        return None, 'sftp listing timed out after 120 s'
+    except Exception as e:
+        return None, type(e).__name__ + ': ' + str(e)
+    names = set()
+    for ln in (r.stdout or '').splitlines():
+        ln = ln.strip()
+        if not ln or ln.startswith('sftp>') or ln.startswith('Connected'):
+            continue
+        names.add(ln.rsplit('/', 1)[-1])
+    if not names:
+        err = ' / '.join((r.stderr or '').strip().split('\n'))[:200]
+        return None, 'empty listing for ' + remote_dir + (': ' + err if err else '')
+    return names, 'ok'
+
 def pipeline_probe_name(cycle_str, t0_str):
     # the '011' suffix belongs to the single file whose valid time equals the
     # cycle's init time; every other file in the cycle ends '001'. so probing
@@ -1092,29 +1148,55 @@ def pipeline_probe_name(cycle_str, t0_str):
     seq = '011' if cycle_str == t0_str else '001'
     return PIPELINE_PREFIX + cycle_str[4:10] + '00' + t0_str[4:10] + seq
 
-def pick_atm_source(yyyymmddhh0, t0_str):
+def pick_atm_source(yyyymmddhh0, t0_str, forecast_days):
     """Choose where the grib files come from, and from which cycle.
 
-    Returns (source, cycle, remote_dir). pipeline is tried first at the
-    requested cycle and then at each earlier cycle in
-    PIPELINE_CYCLE_BACKOFF_HRS, checking every directory in PIPELINE_DIRS at
-    each cycle. ecmwf is the last resort and always uses the originally
-    requested cycle; its remote_dir is None.
+    Returns (source, cycle, remote_dir). A cycle is only accepted when every
+    file it owes us is already on the server: /transfer is the directory ecmwf
+    is actively pushing into, and a cycle takes nearly two hours to land there,
+    so a single-file probe would happily pick a half-uploaded cycle and only
+    fail later, mid-download, with the source already committed.
+
+    Order is cycle-major: the requested cycle is looked for in every directory
+    before falling back 6 h, so a complete archived cycle beats a newer partial
+    one. ecmwf is the last resort and always uses the requested cycle.
     """
     t_req = datetime.strptime(yyyymmddhh0, '%Y%m%d%H')
+    listings = {}
     for back in PIPELINE_CYCLE_BACKOFF_HRS:
         cyc = (t_req - back * timedelta(hours=1)).strftime('%Y%m%d%H')
-        nm = pipeline_probe_name(cyc, t0_str)
+        need = pipeline_cycle_files(cyc, t0_str, forecast_days)
         for d in PIPELINE_DIRS:
-            ok, why = pipeline_probe(nm, d)
-            if ok:
-                note = '' if back == 0 else (' (-' + str(back) +
-                                             ' h from requested)')
-                print('atm source: pipeline sftp ' + PIPELINE_HOST + ':' + d +
-                      ', cycle ' + cyc + note)
-                return ATM_SRC_PIPELINE, cyc, d
-            print('atm source: pipeline ' + d + ' cycle ' + cyc +
-                  ' unusable -- ' + why)
+            if d not in listings:
+                listings[d] = pipeline_list_dir(d)
+            have, why = listings[d]
+            if have is None:
+                print('atm source: pipeline ' + d + ' unreadable -- ' + why)
+                continue
+            missing = [f for f in need if f not in have]
+            if missing:
+                if len(missing) == len(need):
+                    print('atm source: pipeline ' + d + ' cycle ' + cyc +
+                          ' not present')
+                else:
+                    # a partial cycle in the directory ecmwf pushes into is
+                    # almost always an upload in progress, not a broken cycle.
+                    print('atm source: pipeline ' + d + ' cycle ' + cyc +
+                          ' incomplete -- ' + str(len(missing)) + ' of ' +
+                          str(len(need)) + ' files missing (e.g. ' +
+                          missing[0] + '); it may still be uploading')
+                continue
+            # present is not the same as usable: confirm one is really GRIB
+            ok, why = pipeline_probe(need[0], d)
+            if not ok:
+                print('atm source: pipeline ' + d + ' cycle ' + cyc +
+                      ' listed but unusable -- ' + why)
+                continue
+            note = '' if back == 0 else (' (-' + str(back) + ' h from requested)')
+            print('atm source: pipeline sftp ' + PIPELINE_HOST + ':' + d +
+                  ', cycle ' + cyc + ', all ' + str(len(need)) +
+                  ' files present' + note)
+            return ATM_SRC_PIPELINE, cyc, d
     print('atm source: falling back to ecmwf over ' + ECMWF_FTP_ROOT +
           ', cycle ' + yyyymmddhh0)
     return ATM_SRC_ECMWF, yyyymmddhh0, None
@@ -1224,7 +1306,8 @@ def get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm,source=None):
     marker = atm_cycle_marker(dir_out, yyyymmddhh0)
 
     if source is None:
-        source, eff_cycle, eff_dir = pick_atm_source(yyyymmddhh0, t0_str)
+        source, eff_cycle, eff_dir = pick_atm_source(
+            yyyymmddhh0, t0_str, PFM['forecast_days'])
         try:
             with open(marker, 'w') as fp:
                 fp.write(eff_cycle)
@@ -1272,18 +1355,8 @@ def get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm,source=None):
     t_0 = datetime.strptime(t0_str,'%Y%m%d%H') # this is when the PFM forecast starts
     # note start time of PFM must be equal to or after start time of ecmwf
 
-    t_f = t_0
-    hr_f = int( (t_0 - t_fore).total_seconds()/3600 )# this is the forecast hour, the 1st time we want
-    # hr_max must be measured from the cycle's init time, not from t_0. pulling
-    # a -6 h cycle with hr_max = 24*forecast_days would stop 6 h short and give
-    # ROMS an atm file that does not span the run.
-    hr_max = int( hr_f + 24 * PFM['forecast_days'] )
     #hr_max = 5.0 * 24.0  # the length in hours of the forecast files we are going to download
 
-    # '01' marks the single file whose valid time equals the cycle's init time.
-    # when we pull an earlier cycle, t_0 is mid-forecast and every file we want
-    # is '00'.
-    mm = '01' if t_0 == t_fore else '00'
 
     fnms = []
     fnms_tot = []
@@ -1300,7 +1373,10 @@ def get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm,source=None):
     #print(ecmwf_pword)
  
 
-    while hr_f <= hr_max:
+    # hr_f is measured from the cycle init, so a -6 h cycle shifts the 1 h/3 h
+    # transition and still covers the full run.
+    for hr_f, t_f in forecast_steps(t_fore, t_0, PFM['forecast_days']):
+        mm = '01' if t_f == t_fore else '00'
         # we add the year of the forecast start time for a complete name.
         yyyymmddhh = yyyy0 + t_f.strftime("%m%d%H")
         mmddhh = t_f.strftime("%m%d%H")
@@ -1322,14 +1398,6 @@ def get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm,source=None):
         fnms_tot.append(txt4)
 
         cmds_tot.append(cmds)
-        mm = '00'
-
-        if hr_f < 90:
-            hr_dt = 1.0 # the first 90 hrs is 1 hr dt
-        else: 
-            hr_dt = 3.0 # after that it is 3 hr dt
-        hr_f = hr_f + hr_dt
-        t_f = t_f + hr_dt * timedelta(hours=1)
 
     #print(cmds_tot)
     return fnms, fnms_tot, fnms_out, cmds_tot
