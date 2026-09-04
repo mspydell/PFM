@@ -71,14 +71,28 @@ cp -f  /scratch/PFM_Simulations/LV4_Forecast/Plots/river*png    /dataSIO/PFM_Sim
 
 ## next deal with the plots on website
 ## first delete
-mv -f  /projects/www-users/falk/PFM_Forecast/Plots/dye*.png  /projects/www-users/falk/PFM_Forecast/OLD_PLOTS/LV4
-mv -f  /projects/www-users/falk/PFM_Forecast/Plots/river*.png  /projects/www-users/falk/PFM_Forecast/OLD_PLOTS/LV4
+#mv -f  /projects/www-users/falk/PFM_Forecast/Plots/dye*.png  /projects/www-users/falk/PFM_Forecast/OLD_PLOTS/LV4
+#mv -f  /projects/www-users/falk/PFM_Forecast/Plots/river*.png  /projects/www-users/falk/PFM_Forecast/OLD_PLOTS/LV4
 mv -f  /projects/www-users/falk/PFM_Forecast/Plots/*.mp4  /projects/www-users/falk/PFM_Forecast/OLD_MOVIES
 
 
-# then copy over the plots
-cp -f /dataSIO/PFM_Simulations/Plots/river*${dateZ}*.png  /projects/www-users/falk/PFM_Forecast/Plots
-cp -f /dataSIO/PFM_Simulations/Plots/dye*${dateZ}*.png  /projects/www-users/falk/PFM_Forecast/Plots
+# then copy over the plots to dashboard
+cp -f /dataSIO/PFM_Simulations/Plots/river_discharge_*${dateZ}*.png  /projects/www-users/falk/PFM_Forecast/Plots/river_discharge_latest.png
+cp -f /dataSIO/PFM_Simulations/Plots/river_temperature_*${dateZ}*.png  /projects/www-users/falk/PFM_Forecast/Plots/river_temperature_latest.png
+cp -f /dataSIO/PFM_Simulations/Plots/river_ncfilefig_*${dateZ}*.png  /projects/www-users/falk/PFM_Forecast/Plots/river_ncfilefig_latest.png
+
+
+cp -f /dataSIO/PFM_Simulations/Plots/dye_01_hov_*${dateZ}*.png  /projects/www-users/falk/PFM_Forecast/Plots/dye_01_hov_latest.png
+cp -f /dataSIO/PFM_Simulations/Plots/dye_01_ofl_*${dateZ}*.png  /projects/www-users/falk/PFM_Forecast/Plots/dye_01_ofl_latest.png
+cp -f /dataSIO/PFM_Simulations/Plots/dye_01_oft_*${dateZ}*.png  /projects/www-users/falk/PFM_Forecast/Plots/dye_01_oft_latest.png
+cp -f /dataSIO/PFM_Simulations/Plots/dye_02_hov_*${dateZ}*.png  /projects/www-users/falk/PFM_Forecast/Plots/dye_02_hov_latest.png
+cp -f /dataSIO/PFM_Simulations/Plots/dye_02_ofl_*${dateZ}*.png  /projects/www-users/falk/PFM_Forecast/Plots/dye_02_ofl_latest.png
+
+# then make an archive copy
+cp -f /dataSIO/PFM_Simulations/Plots/river_*${dateZ}*.png  /projects/www-users/falk/PFM_Forecast/OLD_PLOTS
+cp -f /dataSIO/PFM_Simulations/Plots/dye_*${dateZ}*.png  /projects/www-users/falk/PFM_Forecast/OLD_PLOTS
+
+
 ## next run FFMPEG on website
 
 ./make_movies.sh

@@ -47,6 +47,7 @@ matplotlib.use('Agg')          # must precede the pyplot import: no display here
 # Where the three figures land.
 FIG_DIR = Path('/scratch/PFM_Simulations/obs_qc_figures')
 
+
 # Downloaded data.  All three feeds share this directory:
 #   HFR   hfr_nrt_{source}_{res}_{YYYYMMDD}.nc   ~4 MB/day, one per resolution
 #   SBOO  SBOO_{nn}_R_ADCP.nc                    ~20 MB, whole file per refresh
