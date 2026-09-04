@@ -206,6 +206,12 @@ def run():
     OUT_DIR = FIG_DIR
     NRT_CACHE.mkdir(parents=True, exist_ok=True)
 
+    # This cache is shared between users (mspydell and ffeddersen both run it), so
+    # everything written here has to be group-writable.  With the default umask of
+    # 022 whoever ran first would own 0644 files that nobody else could rewrite in
+    # place, and the next person's run would die on PermissionError.
+    os.umask(0o002)
+
     # --------------------------- plot styling -----------------------------
     LAND_COLOR  = '#cdb79e'
     COAST_COLOR = '#7a5d33'
@@ -665,7 +671,12 @@ def run():
         local = NRT_CACHE / f'{site.upper()}_{n:02d}_R_ADCP.nc'
         if stale(local):
             print(f'  downloading {url} ...')
-            local.write_bytes(_get(url, tries=3, pause=10))
+            # via a temp file: a direct write to `local` would both need write
+            # permission on another user's file and, if interrupted, leave a
+            # truncated 305 MB file that stale() would then consider fresh.
+            tmp = local.with_suffix('.tmp')
+            tmp.write_bytes(_get(url, tries=3, pause=10))
+            tmp.replace(local)
         print(f'{site}: deployment {n:02d}, {local.name} '
               f'({(time.time() - local.stat().st_mtime)/60:.0f} min old, '
               f'{local.stat().st_size/1e6:.0f} MB)')
@@ -774,7 +785,10 @@ def run():
                          hs=np.asarray(d.variables['waveHs'][:], float),
                          tp=np.asarray(d.variables['waveTp'][:], float),
                          dp=np.asarray(d.variables['waveDp'][:], float))
-            np.savez(fn, **z)
+            # .tmp.npz, not .tmp: np.savez appends .npz unless the name has it
+            tmp = fn.with_suffix('.tmp.npz')
+            np.savez(tmp, **z)
+            tmp.replace(fn)
         z = np.load(fn, allow_pickle=True)
         return dict(lat=float(z['lat']), lon=float(z['lon']), name=str(z['name']),
                     t=z['t'], hs=z['hs'], tp=z['tp'], dp=z['dp'])
