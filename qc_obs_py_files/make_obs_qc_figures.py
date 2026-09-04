@@ -390,8 +390,14 @@ def run():
         return NRT_CACHE / f'hfr_nrt_{source or HFR_SOURCE}_{res}_{day:%Y%m%d}.nc'
 
 
-    def _write_day(fn, times, lat, lon, u, v):
-        """One day-file, same schema whichever backend produced it."""
+    def _write_day(fn, times, lat, lon, u, v, complete=False):
+        """One day-file, same schema whichever backend produced it.
+
+        `complete` records whether the SOURCE had finished with this day when we
+        fetched it.  A file written while its day is still in progress holds only
+        the hours that existed at that moment, and without this flag it would be
+        trusted forever afterwards -- leaving those panels permanently blank.
+        """
         tmp = fn.with_suffix('.tmp')
         with nc.Dataset(tmp, 'w', format='NETCDF4') as d:
             d.createDimension('time', len(times))
@@ -407,20 +413,35 @@ def run():
                                       fill_value=np.float32(np.nan))
                 va[:] = arr
             d.source = HFR_SOURCE
+            d.complete = int(bool(complete))
         tmp.replace(fn)                    # never leave a half-written day behind
+
+
+    def day_is_complete(fn):
+        """True if this cached day-file was written after its day had finished."""
+        try:
+            with nc.Dataset(fn) as d:
+                return bool(getattr(d, 'complete', 0))
+        except Exception:
+            return False                    # unreadable -> re-fetch it
 
 
     def fetch_day(res, day, force=False, last=None):
         """Cache one day of `res` over the LV3 box.  Returns the path or None.
 
-        A day already on disk is trusted unless it is today -- today's file grows
-        hour by hour, so it is always re-fetched.
+        A cached day is trusted only if it was written after the source had
+        finished with that day.  Trusting any past-day file instead -- which is the
+        obvious thing to write -- silently truncates every day at whatever hour the
+        job first ran, and the panels for the missing hours come out blank while
+        the coverage series still shows the hours that did get saved.
         """
         fn = _day_file(res, day)
-        if fn.exists() and not force and day.date() < now_utc().date():
+        if fn.exists() and not force and day_is_complete(fn):
             return fn
         if last is not None and day > last:
             return None                     # entirely in the future
+        # the source has moved past this day, so whatever we get now is all of it
+        done = last is not None and last.date() > day.date()
 
         if HFR_SOURCE == 'ndbc':
             try:
@@ -432,7 +453,8 @@ def run():
                 sl = slice(int(k[0]), int(k[-1]) + 1)
                 u = np.ma.filled(ds.variables['u'][sl, M['jsl'], M['isl']].astype(float), np.nan)
                 v = np.ma.filled(ds.variables['v'][sl, M['jsl'], M['isl']].astype(float), np.nan)
-                _write_day(fn, list(M['times'][sl]), M['lat'], M['lon'], u, v)
+                _write_day(fn, list(M['times'][sl]), M['lat'], M['lon'], u, v,
+                           complete=done)
                 return fn
             except Exception as e:
                 print(f'    {res} {day:%Y-%m-%d}: FAILED  {type(e).__name__} {str(e)[:80]}')
@@ -456,6 +478,8 @@ def run():
             return None
         tmp = fn.with_suffix('.tmp')
         tmp.write_bytes(blob)
+        with nc.Dataset(tmp, 'a') as d:      # same completeness flag as the NDBC path
+            d.complete = int(bool(done))
         tmp.replace(fn)
         return fn
 
@@ -523,19 +547,21 @@ def run():
           f'({NEED_DAYS[0]} .. {NEED_DAYS[-1]}) -- cached days are skipped')
 
     for res in HFR_RES:
-        n_new, n_fail = 0, 0
+        n_new, n_fail, n_partial = 0, 0, 0
         for d in NEED_DAYS:
             day = DT.datetime.combine(d, DT.time())
             existed = _day_file(res, day).exists()
             if not LIVE[res]:
                 n_fail += not existed
                 continue                       # feed is down; use what we have
+            was_partial = existed and not day_is_complete(_day_file(res, day))
             got = fetch_day(res, day, last=LAST_TIME[res])
             n_fail += got is None
+            n_partial += was_partial and got is not None
             n_new += (not existed) or (d == now_utc().date())
         n_cached = len(list(NRT_CACHE.glob(f'hfr_nrt_{HFR_SOURCE}_{res}_*.nc')))
-        print(f'  {res}: {n_new} fetched/refreshed, {n_fail} unavailable, '
-              f'{n_cached} day-files cached'
+        print(f'  {res}: {n_new} fetched/refreshed, {n_partial} completed, '
+              f'{n_fail} unavailable, {n_cached} day-files cached'
               f'{"" if LIVE[res] else "   [feed down, cache only]"}')
 
     # --------------- assemble the HFR grid and panel snapshots ------------
