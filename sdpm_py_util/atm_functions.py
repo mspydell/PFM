@@ -533,6 +533,8 @@ def get_atm_data_on_roms_grid(lv,pkl_fnm):
 
      
     field_names = ['lwrad', 'lwrad_down', 'swrad', 'rain', 'Tair', 'Pair', 'Qair', 'Uwind', 'Vwind']
+    if 'uvb' in ATM:
+        field_names = field_names + ['uvb']
     # these are the 2d fields that need to be interpreted onto the roms grid
     # dimensions of all fields are [ntime,nlat,nlon]
     
@@ -546,6 +548,8 @@ def get_atm_data_on_roms_grid(lv,pkl_fnm):
 
     # this is the complete list of variables that need to be in the netcdf file
     vlist = ['lon','lat','ocean_time','ocean_time_ref','lwrad','lwrad_down','swrad','rain','Tair','Pair','Qair','Uwind','Vwind','tair_time','pair_time','qair_time','wind_time','rain_time','srf_time','lrf_time']
+    if 'uvb' in ATM:
+        vlist = vlist + ['uvb']
 
     # copy vinfo from ATM to atm2
     atm2 = dict()
@@ -593,18 +597,24 @@ def get_atm_data_on_roms_grid(lv,pkl_fnm):
     cosang = np.cos(angr)
     sinang = np.sin(angr)
 
+    # nt above is left over from the last field interpolated, which is only the
+    # wind length by accident of field_names ordering -- appending any field on
+    # a different time axis (uvb on srf_time) would rotate the wrong number of
+    # steps. take the count from the winds themselves.
+    nt_w = np.shape(atm2['Uwind'])[0]
+
     use_loops = 1
     if use_loops == 1:
         #print('attempting to rotating in a loop over time...')
-        for a in np.arange(nt):
+        for a in np.arange(nt_w):
             ur = cosang * np.squeeze(atm2['Uwind'][a,:,:]) + sinang * np.squeeze(atm2['Vwind'][a,:,:])
             vr = cosang * np.squeeze(atm2['Vwind'][a,:,:]) - sinang * np.squeeze(atm2['Uwind'][a,:,:])
             atm2['Uwind'][a,:,:] = ur
             atm2['Vwind'][a,:,:] = vr
         #print('...done')
     else:
-        Cosang = np.tile(cosang,(nt,1,1))
-        Sinang = np.tile(sinang,(nt,1,1))
+        Cosang = np.tile(cosang,(nt_w,1,1))
+        Sinang = np.tile(sinang,(nt_w,1,1))
         print('made nt,nlat,nlon cos and sin angles. Making velocities for roms...')
 
         ur = Cosang * atm2['Uwind'] + Sinang * atm2['Vwind']
@@ -756,8 +766,7 @@ def atm_roms_dict_to_netcdf(lv,pkl_fnm):
         ATM_R = pickle.load(fp)
 
 
-    ds = xr.Dataset(
-        data_vars = dict(
+    data_vars = dict(
             Tair       = (["tair_time","er","xr"],ATM_R['Tair'],ATM_R['vinfo']['Tair']),
             Pair       = (["pair_time","er","xr"],ATM_R['Pair'],ATM_R['vinfo']['Pair']),
             Qair       = (["qair_time","er","xr"],ATM_R['Qair'],ATM_R['vinfo']['Qair']),
@@ -767,7 +776,14 @@ def atm_roms_dict_to_netcdf(lv,pkl_fnm):
             swrad      = (["srf_time","er","xr"],ATM_R['swrad'],ATM_R['vinfo']['swrad']),
             lwrad      = (["lrf_time","er","xr"],ATM_R['lwrad'],ATM_R['vinfo']['lwrad']),
             lwrad_down = (["lrf_time","er","xr"],ATM_R['lwrad_down'],ATM_R['vinfo']['lwrad_down']),
-        ),
+    )
+    # uvb rides along on srf_time when the source had it; roms ignores it.
+    if 'uvb' in ATM_R:
+        data_vars['uvb'] = (["srf_time","er","xr"],ATM_R['uvb'],
+                            ATM_R['vinfo']['uvb'])
+
+    ds = xr.Dataset(
+        data_vars = data_vars,
         coords=dict(
             lat =(["er","xr"],ATM_R['lat'], ATM_R['vinfo']['lat']),
             lon =(["er","xr"],ATM_R['lon'], ATM_R['vinfo']['lon']),
@@ -1588,6 +1604,7 @@ def ecmwf_grib_2_dict(fn_in):
     var_info['ssrd'] = 'surface shortwave radiation down in J/m2, accumulated since beginning of forecast'
     var_info['str'] = 'net surface thermal (long wave) radiation in J/m2, accumulated since beginning of forecast'
     var_info['strd'] = 'surface thermal radiation downward, accumulated since beginning of forecast'
+    var_info['uvb'] = 'surface downward UV radiation in J/m2, accumulated since beginning of forecast'
     AA['var_info'] = var_info
     ds = cfgrib.open_file(fn_in)
     AA['valid_time'] = ds.variables['valid_time'].data
@@ -1597,6 +1614,12 @@ def ecmwf_grib_2_dict(fn_in):
         AA[vnm] = ds.variables[vnm].data[:,:]
 
     AA['str'] = AA['strd'] # just to fill this until we have the actual surface thermal radiation (net)    
+
+    # uvb is carried through for the archive only -- roms never reads it, and
+    # not every source has it (nam does not), so it stays optional the whole
+    # way down rather than becoming a new way for the atm build to die.
+    if 'uvb' in ds.variables:
+        AA['uvb'] = ds.variables['uvb'].data[:,:]
 
     tsec = AA['valid_time']
     time = datetime(year=1970,month=1,day=1) + tsec * timedelta(seconds=1)
@@ -1633,6 +1656,8 @@ def ecmwf_grib_2_dict_all_v2(yyyymmddhh0,t0_str,pkl_fnm):
     nlon = len(ATM['lon'])
     # the following are ecmwf 2d variables variables
     var_e = ['d2m','t2m','msl','u10','v10','e','tp','slhf','sshf','ssr','ssrd','strd','str'] # need 'str' !!!
+    if 'uvb' in A0:
+        var_e = var_e + ['uvb']   # archive-only passenger, see ecmwf_grib_2_dict
 
     ATM['time'] = []
     ATM['valid_time'] = np.zeros((nt))
@@ -1711,6 +1736,12 @@ def ecmwf_to_roms_vars(fn_in,pkl_fnm):
     swrad = lwrad.copy()
     rain = lwrad.copy()
     rho_w = 1000.0
+    # uvb accumulates in J/m2 exactly like ssr/strd (the grib stepType says
+    # 'instant', which is wrong), so it de-accumulates the same way and lands
+    # on the srf_time midpoints, not on ocean_time.
+    has_uvb = 'uvb' in ATM_0
+    if has_uvb:
+        uvb = lwrad.copy()
     for cnt in np.arange(nt-1):
         dt = t_rom[cnt+1] - t_rom[cnt] # in days
         trom2[cnt+1] = .5 * ( t_rom[cnt] + t_rom[cnt+1] )
@@ -1718,6 +1749,8 @@ def ecmwf_to_roms_vars(fn_in,pkl_fnm):
         swrad[cnt+1,:,:] = (ATM_0['ssr'][cnt+1,:,:]-ATM_0['ssr'][cnt,:,:]) / (dt*24*3600)
         lwrad_down[cnt+1,:,:] = (ATM_0['strd'][cnt+1,:,:]-ATM_0['strd'][cnt,:,:]) / (dt*24*3600)
         rain[cnt+1,:,:] = rho_w * (ATM_0['tp'][cnt+1,:,:]-ATM_0['tp'][cnt,:,:]) / (dt*24*3600)
+        if has_uvb:
+            uvb[cnt+1,:,:] = (ATM_0['uvb'][cnt+1,:,:]-ATM_0['uvb'][cnt,:,:]) / (dt*24*3600)
     trom2[0] = t_rom[0]
     trom2[-1] = t_rom[-1]
     lwrad[0,:,:] = lwrad[1,:,:]
@@ -1729,6 +1762,10 @@ def ecmwf_to_roms_vars(fn_in,pkl_fnm):
     rain[0,:,:] = rain[1,:,:]
     rain[-1,:,:] = rain[-2,:,:]
     rain[rain<0] = 0
+    if has_uvb:
+        uvb[0,:,:] = uvb[1,:,:]
+        uvb[-1,:,:] = uvb[-2,:,:]
+        uvb[uvb<0] = 0
 
 
     ATM['rain_time'] = trom2
@@ -1740,6 +1777,8 @@ def ecmwf_to_roms_vars(fn_in,pkl_fnm):
     ATM['lwrad'] = lwrad
     ATM['lwrad_down'] = lwrad_down
     ATM['swrad'] = swrad
+    if has_uvb:
+        ATM['uvb'] = uvb
 
     ATM['rain'] = rain          # kg/m2/s
     ATM['Tair'] = ATM_0['t2m'][:,:,:] - 273.15 # convert from K to C
@@ -1809,6 +1848,13 @@ def ecmwf_to_roms_vars(fn_in,pkl_fnm):
                     'time':'srf_time',
                     'negative values': 'upward flux, cooling',
                     'positive values': 'downward flux, warming'}
+    if has_uvb:
+        # not a roms forcing field; kept so the archived atm files carry it.
+        ATM['vinfo']['uvb'] = {'long_name':'surface downward UV radiation',
+                    'units':'W/m^2',
+                    'coordinates':'lat,lon',
+                    'time':'srf_time',
+                    'note':'archive only, not read by roms'}
     ATM['vinfo']['lwrad'] = {'long_name':'net solar long wave radiation flux down',
                     'units':'W/m^2',
                     'coordinates':'lat,lon',
