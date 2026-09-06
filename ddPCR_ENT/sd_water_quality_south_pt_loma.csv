@@ -1,0 +1,197 @@
+id,Station_ID,Station Name,SampleDate,SampleTime,parameter,qualifier,Result,unit,method,type,County,Description,Status,Beach Name,Latitude,Longitude,CreateDate
+5863,IB-079,IB-079,2026-09-05,08:02:00,Enterococcus,=,845,Copies/100ml,ddPCR,,San Diego,Avenida Lunar,,Coronado City Beaches,32.674066,-117.172300,2026-09-05
+5862,IB-068,IB-068,2026-09-05,07:48:00,Enterococcus,=,1753,Copies/100ml,ddPCR,,San Diego,Silver Strand - Guard Shack,,Silver Strand State Beach,32.626401,-117.139424,2026-09-05
+5861,IB-060,IB-060,2026-09-05,07:26:00,Enterococcus,=,2429,Copies/100ml,ddPCR,,San Diego,Carnation Ave.,,Imperial Beach Municipal Beach,32.585679,-117.133049,2026-09-05
+5860,EH-030,EH-030,2026-09-05,07:16:00,Enterococcus,=,3559,Copies/100ml,ddPCR,,San Diego,Imperial Beach Pier,,Imperial Beach Municipal Beach,32.578750,-117.133186,2026-09-05
+5859,EH-010,EH-010,2026-09-05,07:06:00,Enterococcus,=,7035,Copies/100ml,ddPCR,,San Diego,Cortez Ave,,Imperial Beach Municipal Beach,32.572665,-117.133201,2026-09-05
+5858,IB-050,IB-050,2026-09-05,06:55:00,Enterococcus,=,4527,Copies/100ml,ddPCR,,San Diego,End of Seacoast Dr,,Imperial Beach Municipal Beach,32.566577,-117.133205,2026-09-05
+5850,IB-050,IB-050,2026-09-04,08:01:00,Enterococcus,=,2209,Copies/100ml,ddPCR,,San Diego,End of Seacoast Dr,,Imperial Beach Municipal Beach,32.566577,-117.133205,2026-09-04
+5851,EH-010,EH-010,2026-09-04,07:51:00,Enterococcus,=,1501,Copies/100ml,ddPCR,,San Diego,Cortez Ave,,Imperial Beach Municipal Beach,32.572665,-117.133201,2026-09-04
+5852,EH-030,EH-030,2026-09-04,07:41:00,Enterococcus,=,1965,Copies/100ml,ddPCR,,San Diego,Imperial Beach Pier,,Imperial Beach Municipal Beach,32.578750,-117.133186,2026-09-04
+5853,IB-060,IB-060,2026-09-04,07:30:00,Enterococcus,=,2435,Copies/100ml,ddPCR,,San Diego,Carnation Ave.,,Imperial Beach Municipal Beach,32.585679,-117.133049,2026-09-04
+5854,IB-068,IB-068,2026-09-04,07:11:00,Enterococcus,=,1858,Copies/100ml,ddPCR,,San Diego,Silver Strand - Guard Shack,,Silver Strand State Beach,32.626401,-117.139424,2026-09-04
+5855,IB-079,IB-079,2026-09-04,06:57:00,Enterococcus,=,436,Copies/100ml,ddPCR,,San Diego,Avenida Lunar,,Coronado City Beaches,32.674066,-117.172300,2026-09-04
+5856,EH-050,EH-050,2026-09-04,06:43:00,Enterococcus,=,238,Copies/100ml,ddPCR,,San Diego,Coronado Main Lifeguard Tower,,Coronado City Beaches,32.681840,-117.185260,2026-09-04
+5857,EH-060,EH-060,2026-09-04,06:23:00,Enterococcus,=,1087,Copies/100ml,ddPCR,,San Diego,Coronado North Beach,,Coronado City Beaches,32.685586,-117.194319,2026-09-04
+5472,IB-050,IB-050,2026-09-03,08:20:00,Enterococcus,=,3527,Copies/100ml,ddPCR,,San Diego,End of Seacoast Dr,,Imperial Beach Municipal Beach,32.566577,-117.133205,2026-09-03
+5473,EH-010,EH-010,2026-09-03,08:09:00,Enterococcus,=,3125,Copies/100ml,ddPCR,,San Diego,Cortez Ave,,Imperial Beach Municipal Beach,32.572665,-117.133201,2026-09-03
+5474,EH-030,EH-030,2026-09-03,08:00:00,Enterococcus,=,5165,Copies/100ml,ddPCR,,San Diego,Imperial Beach Pier,,Imperial Beach Municipal Beach,32.578750,-117.133186,2026-09-03
+5475,IB-060,IB-060,2026-09-03,07:49:00,Enterococcus,=,3508,Copies/100ml,ddPCR,,San Diego,Carnation Ave.,,Imperial Beach Municipal Beach,32.585679,-117.133049,2026-09-03
+5476,IB-068,IB-068,2026-09-03,07:32:00,Enterococcus,=,1461,Copies/100ml,ddPCR,,San Diego,Silver Strand - Guard Shack,,Silver Strand State Beach,32.626401,-117.139424,2026-09-03
+5480,EH-090,EH-090,2026-09-03,07:18:00,Enterococcus,=,700,Copies/100ml,ddPCR,,San Diego,Silver Strand - Bayside,,Silver Strand State Beach,32.636310,-117.141100,2026-09-03
+5477,IB-079,IB-079,2026-09-03,07:03:00,Enterococcus,=,883,Copies/100ml,ddPCR,,San Diego,Avenida Lunar,,Coronado City Beaches,32.674066,-117.172300,2026-09-03
+5478,EH-050,EH-050,2026-09-03,06:46:00,Enterococcus,=,513,Copies/100ml,ddPCR,,San Diego,Coronado Main Lifeguard Tower,,Coronado City Beaches,32.681840,-117.185260,2026-09-03
+5479,EH-060,EH-060,2026-09-03,06:31:00,Enterococcus,=,3327,Copies/100ml,ddPCR,,San Diego,Coronado North Beach,,Coronado City Beaches,32.685586,-117.194319,2026-09-03
+5375,EH-120,EH-120,2026-09-02,08:31:00,Enterococcus,=,465,Copies/100ml,ddPCR,,San Diego,Bayside Park (J Street),,San Diego Bay,32.628802,-117.108094,2026-09-02
+5376,IB-050,IB-050,2026-09-02,07:58:00,Enterococcus,=,5205,Copies/100ml,ddPCR,,San Diego,End of Seacoast Dr,,Imperial Beach Municipal Beach,32.566577,-117.133205,2026-09-02
+5377,EH-010,EH-010,2026-09-02,07:48:00,Enterococcus,=,2731,Copies/100ml,ddPCR,,San Diego,Cortez Ave,,Imperial Beach Municipal Beach,32.572665,-117.133201,2026-09-02
+5378,EH-030,EH-030,2026-09-02,07:40:00,Enterococcus,=,3735,Copies/100ml,ddPCR,,San Diego,Imperial Beach Pier,,Imperial Beach Municipal Beach,32.578750,-117.133186,2026-09-02
+5379,IB-060,IB-060,2026-09-02,07:30:00,Enterococcus,=,4251,Copies/100ml,ddPCR,,San Diego,Carnation Ave.,,Imperial Beach Municipal Beach,32.585679,-117.133049,2026-09-02
+5380,IB-068,IB-068,2026-09-02,07:14:00,Enterococcus,=,1722,Copies/100ml,ddPCR,,San Diego,Silver Strand - Guard Shack,,Silver Strand State Beach,32.626401,-117.139424,2026-09-02
+5381,IB-079,IB-079,2026-09-02,06:58:00,Enterococcus,=,2059,Copies/100ml,ddPCR,,San Diego,Avenida Lunar,,Coronado City Beaches,32.674066,-117.172300,2026-09-02
+5382,EH-050,EH-050,2026-09-02,06:45:00,Enterococcus,=,1305,Copies/100ml,ddPCR,,San Diego,Coronado Main Lifeguard Tower,,Coronado City Beaches,32.681840,-117.185260,2026-09-02
+5383,EH-060,EH-060,2026-09-02,06:30:00,Enterococcus,=,1236,Copies/100ml,ddPCR,,San Diego,Coronado North Beach,,Coronado City Beaches,32.685586,-117.194319,2026-09-02
+5357,EH-070,EH-070,2026-09-01,09:03:00,Enterococcus,=,1744,Copies/100ml,ddPCR,,San Diego,Tidelands Park,,San Diego Bay,32.690123,-117.164404,2026-09-01
+5356,EH-080,EH-080,2026-09-01,08:43:00,Enterococcus,<,195,Copies/100ml,ddPCR,,San Diego,Glorietta Bay,,San Diego Bay,32.675214,-117.168181,2026-09-01
+5358,EH-010,EH-010,2026-09-01,07:58:00,Enterococcus,=,4744,Copies/100ml,ddPCR,,San Diego,Cortez Ave,,Imperial Beach Municipal Beach,32.572665,-117.133201,2026-09-01
+5359,EH-030,EH-030,2026-09-01,07:49:00,Enterococcus,=,4946,Copies/100ml,ddPCR,,San Diego,Imperial Beach Pier,,Imperial Beach Municipal Beach,32.578750,-117.133186,2026-09-01
+5360,IB-060,IB-060,2026-09-01,07:39:00,Enterococcus,=,6957,Copies/100ml,ddPCR,,San Diego,Carnation Ave.,,Imperial Beach Municipal Beach,32.585679,-117.133049,2026-09-01
+5361,IB-068,IB-068,2026-09-01,07:22:00,Enterococcus,=,3205,Copies/100ml,ddPCR,,San Diego,Silver Strand - Guard Shack,,Silver Strand State Beach,32.626401,-117.139424,2026-09-01
+5362,IB-079,IB-079,2026-09-01,07:06:00,Enterococcus,=,2390,Copies/100ml,ddPCR,,San Diego,Avenida Lunar,,Coronado City Beaches,32.674066,-117.172300,2026-09-01
+5363,EH-050,EH-050,2026-09-01,06:49:00,Enterococcus,=,3673,Copies/100ml,ddPCR,,San Diego,Coronado Main Lifeguard Tower,,Coronado City Beaches,32.681840,-117.185260,2026-09-01
+5364,EH-060,EH-060,2026-09-01,06:32:00,Enterococcus,=,2444,Copies/100ml,ddPCR,,San Diego,Coronado North Beach,,Coronado City Beaches,32.685586,-117.194319,2026-09-01
+5663,EH-070,EH-070,2026-08-31,08:45:00,Enterococcus,=,20,MPN/100ml,MTF,,San Diego,Tidelands Park,,San Diego Bay,32.690123,-117.164404,2026-08-31
+5664,EH-070,EH-070,2026-08-31,08:45:00,Fecal Coliforms,=,6,CFU/100ml,MF,,San Diego,Tidelands Park,,San Diego Bay,32.690123,-117.164404,2026-08-31
+5665,EH-070,EH-070,2026-08-31,08:45:00,Total Coliforms,=,40,CFU/100ml,MF,,San Diego,Tidelands Park,,San Diego Bay,32.690123,-117.164404,2026-08-31
+5347,EH-070,EH-070,2026-08-31,08:40:00,Enterococcus,=,1590,Copies/100ml,ddPCR,,San Diego,Tidelands Park,,San Diego Bay,32.690123,-117.164404,2026-08-31
+5339,EH-060,EH-060,2026-08-31,08:19:00,Enterococcus,=,2627,Copies/100ml,ddPCR,,San Diego,Coronado North Beach,,Coronado City Beaches,32.685586,-117.194319,2026-08-31
+5338,EH-050,EH-050,2026-08-31,08:05:00,Enterococcus,=,1916,Copies/100ml,ddPCR,,San Diego,Coronado Main Lifeguard Tower,,Coronado City Beaches,32.681840,-117.185260,2026-08-31
+5337,IB-079,IB-079,2026-08-31,07:47:00,Enterococcus,=,649,Copies/100ml,ddPCR,,San Diego,Avenida Lunar,,Coronado City Beaches,32.674066,-117.172300,2026-08-31
+5336,IB-068,IB-068,2026-08-31,07:28:00,Enterococcus,=,8644,Copies/100ml,ddPCR,,San Diego,Silver Strand - Guard Shack,,Silver Strand State Beach,32.626401,-117.139424,2026-08-31
+5335,IB-060,IB-060,2026-08-31,07:10:00,Enterococcus,=,7210,Copies/100ml,ddPCR,,San Diego,Carnation Ave.,,Imperial Beach Municipal Beach,32.585679,-117.133049,2026-08-31
+5334,EH-030,EH-030,2026-08-31,06:59:00,Enterococcus,=,11425,Copies/100ml,ddPCR,,San Diego,Imperial Beach Pier,,Imperial Beach Municipal Beach,32.578750,-117.133186,2026-08-31
+5333,EH-010,EH-010,2026-08-31,06:49:00,Enterococcus,=,13477,Copies/100ml,ddPCR,,San Diego,Cortez Ave,,Imperial Beach Municipal Beach,32.572665,-117.133201,2026-08-31
+5332,IB-050,IB-050,2026-08-31,06:38:00,Enterococcus,=,24796,Copies/100ml,ddPCR,,San Diego,End of Seacoast Dr,,Imperial Beach Municipal Beach,32.566577,-117.133205,2026-08-31
+5315,EH-050,EH-050,2026-08-30,08:00:00,Enterococcus,=,2839,Copies/100ml,ddPCR,,San Diego,Coronado Main Lifeguard Tower,,Coronado City Beaches,32.681840,-117.185260,2026-08-30
+5316,EH-060,EH-060,2026-08-30,07:44:00,Enterococcus,=,4943,Copies/100ml,ddPCR,,San Diego,Coronado North Beach,,Coronado City Beaches,32.685586,-117.194319,2026-08-30
+5314,IB-079,IB-079,2026-08-30,07:22:00,Enterococcus,=,1134,Copies/100ml,ddPCR,,San Diego,Avenida Lunar,,Coronado City Beaches,32.674066,-117.172300,2026-08-30
+5313,IB-068,IB-068,2026-08-30,07:00:00,Enterococcus,=,3552,Copies/100ml,ddPCR,,San Diego,Silver Strand - Guard Shack,,Silver Strand State Beach,32.626401,-117.139424,2026-08-30
+5312,IB-060,IB-060,2026-08-30,06:45:00,Enterococcus,=,6225,Copies/100ml,ddPCR,,San Diego,Carnation Ave.,,Imperial Beach Municipal Beach,32.585679,-117.133049,2026-08-30
+5311,EH-030,EH-030,2026-08-30,06:34:00,Enterococcus,=,14150,Copies/100ml,ddPCR,,San Diego,Imperial Beach Pier,,Imperial Beach Municipal Beach,32.578750,-117.133186,2026-08-30
+5310,EH-010,EH-010,2026-08-30,06:24:00,Enterococcus,=,16547,Copies/100ml,ddPCR,,San Diego,Cortez Ave,,Imperial Beach Municipal Beach,32.572665,-117.133201,2026-08-30
+5309,IB-050,IB-050,2026-08-30,06:14:00,Enterococcus,=,15656,Copies/100ml,ddPCR,,San Diego,End of Seacoast Dr,,Imperial Beach Municipal Beach,32.566577,-117.133205,2026-08-30
+5301,IB-050,IB-050,2026-08-29,07:53:00,Enterococcus,=,32842,Copies/100ml,ddPCR,,San Diego,End of Seacoast Dr,,Imperial Beach Municipal Beach,32.566577,-117.133205,2026-08-29
+5302,EH-010,EH-010,2026-08-29,07:45:00,Enterococcus,=,22555,Copies/100ml,ddPCR,,San Diego,Cortez Ave,,Imperial Beach Municipal Beach,32.572665,-117.133201,2026-08-29
+5303,EH-030,EH-030,2026-08-29,07:36:00,Enterococcus,=,24207,Copies/100ml,ddPCR,,San Diego,Imperial Beach Pier,,Imperial Beach Municipal Beach,32.578750,-117.133186,2026-08-29
+5304,IB-060,IB-060,2026-08-29,07:26:00,Enterococcus,=,15701,Copies/100ml,ddPCR,,San Diego,Carnation Ave.,,Imperial Beach Municipal Beach,32.585679,-117.133049,2026-08-29
+5305,IB-068,IB-068,2026-08-29,07:15:00,Enterococcus,=,14566,Copies/100ml,ddPCR,,San Diego,Silver Strand - Guard Shack,,Silver Strand State Beach,32.626401,-117.139424,2026-08-29
+5306,IB-079,IB-079,2026-08-29,06:57:00,Enterococcus,=,4786,Copies/100ml,ddPCR,,San Diego,Avenida Lunar,,Coronado City Beaches,32.674066,-117.172300,2026-08-29
+5307,EH-050,EH-050,2026-08-29,06:38:00,Enterococcus,=,2306,Copies/100ml,ddPCR,,San Diego,Coronado Main Lifeguard Tower,,Coronado City Beaches,32.681840,-117.185260,2026-08-29
+5308,EH-060,EH-060,2026-08-29,06:20:00,Enterococcus,=,4211,Copies/100ml,ddPCR,,San Diego,Coronado North Beach,,Coronado City Beaches,32.685586,-117.194319,2026-08-29
+5292,EH-010,EH-010,2026-08-28,08:05:00,Enterococcus,=,109373,Copies/100ml,ddPCR,,San Diego,Cortez Ave,,Imperial Beach Municipal Beach,32.572665,-117.133201,2026-08-28
+5293,EH-030,EH-030,2026-08-28,07:55:00,Enterococcus,=,54445,Copies/100ml,ddPCR,,San Diego,Imperial Beach Pier,,Imperial Beach Municipal Beach,32.578750,-117.133186,2026-08-28
+5294,IB-060,IB-060,2026-08-28,07:46:00,Enterococcus,=,40332,Copies/100ml,ddPCR,,San Diego,Carnation Ave.,,Imperial Beach Municipal Beach,32.585679,-117.133049,2026-08-28
+5295,IB-068,IB-068,2026-08-28,07:31:00,Enterococcus,=,6244,Copies/100ml,ddPCR,,San Diego,Silver Strand - Guard Shack,,Silver Strand State Beach,32.626401,-117.139424,2026-08-28
+5299,EH-090,EH-090,2026-08-28,07:21:00,Enterococcus,=,480,Copies/100ml,ddPCR,,San Diego,Silver Strand - Bayside,,Silver Strand State Beach,32.636310,-117.141100,2026-08-28
+5296,IB-079,IB-079,2026-08-28,07:05:00,Enterococcus,=,2428,Copies/100ml,ddPCR,,San Diego,Avenida Lunar,,Coronado City Beaches,32.674066,-117.172300,2026-08-28
+5297,EH-050,EH-050,2026-08-28,06:53:00,Enterococcus,=,4052,Copies/100ml,ddPCR,,San Diego,Coronado Main Lifeguard Tower,,Coronado City Beaches,32.681840,-117.185260,2026-08-28
+5298,EH-060,EH-060,2026-08-28,06:39:00,Enterococcus,=,8599,Copies/100ml,ddPCR,,San Diego,Coronado North Beach,,Coronado City Beaches,32.685586,-117.194319,2026-08-28
+5277,IB-050,IB-050,2026-08-27,08:22:00,Enterococcus,=,63584,Copies/100ml,ddPCR,,San Diego,End of Seacoast Dr,,Imperial Beach Municipal Beach,32.566577,-117.133205,2026-08-27
+5278,EH-010,EH-010,2026-08-27,08:11:00,Enterococcus,=,30049,Copies/100ml,ddPCR,,San Diego,Cortez Ave,,Imperial Beach Municipal Beach,32.572665,-117.133201,2026-08-27
+5279,EH-030,EH-030,2026-08-27,08:01:00,Enterococcus,=,37876,Copies/100ml,ddPCR,,San Diego,Imperial Beach Pier,,Imperial Beach Municipal Beach,32.578750,-117.133186,2026-08-27
+5280,IB-060,IB-060,2026-08-27,07:57:00,Enterococcus,=,36630,Copies/100ml,ddPCR,,San Diego,Carnation Ave.,,Imperial Beach Municipal Beach,32.585679,-117.133049,2026-08-27
+5281,IB-068,IB-068,2026-08-27,07:33:00,Enterococcus,=,14646,Copies/100ml,ddPCR,,San Diego,Silver Strand - Guard Shack,,Silver Strand State Beach,32.626401,-117.139424,2026-08-27
+5282,IB-079,IB-079,2026-08-27,07:06:00,Enterococcus,=,27680,Copies/100ml,ddPCR,,San Diego,Avenida Lunar,,Coronado City Beaches,32.674066,-117.172300,2026-08-27
+5283,EH-050,EH-050,2026-08-27,06:57:00,Enterococcus,=,10487,Copies/100ml,ddPCR,,San Diego,Coronado Main Lifeguard Tower,,Coronado City Beaches,32.681840,-117.185260,2026-08-27
+5268,EH-120,EH-120,2026-08-26,08:30:00,Enterococcus,<,195,Copies/100ml,ddPCR,,San Diego,Bayside Park (J Street),,San Diego Bay,32.628802,-117.108094,2026-08-26
+5269,IB-050,IB-050,2026-08-26,08:00:00,Enterococcus,=,57136,Copies/100ml,ddPCR,,San Diego,End of Seacoast Dr,,Imperial Beach Municipal Beach,32.566577,-117.133205,2026-08-26
+5270,EH-010,EH-010,2026-08-26,07:48:00,Enterococcus,=,46555,Copies/100ml,ddPCR,,San Diego,Cortez Ave,,Imperial Beach Municipal Beach,32.572665,-117.133201,2026-08-26
+5271,EH-030,EH-030,2026-08-26,07:39:00,Enterococcus,=,49678,Copies/100ml,ddPCR,,San Diego,Imperial Beach Pier,,Imperial Beach Municipal Beach,32.578750,-117.133186,2026-08-26
+5272,IB-060,IB-060,2026-08-26,07:28:00,Enterococcus,=,51904,Copies/100ml,ddPCR,,San Diego,Carnation Ave.,,Imperial Beach Municipal Beach,32.585679,-117.133049,2026-08-26
+5273,IB-068,IB-068,2026-08-26,07:12:00,Enterococcus,=,54298,Copies/100ml,ddPCR,,San Diego,Silver Strand - Guard Shack,,Silver Strand State Beach,32.626401,-117.139424,2026-08-26
+5274,IB-079,IB-079,2026-08-26,06:57:00,Enterococcus,=,11112,Copies/100ml,ddPCR,,San Diego,Avenida Lunar,,Coronado City Beaches,32.674066,-117.172300,2026-08-26
+5275,EH-050,EH-050,2026-08-26,06:44:00,Enterococcus,=,8225,Copies/100ml,ddPCR,,San Diego,Coronado Main Lifeguard Tower,,Coronado City Beaches,32.681840,-117.185260,2026-08-26
+5276,EH-060,EH-060,2026-08-26,06:31:00,Enterococcus,=,3416,Copies/100ml,ddPCR,,San Diego,Coronado North Beach,,Coronado City Beaches,32.685586,-117.194319,2026-08-26
+5258,EH-070,EH-070,2026-08-25,08:40:00,Enterococcus,=,10821,Copies/100ml,ddPCR,,San Diego,Tidelands Park,,San Diego Bay,32.690123,-117.164404,2026-08-25
+5247,EH-060,EH-060,2026-08-25,08:23:00,Enterococcus,=,13681,Copies/100ml,ddPCR,,San Diego,Coronado North Beach,,Coronado City Beaches,32.685586,-117.194319,2026-08-25
+5246,EH-050,EH-050,2026-08-25,08:08:00,Enterococcus,=,3113,Copies/100ml,ddPCR,,San Diego,Coronado Main Lifeguard Tower,,Coronado City Beaches,32.681840,-117.185260,2026-08-25
+5245,IB-079,IB-079,2026-08-25,07:50:00,Enterococcus,=,4347,Copies/100ml,ddPCR,,San Diego,Avenida Lunar,,Coronado City Beaches,32.674066,-117.172300,2026-08-25
+5257,EH-080,EH-080,2026-08-25,07:40:00,Enterococcus,=,778,Copies/100ml,ddPCR,,San Diego,Glorietta Bay,,San Diego Bay,32.675214,-117.168181,2026-08-25
+5244,IB-068,IB-068,2026-08-25,07:23:00,Enterococcus,=,4712,Copies/100ml,ddPCR,,San Diego,Silver Strand - Guard Shack,,Silver Strand State Beach,32.626401,-117.139424,2026-08-25
+5243,IB-060,IB-060,2026-08-25,07:08:00,Enterococcus,=,54249,Copies/100ml,ddPCR,,San Diego,Carnation Ave.,,Imperial Beach Municipal Beach,32.585679,-117.133049,2026-08-25
+5242,EH-030,EH-030,2026-08-25,06:58:00,Enterococcus,=,76440,Copies/100ml,ddPCR,,San Diego,Imperial Beach Pier,,Imperial Beach Municipal Beach,32.578750,-117.133186,2026-08-25
+5241,EH-010,EH-010,2026-08-25,06:49:00,Enterococcus,=,86022,Copies/100ml,ddPCR,,San Diego,Cortez Ave,,Imperial Beach Municipal Beach,32.572665,-117.133201,2026-08-25
+5240,EH-070,EH-070,2026-08-24,08:43:00,Enterococcus,=,4687,Copies/100ml,ddPCR,,San Diego,Tidelands Park,,San Diego Bay,32.690123,-117.164404,2026-08-24
+5465,EH-070,EH-070,2026-08-24,08:40:00,Enterococcus,=,20,MPN/100ml,MTF,,San Diego,Tidelands Park,,San Diego Bay,32.690123,-117.164404,2026-08-24
+5466,EH-070,EH-070,2026-08-24,08:40:00,Fecal Coliforms,=,14,CFU/100ml,MF,,San Diego,Tidelands Park,,San Diego Bay,32.690123,-117.164404,2026-08-24
+5467,EH-070,EH-070,2026-08-24,08:40:00,Total Coliforms,<,20,CFU/100ml,MF,,San Diego,Tidelands Park,,San Diego Bay,32.690123,-117.164404,2026-08-24
+5232,EH-060,EH-060,2026-08-24,08:20:00,Enterococcus,=,451,Copies/100ml,ddPCR,,San Diego,Coronado North Beach,,Coronado City Beaches,32.685586,-117.194319,2026-08-24
+5231,EH-050,EH-050,2026-08-24,08:06:00,Enterococcus,=,2525,Copies/100ml,ddPCR,,San Diego,Coronado Main Lifeguard Tower,,Coronado City Beaches,32.681840,-117.185260,2026-08-24
+5230,IB-079,IB-079,2026-08-24,07:47:00,Enterococcus,=,4099,Copies/100ml,ddPCR,,San Diego,Avenida Lunar,,Coronado City Beaches,32.674066,-117.172300,2026-08-24
+5229,IB-068,IB-068,2026-08-24,07:24:00,Enterococcus,=,3464,Copies/100ml,ddPCR,,San Diego,Silver Strand - Guard Shack,,Silver Strand State Beach,32.626401,-117.139424,2026-08-24
+5228,IB-060,IB-060,2026-08-24,07:08:00,Enterococcus,=,9519,Copies/100ml,ddPCR,,San Diego,Carnation Ave.,,Imperial Beach Municipal Beach,32.585679,-117.133049,2026-08-24
+5227,EH-030,EH-030,2026-08-24,06:56:00,Enterococcus,=,11872,Copies/100ml,ddPCR,,San Diego,Imperial Beach Pier,,Imperial Beach Municipal Beach,32.578750,-117.133186,2026-08-24
+5226,EH-010,EH-010,2026-08-24,06:47:00,Enterococcus,=,13531,Copies/100ml,ddPCR,,San Diego,Cortez Ave,,Imperial Beach Municipal Beach,32.572665,-117.133201,2026-08-24
+5225,IB-050,IB-050,2026-08-24,06:36:00,Enterococcus,=,10386,Copies/100ml,ddPCR,,San Diego,End of Seacoast Dr,,Imperial Beach Municipal Beach,32.566577,-117.133205,2026-08-24
+5224,EH-050,EH-050,2026-08-23,07:24:00,Enterococcus,=,972,Copies/100ml,ddPCR,,San Diego,Coronado Main Lifeguard Tower,,Coronado City Beaches,32.681840,-117.185260,2026-08-23
+5223,IB-079,IB-079,2026-08-23,07:08:00,Enterococcus,=,1973,Copies/100ml,ddPCR,,San Diego,Avenida Lunar,,Coronado City Beaches,32.674066,-117.172300,2026-08-23
+5222,IB-068,IB-068,2026-08-23,06:50:00,Enterococcus,=,2749,Copies/100ml,ddPCR,,San Diego,Silver Strand - Guard Shack,,Silver Strand State Beach,32.626401,-117.139424,2026-08-23
+5221,IB-060,IB-060,2026-08-23,06:37:00,Enterococcus,=,31649,Copies/100ml,ddPCR,,San Diego,Carnation Ave.,,Imperial Beach Municipal Beach,32.585679,-117.133049,2026-08-23
+5220,EH-030,EH-030,2026-08-23,06:25:00,Enterococcus,=,54681,Copies/100ml,ddPCR,,San Diego,Imperial Beach Pier,,Imperial Beach Municipal Beach,32.578750,-117.133186,2026-08-23
+5219,EH-010,EH-010,2026-08-23,06:17:00,Enterococcus,=,49624,Copies/100ml,ddPCR,,San Diego,Cortez Ave,,Imperial Beach Municipal Beach,32.572665,-117.133201,2026-08-23
+5218,IB-050,IB-050,2026-08-23,06:08:00,Enterococcus,=,48131,Copies/100ml,ddPCR,,San Diego,End of Seacoast Dr,,Imperial Beach Municipal Beach,32.566577,-117.133205,2026-08-23
+5212,IB-050,IB-050,2026-08-22,07:36:00,Enterococcus,=,43005,Copies/100ml,ddPCR,,San Diego,End of Seacoast Dr,,Imperial Beach Municipal Beach,32.566577,-117.133205,2026-08-22
+5213,EH-010,EH-010,2026-08-22,07:12:00,Enterococcus,=,29805,Copies/100ml,ddPCR,,San Diego,Cortez Ave,,Imperial Beach Municipal Beach,32.572665,-117.133201,2026-08-22
+5214,EH-030,EH-030,2026-08-22,07:02:00,Enterococcus,=,33261,Copies/100ml,ddPCR,,San Diego,Imperial Beach Pier,,Imperial Beach Municipal Beach,32.578750,-117.133186,2026-08-22
+5215,IB-060,IB-060,2026-08-22,06:49:00,Enterococcus,=,55212,Copies/100ml,ddPCR,,San Diego,Carnation Ave.,,Imperial Beach Municipal Beach,32.585679,-117.133049,2026-08-22
+5216,IB-068,IB-068,2026-08-22,06:31:00,Enterococcus,=,665,Copies/100ml,ddPCR,,San Diego,Silver Strand - Guard Shack,,Silver Strand State Beach,32.626401,-117.139424,2026-08-22
+5217,IB-079,IB-079,2026-08-22,06:18:00,Enterococcus,=,1644,Copies/100ml,ddPCR,,San Diego,Avenida Lunar,,Coronado City Beaches,32.674066,-117.172300,2026-08-22
+5202,IB-050,IB-050,2026-08-21,08:14:00,Enterococcus,=,3438,Copies/100ml,ddPCR,,San Diego,End of Seacoast Dr,,Imperial Beach Municipal Beach,32.566577,-117.133205,2026-08-21
+5203,EH-010,EH-010,2026-08-21,07:58:00,Enterococcus,=,891,Copies/100ml,ddPCR,,San Diego,Cortez Ave,,Imperial Beach Municipal Beach,32.572665,-117.133201,2026-08-21
+5204,EH-030,EH-030,2026-08-21,07:47:00,Enterococcus,=,1641,Copies/100ml,ddPCR,,San Diego,Imperial Beach Pier,,Imperial Beach Municipal Beach,32.578750,-117.133186,2026-08-21
+5205,IB-060,IB-060,2026-08-21,07:34:00,Enterococcus,=,6618,Copies/100ml,ddPCR,,San Diego,Carnation Ave.,,Imperial Beach Municipal Beach,32.585679,-117.133049,2026-08-21
+5206,IB-068,IB-068,2026-08-21,07:16:00,Enterococcus,=,592,Copies/100ml,ddPCR,,San Diego,Silver Strand - Guard Shack,,Silver Strand State Beach,32.626401,-117.139424,2026-08-21
+5208,EH-090,EH-090,2026-08-21,07:04:00,Enterococcus,=,330,Copies/100ml,ddPCR,,San Diego,Silver Strand - Bayside,,Silver Strand State Beach,32.636310,-117.141100,2026-08-21
+5207,IB-079,IB-079,2026-08-21,06:30:00,Enterococcus,=,1120,Copies/100ml,ddPCR,,San Diego,Avenida Lunar,,Coronado City Beaches,32.674066,-117.172300,2026-08-21
+5184,IB-050,IB-050,2026-08-20,08:44:00,Enterococcus,=,2346,Copies/100ml,ddPCR,,San Diego,End of Seacoast Dr,,Imperial Beach Municipal Beach,32.566577,-117.133205,2026-08-20
+5185,EH-010,EH-010,2026-08-20,08:30:00,Enterococcus,=,2635,Copies/100ml,ddPCR,,San Diego,Cortez Ave,,Imperial Beach Municipal Beach,32.572665,-117.133201,2026-08-20
+5186,EH-030,EH-030,2026-08-20,08:16:00,Enterococcus,=,2894,Copies/100ml,ddPCR,,San Diego,Imperial Beach Pier,,Imperial Beach Municipal Beach,32.578750,-117.133186,2026-08-20
+5187,IB-060,IB-060,2026-08-20,08:05:00,Enterococcus,=,4689,Copies/100ml,ddPCR,,San Diego,Carnation Ave.,,Imperial Beach Municipal Beach,32.585679,-117.133049,2026-08-20
+5188,IB-068,IB-068,2026-08-20,07:49:00,Enterococcus,=,1207,Copies/100ml,ddPCR,,San Diego,Silver Strand - Guard Shack,,Silver Strand State Beach,32.626401,-117.139424,2026-08-20
+5189,IB-079,IB-079,2026-08-20,07:27:00,Enterococcus,=,463,Copies/100ml,ddPCR,,San Diego,Avenida Lunar,,Coronado City Beaches,32.674066,-117.172300,2026-08-20
+5201,EH-080,EH-080,2026-08-20,07:13:00,Enterococcus,=,867,Copies/100ml,ddPCR,,San Diego,Glorietta Bay,,San Diego Bay,32.675214,-117.168181,2026-08-20
+5190,EH-050,EH-050,2026-08-20,06:59:00,Enterococcus,=,579,Copies/100ml,ddPCR,,San Diego,Coronado Main Lifeguard Tower,,Coronado City Beaches,32.681840,-117.185260,2026-08-20
+5191,EH-060,EH-060,2026-08-20,06:38:00,Enterococcus,=,725,Copies/100ml,ddPCR,,San Diego,Coronado North Beach,,Coronado City Beaches,32.685586,-117.194319,2026-08-20
+5138,EH-120,EH-120,2026-08-19,08:41:00,Enterococcus,<,195,Copies/100ml,ddPCR,,San Diego,Bayside Park (J Street),,San Diego Bay,32.628802,-117.108094,2026-08-19
+5122,IB-050,IB-050,2026-08-19,08:06:00,Enterococcus,=,1161,Copies/100ml,ddPCR,,San Diego,End of Seacoast Dr,,Imperial Beach Municipal Beach,32.566577,-117.133205,2026-08-19
+5123,EH-010,EH-010,2026-08-19,07:56:00,Enterococcus,=,1575,Copies/100ml,ddPCR,,San Diego,Cortez Ave,,Imperial Beach Municipal Beach,32.572665,-117.133201,2026-08-19
+5124,EH-030,EH-030,2026-08-19,07:47:00,Enterococcus,=,1440,Copies/100ml,ddPCR,,San Diego,Imperial Beach Pier,,Imperial Beach Municipal Beach,32.578750,-117.133186,2026-08-19
+5125,IB-060,IB-060,2026-08-19,07:37:00,Enterococcus,=,652,Copies/100ml,ddPCR,,San Diego,Carnation Ave.,,Imperial Beach Municipal Beach,32.585679,-117.133049,2026-08-19
+5126,IB-068,IB-068,2026-08-19,07:19:00,Enterococcus,=,1201,Copies/100ml,ddPCR,,San Diego,Silver Strand - Guard Shack,,Silver Strand State Beach,32.626401,-117.139424,2026-08-19
+5127,IB-079,IB-079,2026-08-19,07:02:00,Enterococcus,=,1497,Copies/100ml,ddPCR,,San Diego,Avenida Lunar,,Coronado City Beaches,32.674066,-117.172300,2026-08-19
+5128,EH-050,EH-050,2026-08-19,06:50:00,Enterococcus,=,2155,Copies/100ml,ddPCR,,San Diego,Coronado Main Lifeguard Tower,,Coronado City Beaches,32.681840,-117.185260,2026-08-19
+5129,EH-060,EH-060,2026-08-19,06:32:00,Enterococcus,=,1662,Copies/100ml,ddPCR,,San Diego,Coronado North Beach,,Coronado City Beaches,32.685586,-117.194319,2026-08-19
+5537,IB-060,IB-060,2026-08-18,10:20:00,Total Coliforms,<,20,CFU/100ml,MF,,San Diego,Carnation Ave.,,Imperial Beach Municipal Beach,32.585679,-117.133049,2026-08-18
+5538,IB-060,IB-060,2026-08-18,10:20:00,Fecal Coliforms,<,2,CFU/100ml,MF,,San Diego,Carnation Ave.,,Imperial Beach Municipal Beach,32.585679,-117.133049,2026-08-18
+5539,IB-060,IB-060,2026-08-18,10:20:00,Enterococcus,=,2,CFU/100ml,MF,,San Diego,Carnation Ave.,,Imperial Beach Municipal Beach,32.585679,-117.133049,2026-08-18
+5546,IB-050,IB-050,2026-08-18,09:43:00,Total Coliforms,<,20,CFU/100ml,MF,,San Diego,End of Seacoast Dr,,Imperial Beach Municipal Beach,32.566577,-117.133205,2026-08-18
+5547,IB-050,IB-050,2026-08-18,09:43:00,Fecal Coliforms,<,2,CFU/100ml,MF,,San Diego,End of Seacoast Dr,,Imperial Beach Municipal Beach,32.566577,-117.133205,2026-08-18
+5548,IB-050,IB-050,2026-08-18,09:43:00,Enterococcus,<,2,CFU/100ml,MF,,San Diego,End of Seacoast Dr,,Imperial Beach Municipal Beach,32.566577,-117.133205,2026-08-18
+5540,IB-010,IB-010,2026-08-18,09:42:00,Total Coliforms,<,20,CFU/100ml,MF,,San Diego,Border Fence N Side,,Border Field State Park,32.535950,-117.124300,2026-08-18
+5541,IB-010,IB-010,2026-08-18,09:42:00,Fecal Coliforms,<,2,CFU/100ml,MF,,San Diego,Border Fence N Side,,Border Field State Park,32.535950,-117.124300,2026-08-18
+5542,IB-010,IB-010,2026-08-18,09:42:00,Enterococcus,=,2,CFU/100ml,MF,,San Diego,Border Fence N Side,,Border Field State Park,32.535950,-117.124300,2026-08-18
+5534,IB-040,IB-040,2026-08-18,09:32:00,Total Coliforms,<,20,CFU/100ml,MF,,San Diego,3/4 mi. N of TJ River,,Tijuana Slough National Wildlife Refuge,32.562869,-117.132590,2026-08-18
+5535,IB-040,IB-040,2026-08-18,09:32:00,Fecal Coliforms,=,4,CFU/100ml,MF,,San Diego,3/4 mi. N of TJ River,,Tijuana Slough National Wildlife Refuge,32.562869,-117.132590,2026-08-18
+5536,IB-040,IB-040,2026-08-18,09:32:00,Enterococcus,=,4,CFU/100ml,MF,,San Diego,3/4 mi. N of TJ River,,Tijuana Slough National Wildlife Refuge,32.562869,-117.132590,2026-08-18
+5531,IB-020,IB-020,2026-08-18,09:21:00,Total Coliforms,=,60,CFU/100ml,MF,,San Diego,Monument Rd.,,Border Field State Park,32.543410,-117.125228,2026-08-18
+5532,IB-020,IB-020,2026-08-18,09:21:00,Fecal Coliforms,=,4,CFU/100ml,MF,,San Diego,Monument Rd.,,Border Field State Park,32.543410,-117.125228,2026-08-18
+5533,IB-020,IB-020,2026-08-18,09:21:00,Enterococcus,=,6,CFU/100ml,MF,,San Diego,Monument Rd.,,Border Field State Park,32.543410,-117.125228,2026-08-18
+5543,IB-030,IB-030,2026-08-18,09:11:00,Total Coliforms,=,40,CFU/100ml,MF,,San Diego,Tijuana Estuary mouth,,Tijuana Slough National Wildlife Refuge,32.555139,-117.129323,2026-08-18
+5544,IB-030,IB-030,2026-08-18,09:11:00,Fecal Coliforms,<,2,CFU/100ml,MF,,San Diego,Tijuana Estuary mouth,,Tijuana Slough National Wildlife Refuge,32.555139,-117.129323,2026-08-18
+5545,IB-030,IB-030,2026-08-18,09:11:00,Enterococcus,=,18,CFU/100ml,MF,,San Diego,Tijuana Estuary mouth,,Tijuana Slough National Wildlife Refuge,32.555139,-117.129323,2026-08-18
+5549,IB-070,IB-070,2026-08-18,08:35:00,Total Coliforms,<,20,CFU/100ml,MF,,San Diego,Silver Strand N End (Ocean),,Silver Strand State Beach,32.635800,-117.143170,2026-08-18
+5550,IB-070,IB-070,2026-08-18,08:35:00,Fecal Coliforms,<,2,CFU/100ml,MF,,San Diego,Silver Strand N End (Ocean),,Silver Strand State Beach,32.635800,-117.143170,2026-08-18
+5551,IB-070,IB-070,2026-08-18,08:35:00,Enterococcus,<,2,CFU/100ml,MF,,San Diego,Silver Strand N End (Ocean),,Silver Strand State Beach,32.635800,-117.143170,2026-08-18
+5104,IB-050,IB-050,2026-08-18,08:19:00,Enterococcus,=,2669,Copies/100ml,ddPCR,,San Diego,End of Seacoast Dr,,Imperial Beach Municipal Beach,32.566577,-117.133205,2026-08-18
+5105,EH-010,EH-010,2026-08-18,08:09:00,Enterococcus,=,2170,Copies/100ml,ddPCR,,San Diego,Cortez Ave,,Imperial Beach Municipal Beach,32.572665,-117.133201,2026-08-18
+5106,EH-030,EH-030,2026-08-18,07:58:00,Enterococcus,=,2432,Copies/100ml,ddPCR,,San Diego,Imperial Beach Pier,,Imperial Beach Municipal Beach,32.578750,-117.133186,2026-08-18
+5107,IB-060,IB-060,2026-08-18,07:47:00,Enterococcus,=,3111,Copies/100ml,ddPCR,,San Diego,Carnation Ave.,,Imperial Beach Municipal Beach,32.585679,-117.133049,2026-08-18
+5108,IB-068,IB-068,2026-08-18,07:30:00,Enterococcus,=,1322,Copies/100ml,ddPCR,,San Diego,Silver Strand - Guard Shack,,Silver Strand State Beach,32.626401,-117.139424,2026-08-18
+5109,IB-079,IB-079,2026-08-18,07:14:00,Enterococcus,=,2361,Copies/100ml,ddPCR,,San Diego,Avenida Lunar,,Coronado City Beaches,32.674066,-117.172300,2026-08-18
+5110,EH-050,EH-050,2026-08-18,06:43:00,Enterococcus,=,2955,Copies/100ml,ddPCR,,San Diego,Coronado Main Lifeguard Tower,,Coronado City Beaches,32.681840,-117.185260,2026-08-18
+5111,EH-060,EH-060,2026-08-18,06:34:00,Enterococcus,=,367,Copies/100ml,ddPCR,,San Diego,Coronado North Beach,,Coronado City Beaches,32.685586,-117.194319,2026-08-18
+5681,EH-060,EH-060,2026-08-17,09:15:00,Total Coliforms,=,68,MPN/100ml,MTF,,San Diego,Coronado North Beach,,Coronado City Beaches,32.685586,-117.194319,2026-08-17
+5682,EH-060,EH-060,2026-08-17,09:15:00,Fecal Coliforms,=,18,MPN/100ml,MTF,,San Diego,Coronado North Beach,,Coronado City Beaches,32.685586,-117.194319,2026-08-17
+5683,EH-060,EH-060,2026-08-17,09:15:00,Enterococcus,=,41,MPN/100ml,Enterolert,,San Diego,Coronado North Beach,,Coronado City Beaches,32.685586,-117.194319,2026-08-17
+5055,EH-070,EH-070,2026-08-17,08:42:00,Enterococcus,=,485,Copies/100ml,ddPCR,,San Diego,Tidelands Park,,San Diego Bay,32.690123,-117.164404,2026-08-17
+5699,EH-070,EH-070,2026-08-17,08:35:00,Enterococcus,<,10,MPN/100ml,MTF,,San Diego,Tidelands Park,,San Diego Bay,32.690123,-117.164404,2026-08-17
+5700,EH-070,EH-070,2026-08-17,08:35:00,Fecal Coliforms,<,2,CFU/100ml,MF,,San Diego,Tidelands Park,,San Diego Bay,32.690123,-117.164404,2026-08-17
+5701,EH-070,EH-070,2026-08-17,08:35:00,Total Coliforms,<,20,CFU/100ml,MF,,San Diego,Tidelands Park,,San Diego Bay,32.690123,-117.164404,2026-08-17
+5048,EH-060,EH-060,2026-08-17,08:22:00,Enterococcus,=,1994,Copies/100ml,ddPCR,,San Diego,Coronado North Beach,,Coronado City Beaches,32.685586,-117.194319,2026-08-17
+5047,EH-050,EH-050,2026-08-17,08:09:00,Enterococcus,=,17580,Copies/100ml,ddPCR,,San Diego,Coronado Main Lifeguard Tower,,Coronado City Beaches,32.681840,-117.185260,2026-08-17
+5046,IB-079,IB-079,2026-08-17,07:50:00,Enterococcus,=,1922,Copies/100ml,ddPCR,,San Diego,Avenida Lunar,,Coronado City Beaches,32.674066,-117.172300,2026-08-17
+5045,IB-068,IB-068,2026-08-17,07:30:00,Enterococcus,=,1633,Copies/100ml,ddPCR,,San Diego,Silver Strand - Guard Shack,,Silver Strand State Beach,32.626401,-117.139424,2026-08-17
+5044,IB-060,IB-060,2026-08-17,07:13:00,Enterococcus,=,1376,Copies/100ml,ddPCR,,San Diego,Carnation Ave.,,Imperial Beach Municipal Beach,32.585679,-117.133049,2026-08-17
+5043,EH-030,EH-030,2026-08-17,07:02:00,Enterococcus,=,2538,Copies/100ml,ddPCR,,San Diego,Imperial Beach Pier,,Imperial Beach Municipal Beach,32.578750,-117.133186,2026-08-17
+5042,EH-010,EH-010,2026-08-17,06:52:00,Enterococcus,=,3111,Copies/100ml,ddPCR,,San Diego,Cortez Ave,,Imperial Beach Municipal Beach,32.572665,-117.133201,2026-08-17
+5041,IB-050,IB-050,2026-08-17,06:40:00,Enterococcus,=,8745,Copies/100ml,ddPCR,,San Diego,End of Seacoast Dr,,Imperial Beach Municipal Beach,32.566577,-117.133205,2026-08-17

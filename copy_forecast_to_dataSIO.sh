@@ -94,7 +94,7 @@ cp -f /dataSIO/PFM_Simulations/Plots/dye_*${dateZ}*.png  /projects/www-users/fal
 
 
 ## next run FFMPEG on website
-
+echo "Making Movies"
 ./make_movies.sh
 #cd /projects/www-users/falk/PFM_Forecast/Plots
 
