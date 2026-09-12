@@ -644,9 +644,16 @@ def get_hycom_foretime_v2(t1str,t2str,pkl_fnm):
         # we now need to set the maximum forecast time.
 
     # clean up step...
-    dir_path0 = os.getcwd() # this should be .../PFM/driver/
-    dir_path = dir_path0 + '/tds.hycom.org'
-    delete_directory_if_exists(dir_path) 
+    # wget mirrors the server's path into whatever the cwd happens to be, and
+    # the download above runs after an os.chdir into sdpm_py_util -- so trusting
+    # getcwd() here deleted the driver/ copy while leaving a tree of 368 empty
+    # stub files sitting in sdpm_py_util/ inside the repo. clean every place it
+    # can land, resolved from this file rather than from the cwd.
+    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    for d0 in [os.getcwd(),
+               os.path.join(repo_root,'driver'),
+               os.path.join(repo_root,'sdpm_py_util')]:
+        delete_directory_if_exists(os.path.join(d0,'tds.hycom.org'))
 
     return yyyymmdd
 

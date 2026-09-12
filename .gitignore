@@ -3,6 +3,8 @@ __pychache__/
 *.py[cod]
 *$py.class
 # weird files from hycom
+tds.hycom.org/
+**/tds.hycom.org/
 FMRC_*
 # the log files in the log directory
 log/
