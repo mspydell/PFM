@@ -416,14 +416,25 @@ def get_longest_forecast(pkl_fnm):
                 # a parital forecast. 2 options here. we skip times
                 tfdta = np.array(tfdtl)
                 tfdta_s = np.sort(tfdta)
+                # the for/else below matters. the trailing assignment used
+                # to sit at the loop's indent, so it ran even after the break
+                # and overwrote the gap time with the first time past the gap
+                # -- a partial forecast therefore always looked complete, which
+                # is why the shortened-forecast fallback never actually fired.
+                # and with a single file the loop body never runs at all, so aa
+                # was left over from the previous (var,t0) and indexed off the
+                # end of this array.
                 for aa in np.arange(len(tfdta_s)-1):
                     dt = tfdta_s[aa+1]-tfdta_s[aa]
                     dt_hr = int( dt.total_seconds()/3600 )
                     if dt_hr > DT0: # if we get here, files are skipped
                         TMX[(var,t0)] = tfdta_s[aa]
                         break 
-                # if we dont skip files, this is TMX    
-                TMX[(var,t0)] = tfdta_s[aa+1]
+                else:
+                    # no gaps, so every file is contiguous and the last one is
+                    # the max time. [-1] rather than [aa+1] so this does not
+                    # depend on the loop variable surviving the loop.
+                    TMX[(var,t0)] = tfdta_s[-1]
                 
     # set up a dictionary to figure out what the longest forecast we can do 
     # this is a function of forecast start time
