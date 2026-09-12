@@ -220,6 +220,13 @@ def run():
     BATHY_INT   = 20.0
     BATHY_MAX   = 200.0
     HFR_COLOR = {'1km': 'tab:blue', '2km': 'tab:red', '6km': 'tab:green'}
+    # 6 km is the sparsest product and the one still reporting when the others
+    # drop out, so it gets a thicker shaft and is drawn last, over the dense
+    # 1/2 km fields.  headwidth/headlength are multiples of the shaft, so the
+    # arrow heads grow to match.  zorder is explicit rather than derived from
+    # the order of HFR_RES, which gets rebuilt when a resolution drops out.
+    HFR_WIDTH  = {'1km': 0.0035, '2km': 0.0035, '6km': 0.0060}
+    HFR_ZORDER = {'1km': 5, '2km': 6, '6km': 7}
     HFR_SUB   = {'1km': 1, '2km': 1, '6km': 1}
 
     QSCALE = 6.0        # m/s across the axes width (full-domain figure)
@@ -1046,12 +1053,14 @@ def run():
                 if g.any():
                     ax.quiver(lo[g], la[g], uu[g], vv[g], color=HFR_COLOR[res],
                               angles='uv', scale=qscale, scale_units='width',
-                              width=QWIDTH, headwidth=3.5, headlength=4.0,
-                              zorder=5 + HFR_RES.index(res))
+                              width=HFR_WIDTH[res], headwidth=3.5, headlength=4.0,
+                              zorder=HFR_ZORDER[res])
                 bits.append(f'{res[0]} km n={int(g.sum())}')
             return ', '.join(bits)
 
-        handles = [plt.Line2D([], [], color=HFR_COLOR[r], lw=2, label=f'HFR {r[0]} km')
+        handles = [plt.Line2D([], [], color=HFR_COLOR[r],
+                                 lw=2.8 if r == '6km' else 2.0,
+                                 label=f'HFR {r[0]} km')
                    for r in HFR_RES]
         return panel_grid(times, draw, handles, **kw)
 
