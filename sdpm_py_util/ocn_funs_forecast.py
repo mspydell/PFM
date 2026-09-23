@@ -3364,7 +3364,7 @@ def ocnr_2_BCdict_1hrzeta_from_tmppkls(fname_out,pkl_fnm):
     OCN_BC['vinfo']['zeta_time'] = tmp['zeta_time']
     OCN_BC['vinfo']['ocean_time_ref'] = tmp['ocean_time_ref']
     OCN_BC['vinfo']['lat_rho'] = tmp['lat_rho']
-    OCN_BC['vinfo']['lon_rho'] = tmp['lat_rho']
+    OCN_BC['vinfo']['lon_rho'] = tmp['lon_rho']
     OCN_BC['vinfo']['lat_u'] = tmp['lat_u']
     OCN_BC['vinfo']['lon_u'] = tmp['lon_u']
     OCN_BC['vinfo']['lat_v'] = tmp['lat_v']
@@ -3536,7 +3536,7 @@ def ocnr_2_BCdict_1hrzeta_from_tmppkls(fname_out,pkl_fnm):
             OCN_BC['u_south'][aa,:,bb]  = interp_to_roms_z(-zhy,tmp[aa,:,0,bb],zr_us[aa,:,bb],-hb_u[0,bb])
             OCN_BC['ubar_south'][aa,bb]  = get_depth_avg_v(OCN_BC['u_south'][aa,:,bb],zr_us[aa,:,bb],eta_u[aa,0,bb],hb_u[0,bb])
             OCN_BC['u_north'][aa,:,bb]  = interp_to_roms_z(-zhy,tmp[aa,:,-1,bb],zr_un[aa,:,bb],-hb_u[-1,bb])
-            OCN_BC['ubar_north'][aa,bb]  = get_depth_avg_v(OCN_BC['u_south'][aa,:,bb],zr_un[aa,:,bb],eta_u[aa,-1,bb],hb_u[-1,bb])
+            OCN_BC['ubar_north'][aa,bb]  = get_depth_avg_v(OCN_BC['u_north'][aa,:,bb],zr_un[aa,:,bb],eta_u[aa,-1,bb],hb_u[-1,bb])
 
         for bb in range(nlt):             
             OCN_BC['u_west'][aa,:,bb]      = interp_to_roms_z(-zhy,tmp[aa,:,bb,0],zr_uw[aa,:,bb],-hb_u[bb,0])
