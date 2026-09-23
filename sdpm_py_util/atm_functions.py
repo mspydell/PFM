@@ -473,16 +473,16 @@ def get_atm_data_as_dict(pkl_fnm):
                         'coordinates':'lat,lon',
                         'time':'lrf_time',
                         'note' : 'this is the downward component of the flux, warming'}
-        ATM['vinfo']['Uwind'] = {'long_name':'roms east coordinate, er, velocity',
+        ATM['vinfo']['Uwind'] = {'long_name':'surface wind component in the roms xi direction',
                         'units':'m/s',
                         'coordinates':'lat,lon',
                         'time':'wind_time',
-                        'note':'these velocity velocities are in earth coordinate'}
-        ATM['vinfo']['Vwind'] = {'long_name':'roms north coordinate, xi, velocity',
+                        'note':'rotated from earth (east,north) into the roms grid directions using the grid angle. roms does not rotate these again: the field is on the model grid, so set_data.F sees it as already gridded and skips its CURVGRID rotation'}
+        ATM['vinfo']['Vwind'] = {'long_name':'surface wind component in the roms eta direction',
                         'units':'m/s',
                         'coordinates':'lat,lon',
                         'time':'wind_time',
-                        'note':'these velocity velocities are in earth coordinate'}
+                        'note':'rotated from earth (east,north) into the roms grid directions using the grid angle. roms does not rotate these again: the field is on the model grid, so set_data.F sees it as already gridded and skips its CURVGRID rotation'}
 
     with open(fname_out,'wb') as fp:
         pickle.dump(ATM,fp, protocol=pickle.HIGHEST_PROTOCOL)
@@ -1866,16 +1866,16 @@ def ecmwf_to_roms_vars(fn_in,pkl_fnm):
                     'coordinates':'lat,lon',
                     'time':'lrf_time',
                     'note' : 'this is the downward component of the flux, warming'}
-    ATM['vinfo']['Uwind'] = {'long_name':'roms east coordinate, er, velocity',
+    ATM['vinfo']['Uwind'] = {'long_name':'surface wind component in the roms xi direction',
                     'units':'m/s',
                     'coordinates':'lat,lon',
                     'time':'wind_time',
-                    'note':'these velocity velocities are in earth coordinate'}
-    ATM['vinfo']['Vwind'] = {'long_name':'roms north coordinate, xi, velocity',
+                    'note':'rotated from earth (east,north) into the roms grid directions using the grid angle. roms does not rotate these again: the field is on the model grid, so set_data.F sees it as already gridded and skips its CURVGRID rotation'}
+    ATM['vinfo']['Vwind'] = {'long_name':'surface wind component in the roms eta direction',
                     'units':'m/s',
                     'coordinates':'lat,lon',
                     'time':'wind_time',
-                    'note':'these velocity velocities are in earth coordinate'}
+                    'note':'rotated from earth (east,north) into the roms grid directions using the grid angle. roms does not rotate these again: the field is on the model grid, so set_data.F sees it as already gridded and skips its CURVGRID rotation'}
 
     fname_out  = PFM['lv1_forc_dir'] + '/' + PFM['atm_tmp_pckl_file']
     with open(fname_out,'wb') as fp:
