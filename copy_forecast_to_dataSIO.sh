@@ -51,7 +51,7 @@ cp -f  /scratch/PFM_Simulations/LV4_Forecast/Run/LV4_forecast.log  /dataSIO/PFM_
 
 ## copy webdata to /dataSIO and website
 
-#cp -f  /scratch/PFM_Simulations/LV4_Forecast/His/web*.nc     /projects/www-users/falk/PFM_Forecast/LV4_His/web_data_latest.nc
+cp -f  /scratch/PFM_Simulations/LV4_Forecast/His/web*.nc     /projects/www-users/falk/PFM_Forecast/LV4_His/web_data_latest.nc
 #cp -f  /scratch/PFM_Simulations/LV4_Forecast/His/LV4*.nc     /projects/www-users/falk/PFM_Forecast/LV4_His
 
 ## first move plots on /dataSIO/PFM_Simulations/Plots

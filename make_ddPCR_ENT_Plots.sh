@@ -7,7 +7,7 @@ source /home/ffeddersen/PFM_NEW/.env
 set +a
 
 # check to see what git branch we are on
-EXPECTED_BRANCH="PHM_development" # Or "master", "develop", etc.
+EXPECTED_BRANCH="main" # Or "master", "develop", etc.
 
 current_branch=$(git rev-parse --abbrev-ref HEAD)
 echo "Current branch is: $current_branch"
