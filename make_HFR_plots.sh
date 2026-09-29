@@ -10,7 +10,7 @@ source /home/ffeddersen/.bashrc
 # this guard is disabled here. if you re-enable it, use this version -- the
 # old one had "git switch $EXCPECTED_BRANCH" (a typo, so it did nothing) and a
 # commented-out exit, which let a failed switch run from the wrong branch.
-#EXPECTED_BRANCH="PHM_development" # Or "master", "develop", etc.
+#EXPECTED_BRANCH="main" # Or "master", "develop", etc.
 
 #current_branch=$(git rev-parse --abbrev-ref HEAD)
 #echo "Current branch is: $current_branch"
