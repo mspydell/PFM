@@ -7,18 +7,26 @@ source /home/ffeddersen/.bashrc
 #set +a
 
 # check to see what git branch we are on
-#EXPECTED_BRANCH="PHM_development" # Or "master", "develop", etc.
+# this guard is disabled here. if you re-enable it, use this version -- the
+# old one had "git switch $EXCPECTED_BRANCH" (a typo, so it did nothing) and a
+# commented-out exit, which let a failed switch run from the wrong branch.
+#EXPECTED_BRANCH="main" # Or "master", "develop", etc.
 
 #current_branch=$(git rev-parse --abbrev-ref HEAD)
 #echo "Current branch is: $current_branch"
 
 #if [ "$current_branch" != "$EXPECTED_BRANCH" ]; then
-#  echo "Error: You are not on the '$EXPECTED_BRANCH' branch."
-#  echo "switching branches..."
-#  git switch $EXCPECTED_BRANCH
-#  current_branch2=$(git rev-parse --abbrev-ref HEAD)
-#  echo "Current branch is now: $current_branch2"
-  # exit 1 # Exit with an error code
+#  echo "Not on the '$EXPECTED_BRANCH' branch (on '$current_branch'), switching..."
+#  if ! git switch "$EXPECTED_BRANCH"; then
+#    echo "FATAL: could not switch to '$EXPECTED_BRANCH'."
+#    exit 1
+#  fi
+#  current_branch=$(git rev-parse --abbrev-ref HEAD)
+#  if [ "$current_branch" != "$EXPECTED_BRANCH" ]; then
+#    echo "FATAL: switch reported success but we are on '$current_branch'."
+#    exit 1
+#  fi
+#  echo "Current branch is now: $current_branch"
 #fi
 #echo "Successfully on the '$EXPECTED_BRANCH' branch. Proceeding with script..."
 
