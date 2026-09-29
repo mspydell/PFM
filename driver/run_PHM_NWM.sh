@@ -10,12 +10,22 @@ current_branch=$(git rev-parse --abbrev-ref HEAD)
 echo "Current branch is: $current_branch"
 
 if [ "$current_branch" != "$EXPECTED_BRANCH" ]; then
-  echo "Error: You are not on the '$EXPECTED_BRANCH' branch."
-  echo "switching branches..."
-  git switch $EXCPECTED_BRANCH
-  current_branch2=$(git rev-parse --abbrev-ref HEAD)
-  echo "Current branch is now: $current_branch2"
-  # exit 1 # Exit with an error code
+  echo "Not on the '$EXPECTED_BRANCH' branch (on '$current_branch'), switching..."
+  # the switch used to be "git switch $EXCPECTED_BRANCH" -- a typo, so the
+  # variable was empty and the switch silently did nothing. nothing checked
+  # afterwards either, and the exit was commented out, so a failed switch ran
+  # the whole forecast from whatever branch happened to be checked out.
+  if ! git switch "$EXPECTED_BRANCH"; then
+    echo "FATAL: could not switch to '$EXPECTED_BRANCH'. Not running from an"
+    echo "unknown branch -- fix the working tree and rerun."
+    exit 1
+  fi
+  current_branch=$(git rev-parse --abbrev-ref HEAD)
+  if [ "$current_branch" != "$EXPECTED_BRANCH" ]; then
+    echo "FATAL: switch reported success but we are on '$current_branch'."
+    exit 1
+  fi
+  echo "Current branch is now: $current_branch"
 fi
 echo "Successfully on the '$EXPECTED_BRANCH' branch. Proceeding with script..."
 
