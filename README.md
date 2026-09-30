@@ -23,6 +23,12 @@ above it:
 Executables live in `/scratch/PFM_Simulations/executables/` and are built
 elsewhere — `coawstM_INTEL` from `/home/mspydell/models/COAWST`.
 
+The COAWST source in use from 2026-05-08 is tracked in a **private** repository,
+<https://github.com/mspydell/coawst_new>, which has the build details and the
+model-side history. Anything about how the executables themselves were
+configured or changed lives there, not here; this repo only drives them. Access
+is by request to MSS.
+
 Default forecast length is 5 days, shortened automatically when the ocean
 boundary data cannot cover it (see *Operational changes*, 2026-09-12).
 
@@ -120,7 +126,8 @@ record.
 **2026-05-08 — tracer advection switched from MPDATA to HSIMT, on all four
 levels at once.** New ROMS executables (`7184c4b`); applies to both temp and
 salt, horizontal and vertical. LV1–LV3 and LV4 run different executables, so
-both were replaced together.
+both were replaced together. The COAWST side of that rebuild is documented in
+the private <https://github.com/mspydell/coawst_new>.
 
 The switch is sharp and dateable from the archived history files, which carry
 the scheme in the `NLM_TADV` global attribute. Every level changes on the same
