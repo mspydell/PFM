@@ -70,15 +70,18 @@ clone `/home/ffeddersen/PFM_NEW` and could affect forecast output — **not comm
 dates.** The two differ by days to weeks. A change affects the first nightly run
 *after* the listed time.
 
-Deployment dates are available from 2026-06-25 onward (that clone's reflog
-begins there). Entries before then are dated as originally recorded and have not
-been re-verified against deployment.
+Deployment dates come from that clone's reflog, which begins 2026-06-25. Earlier
+changes can sometimes be dated from the archived output itself, which is better
+evidence than either a commit or a reflog — `/dataSIO/PFM_Simulations/Archive/Forcing`
+records the forcing source in the filename, so the GFS → ECMWF switch below is
+dated from the files that were actually produced. Entries with neither are dated
+as originally recorded and have not been re-verified.
 
 ## Model and forcing changes
 
 These change what the model produces.
 
-### Point Loma outfall — Q_PB & C_PB
+### Punta Bandera outfall — Q_PB & C_PB
 
 | discharge | fraction raw WW | period |
 |-----------|-----------------|--------|
@@ -104,6 +107,15 @@ operational clone, so effective the same day.
 - t > 2026-01-14 — C0 = 0.3, Cf = 0.04, Qmx = 2.25, Qww capped at 5 m³/s.
 
 ### Other model changes
+
+**2025-03-11 — atmospheric forcing switched from GFS to ECMWF.** The last
+GFS-forced run is `2025-03-11 00Z` and ECMWF runs continuously from
+`2025-03-11 06Z`, matching `5e353c9` ("FF got working full ecmwf stuff") the
+same day. The two overlap through February and early March 2025 while ECMWF was
+being brought up (`38002b5`, 2025-02-12), so archived forcing in that window is
+a mix — check the filename prefix (`atm_gfs_*` vs `atm_ecmwf_*`) rather than
+assuming. This is the single largest change to the surface forcing in the
+record.
 
 **t < 2025-09-09 — Q_TJ split across 4 of 5 cells.** Only 80% of the intended
 Q_TJ reached the model. Because C_TJ was fixed, Q_WW_TJ was also 80% of intent.
@@ -142,6 +154,10 @@ rotation. One rotation total.
 
 These affect whether and how the model runs, not what it produces.
 
+- **2026-06-14** (in the operational clone by 2026-06-25) — ECMWF gribs fetched
+  directly from ECMWF rather than via CDIP (`70f3c10`). Same product, different
+  delivery path. Earlier, if files were missing at CDIP, PFM fell back to an
+  older ECMWF forecast that might still be there (`b7401eb`, 2025-05-09).
 - **2026-07-22** — atm interpolator rebuilt per time slice instead of reusing one
   `RegularGridInterpolator` (`aaf537a`). See *Near misses*.
 - **2026-07-22 / 2026-07-29** — restart `ocean_time` snapped to the nearest 6
