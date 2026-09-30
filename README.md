@@ -117,11 +117,22 @@ a mix — check the filename prefix (`atm_gfs_*` vs `atm_ecmwf_*`) rather than
 assuming. This is the single largest change to the surface forcing in the
 record.
 
-**2026-05-08 — tracer advection switched from MPDATA to HSIMT.** New ROMS
-executables (`7184c4b`). Applies to both temp and salt, horizontal and vertical.
+**2026-05-08 — tracer advection switched from MPDATA to HSIMT, on all four
+levels at once.** New ROMS executables (`7184c4b`); applies to both temp and
+salt, horizontal and vertical. LV1–LV3 and LV4 run different executables, so
+both were replaced together.
+
 The switch is sharp and dateable from the archived history files, which carry
-the scheme in the `NLM_TADV` global attribute: `LV1_ocean_his_202605080000.nc`
-is the last MPDATA run and `LV1_ocean_his_202605080600.nc` the first HSIMT one.
+the scheme in the `NLM_TADV` global attribute. Every level changes on the same
+run:
+
+| level | last MPDATA | first HSIMT |
+|-------|-------------|-------------|
+| LV1 | `LV1_ocean_his_202605080000.nc` | `LV1_ocean_his_202605080600.nc` |
+| LV2 | `LV2_ocean_his_202605080000.nc` | `LV2_ocean_his_202605080600.nc` |
+| LV3 | `LV3_ocean_his_202605080000.nc` | `LV3_ocean_his_202605080600.nc` |
+| LV4 | `LV4_ocean_his_202605080000.nc` | `LV4_ocean_his_202605080600.nc` |
+
 Everything before that, back through 2025 and earlier, is MPDATA. The scheme is
 also printed in each run's `LV?_forecast.log` ("Tracer Advection Scheme") and set
 by `Hadvection`/`Vadvection` in the `.in` files, so any run can be checked
