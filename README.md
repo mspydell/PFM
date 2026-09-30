@@ -117,6 +117,16 @@ a mix — check the filename prefix (`atm_gfs_*` vs `atm_ecmwf_*`) rather than
 assuming. This is the single largest change to the surface forcing in the
 record.
 
+**2026-05-08 — tracer advection switched from MPDATA to HSIMT.** New ROMS
+executables (`7184c4b`). Applies to both temp and salt, horizontal and vertical.
+The switch is sharp and dateable from the archived history files, which carry
+the scheme in the `NLM_TADV` global attribute: `LV1_ocean_his_202605080000.nc`
+is the last MPDATA run and `LV1_ocean_his_202605080600.nc` the first HSIMT one.
+Everything before that, back through 2025 and earlier, is MPDATA. The scheme is
+also printed in each run's `LV?_forecast.log` ("Tracer Advection Scheme") and set
+by `Hadvection`/`Vadvection` in the `.in` files, so any run can be checked
+directly rather than inferred from its date.
+
 **t < 2025-09-09 — Q_TJ split across 4 of 5 cells.** Only 80% of the intended
 Q_TJ reached the model. Because C_TJ was fixed, Q_WW_TJ was also 80% of intent.
 Fixed after 2025-09-09.
