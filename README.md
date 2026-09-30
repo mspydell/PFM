@@ -106,11 +106,55 @@ operational clone, so effective the same day.
 
 ### Tijuana River — C_TJ
 
-- t < 2025-04-04 — 0.3 for Q_TJ < 1.83; 0.3·1.83/Q for Q_TJ > 1.83. Wastewater
-  capped at 0.3·1.83 = 0.549.
-- 2025-04-04 < t < 2025-12-16 — C0 = 0.65, Cf = 0.045, Qmx = 2.25.
-- 2025-12-16 < t < 2026-01-14 — as above, Qww capped at 5 m³/s.
-- t > 2026-01-14 — C0 = 0.3, Cf = 0.04, Qmx = 2.25, Qww capped at 5 m³/s.
+`river_dye_02` is the raw-sewage fraction of the TJ flow. It is always derived
+as `C_TJ = WW / Q`, where `Q` is total TJ discharge and `WW` is the wastewater
+part of it; what changed over time is how `WW(Q)` is estimated. Set in
+`mk_LV4_river_nc` / `ocn_funs_forecast.py` by the `Cmethod` switch.
+
+**Before 2025-04-04 — fixed-discharge method (`Cmethod = 1`).** Wastewater is a
+constant 12.5 MGD (0.549 m³/s) regardless of flow, so the fraction dilutes as
+`1/Q`:
+
+```
+WW    = 12.5 MGD = 0.549 m3/s                  (constant)
+Qcrit = WW / 0.3 = 1.830 m3/s
+C_TJ  = 0.3            for Q <= Qcrit
+      = 0.549 / Q      for Q >  Qcrit
+```
+
+`Qcrit` is derived rather than chosen, so that `C_TJ` is continuous at the
+breakpoint.
+
+**From 2025-04-04 — the "Biggs method" (`Cmethod = 2`, then `3`).** Fitted to
+Biggs' measurements, which showed the fixed-discharge method was underestimating
+the wastewater fraction. Wastewater is now piecewise-linear in flow rather than
+constant: below a breakpoint `Q00` essentially all flow is wastewater-laden at
+rate `R1`; above it, additional storm flow carries only the smaller marginal
+rate `R2`, so the mixture dilutes gradually instead of as `1/Q`.
+
+```
+WW = R1*Q                        for Q <= Q00
+   = R2*Q + (R1-R2)*Q00          for Q >  Q00        continuous at Q00
+WW = min(WW, 5.0 m3/s)                               cap, added 2025-12-15
+C_TJ = WW / Q      (= R1 for Q <= Q00; set explicitly so Q=0 gives no NaN)
+```
+
+| period | `R1` | `R2` | `Q00` | cap | note |
+|--------|------|------|-------|-----|------|
+| 2025-04-04 → 2025-12-15 | 0.65 | 0.045 | 2.25 | none | `Cmethod = 2` |
+| 2025-12-15 → 2026-01-13 | 0.65 | 0.045 | 2.25 | 5 m³/s | cap added for very large flow events |
+| 2026-01-13 → present | 0.30 | 0.04 | 2.25 | 5 m³/s | `Cmethod = 3` |
+
+`Cmethod = 3` reflects TJ discharging roughly 10 MGD less wastewater after
+2025-09-01; `R1` drops 0.65 → 0.30 while the shape of the curve is unchanged.
+With these parameters the 5 m³/s cap only binds at very high flow — about
+81 m³/s under `Cmethod 2` and 110 m³/s under `Cmethod 3`.
+
+**Caveat for re-analysis: `Cmethod` is hardcoded, not date-driven.** It is a
+literal assignment in `ocn_funs_forecast.py` (currently `Cmethod = 3`). Re-running
+a 2025 date with today's code will *not* reproduce the C_TJ that was used
+operationally then — it will apply `Cmethod = 3` to that flow. To reproduce a
+historical run, set `Cmethod` to match the table above.
 
 ### Other model changes
 
