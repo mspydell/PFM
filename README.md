@@ -156,6 +156,29 @@ a 2025 date with today's code will *not* reproduce the C_TJ that was used
 operationally then — it will apply `Cmethod = 3` to that flow. To reproduce a
 historical run, set `Cmethod` to match the table above.
 
+### Dye decay — nudging timescale
+
+Both dyes (`dye_01` Punta Bandera, `dye_02` TJ) are nudged toward zero, which is
+how dye decay is represented. The rate is written into the **LV4 nudging file**
+as `tracer_NudgeCoef` — a uniform inverse timescale in day⁻¹, filled over the
+whole grid and all s-levels — built by `mk_LV4_nudge_nc` in
+`ocn_funs_forecast.py`. `temp_NudgeCoef` and `salt_NudgeCoef` are set to
+9.9e36, i.e. no nudging; only the tracers decay.
+
+| period | rate (day⁻¹) | e-folding time | commit |
+|--------|--------------|----------------|--------|
+| before 2025-07-11 | 0.1   | 10 days | — |
+| 2025-07-11 → 2026-01-06 | 0.143 | 7 days | `786c79d` |
+| 2026-01-06 → present | 0.2 | 5 days | `a7d9a30` |
+
+Forecast and hindcast differ: the value above applies when
+`PFM['run_type'] == 'forecast'`. Hindcast/PHM runs still use **0.143 (7 days)**.
+
+These dates are commit dates. The decay rate is not recorded in the ROMS history
+files, so unlike the advection switch it cannot be recovered from archived
+output — if you need the rate for a specific past run, take it from the table or
+from that run's `LV4_nud.nc` if it still exists.
+
 ### Other model changes
 
 **2025-03-11 — atmospheric forcing switched from GFS to ECMWF.** The last
