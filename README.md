@@ -165,11 +165,17 @@ whole grid and all s-levels — built by `mk_LV4_nudge_nc` in
 `ocn_funs_forecast.py`. `temp_NudgeCoef` and `salt_NudgeCoef` are set to
 9.9e36, i.e. no nudging; only the tracers decay.
 
-| period | rate (day⁻¹) | e-folding time | commit |
-|--------|--------------|----------------|--------|
-| before 2025-07-11 | 0.1   | 10 days | — |
-| 2025-07-11 → 2026-01-06 | 0.143 | 7 days | `786c79d` |
-| 2026-01-06 → present | 0.2 | 5 days | `a7d9a30` |
+| period | rate (day⁻¹) | e-folding time | changed by | committed |
+|--------|--------------|----------------|------------|-----------|
+| before 2025-07-11 | 0.1   | 10 days | — | — |
+| 2025-07-11 → 2026-01-06 | 0.143 | 7 days | `786c79d` | 2025-07-11 15:52:04 -0700 |
+| 2026-01-06 → present | 0.2 | 5 days | `a7d9a30` | 2026-01-06 14:17:33 -0800 |
+
+A follow-up, `a21e544` (2026-01-06 15:26:25 -0800, "small bug fix for decay
+time"), removed a line in `a7d9a30` that overwrote the rate with
+`PFM['decay_time_inv_days']` — a key never defined in any input file, so it
+would have raised `KeyError` rather than quietly applying a wrong rate. The
+69-minute window fell in the afternoon, between nightly runs.
 
 Forecast and hindcast differ: the value above applies when
 `PFM['run_type'] == 'forecast'`. Hindcast/PHM runs still use **0.143 (7 days)**.
