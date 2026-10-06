@@ -1,0 +1,57 @@
+#!/bin/bash
+# ---------------------------------------------------------------------------
+# slurm_4dvar.sb — submit one LV1 4D-Var cycle.
+#
+# Env-vars (passed via `sbatch --export=...`):
+#   ROMS_EXE  absolute path to the DA binary
+#             (romsM_DA_IC | romsM_DA_IC_BC | romsM_DA_IC_BC_WS)
+#   RIN       absolute path to the staged LV1_run_4dvar_YYYYMMDD.in
+#   LOG       absolute path to write the ROMS stdout log
+#             (typically /dataSIO/DA_Simulations/output_files/log_files/LV1_4dvar_YYYYMMDD.log)
+#
+# The driver (run_da_cycle.sh) is responsible for staging RIN and setting LOG.
+# ---------------------------------------------------------------------------
+
+# ----- job resources --------------------------------------------------------
+#SBATCH --job-name=LV1_4dvar
+#SBATCH --output=%j.out
+#SBATCH --partition=fast
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=128G
+#SBATCH --ntasks-per-node=36
+#SBATCH --nodes=9                    # 9x36 = 324 ranks; matches NtileI=12 x NtileJ=27
+#SBATCH --time=0-15:00
+
+# ----- modules --------------------------------------------------------------
+module purge
+module load slurm
+module load intel-oneapi/oclfpga
+module load intel-oneapi/compiler-rt
+module load intel-oneapi/tbb
+module load intel-oneapi/compiler
+module load hdf5/ifort/mvapich2/1.14.3
+module load netcdf-c/ifort/mvapich2
+module load netcdf-fortran/ifort/mvapich2/4.6.1
+module load mvapich2/ifort/2.3.7
+
+# ----- mvapich2 knobs (see memory: MVAPICH2 quirks) -------------------------
+export MV2_HOMOGENEOUS_CLUSTER=1
+export MV2_SMP_USE_CMA=0        # ptrace_scope=2 on swell blocks CMA; force SysV shmem
+
+# IB hardware multicast rejected above ~250 ranks on this fabric; force software
+# collectives.  10-20% slower but reliable and avoids mv2_mcast_resend spam.
+export MV2_USE_MCAST=0
+
+# Larger IB memory registration cache: Lanczos inner loops with Ninner>=~15
+# exhaust the default cache and log "Entries are being evicted".
+export MV2_NDREG_ENTRIES_MAX=131072
+export MV2_NDREG_ENTRIES=65536
+
+# ----- required from driver -------------------------------------------------
+: "${ROMS_EXE:?export ROMS_EXE=/scratch/matt/DA_Simulations/Run/romsM_DA_...}"
+: "${RIN:?export RIN=/scratch/matt/DA_Simulations/Run/LV1_run_4dvar_YYYYMMDD.in}"
+: "${LOG:?export LOG=/dataSIO/DA_Simulations/output_files/log_files/LV1_4dvar_YYYYMMDD.log}"
+
+# The driver launches `cd $RUN_DIR && sbatch ...` so cwd is the run dir already,
+# but srun paths are absolute anyway for clarity.
+srun --mpi=pmi2 --kill-on-bad-exit=1 -v "$ROMS_EXE" "$RIN" > "$LOG" 2>&1

@@ -1,0 +1,80 @@
+#!/bin/bash
+# ---------------------------------------------------------------------------
+# slurm_make_increment.sb — build LV2/LV3/LV4 increments on a compute node.
+#
+# Why a compute node: make_child_increment holds the OI output for every date in
+# a group, ~83 fields x targets x 4 bytes x 3 staggers.  On a login shell the
+# per-user cgroup (user-*.slice, 8 GB, shared with the VS Code server and any
+# notebook kernels) left ~1.5 GB free and LV4 was OOM-killed three times at
+# ~1.5 GB.  A compute node has 183 GB, so the whole date range fits in ONE
+# shared-geometry group -- which is also the fastest configuration, since the
+# geometry (KD-tree, C_ww, Cholesky) is then built once instead of per group.
+#
+# Env-vars (via `sbatch --export=ALL,...`):
+#   LEVEL   LV2 | LV3 | LV4                      required
+#   DATES   e.g. 20260307..20260413              required
+#   GDAYS   dates per group (default: all)       optional
+#   SKIP    1 = leave dates already built         optional (use when EXTENDING)
+#   OUTDIR  default /dataSIO/DA_Simulations/$LEVEL/input_files/INC_files
+#
+# Masks and vertical-parameter sources are chosen from LEVEL here, so they
+# cannot be mismatched by hand: LV2 takes NO mask and fix_v2 vparams, LV3 one
+# mask, LV4 two masks, and LV4's N=10/hc=3.5 differ from LV2/LV3's N=40/hc=50.
+# ---------------------------------------------------------------------------
+#SBATCH --job-name=mk_incr
+#SBATCH --output=%j.out
+#SBATCH --partition=fast
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=36
+#SBATCH --mem=120G
+#SBATCH --time=0-06:00
+
+set -euo pipefail
+: "${LEVEL:?export LEVEL=LV2|LV3|LV4}"
+: "${DATES:?export DATES=20260307..20260413}"
+
+DA_EXP=/home/mspydell/research/sdtjreL3/v_intel/roms_fourdvar/DA_experiment
+PY=/home/mspydell/anaconda3/envs/PHM-env/bin/python3
+MASKS=${DA_EXP}/masks
+DAT=/dataSIO/DA_Simulations
+OUTDIR="${OUTDIR:-${DAT}/${LEVEL}/input_files/INC_files}"
+
+case "$LEVEL" in
+  LV2) VP=${DAT}/LV2/output_files/fix_v2_files/LV2_fwd_fix_v2_20260307.nc
+       MASK_ARGS=() ;;
+  LV3) VP=${DAT}/LV3/output_files/fix_v3_files/LV3_fwd_fix_v3_20260307.nc
+       MASK_ARGS=(--mask ${MASKS}/LV3_incr_mask_sigma1km.nc) ;;
+  LV4) VP=${DAT}/LV4/output_files/fix_v3_files/LV4_fwd_fix_v3_20260307.nc
+       MASK_ARGS=(--mask ${MASKS}/LV4_incr_mask_sigma1km.nc
+                  --mask ${MASKS}/LV4_incr_mask_sigma1km_tjre.nc) ;;
+  *)   echo "bad LEVEL=$LEVEL" >&2; exit 1 ;;
+esac
+[[ -f "$VP" ]] || { echo "missing vparams source: $VP" >&2; exit 1; }
+mkdir -p "$OUTDIR"
+
+# One group covering every date unless GDAYS says otherwise.
+#
+# Do NOT leave this to the script's cgroup auto-sizing here: the compute nodes
+# do not expose /sys/fs/cgroup/memory.max, so the probe finds nothing and falls
+# back to its conservative 2 GB default -- which gave LV4 one date per group on
+# a node with 360 GB free, i.e. ~2 h instead of ~35 min.  We know the allocation
+# is 120 GB, so ask for everything; make_child_increment caps the group at the
+# number of dates available.
+GD=(--days-per-batch "${GDAYS:-999}")
+# SKIP=1 only does the dates not yet on disk.  Off by default, because a rebuild
+# is the only way a pipeline change reaches old files.
+[[ "${SKIP:-0}" == "1" ]] && GD+=(--skip-existing)
+
+export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK:-36}
+export MKL_NUM_THREADS=${SLURM_CPUS_PER_TASK:-36}
+
+echo "host $(hostname)  LEVEL=$LEVEL  DATES=$DATES  threads=$OMP_NUM_THREADS"
+echo "mem limit: $(cat /sys/fs/cgroup/memory.max 2>/dev/null || echo '(cgroup v1/none)')"
+free -g | sed -n 2p
+
+time $PY ${DA_EXP}/LV2/python_files/make_child_increment.py \
+    --child "$LEVEL" --date "$DATES" --tag '' \
+    --root ${DAT}/LV1_v2 --child-vparams-from "$VP" \
+    "${MASK_ARGS[@]}" "${GD[@]}" \
+    --out "${OUTDIR}/INC_${LEVEL}_{date}.nc"

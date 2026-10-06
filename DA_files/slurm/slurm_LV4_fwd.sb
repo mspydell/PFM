@@ -1,0 +1,52 @@
+#!/bin/bash
+# ---------------------------------------------------------------------------
+# slurm_LV4_fwd.sb — submit one LV4 forward cycle (coupled ROMS+SWAN).
+# Env-vars (via `sbatch --export=...`):
+#   ROMS_EXE  absolute path to coawstM_INTEL
+#   RIN       absolute path to the staged coupled .in
+#   LOG       absolute path to write ROMS/SWAN stdout
+# ---------------------------------------------------------------------------
+
+#SBATCH --job-name=LV4_fwd
+#SBATCH --output=%j.out
+#SBATCH --partition=fast
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=128G
+#SBATCH --ntasks-per-node=36
+#SBATCH --nodes=14                   # 14x36 = 504 ranks; NnodesWAV=72 + NnodesOCN=432 (matches PFM)
+#SBATCH --time=0-08:00
+
+module purge
+module load slurm
+module load intel-oneapi/oclfpga
+module load intel-oneapi/compiler-rt
+module load intel-oneapi/tbb
+module load intel-oneapi/compiler
+module load hdf5/ifort/mvapich2/1.14.3
+module load netcdf-c/ifort/mvapich2
+module load netcdf-fortran/ifort/mvapich2/4.6.1
+module load mvapich2/ifort/2.3.7
+
+export MV2_HOMOGENEOUS_CLUSTER=1
+export MV2_SMP_USE_CMA=0
+export MV2_USE_MCAST=0
+export MV2_NDREG_ENTRIES_MAX=131072
+export MV2_NDREG_ENTRIES=65536
+
+# force LD_LIBRARY_PATH forward to srun children (see LV2/LV3 note)
+export LD_LIBRARY_PATH=/software/apps/netcdf-fortran/ifort/mvapich2/4.6.1/lib:/software/apps/netcdf-c/ifort/mvapich2/4.9.2/lib:/software/apps/hdf5/ifort/mvapich2/1.14.3/lib:$LD_LIBRARY_PATH
+
+: "${ROMS_EXE:?export ROMS_EXE=/scratch/matt/DA_Simulations/LV4/Run/coawstM_INTEL}"
+: "${RIN:?export RIN=/scratch/matt/DA_Simulations/LV4/Run/LV4_coupled_{flavor}_YYYYMMDD.in}"
+: "${LOG:?export LOG=/dataSIO/DA_Simulations/LV4/output_files/log_files/LV4_fwd_{flavor}_YYYYMMDD.log}"
+
+# stdout to /scratch during the run, mv to /dataSIO after (avoids DataSIO write contention)
+SCRATCH_LOG="/scratch/matt/DA_Simulations/LV4/Run/$(basename "$LOG")"
+
+srun --mpi=pmi2 --export=ALL --kill-on-bad-exit=1 -v \
+     env LD_LIBRARY_PATH="$LD_LIBRARY_PATH" "$ROMS_EXE" "$RIN" > "$SCRATCH_LOG" 2>&1
+rc=$?
+
+mkdir -p "$(dirname "$LOG")"
+mv "$SCRATCH_LOG" "$LOG"
+exit $rc
