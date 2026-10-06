@@ -267,6 +267,21 @@ def _child_fwd(ctx: Ctx, lv: str, parent_his: Path | None) -> dict:
         f"from {'the ' + parent_his.name if parent_his else 'the LV1 analysis'}.")
 
 
+# LV4 is not just "LV2 with a finer grid", and whoever writes stage 7 should know
+# the two things that cost days the first time round:
+#
+#   1. Its per-day .in is GENERATED, not templated -- by stage_LV4_ins.py, which
+#      is NOT vendored here (it still reads the roms_fourdvar LV4 tree).  Either
+#      vendor it with its templates or build the .in inline.  LV2/LV3 get away
+#      with a seed .in plus a DSTART sed; LV4 does not, because it is coupled.
+#
+#   2. SWAN's clock drifts ~1280 s per RESTART FREE hop when no interval is
+#      given, so a chained day silently starts the wave model at the wrong time.
+#      The fix is RESTART FREE 24 HR with HOTSTART pointed at the _024-suffixed
+#      file.  Do not drop this: it is what blocked 2026-03-09 for weeks, and it
+#      presents as a crash with no obvious wave cause.
+
+
 def stage_lv2_fwd(ctx: Ctx) -> dict:
     return _child_fwd(ctx, "LV2", None)
 
