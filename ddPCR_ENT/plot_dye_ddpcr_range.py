@@ -6,7 +6,7 @@ Edit START/END below and run, or override on the command line:
   python plot_dye_ddpcr_range.py --start 2026-06-01 --end 2026-08-31
 Output: plots/dye_ddpcr_<start>_<end>.png (or --out PATH).
 Dye comes from the newest sites_dye_tot_day1_day5_*.csv (run make_forecast_csv.py first
-for current data); ddPCR is downloaded for the window
+for current data); ddPCR is downloaded for the window.
 """
 import argparse
 import os
