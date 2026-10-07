@@ -95,6 +95,14 @@ BC_PARENT = {"LV2": "LV1", "LV3": "LV2", "LV4": "LV3"}
 # per SWAN rank (72).  PFM_DA never writes here.
 SWAN_RST_SHARED = Path("/scratch/PFM_Simulations/restart_swan_data")
 
+# CDIP wave spectra, the source for LV4's SWAN boundary file.  The archive is
+# date-stamped and complete (81 stations per cycle); the operational cache holds
+# only the current cycle.  PFM_DA reads the archive and stages into its OWN
+# directory -- see da_pfm_bridge.stage_cdip_from_archive for why that separation
+# is not optional.
+CDIP_ARCHIVE = Path("/dataSIO/PFM_Simulations/Archive/cdip_ncs")
+CDIP_DA = SCRATCH / "LV4" / "Forc" / "cdip_data"
+
 ECMWF_CACHE = Path("/scratch/PFM_Simulations/ecmwf_data")
 HYCOM_CACHE = Path("/scratch/PFM_Simulations/hycom_data")
 

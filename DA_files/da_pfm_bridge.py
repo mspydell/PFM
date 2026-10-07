@@ -39,6 +39,7 @@ from __future__ import annotations
 import datetime as DT
 import os
 import pickle
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -49,7 +50,7 @@ import da_config as C
 # the strength of _minfo_is_sane, which checks the window -- so without a version
 # marker an edit to build_minfo would silently not take on any t_fore whose
 # pickle already existed, and the bug it fixed would look unfixed.
-MINFO_VERSION = 3
+MINFO_VERSION = 4
 
 
 # ---------------------------------------------------------------------------
@@ -142,6 +143,16 @@ def build_minfo(t_fore: DT.datetime, t_da: DT.datetime, *,
     MI["restart_swanfiles_dir_out"] = str(C.SCRATCH / "Rst")
     MI["restart_ncfiles_dir_in"] = str(C.SCRATCH / "Rst")
     MI["restart_ncfiles_dir_out"] = str(C.SCRATCH / "Rst")
+
+    # cdip_data_dir MUST be redirected.  swan_functions.cdip_ncs_to_dict sets
+    # refresh='refresh' unconditionally on its second line, overriding the
+    # argument, and then os.remove()s every *.nc in cdip_data_dir before
+    # downloading replacements.  Left at the inherited
+    # /scratch/PFM_Simulations/cdip_data that would delete the operational
+    # forecast's 81 live CDIP files and hit the network -- both of which PFM_DA
+    # must never do.
+    MI["cdip_data_dir"] = str(C.CDIP_DA)
+    MI["cdip_archive_dir"] = str(C.CDIP_ARCHIVE)
 
     # LV4 runs coawstM_noanapassive: ANA_PASSIVE is undef so dye_01/dye_02 from
     # the IC file are honoured rather than zeroed at t=0.
@@ -248,6 +259,64 @@ def _minfo_is_sane(pkl: Path, t_fore: DT.datetime, t_da: DT.datetime) -> bool:
             and MI.get("da_t_da") == t_da
             and MI.get("fetch_time") == t_da
             and float(MI.get("forecast_days", -1)) == 1.0)
+
+
+def stage_cdip_from_archive(t_da: DT.datetime, dest: Path | None = None) -> int:
+    """Put the window's CDIP spectra where the SWAN boundary builder expects them.
+
+    Returns the number of station files staged.
+
+    The archive is date-stamped and complete -- 81 stations per cycle, named
+    cdip_<station>_<YYYYMMDDHH>.nc, exactly as get_cdip_data would name a fresh
+    download -- so the boundary file can be built for a past window with no
+    network access at all.
+    """
+    dest = Path(dest or C.CDIP_DA)
+    dest.mkdir(parents=True, exist_ok=True)
+    stamp = t_da.strftime("%Y%m%d%H")
+    src = sorted(C.CDIP_ARCHIVE.glob(f"cdip_*_{stamp}.nc"))
+    if not src:
+        raise FileNotFoundError(
+            f"no archived CDIP spectra for {stamp} in {C.CDIP_ARCHIVE}.  Without "
+            f"them the SWAN boundary file cannot be built for this window, and "
+            f"downloading is not an option for a window this far past.")
+    n = 0
+    for f in src:
+        d = dest / f.name
+        if not (d.is_file() and d.stat().st_size == f.stat().st_size):
+            shutil.copy2(f, d)
+        n += 1
+    return n
+
+
+def cdip_dict_from_archive(pkl: Path, t_da: DT.datetime) -> None:
+    """Build the CDIP pickle the SWAN boundary builder reads, from the archive.
+
+    cdip_ncs_to_dict does two things: refresh the .nc files, then digest them into
+    a pickle.  Only the second is wanted here -- but the refresh is not optional
+    in that function (refresh='refresh' is assigned over the argument), and it
+    deletes before it fetches.  So the fetch is replaced in-process with a copy
+    from the archive: the delete then removes our own staged copies and the
+    "download" puts them straight back, leaving the digest step to run unchanged.
+
+    Called in-process rather than as a subprocess precisely so that substitution
+    is possible.
+    """
+    pfm_py = str(C.PFM_PYDIR)
+    if pfm_py not in sys.path:
+        sys.path.insert(0, pfm_py)
+    cwd = os.getcwd()
+    try:
+        os.chdir(pfm_py)
+        import swan_functions as SW
+        real = SW.get_cdip_data
+        SW.get_cdip_data = lambda _pkl: stage_cdip_from_archive(t_da)
+        try:
+            SW.cdip_ncs_to_dict("from-archive", str(pkl))
+        finally:
+            SW.get_cdip_data = real
+    finally:
+        os.chdir(cwd)
 
 
 def assert_not_operational(pkl: Path) -> None:
