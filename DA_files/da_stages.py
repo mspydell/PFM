@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import datetime as DT
 import os
+import re
 import subprocess
 import sys
 import time
@@ -502,41 +503,273 @@ def _report_obs(path: Path, have: int, need_n: int) -> None:
 
 
 # ---------------------------------------------------------------------------
-# stage 5: the LV1 4D-Var cycle itself
+# stage 5: the LV1 4D-Var cycle -- the expensive one, ~3.25 h on 9 nodes
 # ---------------------------------------------------------------------------
+# Staging and .in generation reuse the research chain's own shell scripts rather
+# than a Python reimplementation.  set_up_DA_simulation_v2.sh is 205 lines of sed
+# that encodes the entire DA configuration -- DSTART, the NRM and STD file names
+# with their decorrelation scales, the obs-error ellipse, every path ROMS reads.
+# Re-expressing that would be a silent-divergence machine; it is also already
+# parameterised by environment variables, so PFM can drive it unchanged.
+#
+# PFM_DA is ONE cycle, not a chain, which removes the subtlest trap in the
+# research driver: there, the IC had to come from the archived date-tagged
+# ocean_dai because DAINAME is IO_DIR/ocean_dai.nc, and using that path for both
+# would have ROMS open one file for read and write (the symptom was
+# DEF_DAI_NF90 failing to create the DA restart file).  Here the IC always comes
+# from stage 1, in LV1/Forc, so the collision cannot arise.
+# ---------------------------------------------------------------------------
+_DA_KEEPERS = {
+    # IO_DIR name          -> (archive subdir,      archived basename template)
+    "ocean_fwd_outer0.nc": ("LV1_Prior",    "LV1_fwd_outer0_{ymd}.nc"),
+    "ocean_fwd_outer1.nc": ("LV1_Analysis", "LV1_fwd_outer1_{ymd}.nc"),
+    "roms_mod.nc":         ("LV1_Analysis", "roms_mod_{ymd}.nc"),
+    "ocean_dai.nc":        ("LV1_Dai",      "ocean_dai_{ymd}.nc"),
+}
+
+
 def stage_lv1_da(ctx: Ctx) -> dict:
-    his = C.scratch_dir("LV1", "His")
-    outer0 = his / f"LV1_DA_outer0_{ctx.yda}.nc"
-    outer1 = his / f"LV1_DA_outer1_{ctx.yda}.nc"
-    dai = his / f"LV1_DA_dai_{ctx.yda}.nc"
-    if all(V.nc_ok(p, min_bytes=100 << 20) for p in (outer0, outer1, dai)):
-        raise StageSkip(f"{outer1.name} + prior + dai")
-    raise NotImplementedError(
-        "LV1 4D-Var submission not wired yet.  Submit slurm/slurm_4dvar.sb with "
-        "ROMS_EXE=romsM_DA_IC (IC-only: BC adjustment blew up at the NW corner) "
-        "and judge success with da_validate.roms_job_ok, NOT the slurm exit "
-        "state -- these jobs routinely land in state FAILED at ~3h13 because "
-        "MVAPICH2 raises SIGTERM in MPI_Finalize after the model is done.")
+    """Run the 24 h RBL4DVAR cycle over [t_da, t_fore].
+
+    outer0 is the prior, outer1 the analysis.  The increment the children need is
+    outer1(t=0) - outer0(t=0), which is why BOTH are keepers.
+    """
+    io = C.io_dir()
+    ymd = ctx.yda
+    analysis = io / "ocean_fwd_outer1.nc"
+    prior = io / "ocean_fwd_outer0.nc"
+
+    # idempotent skip: both the prior and the analysis must be present and sane
+    if (V.nc_ok(analysis, need_vars=("zeta", "u", "v", "temp", "salt"),
+                min_bytes=100 << 20)
+            and V.nc_ok(prior, need_vars=("zeta", "temp"), min_bytes=100 << 20)):
+        for name, (sub, tmpl) in _DA_KEEPERS.items():
+            f = io / name
+            if f.is_file():
+                V.ensure_archived(f, C.ARCHIVE / sub, tmpl.format(ymd=ymd))
+        raise StageSkip(str(analysis))
+
+    rin = C.scratch_dir("LV1", "Run") / f"LV1_run_4dvar_{ymd}.in"
+    log = C.SCRATCH / "Log" / f"LV1_4dvar_{ymd}.log"
+    if ctx.dry_run:
+        # before the input checks, not after: in a dry run the earlier stages
+        # produced nothing, so demanding their outputs would stop --dry-run at the
+        # first stage that has a precondition and defeat the point of it.
+        return {"would_run": f"sbatch slurm_4dvar.sb for {ymd} "
+                             f"({C.NODES['lv1_da']} nodes, ~"
+                             f"{C.EXPECTED_WALL_S['lv1_da']/3600:.2f} h)"}
+
+    ic = C.scratch_dir("LV1", "Forc") / f"LV1_DA_IC_{ymd}.nc"
+    bry = C.scratch_dir("LV1", "Forc") / f"LV1_DA_BC_{ymd}.nc"
+    frc = C.scratch_dir("LV1", "Forc") / f"LV1_DA_ATM_{ymd}.nc"
+    obs = C.scratch_dir("LV1", "Forc") / f"obs_HF_LV1_{ymd}.nc"
+    for f in (ic, bry, frc, obs):
+        if not f.is_file():
+            raise FileNotFoundError(f"stage 5 needs {f.name} from an earlier "
+                                    f"stage: {f}")
+    exe = Path(C.ROMS_EXE_DA)
+    if not (exe.is_file() and os.access(exe, os.X_OK)):
+        raise FileNotFoundError(
+            f"DA executable missing or not executable: {exe}.  It is built "
+            f"outside this repo; copy it into {exe.parent}.")
+    for d, what in ((C.NRM_DIR, "normalisation"), (C.STD_DIR, "background-error")):
+        if not any(d.glob("*.nc")):
+            raise FileNotFoundError(
+                f"no {what} files in {d} -- the 4D-Var cannot run without them, "
+                f"and they are hours of compute to rebuild.")
+
+    # -- stage the inputs into IO_DIR ---------------------------------------
+    env = dict(os.environ, IC_SRC=str(ic), BRY_SRC=str(bry), FRC_SRC=str(frc),
+               OBS_SRC=str(obs), IO_DIR=str(io))
+    r = subprocess.run([str(C.SCRIPTSDIR / "stage_cycle_inputs.sh")],
+                       capture_output=True, text=True, env=env)
+    if r.returncode != 0:
+        raise RuntimeError(f"stage_cycle_inputs.sh failed: {r.stderr.strip()}")
+    staged = [s for s in r.stdout.strip().splitlines() if s.strip()]
+    if len(staged) != 4:
+        raise RuntimeError(
+            f"stage_cycle_inputs.sh printed {len(staged)} destination(s), "
+            f"expected 4 (IC, BRY, FRC, OBS): {staged}")
+    ic_s, bry_s, frc_s, obs_s = staged
+
+    # -- generate the .in ---------------------------------------------------
+    env = dict(os.environ,
+               START_DATE=f"{ctx.t_da:%Y-%m-%d}",
+               IC_FILE=ic_s, BRY_FILE=bry_s, FRC_FILE=frc_s, OBS_FILE=obs_s,
+               RUN_DIR=str(C.scratch_dir("LV1", "Run")), IO_DIR=str(io),
+               RIN_TEMPLATE=str(C.RUN_IN / "LV1_run_4dvar.in"),
+               RIN_OUT=str(rin),
+               NRM_DIR=str(C.NRM_DIR), STD_DIR=str(C.STD_DIR),
+               GRID_TAG="LV1",
+               HDECAY_IC_KM=str(C.HDECAY_IC_KM),
+               HDECAY_BC_KM=str(C.HDECAY_BC_KM),
+               HDECAY_F_KM=str(C.HDECAY_F_KM),
+               URMS_TAG=C.URMS_TAG, WSRMS_TAG=C.WSRMS_TAG)
+    r = subprocess.run([str(C.SCRIPTSDIR / "set_up_DA_simulation_v2.sh")],
+                       capture_output=True, text=True, env=env)
+    if r.returncode != 0:
+        raise RuntimeError(f"set_up_DA_simulation_v2.sh failed: "
+                           f"{(r.stderr or r.stdout).strip()[-800:]}")
+    if not rin.is_file():
+        raise RuntimeError(f"the .in was not produced: {rin}")
+    _assert_in_consistent(rin, ctx, (ic_s, bry_s, frc_s, obs_s))
+
+    # Defeat a stale Lustre attribute cache: ROMS has opened an input whose size
+    # the client still believed was the previous cycle's.
+    for f in (ic_s, bry_s, frc_s, obs_s, str(rin)):
+        try:
+            os.utime(f, None)
+        except OSError:
+            pass
+
+    # -- submit -------------------------------------------------------------
+    t0 = time.time()
+    rc, job = _sbatch_wait(C.SLURMDIR / "slurm_4dvar.sb",
+                           {"ROMS_EXE": str(exe), "RIN": str(rin),
+                            "LOG": str(log)},
+                           cwd=C.scratch_dir("LV1", "Run"),
+                           timeout_s=ctx.left_h() * 3600)
+    keepers = tuple(io / n for n in ("ocean_fwd_outer0.nc",
+                                     "ocean_fwd_outer1.nc", "roms_mod.nc"))
+    chk = V.roms_job_ok(log, keepers, t0, rc, min_bytes=100 << 20)
+    if not chk:
+        raise RuntimeError(f"LV1 4D-Var failed (job {job}): {chk.why}.  "
+                           f"Log: {log}")
+    print(f"    job {job} accepted: {chk.why}")
+
+    # RBL4DVAR needs NQCK>0; without it the failure presents as a SIGSEGV rather
+    # than a clear message, so grep for the real marker.
+    _warn_on_roms_errors(log)
+
+    out = {}
+    for name, (sub, tmpl) in _DA_KEEPERS.items():
+        f = io / name
+        if not f.is_file():
+            if name == "ocean_dai.nc":
+                print(f"    note: {name} absent -- expected only if this build "
+                      f"does not write a DA restart")
+                continue
+            raise RuntimeError(f"keeper missing after a successful job: {f}")
+        arch = V.ensure_archived(f, C.ARCHIVE / sub, tmpl.format(ymd=ymd))
+        out[name] = {"scratch": f, "archive": arch}
+    V.ensure_archived(log, C.ARCHIVE / "Log")
+    return out
+
+
+def _assert_in_consistent(rin: Path, ctx: Ctx, staged: tuple) -> None:
+    """Check the generated .in really describes THIS cycle, before 3 h of compute.
+
+    The .in is produced by sed substitution, so a template change or an unmatched
+    pattern yields a file that is perfectly valid ROMS input for the WRONG cycle,
+    and the only symptom is an analysis that quietly disagrees with its
+    observations.
+
+    The inputs are split across TWO files and this has to follow that: the main
+    .in carries the IC, boundary and forcing paths, while the OBSERVATION path
+    lives in the assimilation-parameter file that the main .in names in APARNAM.
+    An earlier version of this check looked for the obs file in the main .in and
+    reported a false failure.  Following the link also tests the link, which is
+    the worse failure of the two -- a stale APARNAM pointing at another day's
+    s4dvar file would assimilate the wrong observations with nothing to show it.
+    """
+    txt = rin.read_text()
+    ic_s, bry_s, frc_s, obs_s = staged
+
+    for f in (ic_s, bry_s, frc_s):
+        if Path(f).name not in txt:
+            raise RuntimeError(
+                f"{rin.name} does not reference {Path(f).name}: the template "
+                f"substitution did not take.  Running this would do a valid "
+                f"4D-Var with the wrong inputs.")
+
+    m = re.search(r"^\s*APARNAM\s*=\s*(\S+)", txt, re.M)
+    if not m:
+        raise RuntimeError(f"{rin.name} has no APARNAM line, so the "
+                           f"assimilation parameters (and the observation file) "
+                           f"are unset.")
+    apar = Path(m.group(1))
+    if not apar.is_file():
+        raise RuntimeError(f"{rin.name} points APARNAM at {apar}, which does "
+                           f"not exist.")
+    if Path(obs_s).name not in apar.read_text():
+        raise RuntimeError(
+            f"{apar.name} (APARNAM of {rin.name}) does not reference "
+            f"{Path(obs_s).name} -- this cycle would assimilate a different "
+            f"day's observations.")
+
+    # DSTART is days since the ROMS epoch; confirm it matches t_da
+    m = re.search(r"^\s*DSTART\s*=\s*([0-9.eEdD+-]+)", txt, re.M)
+    if m:
+        want = (ctx.t_da - V.ROMS_EPOCH).total_seconds() / 86400.0
+        got = float(m.group(1).lower().replace("d", "e"))
+        if abs(got - want) > 1e-6:
+            raise RuntimeError(
+                f"{rin.name}: DSTART={got} but t_da={ctx.t_da:%Y-%m-%d} is "
+                f"{want} days after the ROMS epoch -- the .in is for a "
+                f"different day.")
+
+
+def _warn_on_roms_errors(log: Path) -> None:
+    """Surface ROMS's own error lines even when the outputs look fine."""
+    try:
+        txt = log.read_text(errors="ignore")
+    except OSError:
+        return
+    hits = [l.strip() for l in txt.splitlines() if "Found Error:" in l]
+    if hits:
+        print(f"    WARNING: {len(hits)} 'Found Error:' line(s) in the ROMS log, "
+              f"first: {hits[0][:110]}")
 
 
 # ---------------------------------------------------------------------------
-# stage 6: increments LV1 -> LV2/LV3/LV4, one date
+# stage 6: downscale the LV1 increment onto LV2 / LV3 / LV4
 # ---------------------------------------------------------------------------
 def stage_increments(ctx: Ctx) -> dict:
+    """One objective-mapping run per child level, for this one date.
+
+    blend_space='D' is asserted on the OUTPUT, not just passed in: blending the
+    bathymetry h instead of the water column D needs a Dcrit clip that inverts the
+    parent column at a deep low tide, and the symptom is a temperature-gradient
+    blow-up two levels down rather than anything visible here.
+    """
     outs, need = {}, []
     for lv in ("LV2", "LV3", "LV4"):
         p = C.SCRATCH / "Inc" / f"INC_{lv}_{ctx.yda}.nc"
         if V.nc_ok(p, need_vars=("zeta", "u", "v", "temp", "salt"),
                    attrs={"blend_space": C.BLEND_SPACE}, min_bytes=10 << 20):
             outs[lv] = p
+            V.ensure_archived(p, C.ARCHIVE / "Inc")
         else:
             need.append(lv)
     if not need:
         raise StageSkip(", ".join(p.name for p in outs.values()))
-    raise NotImplementedError(
-        f"increment build not wired yet (need {need}).  Submit "
-        f"slurm/slurm_make_increment.sb per level with DATES={ctx.yda}..{ctx.yda}; "
-        f"the increment MUST carry blend_space='{C.BLEND_SPACE}'.")
+    if ctx.dry_run:
+        return {"would_run": f"slurm_make_increment.sb for {need} on {ctx.yda}"}
+
+    for lv in need:
+        log = C.SCRATCH / "Log" / f"{ctx.yfore}_inc_{lv}.log"
+        t0 = time.time()
+        rc, job = _sbatch_wait(
+            C.SLURMDIR / "slurm_make_increment.sb",
+            {"LEVEL": lv, "DATES": f"{ctx.yda}..{ctx.yda}",
+             "OUTDIR": str(C.SCRATCH / "Inc"),
+             # the increment source is the LV1 analysis minus the prior, both of
+             # which stage 5 left in IO_DIR
+             "IO_DIR": str(C.io_dir()),
+             "SKIP": "1"},
+            cwd=C.SCRATCH / "Inc", timeout_s=ctx.left_h() * 3600)
+        p = C.SCRATCH / "Inc" / f"INC_{lv}_{ctx.yda}.nc"
+        chk = V.nc_ok(p, need_vars=("zeta", "u", "v", "temp", "salt"),
+                      attrs={"blend_space": C.BLEND_SPACE}, min_bytes=10 << 20,
+                      finite_vars=("zeta", "temp", "salt"))
+        if not chk:
+            raise RuntimeError(f"{lv} increment invalid (job {job}, rc={rc}): "
+                               f"{chk.why}")
+        print(f"    {lv} increment ok ({(time.time()-t0)/60:.1f} min, job {job})")
+        outs[lv] = p
+        V.ensure_archived(p, C.ARCHIVE / "Inc")
+    return {lv: {"scratch": p, "archive": C.ARCHIVE / "Inc" / p.name}
+            for lv, p in outs.items()}
 
 
 # ---------------------------------------------------------------------------
@@ -586,23 +819,62 @@ def stage_lv4_fwd(ctx: Ctx) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# stage 8: the handoff -- extract t=24 h from each level
+# stage 10: the handoff -- extract t = 24 h from each level
 # ---------------------------------------------------------------------------
 def stage_handoff(ctx: Ctx) -> dict:
-    """The t=24 h state of each level IS the state at t_fore, which is exactly
-    the IC the forecast needs.  Written to IC_out/ on scratch for the forecast
-    to read, and to the archive for the record.
+    """The t = 24 h state of each level IS the state at t_fore, so it is exactly
+    the IC the forecast needs.  Written to IC_out/ and archived.
 
-    Note for Phase 2: these are SINGLE-RECORD files, so each level needs
-    NRREC=0 rather than the restart path's NRREC!=0.  That also means
-    ini_fields recomputes ubar from u3d -- which is what we want, but it is a
-    behaviour change from restarting.
+    NRREC = 0 for these, because they are SINGLE-RECORD files rather than
+    restarts.  That also means ini_fields recomputes ubar from u3d -- which is
+    what we want and is consistent with how the increment was built (Vtransform=2
+    makes the depth-average weights zeta-independent, so depth_avg(u) is exactly
+    the ubar ROMS will use), but it IS a behaviour change from restarting, and
+    Phase 2 has to set NRREC accordingly.
     """
-    raise NotImplementedError(
-        "handoff not wired yet.  For each level, his_to_ic.py --time "
-        f"{ctx.t_fore:%Y-%m-%dT%H:%M:%S} on that level's DA history -> "
-        "IC_out/LV{n}_DA_IC_for_<t_fore>.nc, validate, archive, and record with "
-        "man.set_ic(). LV4 must carry dye_01/dye_02.")
+    outs = {}
+    srcs = {
+        "LV1": C.io_dir() / "ocean_fwd_outer1.nc",
+        "LV2": C.scratch_dir("LV2", "His") / f"LV2_DA_his_{ctx.yda}.nc",
+        "LV3": C.scratch_dir("LV3", "His") / f"LV3_DA_his_{ctx.yda}.nc",
+        "LV4": C.scratch_dir("LV4", "His") / f"LV4_DA_his_{ctx.yda}.nc",
+    }
+    for lv, src in srcs.items():
+        out = C.SCRATCH / "IC_out" / f"{lv}_DA_IC_for_{ctx.t_fore:%Y%m%d%H}.nc"
+        need = ("zeta", "u", "v", "temp", "salt")
+        if lv == "LV4":
+            need += ("dye_01", "dye_02")     # coawstM_noanapassive needs IC dye
+        chk = V.nc_ok(out, need_vars=need, expect_time=ctx.t_fore,
+                      min_bytes=20 << 20)
+        if chk:
+            arch = V.ensure_archived(out, C.ARCHIVE / "IC_out")
+            outs[lv] = {"scratch": out, "archive": arch}
+            ctx.man.set_ic(lv, out, arch)
+            continue
+        if ctx.dry_run:
+            outs[lv] = {"would_run": f"his_to_ic.py {src.name} --time "
+                                     f"{ctx.t_fore:%Y-%m-%dT%H:%M:%S}"}
+            continue
+        if not src.is_file():
+            raise FileNotFoundError(
+                f"{lv} handoff needs {src}, which stage "
+                f"{'5' if lv == 'LV1' else '7'} should have produced")
+        rc = _run([C.PY, C.PYDIR / "his_to_ic.py",
+                   "--his", src,
+                   "--time", f"{ctx.t_fore:%Y-%m-%dT%H:%M:%S}",
+                   "--out", out, "--sanitize"],
+                  log=C.SCRATCH / "Log" / f"{ctx.yfore}_handoff.log")
+        chk = V.nc_ok(out, need_vars=need, expect_time=ctx.t_fore,
+                      min_bytes=20 << 20, finite_vars=("zeta", "temp", "salt"),
+                      water_range={"temp": (-3.0, 40.0), "salt": (0.0, 45.0),
+                                   "zeta": (-5.0, 5.0)})
+        if not chk:
+            raise RuntimeError(f"{lv} handoff IC invalid: {chk.why} (rc={rc})")
+        arch = V.ensure_archived(out, C.ARCHIVE / "IC_out")
+        outs[lv] = {"scratch": out, "archive": arch}
+        ctx.man.set_ic(lv, out, arch)
+        print(f"    {lv} IC at {ctx.t_fore:%Y-%m-%d %H}Z -> {out.name}")
+    return outs
 
 
 FUNCS = {

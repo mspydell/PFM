@@ -34,9 +34,12 @@ set -euo pipefail
 : "${LEVEL:?export LEVEL=LV2|LV3|LV4}"
 : "${DATES:?export DATES=20260307..20260413}"
 
-DA_EXP=/home/mspydell/research/sdtjreL3/v_intel/roms_fourdvar/DA_experiment
+# PFM copy: resolve DA_files from this script's own location rather than
+# pointing back into the roms_fourdvar tree.
+DA_FILES="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PYDIR="${DA_FILES}/python_files"
 PY=/home/mspydell/anaconda3/envs/PHM-env/bin/python3
-MASKS=${DA_EXP}/masks
+MASKS=${DA_FILES}/masks
 DAT=/dataSIO/DA_Simulations
 OUTDIR="${OUTDIR:-${DAT}/${LEVEL}/input_files/INC_files}"
 
@@ -73,7 +76,7 @@ echo "host $(hostname)  LEVEL=$LEVEL  DATES=$DATES  threads=$OMP_NUM_THREADS"
 echo "mem limit: $(cat /sys/fs/cgroup/memory.max 2>/dev/null || echo '(cgroup v1/none)')"
 free -g | sed -n 2p
 
-time $PY ${DA_EXP}/LV2/python_files/make_child_increment.py \
+time $PY ${PYDIR}/make_child_increment.py \
     --child "$LEVEL" --date "$DATES" --tag '' \
     --root ${DAT}/LV1_v2 --child-vparams-from "$VP" \
     "${MASK_ARGS[@]}" "${GD[@]}" \

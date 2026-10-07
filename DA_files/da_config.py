@@ -135,6 +135,7 @@ ECMWF_PKL_TAG = "DA"
 # code
 # ---------------------------------------------------------------------------
 DA_FILES = Path(__file__).resolve().parent
+SCRIPTSDIR = DA_FILES / "scripts"
 PYDIR = DA_FILES / "python_files"
 MASKDIR = DA_FILES / "masks"
 RUN_IN = DA_FILES / "run_in"
@@ -207,6 +208,33 @@ ROMS_EXE_DA = SCRATCH / "LV1" / "Run" / "romsM_DA_IC"   # IC-only; BC-adjust ble
 ROMS_EXE_FWD = "romsM_forward"
 ROMS_EXE_LV4 = "coawstM_noanapassive"   # ANA_PASSIVE undef -> IC dye honoured
 
+# ---------------------------------------------------------------------------
+# LV1 4D-Var inputs that are static, large and expensive to rebuild.
+# ---------------------------------------------------------------------------
+# The normalisation (NRM) and background-error standard deviation (STD) files --
+# ~410 MB together -- are referenced from /dataSIO rather than copied into git.
+# They are regenerable but not cheaply: the NRM randomisation is hours of compute
+# (LV1 used Nrandom=6000), and they do not change from cycle to cycle.  Same
+# reasoning as the HFR retrospective cache: a data dependency, documented, not a
+# code one.
+NRM_DIR = Path("/dataSIO/DA_Simulations/input_files/nrm_files")
+STD_DIR = Path("/dataSIO/DA_Simulations/input_files/std_files")
+
+# Decorrelation scales and error amplitudes, matching the LV1_v2 research chain.
+# HDECAY_IC is also L_INCR in the downscaler, so the two must agree.
+HDECAY_IC_KM = 15
+HDECAY_BC_KM = 15
+HDECAY_F_KM = 50
+URMS_TAG = "urms0p05"
+WSRMS_TAG = "wsrms0p02"
+
+# ROMS reads and writes a dozen scratch files per cycle and wants them in one
+# place; keeping it separate from Run/ means a purge can clear it without
+# touching the executable or the .in templates.
+def io_dir() -> Path:
+    return SCRATCH / "LV1" / "tmp_input_output"
+
+
 BLEND_SPACE = "D"        # blending h needs a Dcrit clip that inverts the parent
                          # column at a deep low tide
 # 6 km, matching the LV1_v2 research chain (the 3/7-onward cycles) so the
@@ -265,7 +293,8 @@ def ensure_tree() -> None:
         for sub in SCRATCH_SUBDIRS:
             (SCRATCH / lv / sub).mkdir(parents=True, exist_ok=True)
     HFR_CACHE_NRT.mkdir(parents=True, exist_ok=True)
-    for d in ("Inc", "IC_out", "Log", "Obs"):
+    io_dir().mkdir(parents=True, exist_ok=True)
+    for d in ("Inc", "IC_out", "Log", "Obs", "Rst"):
         (SCRATCH / d).mkdir(parents=True, exist_ok=True)
     for d in ARCHIVE_SUBDIRS:
         (ARCHIVE / d).mkdir(parents=True, exist_ok=True)
