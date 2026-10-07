@@ -89,21 +89,99 @@ too coarsely resolved for the distinction to mean anything.
 
 ## Deliberately NOT copied
 
-**`make_atm_from_nam.py`** and **`make_BCnc_from_hycom.py`**. PFM builds its own
-forcing from ECMWF and HYCOM, and Phase 0 (2026-10-06) established that both of
-PFM's builders are already correct:
+**`make_atm_from_nam.py`**, **`download_nam_range.py`** and
+**`make_BCnc_from_hycom.py`**. PFM builds its own forcing and stages 2–3 call
+PFM's builders through `da_pfm_bridge`. The atm result is **bit-identical** to
+the operational file — `max|diff| = 0.000e+00` across all nine fields over 25
+shared records, 2026-10-06..10-07 — so there is nothing for a ported builder to
+improve on.
 
-* `sdpm_py_util/atm_functions.py:610-611` rotates winds earth → ROMS XI/ETA,
-  matching `set_data.F`'s `cff1`/`cff2`, and has since 2025-07-02.
-* `sdpm_py_util/ocn_funs_forecast.py` converts in-situ → potential temperature
-  with `gsw.pt_from_t`. The adjacent commented `seawater.ptmp` lines are the
-  superseded EOS-80 implementation, 7 commented against 7 active — **not** a
-  missing conversion, which is how it first looked on a grep.
+I briefly vendored the two NAM scripts and then removed them. The reasoning is
+worth recording because the first reading was wrong in both directions:
 
-Porting our NAM/HYCOM builders would reintroduce the bugs September fixed and
-would not reproduce PFM's own forcing. Stages `lv1_atm` and `lv1_bc` therefore
-call PFM's functions, and the acceptance test is that day 1 of the result
-matches the operational `LV1_ATM_FORCING.nc` / `LV1_OCEAN_BC.nc` to round-off.
+* `driver_functions.run_hind_LV1` is the only 1-day-at-a-time driver, and it
+  builds atm from `hind_functions.py` (NAM), so that looked like the path a
+  closed window must take.
+* `ecmwf_data/` looked like a per-cycle working directory. It is not: it keeps
+  one init group per day, 99 groups back to 2026-07-07, 101 hourly steps each,
+  never pruned (the delete at `atm_functions.py:111-113` is commented out, though
+  it still *prints* that it deleted — misleading log line, no effect).
+
+So a closed window **is** already on disk, ECMWF is the operational product, and
+the ECMWF path rotates correctly. Stage 2 uses it.
+
+### A real bug this turned up in PFM's NAM path
+
+Not ours to fix here, but it should be written down: **PFM's NAM path applies no
+wind rotation at all.** `hind_functions.grb2_to_pickle` reads `UGRD`/`VGRD`
+straight out of the grib2, and `nam_pkls_2_romsatm_pkl` interpolates them onto
+the ROMS grid as if they were already ROMS components. `hind_functions` does not
+import `atm_functions`, so the `cosang`/`sinang` rotation at
+`atm_functions.py:610` is not on that path at all. NAM grid 218 is Lambert
+Conformal and publishes u/v along grid axes, so **both** rotation stages are
+missing and wind stress is mis-aimed by ~14°.
+
+This does not affect the operational forecast (ECMWF, correctly rotated) or the
+DA pre-step (ditto). It does affect anything run through `run_hind_LV*` — the PHM
+hindcasts.
+
+Phase 0's conclusion, "reuse PFM's builder, do not port ours," therefore holds
+for the ECMWF forecast path and **not** for NAM. The distinction is the product,
+not the direction of time: ECMWF is lat/lon so its u/v are earth-relative and the
+single `RMG['angle']` stage is the whole rotation; NAM needs two stages and gets
+none.
+
+### What was confirmed correct, and how
+
+* `atm_functions.py:596-598,610` rotates earth → ROMS XI/ETA with
+  `angr = RMG['angle']`, matching `set_data.F`'s `cff1`/`cff2`.
+* `ocn_funs_forecast.ocnr_2_BCdict_1hrzeta_from_tmppkls` converts in-situ →
+  potential temperature with `gsw.pt_from_t` (lines 3551/3554/3557). The adjacent
+  commented `seawater.ptmp` lines are the superseded EOS-80 version, 7 commented
+  against 7 active — **not** a missing conversion, which is how it first looks on
+  a grep.
+
+## Isolation from the operational forecast
+
+Stages 2–3 run PFM's code, so this is the part that keeps Phase 1 bit-safe for
+the forecast. `da_pfm_bridge.build_minfo` writes a DA-private model-info pickle;
+every PFM builder reads its config from the `pkl_fnm` it is handed
+(`get_model_info` is a plain pickle load, no globals, no fallback), so that one
+redirect moves the entire computation.
+
+Three things are **not** reached by redirecting directories, and each is handled
+explicitly:
+
+| leak | why it escapes | fix |
+|---|---|---|
+| derived ECMWF pickles | written to `ecmwf_dir + ecmwf_all_pkl_name`, and `ecmwf_dir` is the shared grib cache | gribs stay shared (downloads are additive, we want the cache); every derived pickle gets a `_DA_<t_fore>` tag |
+| `lv{N}_his_name_full`, `rst_name_full` | `create_model_info_dict` derives them from the operational dirs *and* the operational timestamp, before our patch | re-run PFM's own `add_file_names_2MI` after writing the pickle |
+| `lv4_coawst_varinfo_full`, `qtj_obs_fname_full`, `lv4_web_name_full`, `*_plot_dir` | built as absolute paths, not from the `*_dir` keys | redirected by hand |
+
+`_operational_leaks()` then walks the finished pickle for any value still naming
+the operational tree and **refuses to run** if one remains. That guard is not a
+formality: the first build left 11 such keys.
+
+Why the DA-tagged ECMWF pickle name is not cosmetic — PFM's own code raises on a
+failed rebuild with the comment that continuing "would leave the previous cycle's
+ecmwf_all.pkl in place and silently build atm forcing for the wrong day (this is
+exactly what happened 2026-08-31)". A DA run writing the operational name would
+do that to the forecast deliberately. Stage 3 also checks its output's time axis
+covers the window, which is the only check that notices that class of failure:
+the file is perfectly valid, just for the wrong day.
+
+Verified after the first real run: the shared cache went 19927 → 19928 files
+(our one DA-tagged pickle), init groups 99 → 99, and the operational
+`ecmwf_all.pkl` was untouched.
+
+## Credentials
+
+`run_pfm` loads `PFM/.env` into the subprocess environment. Without it ECMWF
+fetches raise "credentials missing: WGET_ECMWF_USER / WGET_ECMWF_PASS" and return
+`rc=1`, and PFM's fetch loop then continues on whatever is cached. The first run
+passed only because every grib it needed was already present; a nightly run
+reaching for an uncached init would have failed in the confusing way, so a
+missing credential is now an error rather than a silent dependency on the cache.
 
 ## Settings carried over, with their reasons
 
