@@ -821,6 +821,10 @@ def stage_increments(ctx: Ctx) -> dict:
              # build the increment from a different LV1 run entirely.
              "ROOT": str(root),
              "VPARAMS": str(_child_vparams_source(lv)),
+             # slurm runs a COPY of the batch script from its spool directory, so
+             # the script cannot find DA_files from its own path -- it must be
+             # told.
+             "DA_FILES": str(C.DA_FILES),
              "SKIP": "1"},
             cwd=C.SCRATCH / "Inc", timeout_s=ctx.left_h() * 3600)
         p = C.SCRATCH / "Inc" / f"INC_{lv}_{ctx.yda}.nc"

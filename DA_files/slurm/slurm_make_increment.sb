@@ -34,9 +34,18 @@ set -euo pipefail
 : "${LEVEL:?export LEVEL=LV2|LV3|LV4}"
 : "${DATES:?export DATES=20260307..20260413}"
 
-# PFM copy: resolve DA_files from this script's own location rather than
-# pointing back into the roms_fourdvar tree.
-DA_FILES="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# PFM copy: DA_FILES is EXPORTED by the caller, not derived from this script's
+# own path.  Slurm copies a batch script into its spool directory before running
+# it, so ${BASH_SOURCE[0]} is /cm/local/apps/slurm/var/spool/... and a
+# self-locating dirname lands there -- which is exactly how this failed the first
+# time, looking for python_files/ under the spool dir.  The fallback is kept so
+# the script still works if run by hand.
+DA_FILES="${DA_FILES:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+if [[ ! -d "${DA_FILES}/python_files" ]]; then
+    echo "DA_FILES=${DA_FILES} has no python_files/ -- export DA_FILES to the" >&2
+    echo "DA_files directory (sbatch --export=...,DA_FILES=/path/to/DA_files)" >&2
+    exit 2
+fi
 PYDIR="${DA_FILES}/python_files"
 PY=/home/mspydell/anaconda3/envs/PHM-env/bin/python3
 MASKS=${DA_FILES}/masks
