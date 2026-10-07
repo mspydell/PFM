@@ -49,7 +49,7 @@ import da_config as C
 # the strength of _minfo_is_sane, which checks the window -- so without a version
 # marker an edit to build_minfo would silently not take on any t_fore whose
 # pickle already existed, and the bug it fixed would look unfixed.
-MINFO_VERSION = 2
+MINFO_VERSION = 3
 
 
 # ---------------------------------------------------------------------------
@@ -128,6 +128,24 @@ def build_minfo(t_fore: DT.datetime, t_da: DT.datetime, *,
         MI[f"{lv}_forc_dir"] = str(C.scratch_dir(n, "Forc"))
         MI[f"{lv}_his_dir"] = str(C.scratch_dir(n, "His"))
     MI["restart_files_dir"] = str(C.SCRATCH / "Rst")
+
+    # -- restarts: READ the operational SWAN hotstarts, WRITE our own ---------
+    # The SWAN initial condition for a DA cycle is the hotstart the operational
+    # forecast already deposited: get_swan_restart_file_name globs
+    # restart_swanfiles_dir_in for *_???.dat-001, parses init+lead from the name,
+    # and takes the one where init + lead == fetch_time.  For a window starting
+    # 2026-10-06 00Z that is LV4_swan_rst_202610060000_000, which exists.  So _in
+    # points at the shared directory (read-only for us; it holds 357 GB of
+    # operational restarts) while _out points into the DA tree, because this run
+    # must not deposit its own restarts among the forecast's.
+    MI["restart_swanfiles_dir_in"] = str(C.SWAN_RST_SHARED)
+    MI["restart_swanfiles_dir_out"] = str(C.SCRATCH / "Rst")
+    MI["restart_ncfiles_dir_in"] = str(C.SCRATCH / "Rst")
+    MI["restart_ncfiles_dir_out"] = str(C.SCRATCH / "Rst")
+
+    # LV4 runs coawstM_noanapassive: ANA_PASSIVE is undef so dye_01/dye_02 from
+    # the IC file are honoured rather than zeroed at t=0.
+    MI["lv4_executable"] = C.ROMS_EXE_LV4
     MI["river_pckl_file_full"] = str(C.scratch_dir("LV4", "Forc") / "river_Q.pkl")
     for lv, n in (("lv1", "LV1"), ("lv2", "LV2"), ("lv3", "LV3"), ("lv4", "LV4")):
         MI[f"{lv}_plot_dir"] = str(C.SCRATCH / "Log" / "figures" / n)

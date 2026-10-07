@@ -90,6 +90,11 @@ PFM_HIS = {lv: PFM_ARCHIVE / f"{lv}_His" for lv in ("LV1", "LV2", "LV3", "LV4")}
 # start before LV2 has written its history.
 BC_PARENT = {"LV2": "LV1", "LV3": "LV2", "LV4": "LV3"}
 
+# Where the operational forecast deposits SWAN hotstart files, read-only for us.
+# 357 GB, named LV4_swan_rst_<init YYYYMMDDHHMM>_<lead HHH>.dat-NNN with one part
+# per SWAN rank (72).  PFM_DA never writes here.
+SWAN_RST_SHARED = Path("/scratch/PFM_Simulations/restart_swan_data")
+
 ECMWF_CACHE = Path("/scratch/PFM_Simulations/ecmwf_data")
 HYCOM_CACHE = Path("/scratch/PFM_Simulations/hycom_data")
 
@@ -100,7 +105,20 @@ HYCOM_CACHE = Path("/scratch/PFM_Simulations/hycom_data")
 # to know where they live and which config module they are driven by.
 PFM_PYDIR = Path(__file__).resolve().parent.parent / "sdpm_py_util"
 PFM_DRIVER = Path(__file__).resolve().parent.parent / "driver"
-PFM_INPUT_PY = PFM_PYDIR / "pfm_operational_input.py"
+# The input file the OPERATIONAL driver names (driver/run_PFMv2.sh,
+# run_PFM_LV1234.sh), not the older pfm_operational_input.py this first pointed
+# at.  The difference matters: _new splits restart_files_dir into
+# restart_{nc,swan}files_dir_{in,out}, and the SWAN hotstart lookup
+# (init_funs_forecast.get_swan_restart_file_name) reads
+# restart_swanfiles_dir_in -- a key the old file never sets, so LV4 would have
+# died with a KeyError.  It also adds lv{1,2,3}_blank_name and pfm_new.
+#
+# NOTE the live cron runs ffeddersen's copy of this same filename, which is not
+# readable from here, so this is the in-repo version of the right file rather
+# than a byte-for-byte match with production.  Stage 2's acceptance test (atm
+# bit-identical to the operational output) is what actually confirms the
+# settings agree where it counts.
+PFM_INPUT_PY = PFM_PYDIR / "pfm_operational_input_new.py"
 
 def minfo_pkl(t_fore: str) -> Path:
     """The DA run's OWN model-info pickle.
