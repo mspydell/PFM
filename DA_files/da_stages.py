@@ -1011,6 +1011,19 @@ def _child_fwd(ctx: Ctx, lv: str) -> dict:
             f"{lv} takes boundaries from {parent}, whose history is not there "
             f"yet: {parent_his}.  The child forwards are strictly sequential.")
 
+    # Check the executable BEFORE doing 5 minutes of input preparation and
+    # claiming a 6-node allocation.  LV3's first attempt built its atm, staged
+    # everything, submitted, and died in 3 seconds with
+    #   /usr/bin/env: 'romsM_forward': No such file or directory
+    # repeated 216 times -- because the binary had been copied into LV2/Run but
+    # not LV3/Run.  Stage 5 already checks its own executable; this did not.
+    exe = C.scratch_dir(lv, "Run") / C.ROMS_EXE_FWD
+    if not (exe.is_file() and os.access(exe, os.X_OK)):
+        raise FileNotFoundError(
+            f"{lv} forward executable missing or not executable: {exe}\n"
+            f"    It is built outside this repo.  Copy it in, e.g.\n"
+            f"      cp -p {C.scratch_dir('LV2', 'Run') / C.ROMS_EXE_FWD} {exe}")
+
     forc = C.scratch_dir(lv, "Forc")
     forc.mkdir(parents=True, exist_ok=True)
 
