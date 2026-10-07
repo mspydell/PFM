@@ -174,6 +174,64 @@ Verified after the first real run: the shared cache went 19927 → 19928 files
 (our one DA-tagged pickle), init groups 99 → 99, and the operational
 `ecmwf_all.pkl` was untouched.
 
+## PFM_DA reads only what is on disk
+
+The pre-step runs right before the forecast, which has already fetched the
+forcing for this window, so **no stage downloads anything**. Re-fetching would
+duplicate data we have, put an external service inside a 5 h budget, and risk the
+operational cache.
+
+This was got wrong twice before it was got right, in the same way each time —
+reasoning from "the DA window is in the past, so use the hindcast variant" instead
+of from "the forecast already fetched it." The hindcast variants *fetch*:
+
+| want | use | NOT |
+|---|---|---|
+| atm | `atm_functions.get_atm_data_as_dict` → `get_atm_data_on_roms_grid` → `atm_roms_dict_to_netcdf` | `hind_functions.py` (NAM; also unrotated) |
+| ocean BC | `ocn_funs_forecast.hycom_ncfiles_to_pickle(init_day, pkl)` | `get_hycom_hind_data` (ncks downloads) |
+
+The HYCOM mistake was hidden by naming: the forecast writes
+`hy_<var>_<init>_<valid>.nc`, the hindcast reader looks for `hycom_hind_*`, so 506
+operational files were present and invisible to it.
+
+`da_pfm_bridge.hycom_init_for_window()` makes the guarantee checkable rather than
+assumed: it builds the expected list with PFM's own `get_hycom_nc_file_names`,
+confirms every file exists, picks the latest complete init, and raises if the
+window is not fully present — so `check_and_redownload_ncfiles`' repair path is
+never reached.
+
+Retention differs by product, and it bounds how late the pre-step can run:
+
+* `ecmwf_data/` — one init group per day, never pruned (99 groups back to
+  2026-07-07 as of 2026-10-06).
+* `hycom_data/` — only ~2 inits; cleaned each cycle. This is the binding one.
+
+## Acceptance results (2026-10-06)
+
+Both stages reproduce PFM's builders **bit-identically** on every cell ROMS
+reads, over the window 2026-10-06..10-07 built from the same init as the
+operational files:
+
+| stage | fields | records | max abs diff |
+|---|---|---|---|
+| 2 `lv1_atm` | 9 (`Uwind Vwind Tair Pair Qair rain swrad lwrad lwrad_down`) | 25 | `0.000e+00` |
+| 3 `lv1_bc` | 13 (`zeta/temp/salt/u/v/ubar/vbar` × boundaries) | 25 | `0.000e+00` |
+
+Run it with `check_vs_operational.py`. Two things that test must do, both learned
+from false results:
+
+* **Match the init, not the valid time.** Comparing a DA file built from the
+  10-05 init against the operational file built from the 10-06 init, on their one
+  shared record, showed up to 5.9 m/s in `Uwind` and 212 W/m² in `swrad`. That is
+  ECMWF's 24 h error, not a defect. Build the DA stage for the window starting at
+  the operational `fetch_time`.
+* **Mask land.** A ROMS BC file stores a value in every boundary cell including
+  land, and ROMS never reads those. Unmasked, 10 of 13 BC fields "differed" —
+  entirely explained by the mask: the western boundary has 0 land cells and was
+  bit-identical over all 390; the southern has exactly 6 (xi 247–252) and those
+  were exactly the 6 differing columns, 247 of 253 identical; the northern has 124
+  and showed the largest difference.
+
 ## Credentials
 
 `run_pfm` loads `PFM/.env` into the subprocess environment. Without it ECMWF
