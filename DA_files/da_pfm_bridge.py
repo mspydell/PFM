@@ -240,27 +240,8 @@ def assert_not_operational(pkl: Path) -> None:
 # ---------------------------------------------------------------------------
 # running PFM's functions
 # ---------------------------------------------------------------------------
-def hycom_init_for_window(t_da: DT.datetime, t_fore: DT.datetime,
-                         pkl: Path) -> str:
-    """The HYCOM init day ('YYYYMMDD') whose on-disk files cover [t_da, t_fore].
-
-    PFM_DA READS WHAT IS ON DISK AND NEVER DOWNLOADS.  The forecast has already
-    fetched HYCOM for this window by the time the DA pre-step runs, so fetching
-    again would re-pull data we have, hit an external service for nothing, and
-    make the pre-step depend on tds.hycom.org being up.  This function is what
-    makes that guarantee checkable: it proves every file PFM will ask for is
-    already present, and raises if not, so the repair path inside
-    check_and_redownload_ncfiles is never reached.
-
-    The file list comes from PFM's OWN get_hycom_nc_file_names rather than a
-    second copy of the naming rules -- the names encode the init time (hardcoded
-    T12:00), the 3-hourly cadence for s3z/t3z/u3z/v3z and the 1-hourly cadence for
-    ssh, and all of that has to stay in step with PFM.
-
-    Picks the LATEST init that is complete for the window.  hycom_data/ keeps only
-    a couple of inits (it is cleaned each cycle, unlike ecmwf_data/), so in
-    practice this is a choice between one or two.
-    """
+def _import_ocn_funs():
+    """Import PFM's ocean module with sdpm_py_util importable and cwd correct."""
     pfm_py = str(C.PFM_PYDIR)
     if pfm_py not in sys.path:
         sys.path.insert(0, pfm_py)
@@ -270,31 +251,93 @@ def hycom_init_for_window(t_da: DT.datetime, t_fore: DT.datetime,
         import ocn_funs_forecast as O
     finally:
         os.chdir(cwd)
+    return O
 
-    t1s = t_da.strftime("%Y%m%d%H%M")
-    t2s = t_fore.strftime("%Y%m%d%H%M")
 
-    # candidate inits: the day of t_da and the two before it.  HYCOM's init is at
-    # 12:00, so an init on the day of t_da is only usable when t_da is after 12Z;
-    # the completeness check below decides, rather than a rule about hours.
-    cands = [(t_da - DT.timedelta(days=k)).strftime("%Y%m%d") for k in (0, 1, 2)]
-    report = []
-    for init in cands:                       # latest first
-        names = [Path(f) for f in O.get_hycom_nc_file_names(init, t1s, t2s,
-                                                            str(pkl))]
-        missing = [f for f in names if not f.is_file()]
-        report.append(f"{init}T12: {len(names)-len(missing)}/{len(names)}")
-        if not missing:
-            return init
+def hycom_file_list(init_day: str, t_da: DT.datetime, t_fore: DT.datetime,
+                    pkl: Path) -> list[Path]:
+    """Every HYCOM file PFM will ask for, for this init and window.
 
-    raise FileNotFoundError(
-        f"no HYCOM init on disk covers the DA window "
-        f"{t_da:%Y-%m-%d %H}Z..{t_fore:%Y-%m-%d %H}Z.  Tried {', '.join(report)} "
-        f"in {C.HYCOM_CACHE}.  PFM_DA reads only what the forecast already "
-        f"fetched, so this means the window predates what hycom_data/ still "
-        f"holds -- it keeps roughly two inits.  Run the DA pre-step closer to "
-        f"the forecast, or widen hycom_data retention; do NOT work around it by "
-        f"downloading here.")
+    Uses PFM's OWN get_hycom_nc_file_names rather than a second copy of the naming
+    rules: the names encode the init time (hardcoded T12:00), the 3-hourly cadence
+    for s3z/t3z/u3z/v3z and the 1-hourly cadence for ssh, and all of that has to
+    stay in step with PFM.
+    """
+    O = _import_ocn_funs()
+    return [Path(f) for f in O.get_hycom_nc_file_names(
+        init_day, t_da.strftime("%Y%m%d%H%M"), t_fore.strftime("%Y%m%d%H%M"),
+        str(pkl))]
+
+
+def hycom_init_for_window(t_da: DT.datetime, t_fore: DT.datetime,
+                         pkl: Path, allow_download: bool = True) -> str:
+    """The HYCOM init day ('YYYYMMDD') to read, filling gaps only if we must.
+
+    PFM_DA READS WHAT IS ON DISK.  The forecast has normally fetched this window
+    already, so re-fetching would re-pull data we have, hit an external service
+    for nothing, and make the pre-step depend on tds.hycom.org being up.  The
+    first version of this function enforced that absolutely and raised when
+    nothing covered the window.
+
+    That is too strict for the case that will actually occur: if a PFM cycle fails
+    outright and is rerun off-schedule, the next PFM_DA window was never fetched
+    by anybody.  hycom_data/ is also cleaned each cycle and holds only ~2 inits,
+    so the window can age out.  So: prefer disk, verify, and download only the
+    gap -- never the whole window when most of it is present.
+
+    Picks the latest init that is complete.  If none is, takes the init needing
+    the fewest files and fetches just those.
+    """
+    from da_preflight import check_hycom
+
+    item = check_hycom(t_da, t_fore, pkl)
+    if item.ok:
+        return item.resolved["init"]
+
+    init = item.resolved["init"]
+    missing = item.resolved["missing"]
+    if not allow_download:
+        raise FileNotFoundError(
+            f"HYCOM is short for {t_da:%Y-%m-%d %H}Z..{t_fore:%Y-%m-%d %H}Z and "
+            f"downloading is disabled (--no-download): best init {init}T12 is "
+            f"missing {len(missing)} file(s) in {C.HYCOM_CACHE}.  "
+            f"First missing: {missing[0].name}")
+
+    print(f"    HYCOM gap: init {init}T12 is missing {len(missing)} file(s); "
+          f"fetching only those (PFM_DA normally reads from disk -- this means "
+          f"the forecast for this window did not run, or hycom_data/ has been "
+          f"cleaned since)", flush=True)
+
+    # PFM's check_and_redownload_ncfiles is the right downloader -- it chunks to
+    # <=10 files to stay polite to HYCOM and retries 3 times -- but it decides
+    # what to fetch with os.path.getsize(), so it handles a TRUNCATED file and
+    # raises on an ABSENT one.  Creating each absent file as zero bytes turns the
+    # case it cannot see into the case it handles, and its own delete_files()
+    # removes the placeholder before fetching.  If a fetch still fails the file
+    # ends up absent again and the verification below catches it.
+    for f in missing:
+        if not f.exists():
+            f.parent.mkdir(parents=True, exist_ok=True)
+            f.touch()
+    run_pfm("ocn_funs_forecast.py", "check_and_redownload_ncfiles", init, pkl,
+            timeout=5400)
+
+    recheck = check_hycom(t_da, t_fore, pkl)
+    if not recheck.ok:
+        still = recheck.resolved.get("missing", [])
+        # do not leave zero-byte placeholders behind to be mistaken for data
+        for f in still:
+            try:
+                if f.is_file() and f.stat().st_size == 0:
+                    f.unlink()
+            except OSError:
+                pass
+        raise FileNotFoundError(
+            f"HYCOM still incomplete after a download attempt: {recheck.detail}. "
+            f"Check that tds.hycom.org is reachable and that the window is within "
+            f"HYCOM's retention.")
+    print(f"    HYCOM gap filled; init {init}T12 now complete", flush=True)
+    return recheck.resolved["init"]
 
 
 def pfm_env() -> dict:

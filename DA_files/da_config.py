@@ -51,6 +51,13 @@ GRID = {
     "LV3": GRIDS / "GRID_SDTJRE_LV3_rx020_maskCoast.nc",
     "LV4": GRIDS / "GRID_SDTJRE_LV4_mss_oct2024.nc",
 }
+# Where to look for a PFM LV1 history to take the DA initial condition from,
+# in order.  A list, not one path, because the IC may have to come from a run
+# other than the one initialised at t_da -- see da_preflight.find_lv1_history.
+LV1_HIS_DIRS = [PFM_ARCHIVE_LV1_HIS := Path(
+                    "/dataSIO/PFM_Simulations/Archive/LV1_His"),
+                Path("/scratch/PFM_Simulations/LV1_Forecast/His")]
+
 ECMWF_CACHE = Path("/scratch/PFM_Simulations/ecmwf_data")
 HYCOM_CACHE = Path("/scratch/PFM_Simulations/hycom_data")
 
@@ -133,6 +140,9 @@ NODES = {"lv1_da": 9, "increments": 1, "LV2": 6, "LV3": 10, "LV4": 14}
 # Measured, except LV3/LV4 which are scaled from PFM's 2.5-day forecast runs.
 # Stage 7 records the real numbers so these can be replaced with measurements.
 EXPECTED_WALL_S = {
+    # preflight opens at most a couple of files; it exists so a doomed cycle
+    # fails in seconds instead of after the atm and BC are built.
+    "preflight": 10,
     "lv1_ic": 120, "lv1_atm": 300, "lv1_bc": 600, "lv1_obs": 600,
     "lv1_da": 3 * 3600 + 15 * 60,          # measured 3h13
     "increments": 400,                      # ~6.4 min, all three levels, 1 date

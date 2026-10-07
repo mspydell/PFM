@@ -35,12 +35,13 @@ from pathlib import Path
 
 import da_config as C
 import da_pfm_bridge as B
+import da_preflight as PF
 import da_validate as V
 from da_manifest import Manifest
 
 sys.path.insert(0, str(C.PYDIR))
 
-STAGES = ("lv1_ic", "lv1_atm", "lv1_bc", "lv1_obs", "lv1_da",
+STAGES = ("preflight", "lv1_ic", "lv1_atm", "lv1_bc", "lv1_obs", "lv1_da",
           "increments", "lv2_fwd", "lv3_fwd", "lv4_fwd", "handoff")
 
 
@@ -51,6 +52,7 @@ class Ctx:
     man: Manifest
     deadline: DT.datetime
     dry_run: bool = False
+    allow_download: bool = True
 
     @property
     def yda(self) -> str:
@@ -121,7 +123,37 @@ def _sbatch_wait(sb: Path, exports: dict, cwd: Path,
 
 
 # ---------------------------------------------------------------------------
-# stage 1: LV1 initial condition, from the PFM operational history at t_da
+# stage 0: preflight -- do we have every input, before spending 3 h of 4D-Var?
+# ---------------------------------------------------------------------------
+def stage_preflight(ctx: Ctx) -> dict:
+    """Check every input up front and fail in seconds rather than hours.
+
+    Two outcomes are distinguished, because they need different responses:
+      * MISSING AND FIXABLE (ECMWF / HYCOM gaps) -- the owning stage downloads
+        just the gap.  Reported here so it is not a surprise later.
+      * MISSING AND NOT FIXABLE (no LV1 history covering t_da) -- nothing can be
+        downloaded, so stop now.
+    """
+    pkl = _minfo(ctx)
+    rep = PF.check_inputs(ctx.t_fore, ctx.t_da, pkl)
+    print(rep.text())
+    if rep.blocking:
+        raise FileNotFoundError(
+            "preflight: input(s) missing that NO download can fix: "
+            + "; ".join(f"{i.name} -- {i.detail}" for i in rep.blocking))
+    if rep.downloadable:
+        if not ctx.allow_download:
+            raise FileNotFoundError(
+                "preflight: input(s) missing and downloading is disabled "
+                "(--no-download): "
+                + "; ".join(f"{i.name} -- {i.detail}" for i in rep.downloadable))
+        print(f"    {len(rep.downloadable)} input(s) incomplete on disk; the "
+              f"owning stage will fetch only the gap")
+    return {}
+
+
+# ---------------------------------------------------------------------------
+# stage 1: LV1 initial condition, from a PFM history covering t_da
 # ---------------------------------------------------------------------------
 def stage_lv1_ic(ctx: Ctx) -> dict:
     out = C.scratch_dir("LV1", "Forc") / f"LV1_DA_IC_{ctx.yda}.nc"
@@ -131,9 +163,25 @@ def stage_lv1_ic(ctx: Ctx) -> dict:
         # archive on the skip path too -- see da_validate.ensure_archived
         V.ensure_archived(out, C.ARCHIVE / "IC_out")
         raise StageSkip(str(out))
-    src = C.PFM_ARCHIVE / "LV1_His" / f"LV1_ocean_his_{ctx.yda}0000.nc"
-    if not src.exists():
-        raise FileNotFoundError(f"no PFM LV1 history for {ctx.yda}: {src}")
+    # The IC does NOT have to come from the forecast initialised at t_da.  A PFM
+    # LV1 history holds 121 hourly records spanning 5 days, so the state at t_da
+    # appears in up to five different runs; find_lv1_history searches them
+    # freshest-first (least forecast drift) and verifies the record is really
+    # there rather than trusting the filename.  This matters exactly when a PFM
+    # cycle has failed and been rerun off-schedule -- which is when PFM_DA is
+    # being asked to cover the hole, and when an exact-filename lookup would
+    # fail.
+    src, lead_h, note = PF.find_lv1_history(ctx.t_da)
+    if src is None:
+        raise FileNotFoundError(
+            f"no PFM LV1 history within {PF.LV1_HIS_SPAN_DAYS} days holds a "
+            f"record at {ctx.t_da:%Y-%m-%d %H}Z.  Nothing can be downloaded to "
+            f"fix this -- a PFM forecast whose window contains t_da has to "
+            f"exist.  Searched {[str(d) for d in C.LV1_HIS_DIRS]}")
+    print(f"    IC from {note}")
+    if lead_h > 0:
+        print(f"    NOTE: this is a {lead_h} h forecast of the t_da state, not an "
+              f"analysis at t_da -- the run initialised at t_da is missing.")
     if ctx.dry_run:
         return {"would_run": f"his_to_ic.py --his {src.name} --time {ctx.t_da:%Y-%m-%dT%H:%M:%S}"}
     rc = _run([C.PY, C.PYDIR / "his_to_ic.py",
@@ -259,7 +307,8 @@ def stage_lv1_bc(ctx: Ctx) -> dict:
     # depend on an external service inside a 5 h budget.  The on-disk files use
     # the FORECAST naming (hy_<var>_<init>_<valid>.nc), which is why the hindcast
     # reader could not see them.
-    init_day = B.hycom_init_for_window(ctx.t_da, ctx.t_fore, pkl)
+    init_day = B.hycom_init_for_window(ctx.t_da, ctx.t_fore, pkl,
+                                       allow_download=ctx.allow_download)
     B.run_pfm("ocn_funs_forecast.py", "hycom_ncfiles_to_pickle", init_day, pkl,
               timeout=3600)
 
@@ -477,6 +526,7 @@ def stage_handoff(ctx: Ctx) -> dict:
 
 
 FUNCS = {
+    "preflight": stage_preflight,
     "lv1_ic": stage_lv1_ic, "lv1_atm": stage_lv1_atm, "lv1_bc": stage_lv1_bc,
     "lv1_obs": stage_lv1_obs, "lv1_da": stage_lv1_da,
     "increments": stage_increments, "lv2_fwd": stage_lv2_fwd,

@@ -37,7 +37,7 @@ from da_manifest import Manifest   # noqa: E402
 
 def run_PFM_DA(t_fore: str, *, stages: list[str] | None = None,
                dry_run: bool = False, deadline_h: float | None = None,
-               purge: bool = True) -> dict:
+               purge: bool = True, allow_download: bool = True) -> dict:
     tf, td = C.parse_t_fore(t_fore)
     C.ensure_tree()
 
@@ -46,7 +46,8 @@ def run_PFM_DA(t_fore: str, *, stages: list[str] | None = None,
         hours=deadline_h if deadline_h is not None else dl)
 
     man = Manifest(t_fore)
-    ctx = S.Ctx(t_fore=tf, t_da=td, man=man, deadline=deadline, dry_run=dry_run)
+    ctx = S.Ctx(t_fore=tf, t_da=td, man=man, deadline=deadline, dry_run=dry_run,
+                allow_download=allow_download)
     todo = stages or list(S.STAGES)
 
     print(f"  PFM DA pre-step")
@@ -56,6 +57,9 @@ def run_PFM_DA(t_fore: str, *, stages: list[str] | None = None,
     print(f"    archive  {C.ARCHIVE}")
     print(f"    budget   {budget_msg}")
     print(f"    deadline {deadline:%H:%M:%S}")
+    print(f"    forcing  read from disk; "
+          + ("gaps downloaded if the forecast did not fetch them"
+             if allow_download else "DOWNLOADS DISABLED (--no-download)"))
     if dry_run:
         print(f"    DRY RUN -- nothing will be produced")
 
@@ -125,11 +129,40 @@ def main() -> int:
     ap.add_argument("--no-purge", action="store_true")
     ap.add_argument("--status", action="store_true",
                     help="print the manifest for this t_fore and exit")
+    ap.add_argument("--check", action="store_true",
+                    help="run the input preflight and exit (reads nothing else, "
+                         "downloads nothing; exit 0 = every input is on disk)")
+    ap.add_argument("--no-download", action="store_true",
+                    help="never download: fail if any forcing is missing from "
+                         "disk.  The default is to read from disk and fetch only "
+                         "a genuine gap -- which happens when the PFM cycle for "
+                         "this window did not run.")
     a = ap.parse_args()
 
     if a.status:
         m = Manifest(a.t_fore)
         print(m.summary())
+        return 0
+
+    if a.check:
+        import da_pfm_bridge as B          # noqa: PLC0415
+        import da_preflight as PF          # noqa: PLC0415
+        tf, td = C.parse_t_fore(a.t_fore)
+        C.ensure_tree()
+        pkl = B.build_minfo(tf, td)
+        rep = PF.check_inputs(tf, td, pkl)
+        print(f"  input preflight for t_fore {tf:%Y-%m-%d %H}Z "
+              f"(window {td:%Y-%m-%d %H}Z .. {tf:%Y-%m-%d %H}Z)")
+        print(rep.text())
+        if rep.blocking:
+            print(f"\n  BLOCKED: {len(rep.blocking)} input(s) that no download "
+                  f"can fix.")
+            return 2
+        if rep.downloadable:
+            print(f"\n  {len(rep.downloadable)} input(s) not fully on disk; a run "
+                  f"would fetch just the gap (use --no-download to forbid that).")
+            return 1
+        print(f"\n  all inputs present on disk; a run would download nothing.")
         return 0
 
     st = a.stages.split(",") if a.stages else None
@@ -138,7 +171,8 @@ def main() -> int:
         if bad:
             ap.error(f"unknown stage(s): {bad}.  Valid: {list(S.STAGES)}")
     r = run_PFM_DA(a.t_fore, stages=st, dry_run=a.dry_run,
-                   deadline_h=a.deadline_h, purge=not a.no_purge)
+                   deadline_h=a.deadline_h, purge=not a.no_purge,
+                   allow_download=not a.no_download)
     return 0 if r["verdict"] == "ok" else 1
 
 
