@@ -45,6 +45,12 @@ from pathlib import Path
 
 import da_config as C
 
+# Bump whenever build_minfo changes what it writes.  A cached pickle is reused on
+# the strength of _minfo_is_sane, which checks the window -- so without a version
+# marker an edit to build_minfo would silently not take on any t_fore whose
+# pickle already existed, and the bug it fixed would look unfixed.
+MINFO_VERSION = 2
+
 
 # ---------------------------------------------------------------------------
 # building the DA-private model-info pickle
@@ -144,14 +150,22 @@ def build_minfo(t_fore: DT.datetime, t_da: DT.datetime, *,
     MI["ecmwf_pkl_on_roms_grid"] = f"ecmwf_on_romsgrid_{tag}_{stamp}.pkl"
 
     # -- output names.  Date-stamped, so a rerun cannot read a stale file. -
-    MI["lv1_atm_file"] = f"LV1_DA_ATM_{C.ymd(t_da)}.nc"
-    MI["lv1_bc_file"] = f"LV1_DA_BC_{C.ymd(t_da)}.nc"
-    MI["lv1_ini_file"] = f"LV1_DA_IC_{C.ymd(t_da)}.nc"
+    # ALL FOUR levels, not just LV1.  PFM names its output from these keys, so a
+    # level left at its operational default writes LV2_ATM_FORCING.nc into the DA
+    # tree and the stage then cannot find the file it asked for -- which is
+    # exactly how the first LV2 forward failed.  The date tag also keeps one
+    # cycle's forcing from being mistaken for another's.
+    ymd = C.ymd(t_da)
+    for lv, n in (("lv1", "LV1"), ("lv2", "LV2"), ("lv3", "LV3"), ("lv4", "LV4")):
+        MI[f"{lv}_atm_file"] = f"{n}_DA_ATM_{ymd}.nc"
+        MI[f"{lv}_bc_file"] = f"{n}_DA_BC_{ymd}.nc"
+        MI[f"{lv}_ini_file"] = f"{n}_DA_IC_{ymd}.nc"
     MI["lv1_use_restart"] = 0        # we supply the IC ourselves, in stage 1
 
     MI["da_t_fore"] = t_fore         # breadcrumbs, so a stray pickle is
     MI["da_t_da"] = t_da             # identifiable months later
     MI["da_written"] = DT.datetime.now()
+    MI["da_minfo_version"] = MINFO_VERSION
 
     out.parent.mkdir(parents=True, exist_ok=True)
     tmp = out.with_suffix(".tmp")
@@ -211,7 +225,8 @@ def _minfo_is_sane(pkl: Path, t_fore: DT.datetime, t_da: DT.datetime) -> bool:
             MI = pickle.load(fp)
     except Exception:  # noqa: BLE001
         return False
-    return (MI.get("da_t_fore") == t_fore
+    return (MI.get("da_minfo_version") == MINFO_VERSION
+            and MI.get("da_t_fore") == t_fore
             and MI.get("da_t_da") == t_da
             and MI.get("fetch_time") == t_da
             and float(MI.get("forecast_days", -1)) == 1.0)
