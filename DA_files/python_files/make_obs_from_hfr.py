@@ -63,7 +63,16 @@ from DA_setup_python_funs import _helmholtz_div  # noqa: E402
 # ---------------------------------------------------------------------------
 # paths / grids
 # ---------------------------------------------------------------------------
-HFR_CACHE = Path("/dataSIO/DA_Simulations/input_files/hfr_cache")
+# PFM copy: a LIST of caches searched in order, not one directory.
+#
+# PFM_DA has to fetch HF radar itself (nothing else in PFM uses it), so a cycle
+# may read a mix of retrospective and near-real-time files.  Order is precedence
+# and the retrospective cache comes FIRST on purpose: NCEI's reprocessed data is
+# better than the near-real-time feed for the same hour, so where both exist the
+# retrospective one must win.  Leaving that to a glob's alphabetical order would
+# decide it by filename accident.
+HFR_CACHES = [Path("/dataSIO/DA_Simulations/input_files/hfr_cache")]
+HFR_CACHE = HFR_CACHES[0]          # kept for anything still referring to it
 LV1_GRID  = "/scratch/PFM_Simulations/Grids/GRID_SDTJRE_LV1_rx020_hmask.nc"
 LV2_GRID  = "/scratch/PFM_Simulations/Grids/GRID_SDTJRE_LV2_rx020.nc"
 LV3_GRID  = "/scratch/PFM_Simulations/Grids/GRID_SDTJRE_LV3_rx020.nc"
@@ -162,8 +171,13 @@ def hfr_file_for(t: DT.datetime) -> Path | None:
     """Find the cached HFR file whose start-stamp matches target hour t.
     Returns None if not in cache."""
     stamp = t.strftime("%Y%m%d%H%M%S") + "0"
-    matches = sorted(HFR_CACHE.glob(f"*_s{stamp}_*.nc"))
-    return matches[0] if matches else None
+    for cache in HFR_CACHES:
+        if not cache.is_dir():
+            continue
+        matches = sorted(cache.glob(f"*_s{stamp}_*.nc"))
+        if matches:
+            return matches[0]
+    return None
 
 
 def load_hfr(t: DT.datetime, lon_lo: float, lon_hi: float, lat_lo: float, lat_hi: float):
@@ -585,10 +599,19 @@ def build_obs_for_start(start_date: str, out_dir: Path):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("start_date", help="YYYY-MM-DD (start 00Z of 1-day DA window)")
+    ap.add_argument("--hfr-cache", action="append", default=[], type=Path,
+                    help="HFR cache to search, repeatable.  Order is PRECEDENCE: "
+                         "put the retrospective NCEI cache first and the "
+                         "near-real-time cache after it, so reprocessed data wins "
+                         "for an hour both hold.  Default: the NCEI cache only.")
     ap.add_argument("--outdir",
                     default="/dataSIO/DA_Simulations/input_files/obs_files",
                     help="output directory (default: %(default)s)")
     args = ap.parse_args()
+    if args.hfr_cache:
+        global HFR_CACHES
+        HFR_CACHES = list(args.hfr_cache)
+        print(f'HFR caches, in precedence order: {[str(c) for c in HFR_CACHES]}')
     out_dir = Path(args.outdir)
     out_dir.mkdir(parents=True, exist_ok=True)
     build_obs_for_start(args.start_date, out_dir)

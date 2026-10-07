@@ -58,6 +58,17 @@ LV1_HIS_DIRS = [PFM_ARCHIVE_LV1_HIS := Path(
                     "/dataSIO/PFM_Simulations/Archive/LV1_His"),
                 Path("/scratch/PFM_Simulations/LV1_Forecast/His")]
 
+# HF radar.  PFM does not use HFR at all, so PFM_DA is the only thing that
+# fetches it -- downloading here is the normal path, not the exception it is for
+# ECMWF and HYCOM.  Order is PRECEDENCE: the retrospective NCEI cache first, so
+# reprocessed data beats the near-real-time feed for an hour both hold.
+HFR_CACHE_RETRO = Path("/dataSIO/DA_Simulations/input_files/hfr_cache")
+HFR_CACHE_NRT = SCRATCH / "Obs" / "hfr_nrt"
+HFR_CACHES = [HFR_CACHE_RETRO, HFR_CACHE_NRT]
+# 25 hourly surveys span the window; make_obs_from_hfr tolerates gaps (the NCEI
+# catalog has permanent ones) so a cycle is not failed for a few missing hours.
+HFR_MIN_HOURS = 20
+
 ECMWF_CACHE = Path("/scratch/PFM_Simulations/ecmwf_data")
 HYCOM_CACHE = Path("/scratch/PFM_Simulations/hycom_data")
 
@@ -225,7 +236,8 @@ def ensure_tree() -> None:
     for lv in LEVELS:
         for sub in SCRATCH_SUBDIRS:
             (SCRATCH / lv / sub).mkdir(parents=True, exist_ok=True)
-    for d in ("Inc", "IC_out", "Log"):
+    HFR_CACHE_NRT.mkdir(parents=True, exist_ok=True)
+    for d in ("Inc", "IC_out", "Log", "Obs"):
         (SCRATCH / d).mkdir(parents=True, exist_ok=True)
     for d in ARCHIVE_SUBDIRS:
         (ARCHIVE / d).mkdir(parents=True, exist_ok=True)

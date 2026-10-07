@@ -406,19 +406,99 @@ def _assert_potential_temperature(path: Path) -> None:
 
 # ---------------------------------------------------------------------------
 # stage 4: HF-radar observations
+#
+# The one input PFM_DA fetches itself.  PFM does not use HF radar, so nothing
+# else brings it to disk -- downloading here is the normal path, unlike ECMWF and
+# HYCOM where a download means the forecast cycle did not run.  It still fetches
+# only the gap: cached hours are skipped.
+#
+# Two steps, deliberately separate:
+#   1. fetch_hfr_nrt.py caches the window's 25 hourly surveys, writing them in
+#      NCEI's retrospective LAYOUT so step 2 needs no changes at all.
+#   2. make_obs_from_hfr.py does the science -- 3x3 stencil, Helmholtz
+#      decomposition keeping the rotational part, coast and boundary culls,
+#      1-in-2 thinning outside LV3, and the error ellipse.  That is the tuned
+#      part and it is reused verbatim.
 # ---------------------------------------------------------------------------
 def stage_lv1_obs(ctx: Ctx) -> dict:
     out = C.scratch_dir("LV1", "Forc") / f"obs_HF_LV1_{ctx.yda}.nc"
-    chk = V.nc_ok(out, need_vars=("obs_type", "obs_value", "obs_error",
-                                  "obs_Xgrid", "obs_Ygrid"), min_bytes=1 << 20)
+    need = ("obs_type", "obs_value", "obs_error", "obs_Xgrid", "obs_Ygrid")
+    chk = V.nc_ok(out, need_vars=need, min_bytes=1 << 20)
     if chk:
+        V.ensure_archived(out, C.ARCHIVE / "Obs")
         raise StageSkip(str(out))
-    raise NotImplementedError(
-        f"NRT HFR fetch not written yet.  make_obs_from_hfr.py reads the NCEI "
-        f"retrospective archive; operationally we need NDBC THREDDS "
-        f"(dods.ndbc.noaa.gov/thredds/dodsC/hfradar_uswc_{C.HFR_RES}). "
-        f"Measured 2026-10-06: 6 km lags ~4.8 h, 1 and 2 km ~1.8 h -- which is "
-        f"why HFR_RES defaults to {C.HFR_RES}.")
+
+    if ctx.dry_run:
+        return {"would_run": f"fetch_hfr_nrt.py + make_obs_from_hfr.py {ctx.yda}"}
+
+    # -- 1. cache the surveys (gap only) --------------------------------------
+    rep = PF.check_hfr(ctx.t_da, ctx.t_fore)
+    if not rep.ok:
+        if not ctx.allow_download:
+            raise FileNotFoundError(
+                f"HFR is short ({rep.detail}) and downloading is disabled "
+                f"(--no-download).  Note PFM never fetches HFR, so with "
+                f"--no-download a cycle can only use hours already cached.")
+        rc = _run([C.PY, C.PYDIR / "fetch_hfr_nrt.py",
+                   f"{ctx.t_da:%Y-%m-%d}", "--res", C.HFR_RES,
+                   "--outdir", C.HFR_CACHE_NRT,
+                   "--also-cache", C.HFR_CACHE_RETRO],
+                  log=C.SCRATCH / "Log" / f"{ctx.yfore}_lv1_obs.log",
+                  timeout=3600)
+        # rc != 0 only means some hour is missing, which is survivable -- the
+        # coverage test below is the real gate.
+        rep = PF.check_hfr(ctx.t_da, ctx.t_fore)
+        print(f"    HFR after fetch: {rep.detail} (fetch rc={rc})")
+
+    have, need_n = rep.resolved["have"], rep.resolved["need"]
+    if have < C.HFR_MIN_HOURS:
+        raise RuntimeError(
+            f"only {have}/{need_n} HFR surveys available for "
+            f"{ctx.t_da:%Y-%m-%d}, below the {C.HFR_MIN_HOURS} needed.  A cycle "
+            f"with too few observations produces an increment that is mostly "
+            f"prior, which is worse than not cycling: check whether the HFR feed "
+            f"is down (NDBC and CoastWatch both) before forcing this through.")
+
+    # -- 2. build the ROMS obs file ------------------------------------------
+    # Caches passed in precedence order: retrospective first, so reprocessed data
+    # beats the near-real-time feed for any hour both hold.
+    cache_args = []
+    for c in C.HFR_CACHES:
+        cache_args += ["--hfr-cache", str(c)]
+    rc = _run([C.PY, C.PYDIR / "make_obs_from_hfr.py", f"{ctx.t_da:%Y-%m-%d}",
+               "--outdir", C.scratch_dir("LV1", "Forc")] + cache_args,
+              log=C.SCRATCH / "Log" / f"{ctx.yfore}_lv1_obs.log", timeout=3600)
+
+    chk = V.nc_ok(out, need_vars=need, min_bytes=1 << 20,
+                  finite_vars=("obs_value", "obs_error"))
+    if not chk:
+        raise RuntimeError(f"LV1 obs file invalid: {chk.why} (rc={rc})")
+    _report_obs(out, have, need_n)
+    arch = V.ensure_archived(out, C.ARCHIVE / "Obs")
+    return {"lv1_obs": {"scratch": out, "archive": arch}}
+
+
+def _report_obs(path: Path, have: int, need_n: int) -> None:
+    """Print the obs count and error range -- the numbers that explain a cycle.
+
+    Worth having in the log because when an analysis looks weak the first question
+    is always whether it had observations, and the second is whether their errors
+    were sane.  OBS_ERROR_VAR is the value at the ellipse centre and grows
+    outward, so the minimum should sit at about that value.
+    """
+    try:
+        import netCDF4 as nc_
+        import numpy as np_
+        with nc_.Dataset(path) as d:
+            n = int(d["obs_value"].shape[0])
+            err = np_.asarray(d["obs_error"][:], dtype=float)
+            val = np_.asarray(d["obs_value"][:], dtype=float)
+        print(f"    {n:,} obs from {have}/{need_n} surveys; "
+              f"|value| max {np_.nanmax(np_.abs(val)):.3f} m/s; "
+              f"obs_error {np_.nanmin(err):.4f}..{np_.nanmax(err):.4f} "
+              f"(centre value is {C.OBS_ERROR_VAR})")
+    except Exception as e:  # noqa: BLE001
+        print(f"    (could not summarise obs: {type(e).__name__}: {e})")
 
 
 # ---------------------------------------------------------------------------

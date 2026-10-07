@@ -270,6 +270,35 @@ def _hycom_file_ok(f: Path) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# HF radar
+# ---------------------------------------------------------------------------
+def check_hfr(t_da: DT.datetime, t_fore: DT.datetime) -> Item:
+    """How many of the window's 25 hourly surveys are already cached.
+
+    Always "fixable": PFM does not fetch HFR, so PFM_DA downloading it IS the
+    normal path.  Reported anyway so a cycle's obs coverage is visible up front
+    rather than discovered from a thin analysis afterwards.
+    """
+    n = int((t_fore - t_da).total_seconds() // 3600) + 1
+    hours = [t_da + DT.timedelta(hours=h) for h in range(n)]
+    have = 0
+    for t in hours:
+        stamp = t.strftime("%Y%m%d%H%M%S") + "0"
+        if any(c.is_dir() and any(c.glob(f"*_s{stamp}_*.nc"))
+               for c in C.HFR_CACHES):
+            have += 1
+    if have == n:
+        return Item("hfr", True, f"all {n} hourly surveys cached",
+                    resolved={"have": have, "need": n})
+    return Item("hfr", False,
+                f"{have}/{n} hourly surveys cached",
+                fixable=True,
+                fix=f"fetch_hfr_nrt.py will get the other {n - have} "
+                    f"(NDBC, ERDDAP fallback)",
+                resolved={"have": have, "need": n})
+
+
+# ---------------------------------------------------------------------------
 def check_inputs(t_fore: DT.datetime, t_da: DT.datetime, pkl: Path) -> Report:
     """Everything a cycle needs, in one pass."""
     r = Report()
@@ -290,4 +319,5 @@ def check_inputs(t_fore: DT.datetime, t_da: DT.datetime, pkl: Path) -> Report:
 
     r.items.append(check_ecmwf(t_da, t_fore))
     r.items.append(check_hycom(t_da, t_fore, pkl))
+    r.items.append(check_hfr(t_da, t_fore))
     return r
