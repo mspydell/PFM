@@ -87,6 +87,50 @@ as originally recorded and have not been re-verified.
 
 These change what the model produces.
 
+### NAM wind rotation in `hind_functions.py` — 2026-10-06
+
+**If you run a NAM-forced hindcast, delete your cached NAM pickles first.**
+
+Until 2026-10-06 `hind_functions.py` applied **no wind rotation at all**.
+`grb2_to_pickle` read `UGRD`/`VGRD` straight out of the grib2 and
+`nam_pkls_2_romsatm_pkl` interpolated them onto the ROMS grid as if they were
+already ROMS XI/ETA components. NAM grid 218 is Lambert Conformal and publishes
+u/v along the **grid** axes (GRIB2 flag table 3.3 bit 5 is set in the files), so
+the wind stress was mis-aimed by **~13.5°**. `hind_functions` does not import
+`atm_functions`, so the correct rotation in
+`atm_functions.get_atm_data_on_roms_grid` never ran on this path.
+
+Both required rotations are now applied, and each is verified:
+
+| stage | where | rotation | measured over the LV1 box |
+|---|---|---|---|
+| 1 | `grb2_to_pickle` | NAM Lambert grid → earth, via the convergence angle `γ = (lon − lon_0)·sin(lat_1)` | γ = −12.29 … −8.64°, mean −10.41° |
+| 2 | `nam_pkls_2_romsatm_pkl` | earth → ROMS XI/ETA, via that level's `angle` | LV1 angle = 20.62 … 26.99°, mean 23.96° |
+
+**You cannot do only one of them.** They compose as `R(angle)·R(γ) = R(angle+γ)`,
+and γ is negative while `angle` is positive, so they partly cancel:
+
+| | error in wind direction |
+|---|---|
+| both stages (now) | 0° — correct |
+| neither (before 2026-10-06) | ~13.5° |
+| **stage 1 only** | **~24.0° — worse than doing nothing** |
+
+Verified against the raw grib: wind speed is preserved to 2.4e-7 (rotation is
+orthogonal), the composite direction change is exactly −13.55°, and the stage-2
+formulas are bit-equivalent to ROMS's own `cff1`/`cff2` in
+`ROMS/Nonlinear/set_data.F`.
+
+Each pickle now records a `wind_frame` key, and `nam_pkls_2_romsatm_pkl`
+**refuses to run** on a pickle that does not declare one — a pre-2026-10-06 cache
+holds unrotated winds and nothing in the numbers would reveal it. Delete them and
+re-run `grb2s_to_pickles`.
+
+**Scope:** this path is **not** used by the operational forecast, which is ECMWF
+and was always rotated correctly, nor by the DA pre-step (`DA_files/`, also
+ECMWF). It affects NAM-forced runs through `run_hind_LV*` — the **PHM
+hindcasts**.
+
 ### Punta Bandera outfall — Q_PB & C_PB
 
 | discharge | fraction raw WW | period |

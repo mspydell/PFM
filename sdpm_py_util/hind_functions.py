@@ -201,6 +201,108 @@ def get_nam_hindcast_grb2s(t1str,t2str):
 
     return result2
 
+# ===========================================================================
+# WIND ROTATION  -- added 2026-10-06.  READ THIS BEFORE USING hind_functions.
+# ===========================================================================
+# Until 2026-10-06 this module applied NO WIND ROTATION AT ALL.  grb2_to_pickle
+# read UGRD/VGRD straight out of the grib2 and nam_pkls_2_romsatm_pkl
+# interpolated them onto the ROMS grid as if they were already ROMS XI/ETA
+# components.  They are not, and the resulting wind stress was mis-aimed by
+# ~13.5 degrees.  (hind_functions does not import atm_functions, so the
+# cosang/sinang rotation in atm_functions.get_atm_data_on_roms_grid -- which is
+# correct, and which the operational ECMWF forecast path uses -- never ran here.)
+#
+# TWO rotations are required, and BOTH are now done:
+#
+#   STAGE 1  NAM Lambert grid -> earth (east/north).      in grb2_to_pickle
+#            NAM grid 218 is Lambert Conformal and publishes u/v resolved along
+#            the GRID axes.  This is not a guess: GRIB2 Section 3 flag table 3.3
+#            bit 5 is SET in these files (resolutionAndComponentFlags[4] == 1 =
+#            "resolved u/v relative to the defined grid").  Undo it with the
+#            Lambert convergence angle
+#                  gamma = (lon - lon_0) * n,     n = sin(lat_1) for a tangent cone
+#            Measured over the NAM subset this module cuts out (lon -124.1 ..
+#            -115.4): gamma = -12.29 .. -8.64 deg, mean -10.41.
+#
+#   STAGE 2  earth -> ROMS XI/ETA.             in nam_pkls_2_romsatm_pkl
+#            ROMS has this rotation internally in Nonlinear/set_data.F, but only
+#            under #ifdef CURVGRID and only for forcing that is NOT already on
+#            the model grid.  We interpolate onto the ROMS grid ourselves, so
+#            ROMS skips it and we must finish the job, per level, with that
+#            level's own `angle`.  For LV1: angle = 20.62 .. 26.99 deg, mean
+#            23.96.
+#
+# WHY YOU CANNOT DO JUST ONE OF THEM.  The two rotations compose as
+# R(angle)R(gamma) = R(angle + gamma), and gamma is NEGATIVE while angle is
+# POSITIVE, so they partially cancel:
+#
+#       both stages (correct)      total rotation  +13.55 deg
+#       neither (pre-2026-10-06)   error           ~13.5 deg
+#       STAGE 1 ONLY               error           ~24.0 deg   <-- WORSE!
+#
+# Rotating to earth and stopping there is worse than not rotating at all.  If you
+# are tempted to simplify this, do not.
+#
+# IF YOU HAVE CACHED NAM PICKLES from before 2026-10-06 they hold UNROTATED,
+# grid-relative winds.  nam_pkls_2_romsatm_pkl now refuses to use a pickle that
+# does not declare its wind frame, rather than silently producing bad forcing --
+# delete the old pickles and re-run grb2s_to_pickles.
+# ===========================================================================
+
+# GRIB2 flag table 3.3 bit 5 (0-indexed position 4 in the unpacked flag list):
+# 0 = u/v resolved relative to easterly/northerly directions
+# 1 = u/v resolved relative to the defined grid  -> STAGE 1 is required
+_GRIB_FLAG_GRID_RELATIVE = 4
+
+WIND_FRAME_GRID = 'nam_lambert_grid'
+WIND_FRAME_EARTH = 'earth_east_north'
+WIND_FRAME_ROMS = 'roms_xi_eta'
+
+
+def lambert_convergence_rad(lon, projparams):
+    """Convergence angle (radians) of a Lambert Conformal grid at longitude `lon`.
+
+    Reads lon_0 / lat_1 / lat_2 from the GRIB projection parameters instead of
+    hardcoding NAM's 265E / 25N, so a grid change cannot silently go unnoticed.
+    """
+    if not projparams or projparams.get('proj') != 'lcc':
+        raise ValueError(
+            "WIND ROTATION: expected a Lambert Conformal ('lcc') grid, got "
+            "proj=%r.  The stage-1 rotation below is only valid for lcc; if NAM "
+            "has changed projection this code must be revisited, not bypassed."
+            % (projparams.get('proj') if projparams else None,))
+    lon0 = float(projparams['lon_0'])
+    lat1 = float(projparams['lat_1'])
+    lat2 = float(projparams.get('lat_2', lat1))
+    if abs(lat1 - lat2) < 1e-6:
+        n = np.sin(np.deg2rad(lat1))          # tangent cone (NAM 218: 25N)
+    else:                                     # true secant cone
+        a1, a2 = np.deg2rad(lat1), np.deg2rad(lat2)
+        n = (np.log(np.cos(a1) / np.cos(a2)) /
+             np.log(np.tan(np.pi/4 + a2/2) / np.tan(np.pi/4 + a1/2)))
+    # shortest signed difference, robust to 0..360 vs -180..180 conventions
+    dlon = (np.asarray(lon, dtype=float) - lon0 + 180.0) % 360.0 - 180.0
+    return np.deg2rad(dlon * n)
+
+
+def rotate_grid_to_earth(u_g, v_g, gamma):
+    """STAGE 1: grid-relative -> earth-relative (east/north)."""
+    c, s = np.cos(gamma), np.sin(gamma)
+    return u_g * c + v_g * s, -u_g * s + v_g * c
+
+
+def rotate_earth_to_roms(uE, vN, angle):
+    """STAGE 2: earth-relative -> ROMS XI/ETA components.
+
+    `angle` is the ROMS grid variable: angle of the XI axis CCW from true east,
+    in radians.  This reproduces exactly what ROMS does in set_data.F:
+        cff1 = Uwind*CosAngler + Vwind*SinAngler    -> along XI
+        cff2 = Vwind*CosAngler - Uwind*SinAngler    -> along ETA
+    """
+    c, s = np.cos(angle), np.sin(angle)
+    return uE * c + vN * s, vN * c - uE * s
+
+
 def grb2_to_pickle(fn_in,fn_out,pkl_fnm):
     
     PFM = initfuns.get_model_info(pkl_fnm)
@@ -273,12 +375,49 @@ def grb2_to_pickle(fn_in,fn_out,pkl_fnm):
     AA2 = AA1.data
     AA3 = AA2[lt_mn:lt_mx,ln_mn:ln_mx]
     ATM['Uwind'] = AA3
+    msg_wind = AA1          # keep the message: we need its projection below
 
     # get north south 10 m winds, m/s
     AA1 = g.select(shortName='VGRD',level='10 m above ground')[0]
     AA2 = AA1.data
     AA3 = AA2[lt_mn:lt_mx,ln_mn:ln_mx]
     ATM['Vwind'] = AA3
+
+    # -----------------------------------------------------------------------
+    # STAGE 1 of the wind rotation: NAM Lambert grid -> earth (east/north).
+    # See the big WIND ROTATION comment block above this function.  Before
+    # 2026-10-06 this did not happen and the winds were written to ROMS in the
+    # NAM grid frame, mis-aiming the stress by ~13.5 deg.
+    # -----------------------------------------------------------------------
+    flags = getattr(msg_wind, 'resolutionAndComponentFlags', None)
+    projparams = getattr(msg_wind, 'projParameters', None)
+    grid_relative = bool(flags is not None
+                         and len(flags) > _GRIB_FLAG_GRID_RELATIVE
+                         and flags[_GRIB_FLAG_GRID_RELATIVE] == 1)
+
+    if grid_relative:
+        gamma = lambert_convergence_rad(ATM['lon'], projparams)
+        u_r, v_r = rotate_grid_to_earth(ATM['Uwind'], ATM['Vwind'], gamma)
+        ATM['Uwind'] = u_r
+        ATM['Vwind'] = v_r
+        gd = np.rad2deg(gamma)
+        print('  WIND ROTATION stage 1 (NAM grid -> earth): APPLIED.'
+              '  GRIB2 flag 3.3 bit5=1 (u/v grid-relative).')
+        print('    convergence angle gamma = %.2f .. %.2f deg (mean %.2f),'
+              ' lon_0=%.1f lat_1=%.1f'
+              % (gd.min(), gd.max(), gd.mean(),
+                 float(projparams['lon_0']), float(projparams['lat_1'])))
+        print('    winds in this pickle are now EARTH-relative.'
+              '  Stage 2 (earth -> ROMS XI/ETA) happens in'
+              ' nam_pkls_2_romsatm_pkl.')
+        ATM['wind_frame'] = WIND_FRAME_EARTH
+    else:
+        # An earth-relative source passes through untouched -- but say so loudly,
+        # because silently skipping stage 1 is exactly the old bug.
+        print('  WIND ROTATION stage 1: SKIPPED -- GRIB2 flag 3.3 bit5 is NOT'
+              ' set, so this file already stores EARTH-relative u/v.')
+        print('    flags=%r  proj=%r' % (flags, (projparams or {}).get('proj')))
+        ATM['wind_frame'] = WIND_FRAME_EARTH
 
     # get LW down, watts / m2
     AA1 = g.select(shortName='DLWRF',level='surface')[0]
@@ -367,16 +506,23 @@ def grb2_to_pickle(fn_in,fn_out,pkl_fnm):
                     'coordinates':'lat,lon',
                     'time':'lrf_time',
                     'note' : 'this is the downward component of the flux, warming'}
-    ATM['vinfo']['Uwind'] = {'long_name':'roms east coordinate, er, velocity',
+    # NOTE on these two: at THIS point (the per-grb2 pickle) the winds are
+    # EARTH-relative -- stage 1 has run, stage 2 has not.  The long_name said
+    # 'roms ... coordinate' while the note said 'earth coordinate', which
+    # contradicted each other and, before the 2026-10-06 rotation fix, were both
+    # wrong anyway: the data was in the NAM Lambert GRID frame.
+    # nam_pkls_2_romsatm_pkl overwrites these once stage 2 has rotated to XI/ETA,
+    # so each artifact's metadata describes its own contents.
+    ATM['vinfo']['Uwind'] = {'long_name':'10 m wind, earth EAST component',
                     'units':'m/s',
                     'coordinates':'lat,lon',
                     'time':'wind_time',
-                    'note':'these velocity velocities are in earth coordinate'}
-    ATM['vinfo']['Vwind'] = {'long_name':'roms north coordinate, xi, velocity',
+                    'note':'earth-relative (east). stage 1 of 2 applied: NAM Lambert grid -> earth via the convergence angle. NOT yet rotated into ROMS xi/eta'}
+    ATM['vinfo']['Vwind'] = {'long_name':'10 m wind, earth NORTH component',
                     'units':'m/s',
                     'coordinates':'lat,lon',
                     'time':'wind_time',
-                    'note':'these velocity velocities are in earth coordinate'}
+                    'note':'earth-relative (north). stage 1 of 2 applied: NAM Lambert grid -> earth via the convergence angle. NOT yet rotated into ROMS xi/eta'}
     
     # if the pickle file exists, to avoid permission issue, remove it...
     if os.path.exists(fn_out):
@@ -477,6 +623,24 @@ def nam_pkls_2_romsatm_pkl(t1str,t2str,lv,pkl_fnm):
     atm2['ocean_time'] = np.zeros((nt))
 
     ATM = load_pickle_file(fn_pkls[0])
+
+    # -----------------------------------------------------------------------
+    # Refuse a NAM pickle written before the 2026-10-06 wind-rotation fix.
+    # Those hold UNROTATED, grid-relative winds, and using them would silently
+    # reproduce the ~13.5 deg stress error.  There is no way to tell from the
+    # numbers alone, which is why the frame is recorded explicitly.
+    # -----------------------------------------------------------------------
+    wf = ATM.get('wind_frame')
+    if wf != WIND_FRAME_EARTH:
+        raise RuntimeError(
+            "STALE NAM PICKLE: %s declares wind_frame=%r, expected %r.\n"
+            "    Pickles written before 2026-10-06 contain winds still in the"
+            " NAM Lambert GRID frame (no rotation was applied back then).\n"
+            "    Using them mis-aims the wind stress by ~13.5 deg.\n"
+            "    Fix: delete the cached NAM pickles and re-run"
+            " grb2s_to_pickles to rebuild them."
+            % (fn_pkls[0], wf, WIND_FRAME_EARTH))
+
     vlist = ['lon','lat','ocean_time','ocean_time_ref','lwrad','lwrad_down','swrad','rain','Tair','Pair','Qair','Uwind','Vwind','tair_time','pair_time','qair_time','wind_time','rain_time','srf_time','lrf_time']
     for aa in vlist:
         atm2['vinfo'][aa] = ATM['vinfo'][aa]
@@ -515,6 +679,44 @@ def nam_pkls_2_romsatm_pkl(t1str,t2str,lv,pkl_fnm):
             atm2[var][cnt_time,:,:] = z2
 
         cnt_time = cnt_time + 1
+
+    # -----------------------------------------------------------------------
+    # STAGE 2 of the wind rotation: earth (east/north) -> ROMS XI/ETA.
+    #
+    # This MUST happen after the horizontal interpolation, because the ROMS
+    # `angle` varies across the grid and is defined on the ROMS grid, not NAM's.
+    #
+    # ROMS will NOT do this for us.  Nonlinear/set_data.F has the rotation, but
+    # only under #ifdef CURVGRID and only for forcing that is not already on the
+    # model grid -- and we have just interpolated onto the model grid.  See the
+    # WIND ROTATION comment block near grb2_to_pickle, including why doing stage
+    # 1 without stage 2 is WORSE than doing neither.
+    # -----------------------------------------------------------------------
+    angr = RMG['angle']                       # radians, XI axis CCW from east
+    u_r, v_r = rotate_earth_to_roms(atm2['Uwind'], atm2['Vwind'], angr)
+    atm2['Uwind'] = u_r
+    atm2['Vwind'] = v_r
+    atm2['wind_frame'] = WIND_FRAME_ROMS
+    # the vinfo inherited from the per-grb2 pickle describes EARTH winds; these
+    # are now ROMS-frame, and this vinfo is what ends up in the atm .nc.
+    atm2['vinfo']['Uwind'] = {'long_name':'10 m wind, ROMS XI component',
+                    'units':'m/s',
+                    'coordinates':'lat,lon',
+                    'time':'wind_time',
+                    'note':'rotated from earth (east,north) into the roms grid directions using the grid angle. roms does not rotate these again: the field is on the model grid, so set_data.F sees it as already gridded and skips its CURVGRID rotation'}
+    atm2['vinfo']['Vwind'] = {'long_name':'10 m wind, ROMS ETA component',
+                    'units':'m/s',
+                    'coordinates':'lat,lon',
+                    'time':'wind_time',
+                    'note':'rotated from earth (east,north) into the roms grid directions using the grid angle. roms does not rotate these again: the field is on the model grid, so set_data.F sees it as already gridded and skips its CURVGRID rotation'}
+    ad = np.rad2deg(np.asarray(angr))
+    print('  WIND ROTATION stage 2 (earth -> ROMS XI/ETA) for LV%s: APPLIED.' % lv)
+    print('    ROMS grid angle = %.2f .. %.2f deg (mean %.2f)'
+          % (ad.min(), ad.max(), ad.mean()))
+    print('    winds in %s are now in the ROMS XI/ETA frame,'
+          ' which is what ROMS expects.' % fname_out)
+    print('    (stage 1 rotated NAM grid -> earth when the pickles were built;'
+          ' both stages are required -- see hind_functions WIND ROTATION notes)')
 
     # copy times to all time vars
     tlist = ['tair_time','pair_time','qair_time','wind_time','rain_time','srf_time','lrf_time']
