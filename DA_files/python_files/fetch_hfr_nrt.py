@@ -61,6 +61,15 @@ WINDOW_HOURS = 24
 FILL_I2 = -32767
 SCALE = 0.01
 
+# An hour can EXIST upstream with nothing in it: NDBC publishes the timestamp
+# before the radials are assembled.  Measured 2026-10-07, 6 km's newest hour was
+# 0.0% covered and the one before it 8.8% against a ~21% steady state.  Writing
+# such an hour would make it count as cached, pass the survey-count test, and
+# contribute no observations -- so it is reported MISSING instead, and a later run
+# picks it up once it has filled.  Well below both products' steady state so a
+# genuinely sparse hour still counts.
+MIN_COVERAGE = 0.005
+
 
 def hour_filename(t: DT.datetime, res: str) -> str:
     """NCEI-style name, so make_obs_from_hfr's `*_s{stamp}_*.nc` glob finds it.
@@ -74,15 +83,18 @@ def hour_filename(t: DT.datetime, res: str) -> str:
     return f"rtv-uswc-{res}-nrt_v1r0_hfr_s{stamp}_e{stamp}_c{stamp}.nc"
 
 
-def already_cached(t: DT.datetime, caches: list[Path]) -> Path | None:
-    """Any cache already holding this hour, at any resolution or processing tag.
+def already_cached(t: DT.datetime, caches: list[Path], res: str) -> Path | None:
+    """Any cache already holding this hour AT THIS RESOLUTION.
 
-    Globs the same way make_obs_from_hfr does, so 'cached' here means exactly
-    'the obs builder will find something for this hour'.
+    Globs the same way make_obs_from_hfr does -- including the resolution token --
+    so 'cached' here means exactly 'the obs builder will find this hour'.  Without
+    the token a 2 km file satisfied a 6 km fetch: the fetch reported 25 hours
+    already cached, downloaded nothing, and the obs builder then quietly used the
+    2 km data.
     """
     stamp = t.strftime("%Y%m%d%H%M%S") + "0"
     for c in caches:
-        hits = sorted(c.glob(f"*_s{stamp}_*.nc")) if c.is_dir() else []
+        hits = sorted(c.glob(f"*-{res}-*_s{stamp}_*.nc")) if c.is_dir() else []
         if hits:
             return hits[0]
     return None
@@ -234,9 +246,9 @@ def fetch_window(start_date: str, res: str, outdir: Path,
     outdir.mkdir(parents=True, exist_ok=True)
     caches = [outdir] + list(caches or [])
 
-    present, fetched, missing = 0, 0, []
+    present, fetched, missing, coverage = 0, 0, [], []
     for t in hours:
-        hit = already_cached(t, caches)
+        hit = already_cached(t, caches, res)
         if hit is not None:
             present += 1
             continue
@@ -262,11 +274,24 @@ def fetch_window(start_date: str, res: str, outdir: Path,
             missing.append(t)
             continue
         lat, lon, u, v = got
+        frac = float(np.isfinite(u).mean())
+        if frac < MIN_COVERAGE:
+            print(f"    {t:%Y-%m-%d %H}Z  only {100*frac:.2f}% covered "
+                  f"(< {100*MIN_COVERAGE:.1f}%) -- treating as NOT YET AVAILABLE "
+                  f"rather than caching an empty hour")
+            missing.append(t)
+            continue
         _write_hour(outdir / hour_filename(t, res), t, lat, lon, u, v, source)
         fetched += 1
+        coverage.append((t, frac))
 
+    if coverage:
+        fr = [f for _, f in coverage]
+        print(f"    coverage of the fetched hours: "
+              f"{100*min(fr):.1f}%..{100*max(fr):.1f}% of the LV1 box "
+              f"(mean {100*sum(fr)/len(fr):.1f}%)")
     return {"present": present, "fetched": fetched, "missing": missing,
-            "n_hours": len(hours)}
+            "n_hours": len(hours), "coverage": coverage}
 
 
 def main() -> int:

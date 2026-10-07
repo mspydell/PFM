@@ -73,6 +73,20 @@ from DA_setup_python_funs import _helmholtz_div  # noqa: E402
 # decide it by filename accident.
 HFR_CACHES = [Path("/dataSIO/DA_Simulations/input_files/hfr_cache")]
 HFR_CACHE = HFR_CACHES[0]          # kept for anything still referring to it
+
+# Resolution is part of the LOOKUP, not just of the fetch.
+#
+# The glob used to be `*_s{stamp}_*.nc`, which matches any resolution.  With both
+# a 2 km and a 6 km file cached for the same hour it returned whichever sorted
+# first -- '2km' before '6km' -- so configuring 6 km silently kept using 2 km.
+# A setting that quietly has no effect is worse than one that errors.
+#
+# The token appears in both naming schemes: NCEI retrospective
+# 'rtv-uswc-6km-uwls_v1r0_hfr_s..._e..._c....nc' and our near-real-time
+# 'rtv-uswc-6km-nrt_v1r0_hfr_s...'.  (The retrospective cache keeps 1 km and 2 km
+# in hf_1km/ hf_2km/ subdirectories, so its top level is 6 km only -- which is why
+# the research chain never tripped on this.)
+HFR_RES = "6km"
 LV1_GRID  = "/scratch/PFM_Simulations/Grids/GRID_SDTJRE_LV1_rx020_hmask.nc"
 LV2_GRID  = "/scratch/PFM_Simulations/Grids/GRID_SDTJRE_LV2_rx020.nc"
 LV3_GRID  = "/scratch/PFM_Simulations/Grids/GRID_SDTJRE_LV3_rx020.nc"
@@ -174,7 +188,7 @@ def hfr_file_for(t: DT.datetime) -> Path | None:
     for cache in HFR_CACHES:
         if not cache.is_dir():
             continue
-        matches = sorted(cache.glob(f"*_s{stamp}_*.nc"))
+        matches = sorted(cache.glob(f"*-{HFR_RES}-*_s{stamp}_*.nc"))
         if matches:
             return matches[0]
     return None
@@ -597,8 +611,15 @@ def build_obs_for_start(start_date: str, out_dir: Path):
 
 
 def main():
+    # declared up front: argparse reads HFR_RES for its default, and a
+    # `global` must precede any use of the name in the function.
+    global HFR_RES, HFR_CACHES
     ap = argparse.ArgumentParser()
     ap.add_argument("start_date", help="YYYY-MM-DD (start 00Z of 1-day DA window)")
+    ap.add_argument("--hfr-res", default=HFR_RES,
+                    help="HFR resolution token to match in cached filenames "
+                         "(default: %(default)s).  Must match what was fetched; "
+                         "a mismatch means no obs are found at all.")
     ap.add_argument("--hfr-cache", action="append", default=[], type=Path,
                     help="HFR cache to search, repeatable.  Order is PRECEDENCE: "
                          "put the retrospective NCEI cache first and the "
@@ -608,8 +629,8 @@ def main():
                     default="/dataSIO/DA_Simulations/input_files/obs_files",
                     help="output directory (default: %(default)s)")
     args = ap.parse_args()
+    HFR_RES = args.hfr_res
     if args.hfr_cache:
-        global HFR_CACHES
         HFR_CACHES = list(args.hfr_cache)
         print(f'HFR caches, in precedence order: {[str(c) for c in HFR_CACHES]}')
     out_dir = Path(args.outdir)

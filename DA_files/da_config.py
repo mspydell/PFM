@@ -68,6 +68,13 @@ HFR_CACHES = [HFR_CACHE_RETRO, HFR_CACHE_NRT]
 # 25 hourly surveys span the window; make_obs_from_hfr tolerates gaps (the NCEI
 # catalog has permanent ones) so a cycle is not failed for a few missing hours.
 HFR_MIN_HOURS = 20
+# An hour can EXIST with no data in it -- NDBC publishes the timestamp before the
+# radials are assembled (6 km's newest hour read 0.0% on 2026-10-07).  Such an
+# hour must not count as cached: it would pass the count test and contribute no
+# observations.  Fraction of the LV1 box that must carry valid u/v for an hour to
+# count, set well below the ~21% (6 km) and ~5% (2 km) steady state so a
+# genuinely sparse hour still counts.
+HFR_MIN_COVERAGE = 0.005
 
 ECMWF_CACHE = Path("/scratch/PFM_Simulations/ecmwf_data")
 HYCOM_CACHE = Path("/scratch/PFM_Simulations/hycom_data")
@@ -202,8 +209,29 @@ ROMS_EXE_LV4 = "coawstM_noanapassive"   # ANA_PASSIVE undef -> IC dye honoured
 
 BLEND_SPACE = "D"        # blending h needs a Dcrit clip that inverts the parent
                          # column at a deep low tide
-HFR_RES = "2km"          # 6 km lags ~4.8 h; 1 and 2 km lag ~1.8 h (measured
-                         # 2026-10-06).  Latency, not resolution, drove this.
+# 6 km, matching the LV1_v2 research chain (the 3/7-onward cycles) so the
+# operational DA sees the same observation set the tuning was done against.
+#
+# Measured 2026-10-07 02:18Z against NDBC, which corrected an earlier note that
+# 6 km "lags ~4.8 h" while 1-2 km lag ~1.8 h.  The newest hour holding ANY data
+# is 2.3 h old for both 2 km and 6 km; what differs is how long an hour takes to
+# FILL.  Coverage over the LV1 box:
+#
+#     res    steady coverage   newest hour    hour before
+#     2 km       ~5.1%            5.0%           4.8%      (arrives ~full)
+#     6 km      ~21.0%            0.0%           8.8%      (still filling)
+#
+# So 6 km reaches ~21% of its grid against 2 km's ~5%, but its last one or two
+# hours are incomplete -- which is what the ~4.8 h figure really described: time
+# to FULL coverage, not time to first data.
+#
+# Consequence for the schedule, stated plainly: a pre-step running ~2-3 h after
+# the window closes will find the final hour or two of 6 km thin.  That is
+# survivable (HFR_MIN_HOURS below) but those are the hours nearest t_fore, so
+# they are the ones the analysis would most like to have.  Switching to 2 km buys
+# ~2x the raw obs and loses everything west of xi~84 in LV1 -- measured 191,090
+# obs over xi 84..245 at 2 km against 61,022 over xi 11..243 at 6 km.
+HFR_RES = "6km"
 OBS_ERROR_VAR = 0.015    # smallest that stayed stable from a poor IC; Desroziers
                          # suggests ~2x too large
 

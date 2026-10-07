@@ -281,21 +281,52 @@ def check_hfr(t_da: DT.datetime, t_fore: DT.datetime) -> Item:
     """
     n = int((t_fore - t_da).total_seconds() // 3600) + 1
     hours = [t_da + DT.timedelta(hours=h) for h in range(n)]
-    have = 0
+    have, empty = 0, 0
     for t in hours:
         stamp = t.strftime("%Y%m%d%H%M%S") + "0"
-        if any(c.is_dir() and any(c.glob(f"*_s{stamp}_*.nc"))
-               for c in C.HFR_CACHES):
+        hit = None
+        for c in C.HFR_CACHES:
+            # resolution token included: a cached 2 km hour does not satisfy a
+            # 6 km cycle, and counting it would overstate coverage
+            hits = (sorted(c.glob(f"*-{C.HFR_RES}-*_s{stamp}_*.nc"))
+                    if c.is_dir() else [])
+            if hits:
+                hit = hits[0]
+                break
+        if hit is None:
+            continue
+        # Existence is not evidence -- the same principle as da_validate.  An hour
+        # can be on disk with no data in it (NDBC publishes the timestamp before
+        # the radials are assembled), and counting it would pass the survey test
+        # while contributing nothing to the analysis.
+        if _hfr_hour_has_data(hit):
             have += 1
+        else:
+            empty += 1
+    note = f" ({empty} cached but empty)" if empty else ""
     if have == n:
-        return Item("hfr", True, f"all {n} hourly surveys cached",
+        return Item("hfr", True, f"all {n} hourly surveys cached, with data",
                     resolved={"have": have, "need": n})
     return Item("hfr", False,
-                f"{have}/{n} hourly surveys cached",
+                f"{have}/{n} hourly surveys cached with data{note}",
                 fixable=True,
-                fix=f"fetch_hfr_nrt.py will get the other {n - have} "
+                fix=f"fetch_hfr_nrt.py will try for the other {n - have} "
                     f"(NDBC, ERDDAP fallback)",
-                resolved={"have": have, "need": n})
+                resolved={"have": have, "need": n, "empty": empty})
+
+
+def _hfr_hour_has_data(p: Path) -> bool:
+    """Does this cached hour carry a usable amount of valid u?"""
+    if nc is None:
+        return True
+    try:
+        with nc.Dataset(p) as d:
+            if "u" not in d.variables:
+                return False
+            u = np.ma.filled(np.asarray(d["u"][0], dtype=float), np.nan)
+    except Exception:  # noqa: BLE001
+        return False                     # unreadable -> re-fetch it
+    return float(np.isfinite(u).mean()) >= C.HFR_MIN_COVERAGE
 
 
 # ---------------------------------------------------------------------------
