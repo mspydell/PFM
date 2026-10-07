@@ -90,7 +90,7 @@ def build_minfo(t_fore: DT.datetime, t_da: DT.datetime, *,
     at t_fore, which is the identity the whole pre-step rests on.
     """
     out = C.minfo_pkl(t_fore.strftime("%Y%m%d%H"))
-    if out.exists() and not force:
+    if out.exists() and not force and _minfo_is_sane(out, t_fore, t_da):
         return out
 
     MI = _load_pfm_operational_dict()
@@ -196,6 +196,27 @@ def _operational_leaks(pkl: Path) -> dict:
             and any(m in str(v) for m in _OPERATIONAL_MARKERS)}
 
 
+def _minfo_is_sane(pkl: Path, t_fore: DT.datetime, t_da: DT.datetime) -> bool:
+    """Is a cached pickle still the one this window needs?
+
+    Reuse used to key on existence alone, which is not enough: anything that
+    edits a cached pickle in place leaves a file that describes a DIFFERENT
+    window and is silently reused.  That happened here -- a 5-day experiment
+    rewrote forecast_days to 5.0 on the cached 1-day config, and the next run
+    would have built forcing for a 5-day window while reporting a 1-day one.
+    So the window is checked, not assumed.
+    """
+    try:
+        with open(pkl, "rb") as fp:
+            MI = pickle.load(fp)
+    except Exception:  # noqa: BLE001
+        return False
+    return (MI.get("da_t_fore") == t_fore
+            and MI.get("da_t_da") == t_da
+            and MI.get("fetch_time") == t_da
+            and float(MI.get("forecast_days", -1)) == 1.0)
+
+
 def assert_not_operational(pkl: Path) -> None:
     """Guard: refuse to proceed if the DA pickle is the operational one.
 
@@ -219,6 +240,63 @@ def assert_not_operational(pkl: Path) -> None:
 # ---------------------------------------------------------------------------
 # running PFM's functions
 # ---------------------------------------------------------------------------
+def hycom_init_for_window(t_da: DT.datetime, t_fore: DT.datetime,
+                         pkl: Path) -> str:
+    """The HYCOM init day ('YYYYMMDD') whose on-disk files cover [t_da, t_fore].
+
+    PFM_DA READS WHAT IS ON DISK AND NEVER DOWNLOADS.  The forecast has already
+    fetched HYCOM for this window by the time the DA pre-step runs, so fetching
+    again would re-pull data we have, hit an external service for nothing, and
+    make the pre-step depend on tds.hycom.org being up.  This function is what
+    makes that guarantee checkable: it proves every file PFM will ask for is
+    already present, and raises if not, so the repair path inside
+    check_and_redownload_ncfiles is never reached.
+
+    The file list comes from PFM's OWN get_hycom_nc_file_names rather than a
+    second copy of the naming rules -- the names encode the init time (hardcoded
+    T12:00), the 3-hourly cadence for s3z/t3z/u3z/v3z and the 1-hourly cadence for
+    ssh, and all of that has to stay in step with PFM.
+
+    Picks the LATEST init that is complete for the window.  hycom_data/ keeps only
+    a couple of inits (it is cleaned each cycle, unlike ecmwf_data/), so in
+    practice this is a choice between one or two.
+    """
+    pfm_py = str(C.PFM_PYDIR)
+    if pfm_py not in sys.path:
+        sys.path.insert(0, pfm_py)
+    cwd = os.getcwd()
+    try:
+        os.chdir(pfm_py)
+        import ocn_funs_forecast as O
+    finally:
+        os.chdir(cwd)
+
+    t1s = t_da.strftime("%Y%m%d%H%M")
+    t2s = t_fore.strftime("%Y%m%d%H%M")
+
+    # candidate inits: the day of t_da and the two before it.  HYCOM's init is at
+    # 12:00, so an init on the day of t_da is only usable when t_da is after 12Z;
+    # the completeness check below decides, rather than a rule about hours.
+    cands = [(t_da - DT.timedelta(days=k)).strftime("%Y%m%d") for k in (0, 1, 2)]
+    report = []
+    for init in cands:                       # latest first
+        names = [Path(f) for f in O.get_hycom_nc_file_names(init, t1s, t2s,
+                                                            str(pkl))]
+        missing = [f for f in names if not f.is_file()]
+        report.append(f"{init}T12: {len(names)-len(missing)}/{len(names)}")
+        if not missing:
+            return init
+
+    raise FileNotFoundError(
+        f"no HYCOM init on disk covers the DA window "
+        f"{t_da:%Y-%m-%d %H}Z..{t_fore:%Y-%m-%d %H}Z.  Tried {', '.join(report)} "
+        f"in {C.HYCOM_CACHE}.  PFM_DA reads only what the forecast already "
+        f"fetched, so this means the window predates what hycom_data/ still "
+        f"holds -- it keeps roughly two inits.  Run the DA pre-step closer to "
+        f"the forecast, or widen hycom_data retention; do NOT work around it by "
+        f"downloading here.")
+
+
 def pfm_env() -> dict:
     """os.environ plus PFM/.env, which holds the download credentials.
 

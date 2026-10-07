@@ -249,15 +249,19 @@ def stage_lv1_bc(ctx: Ctx) -> dict:
     if ctx.dry_run:
         return {"would_run": f"ocn_funs_forecast.py x5 with {pkl.name}"}
 
-    t1 = ctx.t_da.strftime("%Y%m%d%H")
-    t2 = ctx.t_fore.strftime("%Y%m%d%H")
-
-    # HYCOM for a closed window.  get_hycom_hind_data is the retrospective
-    # fetch; it is the one piece that must be the hindcast variant, because the
-    # forecast fetch resolves "which HYCOM run" from the current clock.
-    B.run_pfm("ocn_funs_forecast.py", "get_hycom_hind_data", t1, t2, pkl,
-              timeout=5400)
-    B.run_pfm("ocn_funs_forecast.py", "hycom_hind_ncfiles_to_pickle", pkl)
+    # HYCOM comes off disk, never from the network.  The forecast has already
+    # fetched this window, so hycom_init_for_window proves every file PFM will
+    # ask for is present and picks the init -- rather than calling a fetch.
+    #
+    # The earlier version of this stage called get_hycom_hind_data, which
+    # re-downloaded ~61 files we already had via ncks against tds.hycom.org.  That
+    # was wrong twice over: it duplicated data on disk, and it made the pre-step
+    # depend on an external service inside a 5 h budget.  The on-disk files use
+    # the FORECAST naming (hy_<var>_<init>_<valid>.nc), which is why the hindcast
+    # reader could not see them.
+    init_day = B.hycom_init_for_window(ctx.t_da, ctx.t_fore, pkl)
+    B.run_pfm("ocn_funs_forecast.py", "hycom_ncfiles_to_pickle", init_day, pkl,
+              timeout=3600)
 
     # onto the ROMS grid, then the depth pickle the BC builder needs
     B.run_pfm("ocn_funs_forecast.py", "make_all_tmp_pckl_ocnR_files_1hrzeta", pkl,

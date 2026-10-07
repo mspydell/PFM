@@ -50,6 +50,15 @@ BC_VARS = ("zeta_south", "zeta_north", "zeta_west",
            "u_south", "v_south", "ubar_south", "vbar_south")
 
 
+def _axis(d: nc.Dataset, tv: str) -> np.ndarray:
+    """Decode one time variable to datetimes."""
+    raw = np.asarray(d[tv][:]).ravel().astype(float)
+    units = getattr(d[tv], "units", "")
+    scale = 86400.0 if units.strip().lower().startswith("day") else 1.0
+    return np.array([ROMS_EPOCH + DT.timedelta(seconds=x * scale)
+                     for x in raw])
+
+
 def _times(d: nc.Dataset, prefer: tuple[str, ...]) -> tuple[np.ndarray, str]:
     for tv in prefer:
         if tv in d.variables:
@@ -59,14 +68,63 @@ def _times(d: nc.Dataset, prefer: tuple[str, ...]) -> tuple[np.ndarray, str]:
         if not cands:
             raise SystemExit("no time variable found")
         tv = cands[0]
-    raw = np.asarray(d[tv][:]).ravel().astype(float)
-    units = getattr(d[tv], "units", "")
-    scale = 86400.0 if units.strip().lower().startswith("day") else 1.0
-    return np.array([ROMS_EPOCH + DT.timedelta(seconds=x * scale)
-                     for x in raw]), tv
+    return _axis(d, tv), tv
 
 
-def compare(da_path: Path, op_path: Path, kind: str) -> int:
+# ---------------------------------------------------------------------------
+# land masking.  This is not a refinement; without it the test reports a false
+# failure.
+#
+# A ROMS BC file stores a value in every boundary cell, land included, and what
+# lands in a land cell is whatever the gap-filling produced -- ROMS masks it out
+# and never reads it.  Comparing those cells measures the filling, not the
+# science.  Measured 2026-10-06 on LV1: the southern boundary has exactly 6 land
+# cells (xi 247-252) and those were exactly the 6 columns that differed; the
+# western boundary has none and was bit-identical over all 390; the northern
+# boundary has 124 and showed the largest difference.  Every WATER cell matched
+# to 0.000e+00.
+_MASK_FOR = {"u": "mask_u", "ubar": "mask_u", "v": "mask_v", "vbar": "mask_v"}
+
+
+def boundary_mask(grid: Path, var: str, n: int) -> np.ndarray | None:
+    """Water mask (True = compare) for the boundary cells of `var`, or None."""
+    if "_" not in var:
+        return None
+    stem, _, side = var.rpartition("_")
+    if side not in ("south", "north", "west", "east"):
+        return None
+    mname = _MASK_FOR.get(stem, "mask_rho")
+    with nc.Dataset(grid) as g:
+        if mname not in g.variables:
+            mname = "mask_rho"
+        if mname not in g.variables:
+            return None
+        m = np.asarray(g[mname][:])
+    sl = {"south": m[0, :], "north": m[-1, :],
+          "west": m[:, 0], "east": m[:, -1]}[side]
+    if sl.size != n:
+        # u/v points are one shorter in their staggered direction; fall back to
+        # whichever rho slice matches rather than guessing wrong.
+        return None
+    return sl > 0
+
+
+def _time_var_of(d: nc.Dataset, v: str) -> str | None:
+    """The time coordinate THIS variable is on.
+
+    A ROMS BC file carries more than one time axis -- zeta_* are hourly on
+    zeta_time while temp_*/salt_*/u_*/v_* are 3-hourly on temp_time -- and a
+    variable's first dimension names its own axis.  Indexing every variable by
+    one shared axis walks off the end of the 3-hourly ones.
+    """
+    dims = d[v].dimensions
+    if not dims:
+        return None
+    return dims[0] if dims[0] in d.variables else None
+
+
+def compare(da_path: Path, op_path: Path, kind: str,
+            grid: Path | None = None) -> int:
     prefer = ("wind_time", "ocean_time") if kind == "atm" else ("zeta_time",
                                                                 "ocean_time")
     variables = ATM_VARS if kind == "atm" else BC_VARS
@@ -92,16 +150,31 @@ def compare(da_path: Path, op_path: Path, kind: str) -> int:
     print(f"\n  {len(common)} shared record(s): "
           f"{common[0]} .. {common[-1]}\n")
 
-    ia = {t: i for i, t in enumerate(ta)}
-    ib = {t: i for i, t in enumerate(tb)}
     worst: dict[str, tuple[float, float, str]] = {}
+    axis_cache: dict[tuple[int, str], np.ndarray] = {}
+
+    def idx_map(d: nc.Dataset, which: int, tv: str) -> dict:
+        key = (which, tv)
+        if key not in axis_cache:
+            axis_cache[key] = _axis(d, tv)
+        return {t: i for i, t in enumerate(axis_cache[key])}
 
     for v in variables:
         if v not in A.variables or v not in B.variables:
             continue
+        # resolve each variable onto ITS OWN time axis, in both files
+        tva, tvb = _time_var_of(A, v), _time_var_of(B, v)
+        if tva is None or tvb is None:
+            continue
+        ia, ib = idx_map(A, 0, tva), idx_map(B, 1, tvb)
+        wet = boundary_mask(grid, v, A[v].shape[-1]) if grid else None
+        shared = sorted(set(ia) & set(ib))
+        if not shared:
+            worst[v] = (np.nan, np.nan, f"no shared record on {tva}/{tvb}")
+            continue
         wmax = wrel = 0.0
         wat = ""
-        for t in common:
+        for t in shared:
             a = np.asarray(A[v][ia[t]], dtype=float)
             b = np.asarray(B[v][ib[t]], dtype=float)
             if a.shape != b.shape:
@@ -110,6 +183,9 @@ def compare(da_path: Path, op_path: Path, kind: str) -> int:
             a = np.where(np.abs(a) > FILL, np.nan, a)
             b = np.where(np.abs(b) > FILL, np.nan, b)
             dif = np.abs(a - b)
+            if wet is not None:
+                # broadcast the boundary mask over any leading (s_rho) axes
+                dif = np.where(np.broadcast_to(wet, dif.shape), dif, np.nan)
             if not np.isfinite(dif).any():
                 continue
             m = float(np.nanmax(dif))
@@ -142,7 +218,8 @@ def compare(da_path: Path, op_path: Path, kind: str) -> int:
               f"expected -- check the init, not the code.")
         return 1
     print(f"  PASS: all {len(worst)} compared fields agree within rtol={RTOL} "
-          f"over {len(common)} record(s).")
+          f"over {len(common)} record(s)"
+          f"{', water cells only' if grid else ''}.")
     print(f"  The adapter reproduces PFM's builder; it changed the window and "
           f"the paths only.")
     return 0
@@ -155,11 +232,20 @@ def main() -> int:
     ap.add_argument("kind", choices=("atm", "bc"))
     ap.add_argument("--da", required=True, type=Path)
     ap.add_argument("--op", required=True, type=Path)
+    ap.add_argument("--grid", type=Path,
+                    default=Path("/scratch/PFM_Simulations/Grids/"
+                                 "GRID_SDTJRE_LV1_rx020_hmask.nc"),
+                    help="LV1 grid, for the land mask (bc only). "
+                         "Pass --grid '' to compare land cells too.")
     a = ap.parse_args()
     for p in (a.da, a.op):
         if not p.is_file():
             return print(f"missing: {p}") or 2
-    return compare(a.da, a.op, a.kind)
+    grid = a.grid if (a.kind == "bc" and a.grid and str(a.grid)) else None
+    if grid and not grid.is_file():
+        print(f"  warning: grid {grid} not found; comparing land cells too")
+        grid = None
+    return compare(a.da, a.op, a.kind, grid)
 
 
 if __name__ == "__main__":
