@@ -319,6 +319,74 @@ def cdip_dict_from_archive(pkl: Path, t_da: DT.datetime) -> None:
         os.chdir(cwd)
 
 
+def build_swan_wnd(pkl: Path, fout: Path) -> bool:
+    """Make the SWAN wind file if this configuration wants one.  True if written.
+
+    Mirrors what PFM's own driver does: rc != 0 is only fatal when
+    swan_wind_wave_generation is on.  With it off, mk_swan_wnd_file exits 1 on
+    purpose and there is nothing to write -- SWAN is then driven by the boundary
+    spectra alone.
+    """
+    import pickle as _p
+    with open(pkl, "rb") as fp:
+        want = bool(_p.load(fp).get("swan_wind_wave_generation", False))
+    rc = run_pfm("swan_functions.py", "mk_swan_wnd_file", str(fout), str(pkl),
+                 timeout=3000, ok_rc=(0, 1))
+    if want and rc != 0:
+        raise RuntimeError(
+            f"swan_wind_wave_generation is on but mk_swan_wnd_file returned "
+            f"{rc}; SWAN would run without the winds it is configured to use")
+    if not want:
+        print("    SWAN wind-wave generation is OFF -- no .wnd file needed "
+              "(mk_swan_wnd_file exits 1 by design in that case)")
+    return rc == 0
+
+
+def stage_lv4_clm(t_da: DT.datetime, t_fore: DT.datetime,
+                  out: Path, template: Path | None = None) -> Path:
+    """LV4 interior-nudging climatology for this window.
+
+    NOT built with PFM's mk_lv4_clm_nc: that reads BC_LV4_tmp_file.pkl, which
+    PFM's own LV4 flow produces from HYCOM.  PFM_DA takes LV4's boundaries from
+    the LV3 DA history instead, so the pickle never exists here.
+
+    Copy the operational file and rewrite only its time variables, which is what
+    the research chain settled on.  ROMS refuses to start when the initialisation
+    time lies outside the climatology's span, so the span is the only thing that
+    has to be right; the VALUES are left alone because interior nudging is weak
+    and a 24 h window cannot respond much to slightly stale climatology.
+
+    The span is padded a day either side so a run that drifts past t_fore -- or
+    starts a moment early -- is still inside it.
+    """
+    template = Path(template or
+                    "/scratch/PFM_Simulations/LV4_Forecast/Forc/LV4_clm.nc")
+    if not template.is_file():
+        raise FileNotFoundError(f"no LV4 climatology template at {template}")
+    out = Path(out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    if out.exists():
+        out.unlink()
+    shutil.copyfile(template, out)
+
+    import netCDF4 as nc_
+    import numpy as np_
+    epoch = DT.datetime(1999, 1, 1)
+    lo = (t_da - DT.timedelta(days=1) - epoch).total_seconds() / 86400.0
+    hi = (t_fore + DT.timedelta(days=1) - epoch).total_seconds() / 86400.0
+    touched = []
+    with nc_.Dataset(out, "a") as d:
+        for name in [v for v in d.variables if v.endswith("_time")]:
+            v = d.variables[name]
+            n = v.shape[0] if v.shape else 1
+            v[:] = (np_.array([lo, hi]) if n == 2
+                    else np_.linspace(lo, hi, n))
+            touched.append(f"{name}[{n}]")
+    print(f"    LV4 clm retimed to {t_da - DT.timedelta(days=1):%Y-%m-%d} .. "
+          f"{t_fore + DT.timedelta(days=1):%Y-%m-%d}  ({', '.join(touched)})")
+    return out
+
+
 def assert_not_operational(pkl: Path) -> None:
     """Guard: refuse to proceed if the DA pickle is the operational one.
 
@@ -474,7 +542,8 @@ def pfm_env() -> dict:
     return env
 
 
-def run_pfm(script: str, func: str, *args: str, timeout: int = 3600) -> None:
+def run_pfm(script: str, func: str, *args: str, timeout: int = 3600,
+            ok_rc: tuple[int, ...] = (0,)) -> int:
     """Run one of PFM's module-level entry points, as its drivers do.
 
     PFM's modules dispatch on argv (`globals()[args[1]](*args[2:])`) and are run
@@ -483,13 +552,18 @@ def run_pfm(script: str, func: str, *args: str, timeout: int = 3600) -> None:
     instead would work until one of them chdir'd or mutated a module global, so we
     keep PFM's own invocation style rather than inventing a cleaner one.
 
-    Raises on a non-zero return code.  Unlike ROMS, these are plain python and a
-    non-zero rc means failure -- there is no MPI_Finalize noise to forgive.
+    Raises unless the return code is in ok_rc.  Unlike ROMS these are plain
+    python, so a non-zero rc usually does mean failure -- but not always, and the
+    exception is deliberate on PFM's side: mk_swan_wnd_file calls sys.exit(1) when
+    swan_wind_wave_generation is False, because then no .wnd file is wanted at
+    all.  PFM's own driver prints that return code as "(0 or 1 = good)".  Pass
+    ok_rc=(0, 1) for that call rather than relaxing the default.
     """
     cmd = [C.PY, "-W", "ignore", script, func, *[str(a) for a in args]]
     r = subprocess.run(cmd, cwd=str(C.PFM_PYDIR), text=True, timeout=timeout,
                        env=pfm_env())
-    if r.returncode != 0:
+    if r.returncode not in ok_rc:
         raise RuntimeError(
-            f"PFM call failed (rc={r.returncode}): {script} {func} "
-            f"{' '.join(str(a) for a in args)}")
+            f"PFM call failed (rc={r.returncode}, accepted {ok_rc}): {script} "
+            f"{func} {' '.join(str(a) for a in args)}")
+    return r.returncode
