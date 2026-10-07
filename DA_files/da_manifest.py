@@ -13,7 +13,11 @@ One JSON per t_fore.  Two jobs:
 
 verdict is "ok" only when ALL FOUR levels produced a valid t=24 h IC.  A mix of
 DA and restart ICs across the nest would be inconsistent, so there is no partial
-success.
+success as far as Phase 2 is concerned.
+
+There IS a separate "partial" verdict, but it means something different: a
+deliberately-requested SUBSET of stages ran and succeeded, as when driving stages
+by hand.  Phase 2 gates on == "ok", so "partial" never hands over an IC.
 """
 from __future__ import annotations
 
@@ -143,7 +147,12 @@ class Manifest:
     # -- the one thing Phase 2 will call -----------------------------------
     @staticmethod
     def verdict_for(t_fore: str) -> str:
-        """Read-only: 'ok' | 'failed' | 'timeout' | 'pending' | 'absent'.
+        """Read-only: 'ok' | 'partial' | 'failed' | 'timeout' | 'pending' | 'absent'.
+
+        Only 'ok' means the whole pipeline ran and every level produced an IC.
+        'partial' means a deliberately-requested subset of stages succeeded --
+        a normal result when running stages by hand, and NOT a reason to use the
+        DA initial conditions.
 
         Looks in the archive first so it still answers after scratch ages out.
         """

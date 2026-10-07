@@ -111,8 +111,25 @@ def run_PFM_DA(t_fore: str, *, stages: list[str] | None = None,
             return {"verdict": man.finalize("failed", f"{name}: {e}"),
                     "manifest": str(man.path)}
 
-    verdict = man.finalize("ok" if all(man.done(s) for s in S.STAGES) else "failed")
+    # Three outcomes, not two.  "failed" used to mean merely "not all 11 stages
+    # have run", so a deliberate `--stages increments` that succeeded reported
+    # failed -- alarming, and wrong.  Phase 2 still gates on verdict == "ok", so
+    # "partial" correctly does NOT hand the forecast a DA initial condition.
+    if all(man.done(s) for s in S.STAGES):
+        outcome, note = "ok", ""
+    elif all(man.done(s) for s in todo):
+        missing = [s for s in S.STAGES if not man.done(s)]
+        outcome = "partial"
+        note = (f"all {len(todo)} requested stage(s) succeeded; "
+                f"{len(missing)} of {len(S.STAGES)} not run "
+                f"({', '.join(missing)})")
+    else:
+        bad = [s for s in todo if not man.done(s)]
+        outcome, note = "failed", f"stage(s) did not succeed: {', '.join(bad)}"
+    verdict = man.finalize(outcome, note)
     print(f"\n  verdict: {verdict}   ({(time.time()-t_all)/3600:.2f} h)")
+    if note:
+        print(f"  {note}")
     print(f"  manifest: {man.path}")
     return {"verdict": verdict, "manifest": str(man.path),
             "ic_out": man.data.get("ic_out", {})}
