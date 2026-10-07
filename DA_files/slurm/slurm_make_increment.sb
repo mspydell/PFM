@@ -43,12 +43,27 @@ MASKS=${DA_FILES}/masks
 DAT=/dataSIO/DA_Simulations
 OUTDIR="${OUTDIR:-${DAT}/${LEVEL}/input_files/INC_files}"
 
+# PFM copy: ROOT and VP are overridable, and the defaults below are the RESEARCH
+# chain's.  PFM_DA must pass both, or it would build increments from the wrong
+# LV1 run entirely.
+#
+# ROOT is where make_child_increment looks for the LV1 increment source, as
+# ROOT/analysis_files/LV1_fwd_outer1_<date>.nc minus
+# ROOT/prior_files/LV1_fwd_outer0_<date>.nc.  PFM_DA's archive uses
+# LV1_Analysis/ and LV1_Prior/, so it passes a shim directory with the expected
+# names (see da_stages.stage_increments).
+ROOT="${ROOT:-${DAT}/LV1_v2}"
+
+# VP supplies only the CHILD's vertical coordinate (Vtransform, hc, Cs_r, s_rho),
+# which is static per level.  Verified 2026-10-07: PFM's own operational child
+# histories carry vparams identical to the research fix_v* files for LV2, LV3 and
+# LV4, so either source is valid and PFM_DA passes its own.
 case "$LEVEL" in
-  LV2) VP=${DAT}/LV2/output_files/fix_v2_files/LV2_fwd_fix_v2_20260307.nc
+  LV2) VP="${VPARAMS:-${DAT}/LV2/output_files/fix_v2_files/LV2_fwd_fix_v2_20260307.nc}"
        MASK_ARGS=() ;;
-  LV3) VP=${DAT}/LV3/output_files/fix_v3_files/LV3_fwd_fix_v3_20260307.nc
+  LV3) VP="${VPARAMS:-${DAT}/LV3/output_files/fix_v3_files/LV3_fwd_fix_v3_20260307.nc}"
        MASK_ARGS=(--mask ${MASKS}/LV3_incr_mask_sigma1km.nc) ;;
-  LV4) VP=${DAT}/LV4/output_files/fix_v3_files/LV4_fwd_fix_v3_20260307.nc
+  LV4) VP="${VPARAMS:-${DAT}/LV4/output_files/fix_v3_files/LV4_fwd_fix_v3_20260307.nc}"
        MASK_ARGS=(--mask ${MASKS}/LV4_incr_mask_sigma1km.nc
                   --mask ${MASKS}/LV4_incr_mask_sigma1km_tjre.nc) ;;
   *)   echo "bad LEVEL=$LEVEL" >&2; exit 1 ;;
@@ -78,6 +93,6 @@ free -g | sed -n 2p
 
 time $PY ${PYDIR}/make_child_increment.py \
     --child "$LEVEL" --date "$DATES" --tag '' \
-    --root ${DAT}/LV1_v2 --child-vparams-from "$VP" \
+    --root "$ROOT" --child-vparams-from "$VP" \
     "${MASK_ARGS[@]}" "${GD[@]}" \
     --out "${OUTDIR}/INC_${LEVEL}_{date}.nc"

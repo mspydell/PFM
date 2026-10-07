@@ -523,12 +523,19 @@ def _report_obs(path: Path, have: int, need_n: int) -> None:
 # DEF_DAI_NF90 failing to create the DA restart file).  Here the IC always comes
 # from stage 1, in LV1/Forc, so the collision cannot arise.
 # ---------------------------------------------------------------------------
+# Per-keeper minimum sizes.  These are NOT cosmetic: a single blanket floor
+# rejected a perfectly good cycle.  roms_mod.nc holds one value per OBSERVATION,
+# not a 3D state, so it is tens of MB where outer0/outer1 are ~6.8 GB.  A 100 MB
+# floor applied to all three failed the 2026-10-06 cycle on roms_mod.nc at
+# 29.0 MB -- against the research chain's 86 files spanning 18.7-30.3 MB, mean
+# 26.3.  Floors are set to roughly a third of the observed size, low enough to
+# pass a thin cycle and high enough to catch a truncated write.
 _DA_KEEPERS = {
-    # IO_DIR name          -> (archive subdir,      archived basename template)
-    "ocean_fwd_outer0.nc": ("LV1_Prior",    "LV1_fwd_outer0_{ymd}.nc"),
-    "ocean_fwd_outer1.nc": ("LV1_Analysis", "LV1_fwd_outer1_{ymd}.nc"),
-    "roms_mod.nc":         ("LV1_Analysis", "roms_mod_{ymd}.nc"),
-    "ocean_dai.nc":        ("LV1_Dai",      "ocean_dai_{ymd}.nc"),
+    # IO_DIR name          -> (archive subdir,  archived basename, min bytes)
+    "ocean_fwd_outer0.nc": ("LV1_Prior",    "LV1_fwd_outer0_{ymd}.nc", 1 << 30),
+    "ocean_fwd_outer1.nc": ("LV1_Analysis", "LV1_fwd_outer1_{ymd}.nc", 1 << 30),
+    "roms_mod.nc":         ("LV1_Analysis", "roms_mod_{ymd}.nc",       6 << 20),
+    "ocean_dai.nc":        ("LV1_Dai",      "ocean_dai_{ymd}.nc",     50 << 20),
 }
 
 
@@ -547,7 +554,7 @@ def stage_lv1_da(ctx: Ctx) -> dict:
     if (V.nc_ok(analysis, need_vars=("zeta", "u", "v", "temp", "salt"),
                 min_bytes=100 << 20)
             and V.nc_ok(prior, need_vars=("zeta", "temp"), min_bytes=100 << 20)):
-        for name, (sub, tmpl) in _DA_KEEPERS.items():
+        for name, (sub, tmpl, _mb) in _DA_KEEPERS.items():
             f = io / name
             if f.is_file():
                 V.ensure_archived(f, C.ARCHIVE / sub, tmpl.format(ymd=ymd))
@@ -633,12 +640,13 @@ def stage_lv1_da(ctx: Ctx) -> dict:
                             "LOG": str(log)},
                            cwd=C.scratch_dir("LV1", "Run"),
                            timeout_s=ctx.left_h() * 3600)
-    keepers = tuple(io / n for n in ("ocean_fwd_outer0.nc",
-                                     "ocean_fwd_outer1.nc", "roms_mod.nc"))
-    chk = V.roms_job_ok(log, keepers, t0, rc, min_bytes=100 << 20)
-    if not chk:
-        raise RuntimeError(f"LV1 4D-Var failed (job {job}): {chk.why}.  "
-                           f"Log: {log}")
+    # each keeper against its own floor -- see _DA_KEEPERS
+    for name in ("ocean_fwd_outer0.nc", "ocean_fwd_outer1.nc", "roms_mod.nc"):
+        chk = V.roms_job_ok(log, (io / name,), t0, rc,
+                            min_bytes=_DA_KEEPERS[name][2])
+        if not chk:
+            raise RuntimeError(f"LV1 4D-Var failed (job {job}): {chk.why}.  "
+                               f"Log: {log}")
     print(f"    job {job} accepted: {chk.why}")
 
     # RBL4DVAR needs NQCK>0; without it the failure presents as a SIGSEGV rather
@@ -646,7 +654,7 @@ def stage_lv1_da(ctx: Ctx) -> dict:
     _warn_on_roms_errors(log)
 
     out = {}
-    for name, (sub, tmpl) in _DA_KEEPERS.items():
+    for name, (sub, tmpl, _mb) in _DA_KEEPERS.items():
         f = io / name
         if not f.is_file():
             if name == "ocean_dai.nc":
@@ -728,6 +736,56 @@ def _warn_on_roms_errors(log: Path) -> None:
 # ---------------------------------------------------------------------------
 # stage 6: downscale the LV1 increment onto LV2 / LV3 / LV4
 # ---------------------------------------------------------------------------
+def _lv1_increment_root(ctx: Ctx) -> Path:
+    """A directory shaped the way make_child_increment expects, pointing at ours.
+
+    It looks for the increment source as
+        <root>/analysis_files/LV1_fwd_outer1_<date>.nc
+      - <root>/prior_files/LV1_fwd_outer0_<date>.nc
+    whereas our archive uses LV1_Analysis/ and LV1_Prior/.  Rather than rename
+    the archive or teach the downscaler a second layout, this builds a directory
+    of SYMLINKS with the names it wants.
+
+    The links point at IO_DIR, not at the archive: those are the same files, on
+    BeeGFS rather than /dataSIO, and the downscaler reads both 6.8 GB files in
+    full -- so this avoids pulling 13.6 GB back off /dataSIO whose throughput is
+    erratic.
+    """
+    io = C.io_dir()
+    root = C.SCRATCH / "Inc" / "lv1_src"
+    pairs = (("analysis_files", f"LV1_fwd_outer1_{ctx.yda}.nc",
+              io / "ocean_fwd_outer1.nc"),
+             ("prior_files", f"LV1_fwd_outer0_{ctx.yda}.nc",
+              io / "ocean_fwd_outer0.nc"))
+    for sub, name, src in pairs:
+        if not src.is_file():
+            raise FileNotFoundError(
+                f"stage 6 needs the LV1 {sub.split('_')[0]} from stage 5: {src}")
+        d = root / sub
+        d.mkdir(parents=True, exist_ok=True)
+        link = d / name
+        if link.is_symlink() or link.exists():
+            link.unlink()
+        link.symlink_to(src)
+    return root
+
+
+def _child_vparams_source(lv: str) -> Path:
+    """A file carrying this level's vertical coordinate.
+
+    Only Vtransform/hc/Cs_r/s_rho are read, and those are static per level.
+    Verified 2026-10-07 that PFM's operational child histories match the research
+    chain's fix_v* files exactly for LV2, LV3 and LV4, so PFM's own are used --
+    which keeps stage 6 off the research tree.
+    """
+    hits = sorted(C.PFM_HIS[lv].glob(f"{lv}_ocean_his_*.nc"))
+    if not hits:
+        raise FileNotFoundError(
+            f"no PFM {lv} history in {C.PFM_HIS[lv]} to read vertical "
+            f"parameters from")
+    return hits[-1]
+
+
 def stage_increments(ctx: Ctx) -> dict:
     """One objective-mapping run per child level, for this one date.
 
@@ -750,6 +808,7 @@ def stage_increments(ctx: Ctx) -> dict:
     if ctx.dry_run:
         return {"would_run": f"slurm_make_increment.sb for {need} on {ctx.yda}"}
 
+    root = _lv1_increment_root(ctx)
     for lv in need:
         log = C.SCRATCH / "Log" / f"{ctx.yfore}_inc_{lv}.log"
         t0 = time.time()
@@ -757,9 +816,11 @@ def stage_increments(ctx: Ctx) -> dict:
             C.SLURMDIR / "slurm_make_increment.sb",
             {"LEVEL": lv, "DATES": f"{ctx.yda}..{ctx.yda}",
              "OUTDIR": str(C.SCRATCH / "Inc"),
-             # the increment source is the LV1 analysis minus the prior, both of
-             # which stage 5 left in IO_DIR
-             "IO_DIR": str(C.io_dir()),
+             # ROOT and VPARAMS MUST be passed.  Their defaults in the slurm
+             # script are the RESEARCH chain's paths, so omitting them would
+             # build the increment from a different LV1 run entirely.
+             "ROOT": str(root),
+             "VPARAMS": str(_child_vparams_source(lv)),
              "SKIP": "1"},
             cwd=C.SCRATCH / "Inc", timeout_s=ctx.left_h() * 3600)
         p = C.SCRATCH / "Inc" / f"INC_{lv}_{ctx.yda}.nc"
