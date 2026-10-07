@@ -138,6 +138,10 @@ def stage_preflight(ctx: Ctx) -> dict:
     pkl = _minfo(ctx)
     rep = PF.check_inputs(ctx.t_fore, ctx.t_da, pkl)
     print(rep.text())
+    # a node count in da_config that disagrees with the slurm script that actually
+    # allocates is not fatal, but it makes every scheduling estimate wrong
+    for msg in C.check_nodes_match_slurm():
+        print(f"    WARNING: {msg}")
     if rep.blocking:
         raise FileNotFoundError(
             "preflight: input(s) missing that NO download can fix: "
@@ -774,48 +778,257 @@ def stage_increments(ctx: Ctx) -> dict:
 
 # ---------------------------------------------------------------------------
 # stage 7: the child forward runs, strictly sequential down the nest
+#
+# Each level, for the one DA day:
+#     base IC  <- the previous night's DA history at t_da (warm) or PFM's
+#                 operational history at t_da (cold)
+#     IC       =  base + the pre-built increment
+#     atm      <- PFM's ECMWF builder for THIS level
+#     BC       <- the parent's history for this day
+#     .in      <- the seed, with every path and the date substituted
+#     run      <- sbatch, judged by outputs rather than exit code
+#
+# Warm-start is preferred so the DA system carries its own state forward, which is
+# the point of cycling; cold-start from PFM's own forecast is the fallback when a
+# night was missed.  Same preference as the research chain.
+#
+# ATM COMES FROM PFM'S ECMWF PATH, not from the research chain's
+# make_atm_LV{2,3,4}.py.  Those are NAM-based, and PFM's NAM path applies no wind
+# rotation at all (see PROVENANCE).  PFM's ECMWF builder rotates per level with
+# that level's own grid angle, which is what these runs need, and it is the same
+# forcing the operational child runs use.
 # ---------------------------------------------------------------------------
-def _child_fwd(ctx: Ctx, lv: str, parent_his: Path | None) -> dict:
+_CHILD_IN_SUBS = ("VARNAME", "ININAME", "BRYNAME", "FRCNAME",
+                  "HISNAME", "RSTNAME")
+
+
+def _stage_child_in(lv: str, ctx: Ctx, paths: dict) -> Path:
+    """Write the staged .in for one child level and one day.
+
+    The research chain retags its seed with `sed s|20260307|<ymd>|g`, which works
+    there because only the DATE differs between cycles.  For PFM every DIRECTORY
+    differs too -- the seed names /dataSIO/DA_Simulations/... and
+    /scratch/matt/... -- so each path is substituted explicitly by keyword.  A
+    date-only retag would have produced a valid .in pointing at the research tree.
+
+    Every substitution is verified to have taken, and every input the .in names is
+    verified to exist, because the alternative is discovering it after a 216-rank
+    allocation has started.
+    """
+    seed = C.RUN_IN / f"{lv}_oi_seed.in"
+    if not seed.is_file():
+        raise FileNotFoundError(f"no seed .in for {lv}: {seed}")
+    out = C.scratch_dir(lv, "Run") / f"{lv}_DA_{ctx.yda}.in"
+    if out.resolve() == seed.resolve():
+        raise RuntimeError(f"refusing to overwrite the seed with the staged .in: "
+                           f"{out}")
+    txt = seed.read_text()
+
+    dstart = (ctx.t_da - V.ROMS_EPOCH).total_seconds() / 86400.0
+    subs = {
+        "VARNAME": C.VARINFO[lv],
+        "ININAME": paths["ic"],
+        "BRYNAME": paths["bc"],
+        "FRCNAME": paths["atm"],
+        "HISNAME": paths["his"],
+        "RSTNAME": C.scratch_dir(lv, "Run") / f"{lv}_DA_rst_{ctx.yda}.nc",
+    }
+    for key, val in subs.items():
+        # '=' for VARNAME, '==' for the rest -- ROMS's own convention, and the
+        # seed uses both.
+        pat = rf"^(\s*{key}\s*==?\s*).*$"
+        new, n = re.subn(pat, lambda m: m.group(1) + str(val), txt,
+                         count=1, flags=re.M)
+        if n != 1:
+            raise RuntimeError(
+                f"{seed.name}: could not substitute {key} ({n} matches).  The "
+                f"seed template has changed shape; a silent miss here leaves the "
+                f"run pointing at the research tree.")
+        txt = new
+    txt, n = re.subn(r"^(\s*DSTART\s*=).*$",
+                     lambda m: f"{m.group(1)}  {dstart}d0"
+                               f"                 ! {ctx.t_da:%Y-%m-%d} 00 UTC",
+                     txt, count=1, flags=re.M)
+    if n != 1:
+        raise RuntimeError(f"{seed.name}: could not set DSTART")
+
+    # The seed also names a dozen files this configuration does not use --
+    # CLMNAME, NUDNAME, SSFNAME, TIDENAME, DAINAME, GSTNAME, QCKNAME, AVGNAME,
+    # DIANAME -- all pointed at a `Run/junk/` directory.  They are unused but ROMS
+    # may still create some of them, so they are redirected into the DA tree and
+    # the directory is created, rather than left pointing at the research tree.
+    junk = C.scratch_dir(lv, "Run") / "junk"
+    junk.mkdir(parents=True, exist_ok=True)
+    txt = re.sub(r"(/[^\s]*?/)junk/([A-Za-z0-9_.]+\.nc)",
+                 lambda m: f"{junk}/{m.group(2)}", txt)
+
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(txt)
+
+    # nothing from the research tree may survive in an active line
+    bad = [l.strip() for l in txt.splitlines()
+           if not l.lstrip().startswith("!")
+           and ("/scratch/matt" in l or "DA_Simulations" in l)]
+    if bad:
+        raise RuntimeError(
+            f"{out.name} still references the research tree on "
+            f"{len(bad)} active line(s), first: {bad[0][:110]}")
+    # and every input it names must exist
+    for key in ("VARNAME", "ININAME", "BRYNAME", "FRCNAME"):
+        f = Path(str(subs[key]))
+        if not f.is_file():
+            raise FileNotFoundError(
+                f"{out.name}: {key} points at a missing file: {f}")
+    return out
+
+
+def _child_base_ic(ctx: Ctx, lv: str) -> tuple[Path, str]:
+    """(source history, note) for the base state at t_da.
+
+    Warm first: the previous night's DA history holds t_da as its t = 24 h record,
+    so cycling continues from the DA system's own state.  Cold otherwise, from
+    PFM's operational history for this day -- which is what the forecast itself
+    started from, so a missed night costs continuity but not correctness.
+    """
+    prev = C.scratch_dir(lv, "His") / f"{lv}_DA_his_{C.ymd(ctx.t_da - DT.timedelta(days=1))}.nc"
+    if prev.is_file():
+        return prev, f"WARM from the previous DA day at t=24h ({prev.name})"
+    cold = C.PFM_HIS[lv] / f"{lv}_ocean_his_{ctx.yda}0000.nc"
+    if cold.is_file():
+        return cold, f"COLD from PFM's operational history ({cold.name})"
+    raise FileNotFoundError(
+        f"no base state for {lv} on {ctx.yda}: neither {prev} nor {cold}")
+
+
+def _child_atm(ctx: Ctx, lv: str, pkl: Path) -> Path:
+    """Build this level's atm from PFM's ECMWF path, or reuse it."""
+    out = C.scratch_dir(lv, "Forc") / f"{lv}_DA_ATM_{ctx.yda}.nc"
+    if V.nc_ok(out, need_vars=("Uwind", "Vwind", "Tair"), min_bytes=1 << 20):
+        return out
+    n = lv[-1]
+    # the ECMWF data is already read and on the roms LV1 grid from stage 2; this
+    # re-interpolates it onto THIS level's grid and rotates with THIS level's angle
+    B.run_pfm("atm_functions.py", "get_atm_data_on_roms_grid", n, pkl)
+    B.run_pfm("atm_functions.py", "atm_roms_dict_to_netcdf", n, pkl)
+    chk = V.nc_ok(out, need_vars=("Uwind", "Vwind", "Tair"), min_bytes=1 << 20,
+                  finite_vars=("Uwind", "Vwind", "Tair"))
+    if not chk:
+        raise RuntimeError(f"{lv} atm invalid: {chk.why}")
+    return out
+
+
+def _child_fwd(ctx: Ctx, lv: str) -> dict:
     out = C.scratch_dir(lv, "His") / f"{lv}_DA_his_{ctx.yda}.nc"
-    if V.nc_ok(out, need_vars=("zeta", "temp"), min_bytes=100 << 20):
+    need = ("zeta", "u", "v", "temp", "salt")
+    if V.nc_ok(out, need_vars=need, min_bytes=100 << 20):
+        V.ensure_archived(out, C.ARCHIVE / f"{lv}_His")
         raise StageSkip(str(out))
-    if parent_his is not None and not parent_his.exists():
+    if ctx.dry_run:
+        return {"would_run": f"{lv} forward for {ctx.yda} "
+                             f"({C.NODES[lv]} nodes)"}
+
+    # the increment, and it must be the D-space one
+    inc = C.SCRATCH / "Inc" / f"INC_{lv}_{ctx.yda}.nc"
+    chk = V.nc_ok(inc, need_vars=("zeta", "u", "v", "temp", "salt"),
+                  attrs={"blend_space": C.BLEND_SPACE})
+    if not chk:
+        raise FileNotFoundError(f"{lv} needs its increment from stage 6: "
+                                f"{chk.why}")
+
+    # the parent's history, for the boundaries
+    parent = C.BC_PARENT[lv]
+    if parent == "LV1":
+        parent_his = C.io_dir() / "ocean_fwd_outer1.nc"
+    else:
+        parent_his = C.scratch_dir(parent, "His") / f"{parent}_DA_his_{ctx.yda}.nc"
+    if not parent_his.is_file():
         raise FileNotFoundError(
-            f"{lv} needs its parent's history first: {parent_his}")
-    raise NotImplementedError(
-        f"{lv} forward not wired yet.  Base IC = previous day's {lv} analysis at "
-        f"t=24 h, else the PFM {lv} history at 00Z; add INC_{lv}_{ctx.yda}.nc "
-        f"with apply_child_increment.py --grid {C.GRID[lv].name}; boundaries "
-        f"from {'the ' + parent_his.name if parent_his else 'the LV1 analysis'}.")
+            f"{lv} takes boundaries from {parent}, whose history is not there "
+            f"yet: {parent_his}.  The child forwards are strictly sequential.")
 
+    forc = C.scratch_dir(lv, "Forc")
+    forc.mkdir(parents=True, exist_ok=True)
 
-# LV4 is not just "LV2 with a finer grid", and whoever writes stage 7 should know
-# the two things that cost days the first time round:
-#
-#   1. Its per-day .in is GENERATED, not templated -- by stage_LV4_ins.py, which
-#      is NOT vendored here (it still reads the roms_fourdvar LV4 tree).  Either
-#      vendor it with its templates or build the .in inline.  LV2/LV3 get away
-#      with a seed .in plus a DSTART sed; LV4 does not, because it is coupled.
-#
-#   2. SWAN's clock drifts ~1280 s per RESTART FREE hop when no interval is
-#      given, so a chained day silently starts the wave model at the wrong time.
-#      The fix is RESTART FREE 24 HR with HOTSTART pointed at the _024-suffixed
-#      file.  Do not drop this: it is what blocked 2026-03-09 for weeks, and it
-#      presents as a crash with no obvious wave cause.
+    # 1. base state
+    src, note = _child_base_ic(ctx, lv)
+    print(f"    base: {note}")
+    base = forc / f"{lv}_DA_base_{ctx.yda}.nc"
+    rc = _run([C.PY, C.PYDIR / "his_to_ic.py", "--his", src,
+               "--time", f"{ctx.t_da:%Y-%m-%dT%H:%M:%S}",
+               "--out", base, "--sanitize"],
+              log=C.SCRATCH / "Log" / f"{ctx.yfore}_{lv}_fwd.log")
+    if not V.nc_ok(base, need_vars=need, expect_time=ctx.t_da,
+                   min_bytes=20 << 20):
+        raise RuntimeError(f"{lv} base IC invalid (rc={rc}): {base}")
+
+    # 2. IC = base + increment, masked to the RUN grid
+    ic = forc / f"{lv}_DA_IC_{ctx.yda}.nc"
+    rc = _run([C.PY, C.PYDIR / "apply_child_increment.py",
+               "--base", base, "--incr", inc, "--out", ic,
+               "--grid", C.GRID[lv]],
+              log=C.SCRATCH / "Log" / f"{ctx.yfore}_{lv}_fwd.log")
+    if not V.nc_ok(ic, need_vars=need, expect_time=ctx.t_da, min_bytes=20 << 20,
+                   finite_vars=("zeta", "temp", "salt"),
+                   water_range={"temp": (-3.0, 40.0), "salt": (0.0, 45.0),
+                                "zeta": (-5.0, 5.0)}):
+        raise RuntimeError(f"{lv} IC invalid after adding the increment (rc={rc})")
+
+    # 3. atm and 4. BC
+    atm = _child_atm(ctx, lv, _minfo(ctx))
+    bc = forc / f"{lv}_DA_BC_{ctx.yda}.nc"
+    if not V.nc_ok(bc, need_vars=("temp_south",), min_bytes=1 << 20):
+        cmd = [C.PY, C.PYDIR / "parent_history_to_BC.py",
+               "--parent-grid", C.GRID[parent], "--child-grid", C.GRID[lv],
+               "--history", parent_his, "--out", bc]
+        if lv == "LV4":
+            # LV4 has 10 s-levels against LV3's 40, so its vertical parameters
+            # cannot be inferred from the parent -- they must be read from the
+            # child grid's own run configuration.
+            cmd += ["--child-vparams-from", str(ic)]
+        rc = _run(cmd, log=C.SCRATCH / "Log" / f"{ctx.yfore}_{lv}_fwd.log")
+        if not V.nc_ok(bc, need_vars=("temp_south",), min_bytes=1 << 20):
+            raise RuntimeError(f"{lv} BC build failed (rc={rc}): {bc}")
+
+    # 5. the .in, 6. submit
+    rin = _stage_child_in(lv, ctx, {"ic": ic, "bc": bc, "atm": atm, "his": out})
+    log = C.SCRATCH / "Log" / f"{lv}_DA_fwd_{ctx.yda}.log"
+    t0 = time.time()
+    rc, job = _sbatch_wait(C.SLURMDIR / f"slurm_{lv}_fwd.sb",
+                           {"ROMS_EXE": str(C.scratch_dir(lv, "Run")
+                                            / C.ROMS_EXE_FWD),
+                            "RIN": str(rin), "LOG": str(log)},
+                           cwd=C.scratch_dir(lv, "Run"),
+                           timeout_s=ctx.left_h() * 3600)
+    chk = V.roms_job_ok(log, (out,), t0, rc, min_bytes=100 << 20)
+    if not chk:
+        raise RuntimeError(f"{lv} forward failed (job {job}): {chk.why}. "
+                           f"Log: {log}")
+    print(f"    job {job} accepted: {chk.why} "
+          f"({(time.time()-t0)/60:.1f} min)")
+    _warn_on_roms_errors(log)
+    arch = V.ensure_archived(out, C.ARCHIVE / f"{lv}_His")
+    V.ensure_archived(log, C.ARCHIVE / "Log")
+    return {lv: {"scratch": out, "archive": arch}}
 
 
 def stage_lv2_fwd(ctx: Ctx) -> dict:
-    return _child_fwd(ctx, "LV2", None)
+    return _child_fwd(ctx, "LV2")
 
 
 def stage_lv3_fwd(ctx: Ctx) -> dict:
-    return _child_fwd(ctx, "LV3",
-                      C.scratch_dir("LV2", "His") / f"LV2_DA_his_{ctx.yda}.nc")
+    return _child_fwd(ctx, "LV3")
 
 
 def stage_lv4_fwd(ctx: Ctx) -> dict:
-    return _child_fwd(ctx, "LV4",
-                      C.scratch_dir("LV3", "His") / f"LV3_DA_his_{ctx.yda}.nc")
+    raise NotImplementedError(
+        "LV4 is COAWST, not plain ROMS, and needs five things the other levels "
+        "do not: rivers (stage_river_LV4.py), SWAN boundaries "
+        "(make_swan_bnd_LV4.py), a per-cycle climatology (stage_clm_LV4.py), "
+        "zero-filled dye BC variables (add_dye_bc_LV4.py), and THREE .in files "
+        "generated by stage_LV4_ins.py (coupled/run/swan) rather than one seed. "
+        "None of those five are vendored yet.  Also: SWAN must use RESTART FREE "
+        "24 HR with HOTSTART pointed at the _024-suffixed file, or its clock "
+        "drifts ~1280 s per hop -- that is what blocked 2026-03-09.")
 
 
 # ---------------------------------------------------------------------------

@@ -76,6 +76,20 @@ HFR_MIN_HOURS = 20
 # genuinely sparse hour still counts.
 HFR_MIN_COVERAGE = 0.005
 
+# PFM's own varinfo, one per level, read-only.  Verified byte-identical to the
+# research chain's copies, so using PFM's keeps 333 KB x4 out of git and removes
+# any chance of the two drifting.
+VARINFO = {lv: Path(f"/scratch/PFM_Simulations/{lv}_Forecast/Run/{lv}_varinfo.yaml")
+           for lv in ("LV1", "LV2", "LV3", "LV4")}
+
+# PFM operational histories: the COLD base for a child forward when the previous
+# night's DA history is not there to warm-start from.
+PFM_HIS = {lv: PFM_ARCHIVE / f"{lv}_His" for lv in ("LV1", "LV2", "LV3", "LV4")}
+
+# Which parent each child takes boundaries from.  Strictly sequential: LV3 cannot
+# start before LV2 has written its history.
+BC_PARENT = {"LV2": "LV1", "LV3": "LV2", "LV4": "LV3"}
+
 ECMWF_CACHE = Path("/scratch/PFM_Simulations/ecmwf_data")
 HYCOM_CACHE = Path("/scratch/PFM_Simulations/hycom_data")
 
@@ -154,7 +168,34 @@ MASKS = {
 # resources.  The cluster has 15 nodes (swell-cn03-17), so LV4 at 14 nodes is
 # effectively the whole machine -- nothing else can run beside it.
 # ---------------------------------------------------------------------------
-NODES = {"lv1_da": 9, "increments": 1, "LV2": 6, "LV3": 10, "LV4": 14}
+# These MUST match the #SBATCH --nodes in slurm/, which is what actually
+# allocates; this dict is only for reporting and for reasoning about what can run
+# beside what.  LV3 said 10 here against the 6 its .sb asks for, so a scheduling
+# estimate made from this would have been wrong -- verified against the .sb files
+# 2026-10-07.
+NODES = {"lv1_da": 9, "increments": 1, "LV2": 6, "LV3": 6, "LV4": 14}
+
+
+def check_nodes_match_slurm() -> list[str]:
+    """Report any stage whose NODES disagrees with its slurm script.
+
+    Cheap, and it catches the class of error above: a number here that drifts from
+    the one that actually allocates.
+    """
+    import re
+    files = {"lv1_da": "slurm_4dvar.sb", "increments": "slurm_make_increment.sb",
+             "LV2": "slurm_LV2_fwd.sb", "LV3": "slurm_LV3_fwd.sb",
+             "LV4": "slurm_LV4_fwd.sb"}
+    bad = []
+    for key, fn in files.items():
+        p = SLURMDIR / fn
+        if not p.is_file():
+            continue
+        m = re.search(r"^#SBATCH\s+--nodes=(\d+)", p.read_text(), re.M)
+        if m and int(m.group(1)) != NODES.get(key):
+            bad.append(f"{key}: NODES={NODES.get(key)} but {fn} asks for "
+                       f"{m.group(1)}")
+    return bad
 
 # Measured, except LV3/LV4 which are scaled from PFM's 2.5-day forecast runs.
 # Stage 7 records the real numbers so these can be replaced with measurements.

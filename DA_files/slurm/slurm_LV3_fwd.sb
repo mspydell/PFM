@@ -46,7 +46,9 @@ export LD_LIBRARY_PATH=/software/apps/netcdf-fortran/ifort/mvapich2/4.6.1/lib:/s
 # Write ROMS stdout to /scratch during the run (fast local NFS), then move
 # to the final /dataSIO destination after srun exits.  Writing 144 ranks'
 # worth of stdout line-by-line onto /dataSIO would starve the run.
-SCRATCH_LOG="/scratch/matt/DA_Simulations/LV2/Run/$(basename "$LOG")"
+# PFM copy: write the log beside the staged .in rather than at a hardcoded
+# /scratch/matt path, so the run area follows RIN.
+SCRATCH_LOG="$(dirname "$RIN")/$(basename "$LOG")"
 
 srun --mpi=pmi2 --export=ALL --kill-on-bad-exit=1 -v \
      env LD_LIBRARY_PATH="$LD_LIBRARY_PATH" "$ROMS_EXE" "$RIN" > "$SCRATCH_LOG" 2>&1
