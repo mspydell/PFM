@@ -34,6 +34,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import da_config as C
+import da_pfm_bridge as B
 import da_validate as V
 from da_manifest import Manifest
 
@@ -151,48 +152,203 @@ def stage_lv1_ic(ctx: Ctx) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# stages 2-3: LV1 atm and BC.
+# stages 2-3: LV1 atm and ocean BC, over the DA window.
 #
-# These are the only real integration work in Phase 1.  Phase 0 established
-# that PFM's own builders are correct and should be REUSED rather than ported:
-#   * atm_functions.py rotates winds earth -> ROMS XI/ETA (lines 610-611),
-#     matching set_data.F, and has done since 2025-07-02.
-#   * ocn_funs_forecast.py converts in-situ -> potential temperature with
-#     gsw.pt_from_t (the commented seawater.ptmp lines are superseded, 7 for 7).
-# Porting our NAM/HYCOM builders instead would reintroduce exactly the bugs
-# September fixed, and would not reproduce PFM's own forcing.
+# Both reuse PFM's OWN builders rather than reimplementing or porting ours, via
+# a DA-private model-info pickle -- see da_pfm_bridge for why that one change is
+# enough to isolate us from the operational forecast.
 #
-# Both PFM builders are driven by the PFM dict and a pickle, so the work is an
-# adapter that constructs a 1-day PFM dict pointing at DA paths without
-# disturbing the operational one.  Left unimplemented deliberately: it is the
-# first thing to write, and the acceptance test is that day 1 of the result
-# matches the operational LV1_ATM_FORCING.nc / LV1_OCEAN_BC.nc to round-off.
+# Why PFM's and not ours, concretely:
+#   * atm: get_atm_data_on_roms_grid rotates earth -> ROMS XI/ETA with
+#     angr = RMG['angle'], and ECMWF is lat/lon so its u/v are earth-relative --
+#     that single stage is the whole rotation, and it is correct.
+#   * BC: ocnr_2_BCdict_1hrzeta_from_tmppkls converts in-situ -> potential
+#     temperature with gsw.pt_from_t (ocn_funs_forecast.py:3551-3557).  The
+#     adjacent commented seawater.ptmp lines are the superseded EOS-80 version,
+#     7 commented against 7 active -- not a missing conversion, which is how it
+#     first looks on a grep.
+#
+# The acceptance test for both: day 1 of the result matches the operational
+# LV1_ATM_FORCING.nc / LV1_OCEAN_BC.nc to round-off.  Matching proves the adapter
+# changed the window and the paths and nothing else.  `--check-vs-operational`
+# runs that comparison.
 # ---------------------------------------------------------------------------
+def _minfo(ctx: Ctx) -> Path:
+    """The DA model-info pickle, built once per run and reused by both stages."""
+    pkl = B.build_minfo(ctx.t_fore, ctx.t_da)
+    B.assert_not_operational(pkl)
+    return pkl
+
+
 def stage_lv1_atm(ctx: Ctx) -> dict:
     out = C.scratch_dir("LV1", "Forc") / f"LV1_DA_ATM_{ctx.yda}.nc"
-    chk = V.nc_ok(out, need_vars=("Uwind", "Vwind", "Tair", "rain"),
-                  attrs={"wind_coordinate_frame": "ROMS grid (XI/ETA)"},
-                  min_bytes=10 << 20)
+    need = ("Uwind", "Vwind", "Tair", "rain")
+    chk = V.nc_ok(out, need_vars=need, min_bytes=10 << 20)
     if chk:
+        V.ensure_archived(out, C.ARCHIVE / "Log" / "forcing")
         raise StageSkip(str(out))
-    raise NotImplementedError(
-        "PFM atm adapter not written yet.  Reuse sdpm_py_util/atm_functions.py "
-        "for a 1-day window ending at t_fore; do NOT port make_atm_from_nam.py. "
-        "Validate that the result carries wind_coordinate_frame='ROMS grid "
-        "(XI/ETA)' and reproduces day 1 of LV1_ATM_FORCING.nc.")
+
+    pkl = _minfo(ctx)
+    if ctx.dry_run:
+        return {"would_run": f"atm_functions.py x3 with {pkl.name}"}
+
+    # PFM's own three steps, in the driver's order.  get_atm_data_as_dict walks
+    # back through earlier ECMWF inits until got_ecmwf_files() says the window is
+    # covered, so the closed DA window resolves to the init at t_da -- i.e. the
+    # PREVIOUS day's 00Z run -- at leads 0..24.
+    #
+    # Do NOT "improve" this to the freshest init.  The forcing the ocean actually
+    # experienced over [t_da, t_fore] is what yesterday's forecast ran with,
+    # which is exactly that init at leads 0..24.  The fresher init would be a
+    # better estimate of the weather and the wrong forcing for this analysis: the
+    # increment would then correct for a wind the model never felt.  (The two
+    # differ by ECMWF's 24 h error -- measured 2026-10-06 on the one shared
+    # record: up to 5.9 m/s in Uwind, 3.3 C in Tair, 212 W/m2 in swrad.  Large
+    # enough that confusing them would matter, and large enough that it is NOT
+    # the test of whether this adapter works.)
+    B.run_pfm("atm_functions.py", "get_atm_data_as_dict", pkl, timeout=3600)
+    B.run_pfm("atm_functions.py", "get_atm_data_on_roms_grid", "1", pkl)
+    B.run_pfm("atm_functions.py", "atm_roms_dict_to_netcdf", "1", pkl)
+
+    # PFM names the file from the dict; we asked for the DA name, so this is
+    # where that is confirmed rather than assumed.
+    if not out.exists():
+        raise RuntimeError(
+            f"PFM's atm builder did not produce {out.name}.  It writes "
+            f"lv1_forc_dir + lv1_atm_file from the model-info dict, so a "
+            f"different name here means build_minfo and this stage disagree.")
+
+    # NOTE: no wind_coordinate_frame attribute check.  That attribute is written
+    # by OUR make_atm_from_nam.py, not by PFM -- the operational
+    # LV1_ATM_FORCING.nc carries only type/time info/coordinates.  Requiring it
+    # here rejected a perfectly good file.  Rotation is instead established by
+    # the same-init comparison against the operational builder; see
+    # check_atm_vs_operational().
+    chk = V.nc_ok(out, need_vars=need, min_bytes=10 << 20,
+                  finite_vars=("Uwind", "Vwind", "Tair", "Pair"),
+                  water_range={"Tair": (-20.0, 55.0), "Uwind": (-60.0, 60.0),
+                               "Vwind": (-60.0, 60.0)})
+    if not chk:
+        raise RuntimeError(f"LV1 DA atm invalid: {chk.why}")
+    _assert_covers_window(out, ctx, "wind_time")
+    arch = V.ensure_archived(out, C.ARCHIVE / "Log" / "forcing")
+    return {"lv1_atm": {"scratch": out, "archive": arch}}
 
 
 def stage_lv1_bc(ctx: Ctx) -> dict:
     out = C.scratch_dir("LV1", "Forc") / f"LV1_DA_BC_{ctx.yda}.nc"
-    chk = V.nc_ok(out, need_vars=("temp_south", "temp_north", "temp_west"),
-                  min_bytes=5 << 20)
+    need = ("temp_south", "temp_north", "temp_west",
+            "zeta_south", "zeta_north", "zeta_west")
+    chk = V.nc_ok(out, need_vars=need, min_bytes=5 << 20)
     if chk:
+        V.ensure_archived(out, C.ARCHIVE / "Log" / "forcing")
         raise StageSkip(str(out))
-    raise NotImplementedError(
-        "PFM ocean-BC adapter not written yet.  Reuse ocn_funs_forecast."
-        "ocnr_2_BCdict_1hrzeta_from_tmppkls + ocn_roms_BC_dict_to_netcdf_pckl_"
-        "1hrzeta for a 1-day window; do NOT port make_BCnc_from_hycom.py. "
-        "Validate against day 1 of LV1_OCEAN_BC.nc.")
+
+    pkl = _minfo(ctx)
+    forc = C.scratch_dir("LV1", "Forc")
+    if ctx.dry_run:
+        return {"would_run": f"ocn_funs_forecast.py x5 with {pkl.name}"}
+
+    t1 = ctx.t_da.strftime("%Y%m%d%H")
+    t2 = ctx.t_fore.strftime("%Y%m%d%H")
+
+    # HYCOM for a closed window.  get_hycom_hind_data is the retrospective
+    # fetch; it is the one piece that must be the hindcast variant, because the
+    # forecast fetch resolves "which HYCOM run" from the current clock.
+    B.run_pfm("ocn_funs_forecast.py", "get_hycom_hind_data", t1, t2, pkl,
+              timeout=5400)
+    B.run_pfm("ocn_funs_forecast.py", "hycom_hind_ncfiles_to_pickle", pkl)
+
+    # onto the ROMS grid, then the depth pickle the BC builder needs
+    B.run_pfm("ocn_funs_forecast.py", "make_all_tmp_pckl_ocnR_files_1hrzeta", pkl,
+              timeout=3600)
+    B.run_pfm("ocn_funs_forecast.py", "make_rom_depths_1hrzeta",
+              forc / "roms_tmp_depth_file.pkl", pkl)
+
+    # the BC dict, then the NetCDF.  Note the second call takes the pickle and
+    # the OUTPUT path but no pkl_fnm -- PFM's signature, not an omission.
+    bc_pkl = forc / "ocnBC_tmp_pckl_file.pkl"
+    B.run_pfm("ocn_funs_forecast.py", "ocnr_2_BCdict_1hrzeta_from_tmppkls",
+              bc_pkl, pkl, timeout=3600)
+    B.run_pfm("ocn_funs_forecast.py", "ocn_roms_BC_dict_to_netcdf_pckl_1hrzeta",
+              bc_pkl, out)
+
+    chk = V.nc_ok(out, need_vars=need, min_bytes=5 << 20,
+                  finite_vars=("temp_south", "temp_west", "zeta_south"),
+                  water_range={"temp_south": (-3.0, 40.0),
+                               "temp_north": (-3.0, 40.0),
+                               "temp_west": (-3.0, 40.0),
+                               "zeta_south": (-5.0, 5.0)})
+    if not chk:
+        raise RuntimeError(f"LV1 DA BC invalid: {chk.why}")
+    _assert_covers_window(out, ctx, "zeta_time")
+    _assert_potential_temperature(out)
+    arch = V.ensure_archived(out, C.ARCHIVE / "Log" / "forcing")
+    return {"lv1_bc": {"scratch": out, "archive": arch}}
+
+
+def _assert_covers_window(path: Path, ctx: Ctx, tvar: str) -> None:
+    """The forcing must span [t_da, t_fore], or ROMS extrapolates silently.
+
+    This is the check that catches the failure mode PFM's own code warns about:
+    a stale derived pickle left in place builds forcing for the WRONG DAY, and
+    the file is perfectly valid -- just not for this window.  Comparing the time
+    axis against the window is the only thing that notices.
+    """
+    import netCDF4 as nc
+    import numpy as np
+    with nc.Dataset(path) as d:
+        if tvar not in d.variables:
+            cands = [v for v in d.variables if v.endswith("_time")]
+            if not cands:
+                return
+            tvar = cands[0]
+        tv = np.asarray(d[tvar][:]).ravel().astype(float)
+        units = getattr(d[tvar], "units", "")
+    if tv.size == 0:
+        raise RuntimeError(f"{path.name}: {tvar} is empty")
+    scale = 86400.0 if units.strip().lower().startswith("day") else 1.0
+    t0 = V.ROMS_EPOCH + DT.timedelta(seconds=float(tv.min()) * scale)
+    t1 = V.ROMS_EPOCH + DT.timedelta(seconds=float(tv.max()) * scale)
+    # 1 h of slack: the atm axis is hourly and may start on the hour boundary
+    slack = DT.timedelta(hours=1)
+    if t0 > ctx.t_da + slack or t1 < ctx.t_fore - slack:
+        raise RuntimeError(
+            f"{path.name}: {tvar} spans {t0:%Y-%m-%d %H:%M}..{t1:%Y-%m-%d %H:%M}, "
+            f"which does not cover the DA window "
+            f"{ctx.t_da:%Y-%m-%d %H:%M}..{ctx.t_fore:%Y-%m-%d %H:%M}.  A stale "
+            f"derived pickle builds valid forcing for the wrong day -- that is "
+            f"PFM's 2026-08-31 failure, and only this check sees it.")
+
+
+def _assert_potential_temperature(path: Path) -> None:
+    """Sanity-check that the BC temperature was converted, not passed through.
+
+    pt < t in situ at depth, so the deepest level of the western boundary should
+    sit below the surface value by a small but non-zero amount.  This cannot
+    prove gsw.pt_from_t ran, but it does catch the conversion being dropped
+    wholesale -- the exact regression that reading a grep of commented
+    seawater.ptmp lines would have talked us into.
+    """
+    import netCDF4 as nc
+    import numpy as np
+    with nc.Dataset(path) as d:
+        if "temp_west" not in d.variables:
+            return
+        a = np.asarray(d["temp_west"][:], dtype=float)
+    if a.ndim < 3:
+        return
+    a = np.where(np.abs(a) > V.FILL, np.nan, a)
+    bot = np.nanmean(a[..., 0, :])      # s_rho index 0 = deepest
+    top = np.nanmean(a[..., -1, :])
+    if not np.isfinite(bot) or not np.isfinite(top):
+        return
+    if bot >= top:
+        raise RuntimeError(
+            f"{path.name}: temp_west is not colder at depth "
+            f"(bottom {bot:.3f} C >= surface {top:.3f} C).  Expected stable "
+            f"stratification on the open western boundary; check that the "
+            f"in-situ -> potential temperature conversion ran.")
 
 
 # ---------------------------------------------------------------------------

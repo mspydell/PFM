@@ -55,6 +55,58 @@ ECMWF_CACHE = Path("/scratch/PFM_Simulations/ecmwf_data")
 HYCOM_CACHE = Path("/scratch/PFM_Simulations/hycom_data")
 
 # ---------------------------------------------------------------------------
+# PFM's own code, reused by stages 2-3
+# ---------------------------------------------------------------------------
+# The DA pre-step runs PFM's builders rather than reimplementing them, so it has
+# to know where they live and which config module they are driven by.
+PFM_PYDIR = Path(__file__).resolve().parent.parent / "sdpm_py_util"
+PFM_DRIVER = Path(__file__).resolve().parent.parent / "driver"
+PFM_INPUT_PY = PFM_PYDIR / "pfm_operational_input.py"
+
+def minfo_pkl(t_fore: str) -> Path:
+    """The DA run's OWN model-info pickle.
+
+    PFM's builders all take the pickle path as an argument (get_model_info is a
+    plain pickle load), so giving them ours isolates the DA run completely: the
+    operational /scratch/PFM_Simulations/PFM_run_info.pkl is never read and never
+    written.  That isolation is what makes Phase 1 bit-safe for the forecast.
+
+    Per t_fore, not one shared file, so two DA runs cannot collide.
+    """
+    return SCRATCH / "Log" / f"PFM_DA_run_info_{t_fore}.pkl"
+
+# ---------------------------------------------------------------------------
+# atmospheric forcing source for the DA window
+# ---------------------------------------------------------------------------
+# ECMWF, built by PFM's own atm_functions -- the same product and the same code
+# the forecast uses.  The DA window [t_fore-24h, t_fore] is closed, so it is
+# served by the PREVIOUS day's init at steps 0..24; ecmwf_data/ keeps one init
+# group per day (verified 2026-10-06: 99 groups back to 2026-07-07, 101 hourly
+# steps each, never pruned), so those files are already on disk.  That is also
+# the forcing yesterday's forecast ran its first day with, so the DA analysis is
+# consistent with the forcing by construction.
+#
+# get_atm_data_as_dict already walks back through earlier inits (-12 h, up to 4
+# tries) until got_ecmwf_files() says the window is covered, so pointing
+# fetch_time at t_da is all this takes.
+#
+# The rotation on this path is correct: get_atm_data_on_roms_grid rotates with
+# angr = RMG['angle'] (atm_functions.py:596-598, applied ~610).  ECMWF is on a
+# lat/lon grid, so its u/v are earth-relative and that single stage is the whole
+# rotation.
+ATM_SOURCE = "ecmwf"
+
+# ECMWF derived pickles must be DA-TAGGED, and this is not cosmetic.
+# atm_functions writes the "all" pickle to ecmwf_dir + ecmwf_all_pkl_name -- ONE
+# shared file.  PFM's own code raises on a failed rebuild with the comment that
+# continuing "would leave the previous cycle's ecmwf_all.pkl in place and
+# silently build atm forcing for the wrong day (this is exactly what happened
+# 2026-08-31)".  A DA run writing the operational name would do that to the
+# forecast deliberately.  The grib files stay shared -- downloads are additive
+# and we want the cache -- but every derived pickle gets its own name.
+ECMWF_PKL_TAG = "DA"
+
+# ---------------------------------------------------------------------------
 # code
 # ---------------------------------------------------------------------------
 DA_FILES = Path(__file__).resolve().parent
