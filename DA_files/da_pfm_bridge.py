@@ -50,7 +50,7 @@ import da_config as C
 # the strength of _minfo_is_sane, which checks the window -- so without a version
 # marker an edit to build_minfo would silently not take on any t_fore whose
 # pickle already existed, and the bug it fixed would look unfixed.
-MINFO_VERSION = 6
+MINFO_VERSION = 7
 
 
 # ---------------------------------------------------------------------------
@@ -191,7 +191,19 @@ def build_minfo(t_fore: DT.datetime, t_da: DT.datetime, *,
         MI[f"{lv}_atm_file"] = f"{n}_DA_ATM_{ymd}.nc"
         MI[f"{lv}_bc_file"] = f"{n}_DA_BC_{ymd}.nc"
         MI[f"{lv}_ini_file"] = f"{n}_DA_IC_{ymd}.nc"
-    MI["lv1_use_restart"] = 0        # we supply the IC ourselves, in stage 1
+    # NRREC = 0 at EVERY level: each one starts from a single-record IC this
+    # pipeline built, not from a ROMS restart.  The distinction is not cosmetic --
+    # with lv4_use_restart = 1 the generator writes NRREC == 1 and ROMS then
+    # demands the restart-only variables rzeta, rubar, rvbar, ru, rv, which a
+    # single-record IC does not carry.  That is what the second LV4 attempt died
+    # on: "CHECKVARS_NF90 - unable to find model variable: rzeta".
+    #
+    # LV2 and LV3 were insulated by their seed .in hardcoding NRREC == 0; LV4
+    # takes it from here, which is why only LV4 showed the bug.  NRREC = 0 also
+    # means ini_fields recomputes ubar from u3d, which is what we want and is
+    # consistent with how the increment was built.
+    for lv in ("lv1", "lv2", "lv3", "lv4"):
+        MI[f"{lv}_use_restart"] = 0
 
     MI["da_t_fore"] = t_fore         # breadcrumbs, so a stray pickle is
     MI["da_t_da"] = t_da             # identifiable months later
