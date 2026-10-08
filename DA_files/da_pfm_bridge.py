@@ -50,7 +50,7 @@ import da_config as C
 # the strength of _minfo_is_sane, which checks the window -- so without a version
 # marker an edit to build_minfo would silently not take on any t_fore whose
 # pickle already existed, and the bug it fixed would look unfixed.
-MINFO_VERSION = 7
+MINFO_VERSION = 8
 
 
 # ---------------------------------------------------------------------------
@@ -113,6 +113,12 @@ def build_minfo(t_fore: DT.datetime, t_da: DT.datetime, *,
     MI["hhmm"] = t_da.strftime("%H%M")
     MI["sim_start_time"] = t_da
     MI["sim_end_time"] = t_fore
+    # sim_time_1 / sim_time_2 are what make_LV4_coawst_dotins_dotsb computes
+    # DSTART from -- NOT fetch_time.  Left inherited they carry the OPERATIONAL
+    # forecast's window, so LV4 started two days late and then demanded boundary
+    # data two days past the end of ours.
+    MI["sim_time_1"] = t_da
+    MI["sim_time_2"] = t_fore
     MI["start_time"] = DT.datetime.now()
     MI["utc_time"] = DT.datetime.now(DT.timezone.utc)
 
@@ -238,6 +244,8 @@ def build_minfo(t_fore: DT.datetime, t_da: DT.datetime, *,
     with open(out, "wb") as fp:
         pickle.dump(MI2, fp, protocol=pickle.HIGHEST_PROTOCOL)
 
+    _assert_times_consistent(out, t_da, t_fore)
+
     leaks = _operational_leaks(out)
     if leaks:
         raise RuntimeError(
@@ -245,6 +253,43 @@ def build_minfo(t_fore: DT.datetime, t_da: DT.datetime, *,
             f"{sorted(leaks)}.  Refusing to continue: a builder using one of "
             f"these would write into the forecast's own directories.")
     return out
+
+
+def _assert_times_consistent(pkl: Path, t_da: DT.datetime,
+                             t_fore: DT.datetime) -> None:
+    """Every window-like datetime in the model-info must describe OUR window.
+
+    Written after the fifth key turned up that build_minfo had not overridden.
+    Each was found the same way -- a 14-node job failing in a new place -- and
+    each was one inherited datetime still describing the operational forecast:
+    fetch_time, then sim_start_time/sim_end_time, then sim_time_1/sim_time_2,
+    which is what LV4's generator actually reads for DSTART.  Checking them all
+    at once turns the next one into an immediate, named error.
+
+    EXEMPT are the bookkeeping stamps that legitimately mean "now" rather than
+    anything about the window.
+    """
+    exempt = {"start_time", "utc_time", "da_written", "modtime0"}
+    with open(pkl, "rb") as fp:
+        MI = pickle.load(fp)
+    lo = t_da - DT.timedelta(days=2)
+    hi = t_fore + DT.timedelta(days=2)
+    stray = {}
+    for k, v in MI.items():
+        if k in exempt or not isinstance(v, DT.datetime):
+            continue
+        if v.tzinfo is not None:
+            continue                      # tz-aware stamps are clock readings
+        if not (lo <= v <= hi):
+            stray[k] = v
+    if stray:
+        raise RuntimeError(
+            f"model-info carries datetime(s) outside the DA window "
+            f"{t_da:%Y-%m-%d %H}Z..{t_fore:%Y-%m-%d %H}Z: "
+            + ", ".join(f"{k}={v:%Y-%m-%d %H}Z" for k, v in sorted(stray.items()))
+            + ".  These are inherited from the operational forecast and must be "
+              "overridden in build_minfo -- something downstream will read one "
+              "and run the wrong window.")
 
 
 _OPERATIONAL_MARKERS = ("LV1_Forecast", "LV2_Forecast", "LV3_Forecast",
