@@ -1224,6 +1224,25 @@ def stage_lv4_fwd(ctx: Ctx) -> dict:
         if not V.nc_ok(bc, need_vars=("temp_south",), min_bytes=1 << 20):
             raise RuntimeError(f"LV4 BC build failed (rc={rc}): {bc}")
 
+    # LV4's ROMS is built with DYE_01 and DYE_02, so it requires dye boundary
+    # variables -- even under RadNud, where the boundary value is what the
+    # interior is nudged toward.  parent_history_to_BC builds from LV3, which
+    # carries no dye, so the slots have to be added afterwards, zero-filled
+    # (no dye flux through the open boundaries; all LV4 dye comes from the
+    # rivers and the IC).  Without them ROMS stops at
+    #   INQUIRY_NF90 - unable to find requested variable: dye_west_01
+    if not V.nc_ok(bc, need_vars=("dye_west_01", "dye_west_02")):
+        rc = _run([C.PY, C.PYDIR / "add_dye_bc_LV4.py", bc],
+                  log=C.SCRATCH / "Log" / f"{ctx.yfore}_LV4_fwd.log")
+        chk = V.nc_ok(bc, need_vars=("dye_south_01", "dye_north_01",
+                                     "dye_west_01", "dye_south_02",
+                                     "dye_north_02", "dye_west_02"))
+        if not chk:
+            raise RuntimeError(f"LV4 dye BC variables missing after "
+                               f"add_dye_bc_LV4 (rc={rc}): {chk.why}")
+        print("    dye BC variables added (zero-filled, 3 open boundaries x 2 "
+              "tracers)")
+
     # -- 4. the forcing staged earlier must all be present -------------------
     for key, label in (("lv4_atm_file", "atm"), ("lv4_clm_file", "climatology"),
                        ("lv4_nud_file", "nudging"), ("lv4_river_file", "river"),
