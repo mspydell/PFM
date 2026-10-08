@@ -1244,12 +1244,20 @@ def stage_lv4_fwd(ctx: Ctx) -> dict:
 
 
 def _assert_lv4_dye(ic: Path) -> None:
-    """LV4's IC must carry dye_01 and dye_02.
+    """LV4's IC must carry dye_01 and dye_02, and they must not be all zero.
 
     coawstM_noanapassive has ANA_PASSIVE undef, so dye comes from the IC file
     rather than an analytical profile.  Without it the run completes normally and
     produces identically zero dye -- the whole point of LV4 lost, with nothing in
-    the log to say so.
+    the log to say so.  A variable that is PRESENT but zero fails the same way,
+    which is why the magnitude is checked too.
+
+    ROMS writes ~1e37 on land, so the fill must be masked before summing.  The
+    first version did not, and reported sum|dye_01| = 1.6e43 -- that is 1e37
+    times the land-cell count, not dye.  Masked, the same field is 7.1e2 over
+    3.8M wet cells.  (Third time this bug has appeared in this project: see
+    da_validate.nc_ok and the sampler in compare_PFM_PFMDA.ipynb.  ROMS fill is
+    FINITE and large, so it survives every isfinite() check.)
     """
     import netCDF4 as nc_
     import numpy as np_
@@ -1261,10 +1269,21 @@ def _assert_lv4_dye(ic: Path) -> None:
                 f"coawstM_noanapassive (ANA_PASSIVE undef), so it would run to "
                 f"completion with zero dye everywhere.  his_to_ic carries dye "
                 f"through only when the SOURCE history has it -- check the base.")
-        tot = {v: float(np_.nansum(np_.abs(np_.asarray(d[v][:], dtype=float))))
-               for v in ("dye_01", "dye_02")}
-    print(f"    dye present: dye_01 sum|.|={tot['dye_01']:.3e}, "
-          f"dye_02 sum|.|={tot['dye_02']:.3e}")
+        rep = {}
+        for v in ("dye_01", "dye_02"):
+            a = np_.ma.filled(d[v][:], np_.nan).astype(float)
+            a[np_.abs(a) > 1e30] = np_.nan          # ROMS land fill
+            fin = a[np_.isfinite(a)]
+            rep[v] = (float(np_.abs(fin).sum()), int((np_.abs(fin) > 0).sum()),
+                      float(np_.nanmax(fin)) if fin.size else 0.0)
+    for v, (tot, nz, mx) in rep.items():
+        if nz == 0 or tot == 0.0:
+            raise RuntimeError(
+                f"{ic.name}: {v} is present but identically zero over every wet "
+                f"cell.  LV4 would run and produce no dye at all.")
+    print("    dye ok: " + ", ".join(
+        f"{v} sum={tot:.3e} over {nz:,} wet cells (max {mx:.3e})"
+        for v, (tot, nz, mx) in rep.items()))
 
 
 def _assert_lv4_in_consistent(run_dir: Path, ctx: Ctx, ic: Path,
