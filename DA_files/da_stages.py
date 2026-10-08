@@ -1390,6 +1390,25 @@ def _assert_lv4_in_consistent(run_dir: Path, ctx: Ctx, ic: Path,
 # ---------------------------------------------------------------------------
 # stage 10: the handoff -- extract t = 24 h from each level
 # ---------------------------------------------------------------------------
+def _handoff_range(lv: str) -> dict:
+    """Acceptable water-cell ranges, per level.
+
+    LV4 gets a wider salinity bound because it has WET_DRY and intertidal cells
+    in the bay and estuary that carry genuinely hypersaline water.  Measured
+    2026-10-08: 230 wet cells above 45 PSU, 0.0058% of the grid, topping out at
+    54.1 -- and they are INHERITED, not produced here.  PFM's own operational LV4
+    carries exactly the same 230 cells at the same values, the increment does not
+    touch them, and after 24 h our 54.37 tracks PFM's own 54.36.
+
+    The bound is 60 rather than something larger so a real salinity blow-up is
+    still caught; the research notes record LV4 histories reaching 194 PSU in
+    dried cells, which this would still reject.
+    """
+    if lv == "LV4":
+        return {"temp": (-3.0, 40.0), "salt": (0.0, 60.0), "zeta": (-5.0, 5.0)}
+    return {"temp": (-3.0, 40.0), "salt": (0.0, 45.0), "zeta": (-5.0, 5.0)}
+
+
 def stage_handoff(ctx: Ctx) -> dict:
     """The t = 24 h state of each level IS the state at t_fore, so it is exactly
     the IC the forecast needs.  Written to IC_out/ and archived.
@@ -1435,8 +1454,7 @@ def stage_handoff(ctx: Ctx) -> dict:
                   log=C.SCRATCH / "Log" / f"{ctx.yfore}_handoff.log")
         chk = V.nc_ok(out, need_vars=need, expect_time=ctx.t_fore,
                       min_bytes=20 << 20, finite_vars=("zeta", "temp", "salt"),
-                      water_range={"temp": (-3.0, 40.0), "salt": (0.0, 45.0),
-                                   "zeta": (-5.0, 5.0)})
+                      water_range=_handoff_range(lv), grid=C.GRID[lv])
         if not chk:
             raise RuntimeError(f"{lv} handoff IC invalid: {chk.why} (rc={rc})")
         arch = V.ensure_archived(out, C.ARCHIVE / "IC_out")

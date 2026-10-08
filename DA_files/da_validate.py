@@ -39,12 +39,26 @@ def _san(a):
     return np.where(np.abs(a) > FILL, np.nan, a)
 
 
+def _wet_mask(grid: Path):
+    """mask_rho from a ROMS grid, or None."""
+    if nc is None or grid is None:
+        return None
+    try:
+        with nc.Dataset(grid) as g:
+            if "mask_rho" not in g.variables:
+                return None
+            return np.asarray(g["mask_rho"][:]) > 0
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def nc_ok(path: Path, *, min_bytes: int = 1 << 20,
           need_vars: tuple[str, ...] = (),
           expect_time: DT.datetime | None = None,
           time_var: str = "ocean_time",
           finite_vars: tuple[str, ...] = (),
           water_range: dict | None = None,
+          grid: Path | None = None,
           attrs: dict | None = None) -> Check:
     """Open a NetCDF file and prove it is what we think it is.
 
@@ -60,6 +74,7 @@ def nc_ok(path: Path, *, min_bytes: int = 1 << 20,
         return Check(False, f"too small ({sz} B < {min_bytes} B): {path.name}")
     if nc is None:
         return Check(True, "netCDF4 unavailable; size-only check")
+    wet = _wet_mask(grid) if (water_range and grid) else None
     try:
         with nc.Dataset(path) as d:
             missing = [v for v in need_vars if v not in d.variables]
@@ -99,10 +114,25 @@ def nc_ok(path: Path, *, min_bytes: int = 1 << 20,
                 if fin.size == 0:
                     return Check(False, f"{path.name}: {v} is entirely fill")
                 lo, hi = water_range.get(v, (None, None)) if water_range else (None, None)
-                if lo is not None and (fin.min() < lo or fin.max() > hi):
-                    return Check(False, f"{path.name}: {v} out of range "
-                                        f"[{fin.min():.3g}, {fin.max():.3g}] "
-                                        f"not within [{lo}, {hi}]")
+                if lo is not None:
+                    # water_range means WATER.  Land and dried cells carry values
+                    # that are meaningless to range-check: on LV4, which has
+                    # WET_DRY, zeta on land sits near -h, and a handoff IC was
+                    # rejected for "zeta out of range [-16.2, 1.9]" when all 405
+                    # offending cells were land and every wet cell was within
+                    # -0.50..1.32.  With no grid supplied the check falls back to
+                    # all finite values, which is the old behaviour.
+                    vals = fin
+                    if wet is not None and a.ndim >= 2 and a.shape[-2:] == wet.shape:
+                        m = np.broadcast_to(wet, a.shape)
+                        sel = a[m]
+                        vals = sel[np.abs(sel) <= FILL]
+                    if vals.size and (vals.min() < lo or vals.max() > hi):
+                        return Check(False, f"{path.name}: {v} out of range "
+                                            f"[{vals.min():.3g}, {vals.max():.3g}] "
+                                            f"not within [{lo}, {hi}]"
+                                            + ("" if wet is None
+                                               else " (water cells only)"))
     except Exception as e:  # noqa: BLE001
         return Check(False, f"{path.name}: unreadable ({type(e).__name__}: {e})")
     return Check(True, "", {"bytes": sz})
