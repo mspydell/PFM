@@ -1147,6 +1147,9 @@ def stage_lv4_fwd(ctx: Ctx) -> dict:
             f"{parent_his}")
 
     pkl = _minfo(ctx)
+    import pickle as _pk
+    with open(pkl, "rb") as fp:
+        MI = _pk.load(fp)
     forc = C.scratch_dir("LV4", "Forc")
     forc.mkdir(parents=True, exist_ok=True)
 
@@ -1179,6 +1182,34 @@ def stage_lv4_fwd(ctx: Ctx) -> dict:
             raise RuntimeError(f"LV4 IC invalid after the increment (rc={rc})")
     _assert_lv4_dye(ic)
 
+    # make_LV4_coawst_dotins_dotsb composes the IC path as
+    #     PFM['restart_ncfiles_dir_in'] + '/' + PFM['lv4_ini_file']
+    # unconditionally -- it treats the initial state as a restart, which for a
+    # single-record IC it effectively is.  Our IC is built in LV4/Forc, so link
+    # it where the generator expects, rather than repurposing a run-wide key for
+    # one level's benefit.  A symlink, because the file is ~2 GB and ROMS only
+    # reads it.  (This is what the first LV4 attempt died on: FIND_FILE could not
+    # find .../Rst/LV4_DA_IC_20261006.nc, 25 s into a 14-node allocation.)
+    # LV4_BLANK_new.in hardcodes  FRCNAME == $lv4_forc_dir$/LV4_ATM_FORCING.nc
+    # -- only the directory is substituted, the basename is literal, and the
+    # generator never reads lv4_atm_file.  Link our date-tagged atm to the name
+    # the template insists on, keeping the tagged file as the real artefact.
+    atm_link = Path(MI["lv4_forc_dir"]) / "LV4_ATM_FORCING.nc"
+    atm_real = Path(MI["lv4_forc_dir"]) / MI["lv4_atm_file"]
+    if atm_link.resolve() != atm_real.resolve():
+        if atm_link.is_symlink() or atm_link.exists():
+            atm_link.unlink()
+        atm_link.symlink_to(atm_real)
+        print(f"    atm linked for the template: {atm_link.name} -> {atm_real.name}")
+
+    rst_in = Path(MI_rst_dir(pkl))
+    rst_in.mkdir(parents=True, exist_ok=True)
+    link = rst_in / ic.name
+    if link.is_symlink() or link.exists():
+        link.unlink()
+    link.symlink_to(ic)
+    print(f"    IC linked for the .in generator: {link}")
+
     # -- 3. BC from the LV3 DA history --------------------------------------
     bc = forc / f"LV4_DA_BC_{ctx.yda}.nc"
     if not V.nc_ok(bc, need_vars=("temp_south",), min_bytes=1 << 20):
@@ -1194,9 +1225,6 @@ def stage_lv4_fwd(ctx: Ctx) -> dict:
             raise RuntimeError(f"LV4 BC build failed (rc={rc}): {bc}")
 
     # -- 4. the forcing staged earlier must all be present -------------------
-    import pickle as _pk
-    with open(pkl, "rb") as fp:
-        MI = _pk.load(fp)
     for key, label in (("lv4_atm_file", "atm"), ("lv4_clm_file", "climatology"),
                        ("lv4_nud_file", "nudging"), ("lv4_river_file", "river"),
                        ("lv4_swan_bnd_file", "SWAN boundary")):
@@ -1241,6 +1269,13 @@ def stage_lv4_fwd(ctx: Ctx) -> dict:
     arch = V.ensure_archived(out, C.ARCHIVE / "LV4_His")
     V.ensure_archived(log, C.ARCHIVE / "Log")
     return {"LV4": {"scratch": out, "archive": arch}}
+
+
+def MI_rst_dir(pkl: Path) -> str:
+    """The directory make_LV4_coawst_dotins_dotsb composes the IC path from."""
+    import pickle as _pk
+    with open(pkl, "rb") as fp:
+        return _pk.load(fp)["restart_ncfiles_dir_in"]
 
 
 def _assert_lv4_dye(ic: Path) -> None:
@@ -1290,11 +1325,40 @@ def _assert_lv4_in_consistent(run_dir: Path, ctx: Ctx, ic: Path,
                               bc: Path) -> None:
     """The generated .in files must name THIS cycle's inputs and date."""
     roms = (run_dir / "LV4_forecast_run.in").read_text()
-    for f, what in ((ic, "ININAME"), (bc, "BRYNAME")):
-        if f.name not in roms:
+    # Check the FULL path each key resolves to, not just the basename.  The
+    # basename-only version passed an .in whose ININAME pointed at the restart
+    # directory instead of LV4/Forc -- same filename, wrong place, and ROMS died
+    # on FIND_FILE after the allocation had started.
+    for key, want in (("ININAME", ic), ("BRYNAME", bc)):
+        m = re.search(rf"^\s*{key}\s*==?\s*(\S+)", roms, re.M)
+        if not m:
+            raise RuntimeError(f"LV4_forecast_run.in has no {key} line")
+        got = Path(m.group(1))
+        if not got.is_file():
+            raise FileNotFoundError(
+                f"LV4_forecast_run.in {key} points at a file that does not "
+                f"exist: {got}")
+        if got.resolve() != want.resolve():
             raise RuntimeError(
-                f"LV4_forecast_run.in does not reference {f.name} ({what}); "
-                f"the generator used different inputs than this stage built.")
+                f"LV4_forecast_run.in {key} resolves to {got.resolve()}, but "
+                f"this stage built {want.resolve()}")
+    # EVERY input the .in names must exist, not just the two this stage happens
+    # to build.  Listing them by hand missed FRCNAME, which the template
+    # hardcodes -- it would have been the next 14-node crash.
+    # An ALLOWLIST of the inputs a COAWST forward run actually reads, not a
+    # denylist of outputs: the template also carries 4D-Var placeholders such as
+    # ITLNAME == ocean_itl.nc that are never opened here, and a denylist would
+    # have to grow every time one appeared.
+    for key in ("GRDNAME", "ININAME", "BRYNAME", "FRCNAME", "CLMNAME",
+                "NUDNAME", "VARNAME"):
+        m = re.search(rf"^\s*{key}\s*==?\s*(\S+)", roms, re.M)
+        if not m:
+            continue                      # not every key is used at every level
+        pth = Path(m.group(1))
+        if not pth.is_file():
+            raise FileNotFoundError(
+                f"LV4_forecast_run.in {key} points at a missing file: {pth}")
+
     swan = (run_dir / "LV4_forecast_swan.in").read_text()
     if "HOTSTART" not in swan and "INITIAL" not in swan:
         raise RuntimeError("LV4_forecast_swan.in has no INITIAL/HOTSTART line")

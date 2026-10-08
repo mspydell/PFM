@@ -50,7 +50,7 @@ import da_config as C
 # the strength of _minfo_is_sane, which checks the window -- so without a version
 # marker an edit to build_minfo would silently not take on any t_fore whose
 # pickle already existed, and the bug it fixed would look unfixed.
-MINFO_VERSION = 5
+MINFO_VERSION = 6
 
 
 # ---------------------------------------------------------------------------
@@ -212,6 +212,19 @@ def build_minfo(t_fore: DT.datetime, t_da: DT.datetime, *,
     # change to PFM's naming follows through here automatically.  It rewrites the
     # pickle in place, which is why it runs after the write.
     run_pfm("init_funs_forecast.py", "add_file_names_2MI", stamp_da, str(out))
+
+    # add_file_names_2MI (just run) names LV4's history LV4_ocean_his_<stamp>.nc
+    # from PFM's convention.  LV2 and LV3 get their HISNAME substituted into the
+    # seed .in directly, but LV4's comes from the model-info, so override it here
+    # or the run writes a file the stage will not recognise as its keeper.
+    with open(out, "rb") as fp:
+        MI2 = pickle.load(fp)
+    ymd2 = C.ymd(t_da)
+    MI2["lv4_his_name"] = f"LV4_DA_his_{ymd2}.nc"
+    MI2["lv4_his_name_full"] = str(C.scratch_dir("LV4", "His")
+                                   / MI2["lv4_his_name"])
+    with open(out, "wb") as fp:
+        pickle.dump(MI2, fp, protocol=pickle.HIGHEST_PROTOCOL)
 
     leaks = _operational_leaks(out)
     if leaks:
