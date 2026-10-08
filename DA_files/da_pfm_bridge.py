@@ -50,7 +50,7 @@ import da_config as C
 # the strength of _minfo_is_sane, which checks the window -- so without a version
 # marker an edit to build_minfo would silently not take on any t_fore whose
 # pickle already existed, and the bug it fixed would look unfixed.
-MINFO_VERSION = 4
+MINFO_VERSION = 5
 
 
 # ---------------------------------------------------------------------------
@@ -131,15 +131,17 @@ def build_minfo(t_fore: DT.datetime, t_da: DT.datetime, *,
     MI["restart_files_dir"] = str(C.SCRATCH / "Rst")
 
     # -- restarts: READ the operational SWAN hotstarts, WRITE our own ---------
-    # The SWAN initial condition for a DA cycle is the hotstart the operational
-    # forecast already deposited: get_swan_restart_file_name globs
-    # restart_swanfiles_dir_in for *_???.dat-001, parses init+lead from the name,
-    # and takes the one where init + lead == fetch_time.  For a window starting
-    # 2026-10-06 00Z that is LV4_swan_rst_202610060000_000, which exists.  So _in
-    # points at the shared directory (read-only for us; it holds 357 GB of
-    # operational restarts) while _out points into the DA tree, because this run
-    # must not deposit its own restarts among the forecast's.
-    MI["restart_swanfiles_dir_in"] = str(C.SWAN_RST_SHARED)
+    # The SWAN initial condition is the hotstart the operational forecast already
+    # deposited.  _in points at a DA-PRIVATE directory of symlinks, NOT at the
+    # shared /scratch/PFM_Simulations/restart_swan_data, because PFM's
+    # restart_setup calls three functions -- remove_swan_rst_nohour,
+    # remove_old_restart_files and remove_swan_restarts_eq_foretime -- that each
+    # os.remove() files globbed straight out of restart_swanfiles_dir_in.  Aimed
+    # at the shared directory that would delete operational restarts out of a
+    # 357 GB store.  stage_swan_hotstart() populates the private directory and
+    # pick_swan_hotstart() selects from it read-only.  _out is in the DA tree so
+    # this run's own restarts never land among the forecast's.
+    MI["restart_swanfiles_dir_in"] = str(C.SWAN_RST_DA_IN)
     MI["restart_swanfiles_dir_out"] = str(C.SCRATCH / "Rst")
     MI["restart_ncfiles_dir_in"] = str(C.SCRATCH / "Rst")
     MI["restart_ncfiles_dir_out"] = str(C.SCRATCH / "Rst")
@@ -385,6 +387,83 @@ def stage_lv4_clm(t_da: DT.datetime, t_fore: DT.datetime,
     print(f"    LV4 clm retimed to {t_da - DT.timedelta(days=1):%Y-%m-%d} .. "
           f"{t_fore + DT.timedelta(days=1):%Y-%m-%d}  ({', '.join(touched)})")
     return out
+
+
+def stage_swan_hotstart(t_da: DT.datetime, dest: Path | None = None) -> int:
+    """Symlink the SWAN restarts valid at t_da into a DA-private directory.
+
+    Returns the number of parts linked (72 when complete, one per SWAN rank).
+
+    Symlinks rather than copies: each candidate set is ~2.5 GB and SWAN only
+    reads them.  Private rather than shared because PFM's restart bookkeeping
+    deletes from this directory -- see build_minfo.
+    """
+    dest = Path(dest or C.SWAN_RST_DA_IN)
+    dest.mkdir(parents=True, exist_ok=True)
+    stamp = t_da.strftime("%Y%m%d%H%M")
+    src = sorted(C.SWAN_RST_SHARED.glob(f"LV4_swan_rst_{stamp}_000.dat-*"))
+    if not src:
+        raise FileNotFoundError(
+            f"no SWAN restart valid at {t_da:%Y-%m-%d %H}Z in "
+            f"{C.SWAN_RST_SHARED} (looked for LV4_swan_rst_{stamp}_000.dat-*).  "
+            f"Without one SWAN would have to cold-start from a flat sea, which "
+            f"takes longer than the 24 h window to spin up.")
+    for f in src:
+        link = dest / f.name
+        if link.is_symlink() or link.exists():
+            link.unlink()
+        link.symlink_to(f)
+    return len(src)
+
+
+def pick_swan_hotstart(pkl: Path) -> str | None:
+    """PFM's own choice of hotstart file, read-only.
+
+    get_swan_restart_file_name parses init and lead from each name and takes the
+    one where init + lead == fetch_time, returning the base name with the rank
+    suffix stripped -- SWAN appends -001..-072 itself.  Called instead of
+    restart_setup, which would make the same choice but delete as it went.
+    """
+    pfm_py = str(C.PFM_PYDIR)
+    if pfm_py not in sys.path:
+        sys.path.insert(0, pfm_py)
+    cwd = os.getcwd()
+    try:
+        os.chdir(pfm_py)
+        import init_funs_forecast as IF
+        return IF.get_swan_restart_file_name(str(pkl))
+    finally:
+        os.chdir(cwd)
+
+
+def set_swan_init(pkl: Path, hotstart: str | None) -> str:
+    """Write swan_init_txt_full into the model-info, as restart_setup would."""
+    with open(pkl, "rb") as fp:
+        MI = pickle.load(fp)
+    MI["swan_init_txt_full"] = f"HOTSTART '{hotstart}'" if hotstart else "ZERO"
+    tmp = Path(pkl).with_suffix(".tmp")
+    with open(tmp, "wb") as fp:
+        pickle.dump(MI, fp, protocol=pickle.HIGHEST_PROTOCOL)
+    tmp.replace(pkl)
+    return MI["swan_init_txt_full"]
+
+
+def make_lv4_dotins(pkl: Path) -> None:
+    """PFM's generator for LV4's three .in files (coupled / ROMS / SWAN).
+
+    In-process: run_funs reads the model-info by path, so this needs no argv
+    plumbing, and PFM's own driver calls it the same way.
+    """
+    pfm_py = str(C.PFM_PYDIR)
+    if pfm_py not in sys.path:
+        sys.path.insert(0, pfm_py)
+    cwd = os.getcwd()
+    try:
+        os.chdir(pfm_py)
+        import run_funs as R
+        R.make_LV4_coawst_dotins_dotsb(str(pkl), "fore")
+    finally:
+        os.chdir(cwd)
 
 
 def assert_not_operational(pkl: Path) -> None:

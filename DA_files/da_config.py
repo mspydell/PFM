@@ -100,6 +100,11 @@ SWAN_RST_SHARED = Path("/scratch/PFM_Simulations/restart_swan_data")
 # only the current cycle.  PFM_DA reads the archive and stages into its OWN
 # directory -- see da_pfm_bridge.stage_cdip_from_archive for why that separation
 # is not optional.
+# DA-private view of the SWAN restarts: symlinks to just the set we need.  PFM's
+# restart bookkeeping DELETES from restart_swanfiles_dir_in, so that key must
+# never point at SWAN_RST_SHARED.
+SWAN_RST_DA_IN = SCRATCH / "LV4" / "Run" / "swan_rst_in"
+
 CDIP_ARCHIVE = Path("/dataSIO/PFM_Simulations/Archive/cdip_ncs")
 CDIP_DA = SCRATCH / "LV4" / "Forc" / "cdip_data"
 

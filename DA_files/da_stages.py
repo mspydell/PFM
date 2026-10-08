@@ -1099,50 +1099,190 @@ def stage_lv3_fwd(ctx: Ctx) -> dict:
 
 def stage_lv4_fwd(ctx: Ctx) -> dict:
     """LV4 is COAWST (ROMS + SWAN via MCT), so it needs five things the others do
-    not: rivers, a nudging field, a per-cycle climatology, SWAN boundary and wind
-    files, and THREE .in files instead of one.
+    not, and all five come from PFM's own builders rather than the research
+    chain's LV4 scripts:
 
-    All five come from PFM's own builders, not from the research chain's
-    LV4 scripts -- same reasoning as the atm, and it removes five scripts that
-    would otherwise need vendoring and reparameterising:
+        rivers / nudging / clm   archived + retimed (see below)
+        SWAN bnd                 swan_functions.mk_swan_bnd_file, from CDIP
+        SWAN wnd                 only when swan_wind_wave_generation is on
+        SWAN hotstart            the operational restart valid at t_da
+        three .in files          run_funs.make_LV4_coawst_dotins_dotsb
 
-        rivers / nudging / clm   ocn_funs_forecast.mk_lv4_{river,nud,clm}_nc
-        SWAN bnd + wnd           swan_functions.mk_swan_{bnd,wnd}_file
-        the three .in files      run_funs.make_LV4_coawst_dotins_dotsb
+    THE SWAN CLOCK HAZARD IS ALREADY HANDLED BY PFM.  SWAN's clock drifts
+    ~1280 s per hop when RESTART is given FREE with no interval -- what blocked
+    2026-03-09 on the research side.  PFM's LV4_SWAN_BLANK.in writes
+    RESTART '...' FREE $swan_rst_int_hr$ HR, with the interval present.  At the
+    default rst_interval of 0.25 d that is 6 HR, so a 1-day run writes
+    _006/_012/_018/_024 and the next night hot-starts from _024.  No override
+    needed; it just writes three files we do not use.
 
-    THE SWAN CLOCK HAZARD IS ALREADY HANDLED HERE, which is worth stating because
-    it cost weeks on the research side.  SWAN's clock drifts ~1280 s per hop when
-    RESTART is given FREE with no interval, and that is what blocked 2026-03-09.
-    PFM's LV4_SWAN_BLANK.in writes
-
-        RESTART '$swan_rst_name_full$' FREE $swan_rst_int_hr$ HR
-
-    -- the interval IS specified -- and init_funs_forecast additionally runs
-    remove_swan_rst_nohour() and picks the file to hot-start from with
-    get_swan_restart_file_name().  So the research chain's "RESTART FREE 24 HR +
-    point HOTSTART at the _024 file" fix is PFM's existing behaviour, not
-    something to re-apply.
-
-    Dye: LV4 runs coawstM_noanapassive (ANA_PASSIVE undef) so IC-file dye is
-    honoured rather than zeroed at t=0.  his_to_ic.py carries dye_* through, so it
-    rides along from the base state; stage 10 asserts it survived.
+    Dye: coawstM_noanapassive has ANA_PASSIVE undef so IC-file dye is honoured
+    rather than zeroed at t=0, and his_to_ic carries dye_* through.  Asserted
+    below, because an LV4 IC without dye runs and silently produces nothing.
     """
-    raise NotImplementedError(
-        "LV4 orchestration is specified but not written.  The design is settled "
-        "and recorded in this docstring -- PFM's own builders for rivers, nud, "
-        "clm, SWAN bnd/wnd and the three .in files; IC = base + increment as for "
-        "LV2/LV3; BC from the LV3 DA history via parent_history_to_BC.py with "
-        "--child-vparams-from, because LV4 has 10 s-levels against LV3's 40.\n"
-        "    ONE OPEN QUESTION before writing it: PFM sets "
-        "lv4_swan_rst_int_hr = int(24 * rst_interval) and rst_interval defaults "
-        "to 0.25 d, giving RESTART ... FREE 6 HR and restarts at _006.._024.  A "
-        "1-day DA cycle only needs the _024 file, which that does produce, but it "
-        "writes three more than necessary -- confirm whether to set "
-        "rst_interval = 1.0 in the DA model-info instead.\n"
-        "    It also cannot be tested: LV4 needs 14 of the cluster's 15 nodes, so "
-        "it cannot run beside the LV1 DA chain.  Writing untested orchestration "
-        "on top of an unresolved parameter is how the SWAN bug got in; this waits "
-        "for a node window.")
+    out = C.scratch_dir("LV4", "His") / f"LV4_DA_his_{ctx.yda}.nc"
+    need = ("zeta", "u", "v", "temp", "salt")
+    if V.nc_ok(out, need_vars=need, min_bytes=500 << 20):
+        V.ensure_archived(out, C.ARCHIVE / "LV4_His")
+        raise StageSkip(str(out))
+    if ctx.dry_run:
+        return {"would_run": f"LV4 coupled forward for {ctx.yda} "
+                             f"({C.NODES['LV4']} nodes)"}
+
+    exe = C.scratch_dir("LV4", "Run") / C.ROMS_EXE_LV4
+    if not (exe.is_file() and os.access(exe, os.X_OK)):
+        raise FileNotFoundError(
+            f"LV4 executable missing or not executable: {exe}.  LV4 needs "
+            f"{C.ROMS_EXE_LV4} (ANA_PASSIVE undef), not {C.ROMS_EXE_FWD}.")
+
+    inc = C.SCRATCH / "Inc" / f"INC_LV4_{ctx.yda}.nc"
+    chk = V.nc_ok(inc, need_vars=need, attrs={"blend_space": C.BLEND_SPACE})
+    if not chk:
+        raise FileNotFoundError(f"LV4 needs its increment from stage 6: {chk.why}")
+
+    parent_his = C.scratch_dir("LV3", "His") / f"LV3_DA_his_{ctx.yda}.nc"
+    if not parent_his.is_file():
+        raise FileNotFoundError(
+            f"LV4 takes boundaries from LV3, whose history is not there yet: "
+            f"{parent_his}")
+
+    pkl = _minfo(ctx)
+    forc = C.scratch_dir("LV4", "Forc")
+    forc.mkdir(parents=True, exist_ok=True)
+
+    # -- 1. base state, carrying dye ----------------------------------------
+    src, note = _child_base_ic(ctx, "LV4")
+    print(f"    base: {note}")
+    base = forc / f"LV4_DA_base_{ctx.yda}.nc"
+    if not V.nc_ok(base, need_vars=need, expect_time=ctx.t_da, min_bytes=200 << 20):
+        rc = _run([C.PY, C.PYDIR / "his_to_ic.py", "--his", src,
+                   "--time", f"{ctx.t_da:%Y-%m-%dT%H:%M:%S}",
+                   "--out", base, "--sanitize"],
+                  log=C.SCRATCH / "Log" / f"{ctx.yfore}_LV4_fwd.log",
+                  timeout=5400)
+        if not V.nc_ok(base, need_vars=need, expect_time=ctx.t_da,
+                       min_bytes=200 << 20):
+            raise RuntimeError(f"LV4 base IC invalid (rc={rc}): {base}")
+
+    # -- 2. IC = base + increment -------------------------------------------
+    ic = forc / f"LV4_DA_IC_{ctx.yda}.nc"
+    if not V.nc_ok(ic, need_vars=need, expect_time=ctx.t_da, min_bytes=200 << 20):
+        rc = _run([C.PY, C.PYDIR / "apply_child_increment.py",
+                   "--base", base, "--incr", inc, "--out", ic,
+                   "--grid", C.GRID["LV4"]],
+                  log=C.SCRATCH / "Log" / f"{ctx.yfore}_LV4_fwd.log",
+                  timeout=5400)
+        if not V.nc_ok(ic, need_vars=need, expect_time=ctx.t_da,
+                       min_bytes=200 << 20,
+                       water_range={"temp": (-3.0, 40.0), "salt": (0.0, 45.0),
+                                    "zeta": (-5.0, 5.0)}):
+            raise RuntimeError(f"LV4 IC invalid after the increment (rc={rc})")
+    _assert_lv4_dye(ic)
+
+    # -- 3. BC from the LV3 DA history --------------------------------------
+    bc = forc / f"LV4_DA_BC_{ctx.yda}.nc"
+    if not V.nc_ok(bc, need_vars=("temp_south",), min_bytes=1 << 20):
+        rc = _run([C.PY, C.PYDIR / "parent_history_to_BC.py",
+                   "--parent-grid", C.GRID["LV3"], "--child-grid", C.GRID["LV4"],
+                   "--history", parent_his, "--out", bc,
+                   # LV4 has 10 s-levels against LV3's 40, so the vertical
+                   # parameters cannot be inferred from the parent
+                   "--child-vparams-from", str(ic)],
+                  log=C.SCRATCH / "Log" / f"{ctx.yfore}_LV4_fwd.log",
+                  timeout=5400)
+        if not V.nc_ok(bc, need_vars=("temp_south",), min_bytes=1 << 20):
+            raise RuntimeError(f"LV4 BC build failed (rc={rc}): {bc}")
+
+    # -- 4. the forcing staged earlier must all be present -------------------
+    import pickle as _pk
+    with open(pkl, "rb") as fp:
+        MI = _pk.load(fp)
+    for key, label in (("lv4_atm_file", "atm"), ("lv4_clm_file", "climatology"),
+                       ("lv4_nud_file", "nudging"), ("lv4_river_file", "river"),
+                       ("lv4_swan_bnd_file", "SWAN boundary")):
+        f = Path(MI["lv4_forc_dir"]) / MI[key]
+        if not f.is_file():
+            raise FileNotFoundError(f"LV4 {label} missing: {f}")
+
+    # -- 5. SWAN hotstart, selected read-only --------------------------------
+    n = B.stage_swan_hotstart(ctx.t_da)
+    hot = B.pick_swan_hotstart(pkl)
+    txt = B.set_swan_init(pkl, hot)
+    print(f"    SWAN: {n} restart parts linked; {txt[:88]}")
+    if hot is None:
+        raise RuntimeError(
+            "no SWAN hotstart found for this window, so SWAN would cold-start "
+            "from a flat sea -- which cannot spin up inside 24 h.  Check "
+            f"{C.SWAN_RST_SHARED} for a set valid at {ctx.t_da:%Y-%m-%d %H}Z.")
+
+    # -- 6. the three .in files, from PFM's own generator --------------------
+    B.make_lv4_dotins(pkl)
+    run_dir = C.scratch_dir("LV4", "Run")
+    coupled = run_dir / "LV4_forecast_coupled.in"
+    for f in (coupled, run_dir / "LV4_forecast_run.in",
+              run_dir / "LV4_forecast_swan.in"):
+        if not f.is_file():
+            raise RuntimeError(f"make_LV4_coawst_dotins_dotsb did not write {f}")
+    _assert_lv4_in_consistent(run_dir, ctx, ic, bc)
+
+    # -- 7. submit -----------------------------------------------------------
+    log = C.SCRATCH / "Log" / f"LV4_DA_fwd_{ctx.yda}.log"
+    t0 = time.time()
+    rc, job = _sbatch_wait(C.SLURMDIR / "slurm_LV4_fwd.sb",
+                           {"ROMS_EXE": str(exe), "RIN": str(coupled),
+                            "LOG": str(log)},
+                           cwd=run_dir, timeout_s=ctx.left_h() * 3600)
+    chk = V.roms_job_ok(log, (out,), t0, rc, min_bytes=500 << 20)
+    if not chk:
+        raise RuntimeError(f"LV4 forward failed (job {job}): {chk.why}. "
+                           f"Log: {log}")
+    print(f"    job {job} accepted: {chk.why} ({(time.time()-t0)/60:.1f} min)")
+    _warn_on_roms_errors(log)
+    arch = V.ensure_archived(out, C.ARCHIVE / "LV4_His")
+    V.ensure_archived(log, C.ARCHIVE / "Log")
+    return {"LV4": {"scratch": out, "archive": arch}}
+
+
+def _assert_lv4_dye(ic: Path) -> None:
+    """LV4's IC must carry dye_01 and dye_02.
+
+    coawstM_noanapassive has ANA_PASSIVE undef, so dye comes from the IC file
+    rather than an analytical profile.  Without it the run completes normally and
+    produces identically zero dye -- the whole point of LV4 lost, with nothing in
+    the log to say so.
+    """
+    import netCDF4 as nc_
+    import numpy as np_
+    with nc_.Dataset(ic) as d:
+        missing = [v for v in ("dye_01", "dye_02") if v not in d.variables]
+        if missing:
+            raise RuntimeError(
+                f"{ic.name} has no {', '.join(missing)}.  LV4 runs "
+                f"coawstM_noanapassive (ANA_PASSIVE undef), so it would run to "
+                f"completion with zero dye everywhere.  his_to_ic carries dye "
+                f"through only when the SOURCE history has it -- check the base.")
+        tot = {v: float(np_.nansum(np_.abs(np_.asarray(d[v][:], dtype=float))))
+               for v in ("dye_01", "dye_02")}
+    print(f"    dye present: dye_01 sum|.|={tot['dye_01']:.3e}, "
+          f"dye_02 sum|.|={tot['dye_02']:.3e}")
+
+
+def _assert_lv4_in_consistent(run_dir: Path, ctx: Ctx, ic: Path,
+                              bc: Path) -> None:
+    """The generated .in files must name THIS cycle's inputs and date."""
+    roms = (run_dir / "LV4_forecast_run.in").read_text()
+    for f, what in ((ic, "ININAME"), (bc, "BRYNAME")):
+        if f.name not in roms:
+            raise RuntimeError(
+                f"LV4_forecast_run.in does not reference {f.name} ({what}); "
+                f"the generator used different inputs than this stage built.")
+    swan = (run_dir / "LV4_forecast_swan.in").read_text()
+    if "HOTSTART" not in swan and "INITIAL" not in swan:
+        raise RuntimeError("LV4_forecast_swan.in has no INITIAL/HOTSTART line")
+    if "FREE" in swan and "HR" not in swan:
+        raise RuntimeError(
+            "LV4_forecast_swan.in has RESTART ... FREE with no interval.  SWAN's "
+            "clock drifts ~1280 s per hop in that form -- the 2026-03-09 bug.")
 
 
 # ---------------------------------------------------------------------------
