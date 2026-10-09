@@ -611,7 +611,8 @@ def stage_lv1_da(ctx: Ctx) -> dict:
         for name, (sub, tmpl, _mb) in _DA_KEEPERS.items():
             f = io / name
             if f.is_file():
-                V.ensure_archived(f, C.ARCHIVE / sub, tmpl.format(ymd=ymd))
+                V.ensure_archived(f, C.ARCHIVE / sub, tmpl.format(ymd=ymd),
+                                  expect_time=ctx.t_da)
         raise StageSkip(str(analysis))
 
     rin = C.scratch_dir("LV1", "Run") / f"LV1_run_4dvar_{ymd}.in"
@@ -716,7 +717,8 @@ def stage_lv1_da(ctx: Ctx) -> dict:
                       f"does not write a DA restart")
                 continue
             raise RuntimeError(f"keeper missing after a successful job: {f}")
-        arch = V.ensure_archived(f, C.ARCHIVE / sub, tmpl.format(ymd=ymd))
+        arch = V.ensure_archived(f, C.ARCHIVE / sub, tmpl.format(ymd=ymd),
+                                 expect_time=ctx.t_da)
         out[name] = {"scratch": f, "archive": arch}
     V.ensure_archived(log, C.ARCHIVE / "Log")
     return out

@@ -212,7 +212,8 @@ def archive_copy(src: Path, dst_dir: Path, name: str | None = None) -> Path:
     return dst
 
 
-def ensure_archived(src: Path, dst_dir: Path, name: str | None = None) -> Path:
+def ensure_archived(src: Path, dst_dir: Path, name: str | None = None,
+                    expect_time: DT.datetime | None = None) -> Path:
     """Idempotent archive_copy: copy only if the archive copy is absent or the
     wrong size.
 
@@ -225,5 +226,40 @@ def ensure_archived(src: Path, dst_dir: Path, name: str | None = None) -> Path:
     src, dst_dir = Path(src), Path(dst_dir)
     dst = dst_dir / (name or src.name)
     if dst.exists() and dst.stat().st_size == src.stat().st_size:
-        return dst
+        # Size alone is not enough when the file is a date-tagged copy of a
+        # FIXED-name output.  Every LV1 ocean_fwd_outer0/outer1 is exactly the
+        # same size every cycle (same grid, same 25 records), so once
+        # LV1_fwd_outer0_<ymd>.nc exists the size test matches forever and a
+        # later cycle's data is never written -- the archive silently keeps the
+        # FIRST cycle that ever landed on that name.
+        #
+        # That happened: LV1_fwd_outer0_20261007.nc and _outer1_20261007.nc both
+        # held the 10/06 window, and the real 10/07 fields were overwritten in
+        # tmp_input_output by the next cycle before anyone noticed.  roms_mod.nc
+        # escaped only because its size varies with the observation count.
+        #
+        # So when the caller says which window this copy is for, check it.
+        if expect_time is None or _first_time_is(dst, expect_time):
+            return dst
+        print(f"    re-archiving {dst.name}: it holds a different window than "
+              f"{expect_time:%Y-%m-%d %H}Z (same size, so the size test passed)")
     return archive_copy(src, dst_dir, name)
+
+
+def _first_time_is(path: Path, want: DT.datetime, tol_s: float = 60.0) -> bool:
+    """True when the file's first ocean_time record is `want`."""
+    try:
+        import netCDF4 as nc
+        import numpy as np
+        with nc.Dataset(path) as d:
+            if "ocean_time" not in d.variables:
+                return True            # nothing to check against
+            tv = np.asarray(d["ocean_time"][:]).ravel().astype(float)
+            units = getattr(d["ocean_time"], "units", "")
+        if tv.size == 0:
+            return False
+        scale = 86400.0 if units.strip().lower().startswith("day") else 1.0
+        got = ROMS_EPOCH + DT.timedelta(seconds=float(tv[0]) * scale)
+        return abs((got - want).total_seconds()) <= tol_s
+    except Exception:
+        return True                    # unreadable: let archive_copy decide
