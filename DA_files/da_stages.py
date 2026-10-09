@@ -28,6 +28,7 @@ from __future__ import annotations
 import datetime as DT
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -54,6 +55,7 @@ class Ctx:
     deadline: DT.datetime
     dry_run: bool = False
     allow_download: bool = True
+    cold_lv1: bool = False
 
     @property
     def yda(self) -> str:
@@ -168,9 +170,47 @@ def stage_lv1_ic(ctx: Ctx) -> dict:
         # archive on the skip path too -- see da_validate.ensure_archived
         V.ensure_archived(out, C.ARCHIVE / "IC_out")
         raise StageSkip(str(out))
-    # The IC does NOT have to come from the forecast initialised at t_da.  A PFM
-    # LV1 history holds 121 hourly records spanning 5 days, so the state at t_da
-    # appears in up to five different runs; find_lv1_history searches them
+    # WARM FIRST, exactly as the children do in _child_base_ic.  The previous
+    # cycle's handoff IC IS its analysis at t = 24 h, and that cycle's t = 24 h
+    # is this cycle's t_da -- so LV1 continues from the DA system's own state
+    # instead of being yanked back onto the operational forecast every night.
+    # Without this, LV1 cold-started from PFM every cycle while LV2/LV3/LV4
+    # warm-started from the DA, which is an inconsistency, not a choice: the
+    # children would be descended from an LV1 analysis their own parent had
+    # already discarded.
+    #
+    # The file is already a sanitised single record at t_da, written by
+    # stage_handoff through the same his_to_ic.py, so it is copied rather than
+    # rebuilt.  Verified 2026-10-08 on the 10/06 cycle: bit-identical to
+    # ocean_fwd_outer1.nc's t = 24 h record, max|dzeta| = 0 over 81,217 cells.
+    warm = C.SCRATCH / "IC_out" / f"LV1_DA_IC_for_{ctx.t_da:%Y%m%d%H}.nc"
+    if not warm.is_file():
+        warm = C.ARCHIVE / "IC_out" / warm.name
+    warm_ok = V.nc_ok(warm, need_vars=("zeta", "u", "v", "temp", "salt"),
+                      expect_time=ctx.t_da, min_bytes=50 << 20)
+    if warm_ok and not ctx.cold_lv1:
+        print(f"    IC WARM from the previous DA cycle's analysis at t=24h "
+              f"({warm.name})")
+        if ctx.dry_run:
+            return {"would_run": f"copy {warm.name} -> {out.name}"}
+        out.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(warm, out)
+        chk = V.nc_ok(out, need_vars=("zeta", "u", "v", "temp", "salt"),
+                      expect_time=ctx.t_da, min_bytes=50 << 20,
+                      finite_vars=("zeta", "temp", "salt"),
+                      water_range={"temp": (-3.0, 40.0), "salt": (0.0, 45.0),
+                                   "zeta": (-5.0, 5.0)})
+        if not chk:
+            raise RuntimeError(f"LV1 warm IC invalid: {chk.why}")
+        arch = V.ensure_archived(out, C.ARCHIVE / "IC_out")
+        return {"lv1_ic": {"scratch": out, "archive": arch, "warm": True}}
+    if ctx.cold_lv1 and warm_ok:
+        print(f"    IC: --cold-lv1 given, ignoring the available warm start "
+              f"({warm.name})")
+
+    # COLD.  The IC does NOT have to come from the forecast initialised at t_da.
+    # A PFM LV1 history holds 121 hourly records spanning 5 days, so the state at
+    # t_da appears in up to five different runs; find_lv1_history searches them
     # freshest-first (least forecast drift) and verifies the record is really
     # there rather than trusting the filename.  This matters exactly when a PFM
     # cycle has failed and been rerun off-schedule -- which is when PFM_DA is
@@ -183,7 +223,7 @@ def stage_lv1_ic(ctx: Ctx) -> dict:
             f"record at {ctx.t_da:%Y-%m-%d %H}Z.  Nothing can be downloaded to "
             f"fix this -- a PFM forecast whose window contains t_da has to "
             f"exist.  Searched {[str(d) for d in C.LV1_HIS_DIRS]}")
-    print(f"    IC from {note}")
+    print(f"    IC COLD from PFM's operational history: {note}")
     if lead_h > 0:
         print(f"    NOTE: this is a {lead_h} h forecast of the t_da state, not an "
               f"analysis at t_da -- the run initialised at t_da is missing.")
@@ -550,10 +590,24 @@ def stage_lv1_da(ctx: Ctx) -> dict:
     analysis = io / "ocean_fwd_outer1.nc"
     prior = io / "ocean_fwd_outer0.nc"
 
-    # idempotent skip: both the prior and the analysis must be present and sane
+    # Idempotent skip: the prior and the analysis must be present, sane, AND for
+    # THIS window.
+    #
+    # expect_time is the whole point of this check and was missing.  These two
+    # files live in tmp_input_output under fixed, UN-DATED names, and that
+    # directory is not in SCRATCH_PURGE_SUBDIRS -- so the previous cycle's
+    # outer0/outer1 are still sitting there when the next cycle starts.  Without
+    # a date test the skip fired on yesterday's files and the whole chain
+    # silently downscaled YESTERDAY's analysis onto today's children, producing a
+    # complete, plausible, wrong result.  Caught on the 2026-10-07 dry run, which
+    # reported "[lv1_da] skipped -- output already valid" before the 10/07 cycle
+    # had been run at all.
+    #
+    # record 0 of outer0/outer1 is t_da, so this is the correct record to test.
     if (V.nc_ok(analysis, need_vars=("zeta", "u", "v", "temp", "salt"),
-                min_bytes=100 << 20)
-            and V.nc_ok(prior, need_vars=("zeta", "temp"), min_bytes=100 << 20)):
+                min_bytes=100 << 20, expect_time=ctx.t_da)
+            and V.nc_ok(prior, need_vars=("zeta", "temp"), min_bytes=100 << 20,
+                        expect_time=ctx.t_da)):
         for name, (sub, tmpl, _mb) in _DA_KEEPERS.items():
             f = io / name
             if f.is_file():

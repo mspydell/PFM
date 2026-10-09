@@ -239,7 +239,11 @@ EXPECTED_WALL_S = {
     "increments": 400,                      # ~6.4 min, all three levels, 1 date
     "LV2": 200,                             # measured 2m49
     "LV3": 300,                             # scaled
-    "LV4": 3300,                            # scaled from 2h15 / 2.5 days
+    "LV4": 2000,                            # measured 32m25 on 2026-10-06
+                                            # (was 3300, scaled from 2h15 over
+                                            # 2.5 days -- the scaling was
+                                            # pessimistic by ~22 min, which is
+                                            # most of the budget slack)
 }
 # The whole pre-step must finish before the forecast starts.
 #

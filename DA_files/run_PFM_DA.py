@@ -37,7 +37,8 @@ from da_manifest import Manifest   # noqa: E402
 
 def run_PFM_DA(t_fore: str, *, stages: list[str] | None = None,
                dry_run: bool = False, deadline_h: float | None = None,
-               purge: bool = True, allow_download: bool = True) -> dict:
+               purge: bool = True, allow_download: bool = True,
+               cold_lv1: bool = False) -> dict:
     tf, td = C.parse_t_fore(t_fore)
     C.ensure_tree()
 
@@ -47,7 +48,7 @@ def run_PFM_DA(t_fore: str, *, stages: list[str] | None = None,
 
     man = Manifest(t_fore)
     ctx = S.Ctx(t_fore=tf, t_da=td, man=man, deadline=deadline, dry_run=dry_run,
-                allow_download=allow_download)
+                allow_download=allow_download, cold_lv1=cold_lv1)
     todo = stages or list(S.STAGES)
 
     print(f"  PFM DA pre-step")
@@ -149,6 +150,11 @@ def main() -> int:
     ap.add_argument("--check", action="store_true",
                     help="run the input preflight and exit (reads nothing else, "
                          "downloads nothing; exit 0 = every input is on disk)")
+    ap.add_argument("--cold-lv1", action="store_true",
+                    help="ignore the previous cycle's analysis and take LV1's "
+                         "IC from PFM's operational history instead.  The "
+                         "default is to warm-start from the previous cycle, as "
+                         "LV2/LV3/LV4 already do.")
     ap.add_argument("--no-download", action="store_true",
                     help="never download: fail if any forcing is missing from "
                          "disk.  The default is to read from disk and fetch only "
@@ -189,7 +195,7 @@ def main() -> int:
             ap.error(f"unknown stage(s): {bad}.  Valid: {list(S.STAGES)}")
     r = run_PFM_DA(a.t_fore, stages=st, dry_run=a.dry_run,
                    deadline_h=a.deadline_h, purge=not a.no_purge,
-                   allow_download=not a.no_download)
+                   allow_download=not a.no_download, cold_lv1=a.cold_lv1)
     return 0 if r["verdict"] == "ok" else 1
 
 
