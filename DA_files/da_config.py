@@ -86,6 +86,11 @@ VARINFO = {lv: Path(f"/scratch/PFM_Simulations/{lv}_Forecast/Run/{lv}_varinfo.ya
 # night's DA history is not there to warm-start from.
 PFM_HIS = {lv: PFM_ARCHIVE / f"{lv}_His" for lv in ("LV1", "LV2", "LV3", "LV4")}
 
+# PFM's operational forcing archive.  LV4's river file is COPIED from here
+# rather than rebuilt: PFM's mk_lv4_river_nc fetches from the network via
+# get_river_flow_nwm, and PFM_DA sources only what is already on disk.
+PFM_FORCING_ARCHIVE = PFM_ARCHIVE / "Forcing"
+
 # Which parent each child takes boundaries from.  Strictly sequential: LV3 cannot
 # start before LV2 has written its history.
 BC_PARENT = {"LV2": "LV1", "LV3": "LV2", "LV4": "LV3"}

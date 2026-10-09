@@ -1023,6 +1023,7 @@ def _child_atm(ctx: Ctx, lv: str, pkl: Path) -> Path:
     """Build this level's atm from PFM's ECMWF path, or reuse it."""
     out = C.scratch_dir(lv, "Forc") / f"{lv}_DA_ATM_{ctx.yda}.nc"
     if V.nc_ok(out, need_vars=("Uwind", "Vwind", "Tair"), min_bytes=1 << 20):
+        _assert_covers_window(out, ctx, "wind_time")
         return out
     n = lv[-1]
     # the ECMWF data is already read and on the roms LV1 grid from stage 2; this
@@ -1033,6 +1034,12 @@ def _child_atm(ctx: Ctx, lv: str, pkl: Path) -> Path:
                   finite_vars=("Uwind", "Vwind", "Tair"))
     if not chk:
         raise RuntimeError(f"{lv} atm invalid: {chk.why}")
+    # PFM's builder goes through a per-level tmp pickle under a FIXED name
+    # (atm_tmp_LV<n>_pckl_file.pkl).  A stale one left by the previous cycle
+    # builds a perfectly valid file for the WRONG DAY under today's name, and
+    # nothing but the time axis notices.  Same check, same reason, as the LV1
+    # forcing stages.
+    _assert_covers_window(out, ctx, "wind_time")
     return out
 
 
@@ -1248,6 +1255,16 @@ def stage_lv4_fwd(ctx: Ctx) -> dict:
     # -- only the directory is substituted, the basename is literal, and the
     # generator never reads lv4_atm_file.  Link our date-tagged atm to the name
     # the template insists on, keeping the tagged file as the real artefact.
+    # Build the atm and stage the river FIRST.  Neither existed for 2026-10-07:
+    # stage_lv4_fwd only ever linked and then checked them, so the 10/06 cycle
+    # worked solely because both had been made by hand that session.  The
+    # symptom was "LV4 atm missing" after the 4D-Var and all three children had
+    # already run -- 3.5 h in.  Note the link is created BELOW this, so an
+    # earlier version left LV4_ATM_FORCING.nc dangling at a file that was never
+    # built.
+    _child_atm(ctx, "LV4", pkl)
+    _stage_lv4_river(ctx, MI)
+
     atm_link = Path(MI["lv4_forc_dir"]) / "LV4_ATM_FORCING.nc"
     atm_real = Path(MI["lv4_forc_dir"]) / MI["lv4_atm_file"]
     if atm_link.resolve() != atm_real.resolve():
@@ -1349,6 +1366,37 @@ def MI_rst_dir(pkl: Path) -> str:
     import pickle as _pk
     with open(pkl, "rb") as fp:
         return _pk.load(fp)["restart_ncfiles_dir_in"]
+
+
+def _stage_lv4_river(ctx: Ctx, MI: dict) -> Path:
+    """Put this window's river file where the LV4 .in generator expects it.
+
+    COPIED from PFM's operational Forcing archive, not rebuilt.  PFM's own
+    mk_lv4_river_nc calls rivfuns.get_river_flow_nwm, which goes to the network
+    -- and PFM_DA sources only what is already on disk.  The operational cycle
+    for this day has already produced the file, and it covers t_da .. t_da + 5 d,
+    which contains our 24 h window.
+
+    Verified 2026-10-08: the 10/06 cycle's river_20261006_20261007.nc is
+    BYTE-IDENTICAL to river_LV4_2026100600.nc (md5 dcfb7370...), i.e. the file
+    that was staged by hand last session is exactly this copy.  This only makes
+    that step reproducible.
+    """
+    dst = Path(MI["lv4_forc_dir"]) / MI["lv4_river_file"]
+    if dst.is_file():
+        return dst
+    src = C.PFM_FORCING_ARCHIVE / f"river_LV4_{ctx.t_da:%Y%m%d}00.nc"
+    if not src.is_file():
+        raise FileNotFoundError(
+            f"LV4 river: {src} is not on disk.  It is written by PFM's own "
+            f"cycle for {ctx.t_da:%Y-%m-%d}; nothing here rebuilds it, because "
+            f"PFM's mk_lv4_river_nc fetches from the network.  If that cycle "
+            f"did not run, stage a neighbouring day by hand and say so.")
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(src, dst)
+    print(f"    river staged from the operational archive: "
+          f"{src.name} -> {dst.name}")
+    return dst
 
 
 def _assert_lv4_dye(ic: Path) -> None:
