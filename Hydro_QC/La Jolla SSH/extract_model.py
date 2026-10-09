@@ -27,7 +27,7 @@ MODEL_DIR = os.path.join(OUT_DIR, "model_cache")
 BASE_DATA = "/dataSIO/PFM_Simulations/Archive"
 GRID = "/dataSIO/PFM_Simulations/Grid/GRID_SDTJRE_LV3_rx020.nc"  # LV4 does not reach La Jolla
 TIME0 = pd.Timestamp("1999-01-01", tz="UTC")  # ocean_time is seconds since this
-LON, LAT = -117.25714, 32.86689  # NOAA 9410230 (MATLAB registry ID 11 has the SD Bay position by mistake)
+LON, LAT = -117.25714, 32.86689  # NOAA 9410230 (Scripps Pier)
 LEVEL = "LV3"
 
 

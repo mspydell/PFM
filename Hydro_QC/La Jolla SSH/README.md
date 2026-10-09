@@ -4,7 +4,7 @@ Compares the PFM LV3 day-1 forecast sea surface height (`zeta`) with the NOAA ti
 
 The LV4 grid doesn't reach La Jolla, so this uses LV3. The code is the same as in `../SanDiegoBay`; only the station, grid and position differ.
 
-This is a Python version of MATLAB location ID 11 (La Jolla) in `PFM_Master_Code_For_TimeSeriesExtraction.m`, `Observed_Master_Code_For_TimeSeriesExtraction.m` and `PFM_Master_Code_For_Plots.m` (which calls `Plot_SSH.m`)
+This is a Python version of MATLAB location ID 11 (La Jolla) in `PFM_Master_Code_For_TimeSeriesExtraction.m`, `Observed_Master_Code_For_TimeSeriesExtraction.m` and `PFM_Master_Code_For_Plots.m` (which calls `Plot_SSH.m`).
 
 ## Files
 
@@ -88,7 +88,6 @@ The residual is the sea level the tide prediction leaves out:
 
 **Model**
 - `zeta` at the LV3 grid point nearest NOAA's gauge position (−117.25714, 32.86689): −117.25647, 32.86733 (79 m away), depth 10.7 m.
-- See "Wrong position in the MATLAB registry" below.
 - Forecast day 1: hours 1–24 of each history file, rounded to the hour. Where history files overlap, the later file wins.
 
 **Observations**
@@ -100,36 +99,6 @@ The residual is the sea level the tide prediction leaves out:
 - Pressure comes from the NOAA CO-OPS API for station 9410230 (Scripps Pier). NDBC `ljac1`, which the MATLAB used, republishes the same station's data.
 
 **Difference from the MATLAB:** `correction_WaterLevel_InverseBarometer.m` only reads the NDBC pressure files for 2024 and 2025 (for La Jolla, `ljac1`). From January 2026 its pressure therefore stays at the last 2025 value, as at San Diego Bay, where this put the corrected level off by up to about 14 cm. The Python uses the real pressure.
-
-### Wrong position in the MATLAB registry
-
-The La Jolla entry in `PFM_Master_Code_For_TimeSeriesExtraction.m` has the San Diego Bay tide-gauge position, apparently copied from ID 1:
-
-```matlab
-locs(25).id   = 11;
-locs(25).name = 'La Jolla';
-locs(25).lon  = -117.1767;   % San Diego Bay gauge position
-locs(25).lat  = 32.715;
-```
-
-The extraction takes the grid point nearest to `lon`/`lat`, so the MATLAB "La Jolla" series comes from San Diego Bay:
-
-| Position used | Nearest LV3 grid point | Depth |
-|---|---|---|
-| MATLAB ID 11 (−117.1767, 32.715) | −117.1764, 32.7145, inside San Diego Bay | 8.41 m |
-| NOAA 9410230 (−117.25714, 32.86689), used here | −117.2565, 32.8673, off Scripps Pier | 10.66 m |
-
-The saved MATLAB file `PFM_TimeSeries/LaJolla_tide_LV3/TimeSeries_05-Dec-2024_31-Dec-2025_LV3_day1.mat` has `h = 8.41`, so it holds San Diego Bay sea level.
-
-To fix the MATLAB:
-1. Set `locs(25).lon = -117.25714` and `locs(25).lat = 32.86689`.
-2. Move or delete the old file in `PFM_TimeSeries/LaJolla_tide_LV3/`, because the resume logic would otherwise append to it.
-3. Rerun ID 11.
-
-**This folder is not affected.** The Python uses the NOAA position (`extract_model.py`) and downloads station 9410230 (`download_obs.py`). Checks on 9 Oct 2026:
-- the model grid point is the one off Scripps Pier (depth 10.66 m);
-- the cached water levels match a fresh NOAA 9410230 download, not 9410170;
-- the cached model series differs from the San Diego Bay series by up to 0.36 m.
 
 ## Data
 
