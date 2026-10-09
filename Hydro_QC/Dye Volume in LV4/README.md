@@ -33,13 +33,15 @@ Cron runs it every morning at 06:00, with the log in `cron.log`:
 ## plot_dye_volume_range.py: any start and end dates
 
 ```bash
-python plot_dye_volume_range.py --start YYYY-MM-DD [--end YYYY-MM-DD] [--out PATH]
+python plot_dye_volume_range.py --start YYYY-MM-DD [--end YYYY-MM-DD|today] [--out PATH]
+python plot_dye_volume_range.py --duration N [--end YYYY-MM-DD|today] [--out PATH]
 ```
 
 | Option | Meaning | Default |
 |---|---|---|
-| `--start` | First day to plot (Pacific). Required. | |
-| `--end` | Last day to plot (Pacific), included in the plot | today |
+| `--start` | First day to plot (Pacific). Give this or `--duration`. | |
+| `--end` | Last day to plot (Pacific), included in the plot; a date or `today` | today |
+| `--duration` | Number of days to plot, ending on `--end` (both days included). Can't be combined with `--start`. | |
 | `--out` | Where to save the PNG | `plots/Dye_volume_<start>_<end>.png` |
 
 Examples:
@@ -47,6 +49,7 @@ Examples:
 ```bash
 python plot_dye_volume_range.py --start 2026-08-01 --end 2026-10-08   # -> plots/Dye_volume_20260801_20261008.png
 python plot_dye_volume_range.py --start 2026-01-01                    # 1 January 2026 to today
+python plot_dye_volume_range.py --end today --duration 45            # the last 45 days, today included
 python plot_dye_volume_range.py --start 2026-07-01 --end 2026-07-31 --out july.png
 ```
 
