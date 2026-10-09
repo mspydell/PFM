@@ -4,7 +4,7 @@ Compares the PFM LV3 day-1 forecast sea surface height (`zeta`) with the NOAA ti
 
 The LV4 grid doesn't reach La Jolla, so this uses LV3. The code is the same as in `../SanDiegoBay`; only the station, grid and position differ.
 
-This is a Python version of MATLAB location ID 11 (La Jolla) in `PFM_Master_Code_For_TimeSeriesExtraction.m`, `Observed_Master_Code_For_TimeSeriesExtraction.m` and `PFM_Master_Code_For_Plots.m` (which calls `Plot_SSH.m`).
+This is a Python version of MATLAB location ID 11 (La Jolla) in `PFM_Master_Code_For_TimeSeriesExtraction.m`, `Observed_Master_Code_For_TimeSeriesExtraction.m` and `PFM_Master_Code_For_Plots.m` (which calls `Plot_SSH.m`)
 
 ## Files
 
