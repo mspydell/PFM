@@ -1264,6 +1264,7 @@ def stage_lv4_fwd(ctx: Ctx) -> dict:
     # built.
     _child_atm(ctx, "LV4", pkl)
     _stage_lv4_river(ctx, MI)
+    _stage_lv4_window_inputs(ctx, MI, pkl)
 
     atm_link = Path(MI["lv4_forc_dir"]) / "LV4_ATM_FORCING.nc"
     atm_real = Path(MI["lv4_forc_dir"]) / MI["lv4_atm_file"]
@@ -1366,6 +1367,75 @@ def MI_rst_dir(pkl: Path) -> str:
     import pickle as _pk
     with open(pkl, "rb") as fp:
         return _pk.load(fp)["restart_ncfiles_dir_in"]
+
+
+def _assert_swan_bnd_covers(bnd: Path, ctx: Ctx) -> None:
+    """The SWAN boundary spectra must carry THIS window's timestamps.
+
+    SWAN does not fail on a boundary file for the wrong day -- it holds the last
+    available spectrum -- so a stale .bnd runs to completion and produces a
+    plausible wave field driven by yesterday's swell.  That is exactly what
+    happened on 2026-10-07: LV4 ran green on a .bnd carrying 20261006.0000 ..
+    20261007.0000.  Only reading the timestamps notices.
+    """
+    # SWAN writes "YYYYMMDD.HHMMSS" followed by a "date and time" comment on the
+    # same line, so take the first token rather than the whole line.
+    want_lo = f"{ctx.t_da:%Y%m%d.%H%M%S}"
+    want_hi = f"{ctx.t_fore:%Y%m%d.%H%M%S}"
+    stamps = []
+    with open(bnd, "r", errors="ignore") as fh:
+        for line in fh:
+            tok = line.split()[0] if line.split() else ""
+            if re.fullmatch(r"\d{8}\.\d{6}", tok):
+                stamps.append(tok)
+    if not stamps:
+        raise RuntimeError(f"{bnd.name}: no SWAN timestamps found at all")
+    if stamps[0] != want_lo or stamps[-1] != want_hi:
+        raise RuntimeError(
+            f"{bnd.name} spans {stamps[0]}..{stamps[-1]}, which is not the DA "
+            f"window {want_lo}..{want_hi}.  SWAN would run on the wrong day's "
+            f"spectra and NOT complain.")
+    print(f"    SWAN bnd covers {stamps[0]} .. {stamps[-1]} ({len(stamps)} times)")
+
+
+def _stage_lv4_window_inputs(ctx: Ctx, MI: dict, pkl: Path) -> None:
+    """Rebuild the LV4 inputs that carry a window but NOT a date in their name.
+
+    LV4_clm.nc and LV4_swan.bnd are written under FIXED names, so a file left by
+    the previous cycle looks present and valid to every existence check.  Both
+    were built by hand during the 2026-10-06 session and then silently reused:
+
+      * LV4_clm.nc spanned 10/05..10/08, which happens to contain the 10/06 and
+        10/07 windows.  The 10/08 cycle fell outside it and ROMS stopped at
+        MULTIFILE_INFO_S2D, "Error while checking input Climatology file".
+      * LV4_swan.bnd carried 20261006.0000..20261007.0000 for all three cycles.
+        SWAN does not reject that, so 10/07 ran green on 10/06's spectra.
+
+    The bridge had stage_lv4_clm, stage_cdip_from_archive and
+    cdip_dict_from_archive ready for exactly this; nothing ever called them.
+    stage_lv4_fwd's own docstring already claimed "SWAN bnd --
+    swan_functions.mk_swan_bnd_file, from CDIP", which was intent, not code.
+    """
+    fd = Path(MI["lv4_forc_dir"])
+
+    # climatology: a retimed copy of the operational file.  Rebuilt every cycle,
+    # unconditionally -- the span is the only thing that has to be right and it
+    # is different every day.
+    B.stage_lv4_clm(ctx.t_da, ctx.t_fore, fd / MI["lv4_clm_file"])
+
+    # CDIP spectra -> the pickle -> the SWAN boundary file.  All from the
+    # date-stamped archive, so no network call.
+    n = B.stage_cdip_from_archive(ctx.t_da)
+    B.cdip_dict_from_archive(pkl, ctx.t_da)
+    bnd = fd / MI["lv4_swan_bnd_file"]
+    B.run_pfm("swan_functions.py", "mk_swan_bnd_file", str(bnd), str(pkl),
+              timeout=3000)
+    print(f"    SWAN bnd rebuilt from {n} archived CDIP stations -> {bnd.name}")
+    _assert_swan_bnd_covers(bnd, ctx)
+
+    # SWAN winds: a no-op unless swan_wind_wave_generation is on (it is off in
+    # this configuration, and mk_swan_wnd_file exits 1 on purpose).
+    B.build_swan_wnd(pkl, fd / MI["lv4_swan_wnd_file"])
 
 
 def _stage_lv4_river(ctx: Ctx, MI: dict) -> Path:
