@@ -2,10 +2,9 @@
 """Daily QC-website plots: PFM vs observed sea surface height in San Diego Bay, past 3 weeks.
 
 Each run refreshes the NOAA observations and extracts any new model days, then draws the past
-3 weeks up to the end of today (UTC) into plots_web/ (figures listed in plot_ssh.py):
-  <name>_ssh_<YYYYMMDD>_3weeks.png          hourly SSH and Delta SSH
-  <name>_ssh_lowpass_<YYYYMMDD>_3weeks.png  the same with the tides removed (PL64, 33 h)
-Older *_3weeks.png files are removed, so plots_web/ only holds the newest set.
+3 weeks up to the end of today (UTC) into plots_web/<name>_ssh_<YYYYMMDD>_3weeks.png
+(hourly SSH and Delta SSH, plot_ssh.py). Older *_3weeks.png files are removed, so plots_web/
+only holds the newest plot. No low-pass filtering here (that is in the range script only).
 
   python plot_sdbay_3weeks.py                    # update data, plot the past 3 weeks
   python plot_sdbay_3weeks.py --no-update        # plot from the cached data only
