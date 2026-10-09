@@ -9,7 +9,19 @@
 
 #SBATCH --job-name=LV4_fwd
 #SBATCH --output=%j.out
-#SBATCH --partition=fast
+# fast-hiprio, not fast: PriorityTier 50 against fast's 10, so a 14-node LV4
+# job starts immediately instead of waiting for 14 of the 15 nodes to come
+# free.  PFM's own operational LV4_FORECAST already submits here, so this
+# only brings PFM_DA's LV4 into line with it.
+#
+# The second reason is preemption: fast is PreemptMode=CANCEL, so an LV4 run
+# sitting on fast can be KILLED outright by someone's hiprio job partway
+# through its ~32 min.  fast-hiprio is PreemptMode=OFF.
+#
+# No --account line is needed.  The partition reads AllowAccounts=hiprio, but
+# the default account (root) submits here fine -- every operational
+# LV4_FORECAST since August has run this way.
+#SBATCH --partition=fast-hiprio
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=128G
 #SBATCH --ntasks-per-node=36
