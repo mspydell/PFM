@@ -10,7 +10,6 @@ and the x-axis is drawn in Pacific time (PDT/PST switch handled automatically).
 """
 import argparse
 import glob
-import math
 import os
 from zoneinfo import ZoneInfo
 
@@ -43,11 +42,10 @@ Y0, Y1, Y2, Y3 = 10**-7, 1e-5, 1e-3, 10**-1.5
 
 DYE_LO, DYE_HI = 1e-6, 1e-2  # left-axis limits
 
-# right-axis limits: top fixed, bottom chosen so ENT_THRESHOLD lines up with Y1
-# (top of the green band) on the log-scaled left axis
-ENT_HI = 1e7
-_frac = math.log10(Y1 / DYE_LO) / math.log10(DYE_HI / DYE_LO)  # height of Y1 within left axis
-ENT_LO = 10 ** ((math.log10(ENT_THRESHOLD) - _frac * math.log10(ENT_HI)) / (1 - _frac))
+# right-axis limits: left axis scaled by ENT_THRESHOLD / Y1, so both span the same
+# decades and ENT_THRESHOLD lines up with Y1 (top of the green band)
+_scale = ENT_THRESHOLD / Y1
+ENT_LO, ENT_HI = DYE_LO * _scale, DYE_HI * _scale
 
 # dye site prefix -> (panel title, ddPCR station ID)
 SITES = {
@@ -83,23 +81,47 @@ def load_ddpcr(start, end, force_beachwatch=False):
     return df.dropna(subset=["time", "value"])
 
 
+def auto_ticks(span_days):
+    """(locator, tick format) suited to a window of span_days."""
+    if span_days <= 20:
+        return mdates.DayLocator(interval=2, tz=TZ), "%b %d"
+    if span_days <= 45:
+        return mdates.DayLocator(interval=4, tz=TZ), "%b %d"
+    if span_days <= 120:
+        return mdates.WeekdayLocator(byweekday=mdates.MO, tz=TZ), "%b %d"
+    if span_days <= 550:
+        return mdates.MonthLocator(tz=TZ), "%b %Y"
+    return mdates.MonthLocator(interval=3, tz=TZ), "%b %Y"
+
+
 def plot(today, period, out_path):
     past_days, locator, tick_fmt = PERIODS[period]
     t0 = today - pd.Timedelta(days=past_days)
     t1 = today + pd.Timedelta(days=FUTURE_DAYS + 1)
+    label = "2 weeks" if period == "2weeks" else period
+    title = f"PFM dye forecast vs ddPCR Enterococcus — {today:%Y-%m-%d} (past {label})"
+    plot_window(t0, t1, out_path, title, locator, tick_fmt)
+
+
+def plot_window(t0, t1, out_path, title, locator=None, tick_fmt=None):
+    """3-panel plot for any window t0..t1 (tz-aware); ddPCR is fetched up to min(t1, now)."""
+    span_days = (t1 - t0).days
+    if locator is None:
+        locator, tick_fmt = auto_ticks(span_days)
+    now = pd.Timestamp.now(TZ)
 
     dye_csv = max(glob.glob(DYE_CSV_GLOB))
     print("reading", os.path.basename(dye_csv))
     dye = pd.read_csv(dye_csv, parse_dates=["datetime_utc"], index_col="datetime_utc")
     dye.index = dye.index.tz_localize("UTC")
     dye = dye.loc[t0:t1]
-    ent = load_ddpcr(t0, today, force_beachwatch=past_days > 60)
-    ms = 1.0 if past_days <= 31 else 0.35  # shrink markers on long windows
+    # the County portal only reaches back a few months
+    ent = load_ddpcr(t0, min(t1, now), force_beachwatch=(now - t0).days > 60)
+    ms = 1.0 if span_days <= 31 else 0.35  # shrink markers on long windows
 
     fig, axes = plt.subplots(3, 1, figsize=(11, 10), sharex=True)
-    now = pd.Timestamp.now(TZ)
 
-    for ax, (prefix, (title, station)) in zip(axes, SITES.items()):
+    for ax, (prefix, (site_name, station)) in zip(axes, SITES.items()):
         ax.axhspan(Y0, Y1, color="green", alpha=0.2, lw=0)
         ax.axhspan(Y1, Y2, color="yellow", alpha=0.3, lw=0)
         ax.axhspan(Y2, Y3, color="red", alpha=0.2, lw=0)
@@ -109,7 +131,7 @@ def plot(today, period, out_path):
         ax.set_yscale("log")
         ax.set_ylim(DYE_LO, DYE_HI)
         ax.set_ylabel("Total dye")
-        ax.set_title(f"{title} ({station})", loc="left", fontsize=11)
+        ax.set_title(f"{site_name} ({station})", loc="left", fontsize=11)
 
         axr = ax.twinx()
         e = ent[ent["station"] == station]
@@ -134,8 +156,7 @@ def plot(today, period, out_path):
     axes[-1].xaxis.set_major_locator(locator)
     axes[-1].xaxis.set_major_formatter(mdates.DateFormatter(tick_fmt, tz=TZ))
     axes[-1].set_xlabel("Date (Pacific time, PDT/PST)")
-    label = "2 weeks" if period == "2weeks" else period
-    fig.suptitle(f"PFM dye forecast vs ddPCR Enterococcus — {today:%Y-%m-%d} (past {label})")
+    fig.suptitle(title)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
     fig.savefig(out_path, dpi=150)
     plt.close(fig)

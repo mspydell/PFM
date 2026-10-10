@@ -1,5 +1,3 @@
-
-cd /home/ffeddersen/PFM_NEW
 source /home/ffeddersen/.bashrc
 
 set -a
@@ -41,19 +39,12 @@ conda activate PHM-env
 ########
 
 dateZ=$(date '+%Y%m%d')
-fstdout=/home/ffeddersen/PFM_NEW/OBS_QC/ENT_DYE_stdout.log
-fsterr=/home/ffeddersen/PFM_NEW/OBS_QC/ENT_DYE_stderr.log
+fstdout=/home/ffeddersen/PFM_NEW/Hydro_QC/Dye_Volume/stdout.log
+fstdout=/home/ffeddersen/PFM_NEW/Hydro_QC/Dye_Volume/stderr.log
 
-cd /home/ffeddersen/PFM_NEW/ddPCR_ENT
-python3 -u -W "ignore" make_forecast_csv.py  >> ${fstdout}  2> >(tee -a ${fstderr} >&2)
-python3 -u -W "ignore"  plot_dye_ddpcr.py  >> ${fstdout}  2> >(tee -a ${fstderr} >&2) 
+python3 -u -W "ignore"  plot_dye_volume.py >> ${fstdout}  2> >(tee -a ${fstderr} >&2) 
 #rm -f /projects/www-users/falk/PFM_Forecast
 
-# transfer image
-cp plots/dye_ddpcr_*_2weeks.png      /projects/www-users/falk/PFM_Forecast/Plots/dye_ddpcr_2weeks.png   
+#transfer image
+mv  plots_web/Dye_volume_*_3weeks.png     /projects/www-users/falk/PFM_Forecast/Plots/Dye_volume_3weeks.png
 
-# then save an archive file
-cp plots/dye_ddpcr_*_2weeks.png      /projects/www-users/falk/PFM_Forecast/OLD_PLOTS
-
-python3 -u -W "ignore" plot_dye_ddpcr_range.py --end today --duration 40 --out plots/dye_ddpcr_40day.png
-cp plots/dye_ddpcr_40day.png  /projects/www-users/falk/PFM_Forecast/Plots 

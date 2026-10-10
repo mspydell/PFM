@@ -83,7 +83,7 @@ def create_model_info_dict():
     PFM['clean_start']=True
     # where do we find, and save, the raw hycom data to...
     PFM['hycom_dir'] = pfm_dir + 'hycom_data/'
-    PFM['Q_PB'] = -2.0 # m3/s flow at Punta Bandera
+    PFM['Q_PB'] = -1.5 # m3/s flow at Punta Bandera
     PFM['dye_PB'] = 0.39 # fraction of Q_PB that is raw WW
     # this is where PFM saves atm forcing and river discharge to at end of PFM simulation
     PFM['archive_dir'] = '/dataSIO/PFM_Simulations/Archive/Forcing/'
