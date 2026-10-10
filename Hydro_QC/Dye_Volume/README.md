@@ -4,7 +4,7 @@ Total raw-sewage (dye) volume in the LV4 domain: PTB (dye_01), TJRE (dye_02), an
 
 | File | What it does |
 |---|---|
-| `plot_dye_volume.py` | Daily QC-website plot of the past 3 weeks, saved to `plots_web/`. Also holds the shared plotting code. |
+| `plot_dye_volume.py` | QC-website plot of the past 3 weeks, saved to `plots_web/`. Also holds the shared plotting code. |
 | `plot_dye_volume_range.py` | The same plot for any start and end dates, saved to `plots/` (not for the website). |
 | `volume_cache.csv` | Hourly volumes already computed, one row per forecast file and record. |
 
@@ -15,20 +15,14 @@ Total raw-sewage (dye) volume in the LV4 domain: PTB (dye_01), TJRE (dye_02), an
 - The dotted line marks the start of the newest forecast. Everything to its right is forecast.
 - Times are Pacific (PDT/PST), as on the other QC plots.
 
-## plot_dye_volume.py: daily plot for the QC website
+## plot_dye_volume.py: plot for the QC website
 
 ```bash
 python plot_dye_volume.py                     # past 3 weeks to the end of today (Pacific) -> plots_web/
 python plot_dye_volume.py --date 2026-09-30   # 3 weeks ending on another day (older plots are kept)
 ```
 
-The daily run writes `plots_web/Dye_volume_<YYYYMMDD>_3weeks.png` and deletes older `*_3weeks.png`.
-
-Cron runs it every morning at 06:00, with the log in `cron.log`:
-
-```
-0 6 * * * cd /home/akg004/modelQC/DyeVolume && /home/akg004/anaconda3/bin/python plot_dye_volume.py >> cron.log 2>&1
-```
+A normal run (without `--date`) writes `plots_web/Dye_volume_<YYYYMMDD>_3weeks.png` and deletes older `*_3weeks.png`.
 
 ## plot_dye_volume_range.py: any start and end dates
 
@@ -57,7 +51,7 @@ For long ranges the plot draws thinner lines and puts minor ticks at months inst
 
 ## Run time
 
-One hour takes about 2.5 s to compute. Hours are computed in parallel (16 processes) and cached in `volume_cache.csv`, which both scripts share. A daily run only computes the new forecast's hours. A range that is not cached yet takes about 3 minutes per month of data (Aug 1 to Oct 8 took 6 minutes with 3 weeks already cached). Rerunning a range, or any part of it, takes about a second.
+One hour takes about 2.5 s to compute. Hours are computed in parallel (16 processes) and cached in `volume_cache.csv`, which both scripts share. A run only computes hours that aren't cached yet. A range that is not cached yet takes about 3 minutes per month of data (Aug 1 to Oct 8 took 6 minutes with 3 weeks already cached). Rerunning a range, or any part of it, takes about a second.
 
 ## Requirements
 
