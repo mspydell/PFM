@@ -34,18 +34,26 @@ pip install pandas matplotlib netCDF4 numpy
 ### Usage
 
 ```bash
-python plot_dye_ddpcr_range.py --start YYYY-MM-DD --end YYYY-MM-DD [--out PATH]
+python plot_dye_ddpcr_range.py [--start YYYY-MM-DD] [--end YYYY-MM-DD|today] [--duration DAYS] [--out PATH]
 ```
 
 | Option | Meaning | Default |
 |---|---|---|
-| `--start` | First day to plot (Pacific date) | `2026-07-01` |
-| `--end` | Last day to plot, included in the plot (Pacific date) | `2026-07-15` |
+| `--start` | First day to plot (Pacific date or `today`) | `2026-07-01` |
+| `--end` | Last day to plot, included in the plot (Pacific date or `today`) | `2026-07-15` (or `today` if `--duration` is given) |
+| `--duration` | Number of days back from `--end` (cannot be combined with `--start`) | None |
 | `--out` | Where to save the PNG | `plots/dye_ddpcr_<start>_<end>.png` |
 
-Both dates are included: `--end 2026-07-15` plots through the end of July 15.
+Both dates are included: `--end 2026-07-15` plots through the end of July 15. When using `--end today`, today's local Pacific date is used.
 
 ### Examples
+
+Plot the past 14 days up to today:
+
+```bash
+python plot_dye_ddpcr_range.py --end today --duration 14
+# -> plots/dye_ddpcr_<14_days_ago>_<today>.png
+```
 
 Plot 1–15 July 2026:
 
