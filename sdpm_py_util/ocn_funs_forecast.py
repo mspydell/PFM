@@ -673,11 +673,15 @@ def get_hycom_foretime_v2(t1str,t2str,pkl_fnm):
     # getcwd() here deleted the driver/ copy while leaving a tree of 368 empty
     # stub files sitting in sdpm_py_util/ inside the repo. clean every place it
     # can land, resolved from this file rather than from the cwd.
+    # listing the known spots was not enough -- a run on 2026-10-10 left a third
+    # tree at the repo root, which was not in the list. wget drops the mirror in
+    # whatever the cwd happens to be, so glob the repo instead of guessing.
     repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    for d0 in [os.getcwd(),
-               os.path.join(repo_root,'driver'),
-               os.path.join(repo_root,'sdpm_py_util')]:
-        delete_directory_if_exists(os.path.join(d0,'tds.hycom.org'))
+    targets = {os.path.join(os.getcwd(),'tds.hycom.org')}
+    targets.update(glob.glob(os.path.join(repo_root,'**','tds.hycom.org'),
+                             recursive=True))
+    for d0 in sorted(targets):
+        delete_directory_if_exists(d0)
 
     return yyyymmdd
 
