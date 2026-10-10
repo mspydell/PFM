@@ -416,6 +416,18 @@ def get_longest_forecast(pkl_fnm):
                 # a parital forecast. 2 options here. we skip times
                 tfdta = np.array(tfdtl)
                 tfdta_s = np.sort(tfdta)
+                t_init = datetime.strptime(t0,'%Y-%m-%dT%H')
+                if tfdta_s[0] > t_init:
+                    # the files do not start at the cycle's own init time. the
+                    # gap test below only finds *interior* gaps, so a block of
+                    # files sitting late in the forecast period has no internal
+                    # gap and reads as unbroken coverage out to its last file.
+                    # that is how the 2026-10-07 cycle, whose u3z began 4.6 days
+                    # after its init, reported a 5.5 day reach while having no
+                    # u3z at all for the first two days of the window. there is
+                    # no usable run starting from t_init, so that is the answer.
+                    TMX[(var,t0)] = t_init
+                    continue
                 # the for/else below matters. the trailing assignment used
                 # to sit at the loop's indent, so it ran even after the break
                 # and overwrote the gap time with the first time past the gap
@@ -619,7 +631,17 @@ def get_hycom_foretime_v2(t1str,t2str,pkl_fnm):
         DT = max_time - PFM['fetch_time'] # length of forecast now
         DT_days = DT.total_seconds()/(24*3600)
 
-        if DT_days >= 3 and DT_days<5:
+        fore_days = PFM['forecast_days']
+        if DT_days >= fore_days:
+            # enough for the whole run after all, so keep forecast_days as is.
+            # this case used to fall into the else below and abort with "we
+            # could not do a forecast >= 3 days", which was the opposite of what
+            # had just been computed -- it is how a 5.5 day reach killed a run
+            # that only needed 5.
+            print('we will do a forecast using the hycom forecast starting at ', fore_txt)
+            print('that forecast covers ' + str(round(DT_days,2)) + ' days, enough')
+            print('for the full ' + str(fore_days) + ' day forecast. not shortening.')
+        elif DT_days >= 3:
             print('we will do a forecast using the hycom forecast starting at ', fore_txt)
             # reset the forecast days in PFM pickle
             print('the forecast is now ', DT_days, ' long')
@@ -630,7 +652,9 @@ def get_hycom_foretime_v2(t1str,t2str,pkl_fnm):
             initfuns.edit_and_save_MI(newd,pkl_fnm)
         else:
             print('exiting this PFM forecast...')
-            print('we could not do a forecast >= 3 days.')
+            print('the longest forecast we could make from the hycom data we have')
+            print('is ' + str(round(DT_days,2)) + ' days (using the ' + str(fore_txt))
+            print('cycle), and we will not run anything shorter than 3 days.')
             sys.exit("there was not enough hycom data.")
 
     if og_method == 1: # using a full 5 day forecast
