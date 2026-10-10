@@ -18,6 +18,16 @@
 cd /home/mspydell/models/PFM_root/PFM
 source /home/mspydell/.bashrc
 
+# Credentials for ecmwf, the ucsd pipeline and cdip. Without these the atm step
+# dies in get_ecmwf_creds / get_pipeline_creds -- pipeline is unreadable, the
+# ecmwf fallback then raises, and there is no third source. Only run_PFMv2.sh
+# does this among the driver scripts, which is why it is easy to leave out.
+# set -a exports everything assigned until set +a, so the .env values reach the
+# python subprocesses rather than just this shell.
+set -a
+source /home/mspydell/models/PFM_root/PFM/.env
+set +a
+
 # check to see what git branch we are on
 EXPECTED_BRANCH="main" # Or "master", "develop", etc.
 
