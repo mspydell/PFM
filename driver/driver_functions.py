@@ -19,15 +19,19 @@ import ocn_funs_forecast as ocnfuns_fore
 # the existing file before writing the new one, so a kill leaves NO atm file
 # at all -- which is how 2026-08-31 lost LV4_ATM_FORCING.nc entirely.
 #
-# LV1/2/3 need only ~0.7 GB and are fine in-process; this is LV4-only.
+# Originally LV4-atm-only. The hycom-to-roms step needs it too: on 2026-10-10
+# make_all_tmp_pckl_ocnR_files_1hrzeta was SIGKILLed on urm and vrm (rc -9)
+# after temp and salt had already written 1.17 GB each. It loads a 1.01 GB
+# pickle and writes ~1.17 GB per variable, so it peaks near 4 GB -- fine at
+# 02:10 when the login node is idle, not fine against an interactive session.
 #
 # If we are already inside an allocation, run in-process: we have the memory,
 # and nesting srun inside srun invites trouble.
 # ---------------------------------------------------------------------------
-LV4_SRUN_PARTITION = 'fast-hiprio'
-LV4_SRUN_MEM       = '64G'
-LV4_SRUN_CPUS      = '2'
-LV4_SRUN_TIME      = '00:40:00'
+SRUN_PARTITION = 'fast-hiprio'
+SRUN_MEM       = '64G'
+SRUN_CPUS      = '2'
+SRUN_TIME      = '00:40:00'
 
 def in_slurm_allocation():
     return bool(os.environ.get('SLURM_JOB_ID'))
@@ -39,13 +43,13 @@ def run_cmd_maybe_srun(cmd_list, job_name):
     if in_slurm_allocation():
         return subprocess.run(cmd_list)
     full = ['srun',
-            '--partition='     + LV4_SRUN_PARTITION,
-            '--mem='           + LV4_SRUN_MEM,
-            '--cpus-per-task=' + LV4_SRUN_CPUS,
-            '--time='          + LV4_SRUN_TIME,
+            '--partition='     + SRUN_PARTITION,
+            '--mem='           + SRUN_MEM,
+            '--cpus-per-task=' + SRUN_CPUS,
+            '--time='          + SRUN_TIME,
             '--job-name='      + job_name] + cmd_list
-    print('  -> ' + job_name + ' via srun (--mem=' + LV4_SRUN_MEM +
-          ', --time=' + LV4_SRUN_TIME + ')')
+    print('  -> ' + job_name + ' via srun (--mem=' + SRUN_MEM +
+          ', --time=' + SRUN_TIME + ')')
     return subprocess.run(full)
 
 
@@ -129,12 +133,14 @@ def run_hind_LV1(t1str,pkl_fnm):
     os.chdir('../sdpm_py_util')
     hy_pckl = MI['lv1_forc_dir'] + '/' + MI['lv1_ocn_tmp_pckl_file']
     print('putting the hycom data in ' + hy_pckl + ' on the roms grid...')
-    cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','make_all_tmp_pckl_ocnR_files_1hrzeta',pkl_fnm]
+    cmd_list = ['python','-u','-W','ignore','ocn_funs_forecast.py','make_all_tmp_pckl_ocnR_files_1hrzeta',pkl_fnm]
     os.chdir('../sdpm_py_util')
-    ret1 = subprocess.run(cmd_list)     
+    ret1 = run_cmd_maybe_srun(cmd_list, 'PFM_lv1_hy2grid')
     os.chdir('../driver')
     print('subprocess return code? ' + str(ret1.returncode) +  ' (0=good)')
     if ret1.returncode != 0:
+        if ret1.returncode == -9:
+            print('return code -9 = SIGKILL, almost certainly out of memory.')
         print('need to abort! Aborting simulation!')
         sys.exit(1)
 
@@ -984,13 +990,18 @@ def run_fore_LV1(pkl_fnm):
     os.chdir('../sdpm_py_util')
     hy_pckl = PFM['lv1_forc_dir'] + '/' + PFM['lv1_ocn_tmp_pckl_file']
     print('putting the hycom data in ' + hy_pckl + ' on the roms grid...')
-    cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','make_all_tmp_pckl_ocnR_files_1hrzeta',pkl_fnm]
+    cmd_list = ['python','-u','-W','ignore','ocn_funs_forecast.py','make_all_tmp_pckl_ocnR_files_1hrzeta',pkl_fnm]
     os.chdir('../sdpm_py_util')
-    ret1 = subprocess.run(cmd_list)     
+    # one allocation for the whole 18-variable loop: the subprocesses it spawns
+    # inherit SLURM_JOB_ID, so they see in_slurm_allocation() and run in place
+    # rather than each queueing an srun of its own.
+    ret1 = run_cmd_maybe_srun(cmd_list, 'PFM_lv1_hy2grid')
     os.chdir('../driver')
     if ret1.returncode != 0:
         print('FATAL')
         print('make_all_tmp_pckl_ocnR_files_1hrzeta did not run correctly')
+        if ret1.returncode == -9:
+            print('return code -9 = SIGKILL, almost certainly out of memory.')
         print('exiting driver_LV1 now!')
         sys.exit(1)
 

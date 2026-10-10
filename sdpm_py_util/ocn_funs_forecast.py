@@ -2084,18 +2084,30 @@ def make_all_tmp_pckl_ocnR_files_1hrzeta(pkl_fnm):
     os.chdir('../sdpm_py_util')
     rctot = 0
 
+    bad = []
     for aa in ork:
-        cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','make_tmp_hy_on_rom_pckl_files_1hrzeta',fname_in,aa,pkl_fnm]
+        cmd_list = ['python','-u','-W','ignore','ocn_funs_forecast.py','make_tmp_hy_on_rom_pckl_files_1hrzeta',fname_in,aa,pkl_fnm]
         ret1 = subprocess.run(cmd_list )     
         rctot = rctot + ret1.returncode
         if ret1.returncode != 0:
-            print('the ' + aa + ' pickle file was not made correctly')
-            print(ret1)
+            bad.append((aa, ret1.returncode))
+            print('the ' + aa + ' pickle file was not made correctly'
+                  + ' (rc=' + str(ret1.returncode)
+                  + ', SIGKILL/out of memory' * (ret1.returncode == -9) + ')')
 
     if rctot == 0: 
         print('...done. \nall 18 ocnR pickle files were made correctly')
     else:
+        # this used to print and return normally, so the caller saw rc 0 and
+        # carried on into four more failures looking for tmp_urm.pkl and
+        # tmp_vrm.pkl. exit non-zero so the caller's check actually fires.
         print('...done. \nat least one of the ocnR pickle files were not made correctly')
+        print('failed: ' + ', '.join(a + ' (rc=' + str(r) + ')' for a, r in bad))
+        if any(r == -9 for _, r in bad):
+            print('a -9 is SIGKILL -- these steps peak near 4 GB and the login')
+            print('node caps a user at 8 GB. run under srun, or free memory.')
+        os.chdir('../driver')
+        sys.exit(1)
     
     os.chdir('../driver')
 
