@@ -318,10 +318,21 @@ def create_model_info_dict():
     tt['L3','ndtfast'] = 15
     tt['L3','forecast_days'] = PFM['forecast_days']
 
-    tt['L4','dtsec'] = 2
-    tt['L4','ndtfast'] = 8
+# This is the standard choice for running     
+#    tt['L4','dtsec'] = 2
+#    tt['L4','ndtfast'] = 8
+#    tt['L4','forecast_days'] = PFM['forecast_days']
+
+# This is a good choice when river flow is very high
+    tt['L4','dtsec'] = 1.5
+    tt['L4','ndtfast'] = 6
     tt['L4','forecast_days'] = PFM['forecast_days']
 
+# This is the most stable  choice
+#    tt['L4','dtsec'] = 1.2
+#    tt['L4','ndtfast'] = 4
+#    tt['L4','forecast_days'] = PFM['forecast_days']
+    
 #  max slurm time for level 1,2,3,4, in minutes
     lv1_mins = int( np.round( 8.0 * 60.0 * PFM['forecast_days'] / (2.5 * tt['L1','dtsec']) ) )
     lv2_mins = int( np.round( 10.0 * 30.0 * PFM['forecast_days'] / (2.5 * tt['L2','dtsec']) ) )
