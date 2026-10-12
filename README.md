@@ -94,10 +94,18 @@ These change what the model produces.
 | 2.2 m³/s  | 0.7             | t < 2025-04-04 |
 | 2.5 m³/s  | 0.5088          | 2025-04-04 < t < 2025-05-02 |
 | 2 m³/s    | 0.5             | 2025-05-02 < t < 2026-08-04 |
-| 2 m³/s    | **0.39**        | t > 2026-08-04 |
+| 2 m³/s    | **0.39**        | 2026-08-04 < t < 2026-10-09 |
+| **1.5 m³/s** | 0.39         | t > 2026-10-09 |
 
 `dye_PB` 0.5 → 0.39 in `pfm_operational_input_new.py`, committed directly in the
 operational clone, so effective the same day.
+
+`Q_PB` 2.0 → 1.5 m³/s in the same file, commit `a069905` (2026-10-09), whose
+message is "added shell script to make plot" and does not mention it. The
+effective date is not inferred from the commit: PB discharge is written into
+`river_transport[:,5]`, and in the archived river forcing it is −2.000 through
+`river_LV4_2026100800.nc` and −1.500 from `river_LV4_2026100900.nc` onward. So
+the change took effect with the 2026-10-09 00Z forecast.
 
 ### Tijuana River — Q_TJ
 
