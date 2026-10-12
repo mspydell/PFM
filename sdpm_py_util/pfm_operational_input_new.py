@@ -6,6 +6,7 @@ Users should copy this and edit it appropriately in get_model_info.
 """
  
 from datetime import datetime, timezone, timedelta
+import os
 import grid_functions as grdfuns
 import numpy as np
 
@@ -528,6 +529,18 @@ def create_model_info_dict():
         # nam data to now.
         fetch_time2 = datetime(year_utc,mon_utc,day_utc,hour_utc,0,0,0)
         fetch_time2 = fetch_time2 - timedelta(hours=past_6) 
+        # Pin the forecast START, for start_PFM_plus_DA.  It is set HERE, after
+        # the data-latency rounding, because fetch_time above is the wall-clock
+        # moment and the rounding then walks it back to the last available cycle
+        # -- pinning that gave a forecast 12 h earlier than the stamp asked for.
+        # fetch_time2 is the simulation start, and every directory, file name,
+        # sim_time_1 and sim_time_2 derives from it, so this is the one place a
+        # pinned time lands everywhere for free.  Unset in normal operation, so
+        # the operational forecast is bit-identical to before.
+        _pin = os.environ.get('PFM_FORCE_FETCH_TIME')      # 'YYYYMMDDHH', UTC
+        if _pin:
+            fetch_time2 = datetime.strptime(_pin, '%Y%m%d%H')
+            print('PFM_FORCE_FETCH_TIME: forecast START pinned to ' + str(fetch_time2))
         #if hour_utc < 11:
         #   fetch_time = datetime(fetch_time.year,fetch_time.month, fetch_time.day, 12) - timedelta(days=4)
         #else:
