@@ -249,6 +249,12 @@ def run_hind_LV1(t1str,pkl_fnm):
     os.chdir('../driver')
     print('OCN BC nc data saved, correctly? ' + str(ret5.returncode) + ' (0=yes)')
     print('done makeing BC nc file.')
+    # Keep a stamped copy.  hycom_data/ holds only ~2 inits and is cleaned every
+    # cycle, so without this there is no record of the ocean boundary a past
+    # forecast actually ran with.  Stamped from the file's own first ocean_time,
+    # not fetch_time, so a BC built for the wrong day is visible rather than
+    # hidden.  Never fatal -- archive_lv1_bc swallows its own errors.
+    utilfuns.archive_lv1_bc(pkl_fnm)
     t02 = datetime.now()
     print('this took:')
     print(t02-t01)
@@ -1126,6 +1132,12 @@ def run_fore_LV1(pkl_fnm):
     os.chdir('../driver')
     print('OCN BC nc data saved, correctly? ' + str(ret5.returncode) + ' (0=yes)')
     print('done makeing BC nc file.')
+    # Keep a stamped copy.  hycom_data/ holds only ~2 inits and is cleaned every
+    # cycle, so without this there is no record of the ocean boundary a past
+    # forecast actually ran with.  Stamped from the file's own first ocean_time,
+    # not fetch_time, so a BC built for the wrong day is visible rather than
+    # hidden.  Never fatal -- archive_lv1_bc swallows its own errors.
+    utilfuns.archive_lv1_bc(pkl_fnm)
     t02 = datetime.now()
     print('this took:')
     print(t02-t01)

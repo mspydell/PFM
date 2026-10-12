@@ -88,6 +88,10 @@ def create_model_info_dict():
     # this is where PFM saves atm forcing and river discharge to at end of PFM simulation
     PFM['archive_dir'] = '/dataSIO/PFM_Simulations/Archive/Forcing/'
     PFM['archive_web_dir'] = '/dataSIO/PFM_Simulations/Archive/web/'
+    # LV1 ocean BC, kept because hycom_data/ holds only ~2 inits and is
+    # cleaned each cycle -- without this there is no record of the boundary
+    # a past forecast ran with.  ~44 MB per cycle.
+    PFM['archive_lv1_bc_dir'] = '/dataSIO/PFM_Simulations/Archive/LV1_BC_files/'
 
     if ocn_model == 'hycom_new' or ocn_model == 'hycom_hind_wtide':
         add_tides=0 # the new version of hycom has tides, we don't need to add them
