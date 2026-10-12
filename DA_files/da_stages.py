@@ -1382,8 +1382,6 @@ def _assert_swan_bnd_covers(bnd: Path, ctx: Ctx) -> None:
     """
     # SWAN writes "YYYYMMDD.HHMMSS" followed by a "date and time" comment on the
     # same line, so take the first token rather than the whole line.
-    want_lo = f"{ctx.t_da:%Y%m%d.%H%M%S}"
-    want_hi = f"{ctx.t_fore:%Y%m%d.%H%M%S}"
     stamps = []
     with open(bnd, "r", errors="ignore") as fh:
         for line in fh:
@@ -1392,11 +1390,21 @@ def _assert_swan_bnd_covers(bnd: Path, ctx: Ctx) -> None:
                 stamps.append(tok)
     if not stamps:
         raise RuntimeError(f"{bnd.name}: no SWAN timestamps found at all")
-    if stamps[0] != want_lo or stamps[-1] != want_hi:
+    fmt = "%Y%m%d.%H%M%S"
+    lo = DT.datetime.strptime(stamps[0], fmt)
+    hi = DT.datetime.strptime(stamps[-1], fmt)
+    # COVERS the window, not "starts exactly on it".  The earlier version
+    # demanded equality and broke on 2026-10-10, when CDIP changed its lead
+    # convention: the init stamped <date>00 went from beginning 3-9 h BEFORE
+    # that date to beginning 3 h AFTER it.  cdip_init_covering now picks an
+    # init that spans the window, so the bnd may legitimately start early --
+    # what must never happen is a bnd that does not reach the window's ends,
+    # because SWAN holds the last spectrum instead of complaining.
+    if lo > ctx.t_da or hi < ctx.t_fore:
         raise RuntimeError(
-            f"{bnd.name} spans {stamps[0]}..{stamps[-1]}, which is not the DA "
-            f"window {want_lo}..{want_hi}.  SWAN would run on the wrong day's "
-            f"spectra and NOT complain.")
+            f"{bnd.name} spans {stamps[0]}..{stamps[-1]}, which does not cover "
+            f"the DA window {ctx.t_da:%Y%m%d.%H%M%S}..{ctx.t_fore:%Y%m%d.%H%M%S}."
+            f"  SWAN would run on held spectra and NOT complain.")
     print(f"    SWAN bnd covers {stamps[0]} .. {stamps[-1]} ({len(stamps)} times)")
 
 
@@ -1427,8 +1435,8 @@ def _stage_lv4_window_inputs(ctx: Ctx, MI: dict, pkl: Path) -> None:
 
     # CDIP spectra -> the pickle -> the SWAN boundary file.  All from the
     # date-stamped archive, so no network call.
-    n = B.stage_cdip_from_archive(ctx.t_da)
-    B.cdip_dict_from_archive(pkl, ctx.t_da)
+    n = B.stage_cdip_from_archive(ctx.t_da, ctx.t_fore)
+    B.cdip_dict_from_archive(pkl, ctx.t_da, ctx.t_fore)
     bnd = fd / MI["lv4_swan_bnd_file"]
     B.run_pfm("swan_functions.py", "mk_swan_bnd_file", str(bnd), str(pkl),
               timeout=3000)

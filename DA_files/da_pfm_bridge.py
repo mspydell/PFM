@@ -333,25 +333,75 @@ def _minfo_is_sane(pkl: Path, t_fore: DT.datetime, t_da: DT.datetime) -> bool:
             and float(MI.get("forecast_days", -1)) == 1.0)
 
 
-def stage_cdip_from_archive(t_da: DT.datetime, dest: Path | None = None) -> int:
-    """Put the window's CDIP spectra where the SWAN boundary builder expects them.
+def cdip_init_covering(t_da: DT.datetime, t_fore: DT.datetime,
+                      max_back_days: int = 5) -> str:
+    """The newest archived CDIP init whose spectra actually span the window.
+
+    NOT simply the init stamped t_da.  CDIP's lead convention is not fixed, and
+    it CHANGED on 2026-10-10: the file stamped <date>00 used to begin 3-9 h
+    BEFORE that date (2026-10-09 began 10-08 21:00) and now begins 3 h AFTER it
+    (2026-10-10 began 10-10 03:00).  Taking the same-day init blindly therefore
+    left the first 3 h of the window with no boundary spectra, which SWAN does
+    not reject -- it holds the last value and runs on.
+
+    So the init is chosen by reading waveTime and keeping the newest one that
+    covers [t_da, t_fore], stepping back a day at a time.  Filenames do not have
+    to match the window: cdip_ncs_to_dict globs cdip_data_dir/*.nc and windows
+    purely on content, so an earlier init's files digest correctly.
+    """
+    import netCDF4 as nc_
+    import numpy as np_
+    for k in range(max_back_days + 1):
+        stamp = (t_da - DT.timedelta(days=k)).strftime("%Y%m%d%H")
+        probe = sorted(C.CDIP_ARCHIVE.glob(f"cdip_*_{stamp}.nc"))
+        if not probe:
+            continue
+        try:
+            with nc_.Dataset(probe[0]) as d:
+                tv = d.variables["waveTime"]
+                tt = nc_.num2date(np_.asarray(tv[[0, -1]]), tv.units,
+                                  only_use_cftime_datetimes=False,
+                                  only_use_python_datetimes=True)
+        except Exception:
+            continue
+        if tt[0] <= t_da and tt[1] >= t_fore:
+            if k:
+                print(f"    CDIP: init {stamp} used instead of "
+                      f"{t_da:%Y%m%d}00 -- the same-day init starts after the "
+                      f"window ({tt[0]:%m-%d %H}Z .. {tt[1]:%m-%d %H}Z covers it)")
+            return stamp
+    raise FileNotFoundError(
+        f"no archived CDIP init within {max_back_days} days covers "
+        f"{t_da:%Y-%m-%d %H}Z..{t_fore:%Y-%m-%d %H}Z in {C.CDIP_ARCHIVE}")
+
+
+def stage_cdip_from_archive(t_da: DT.datetime, t_fore: DT.datetime | None = None,
+                            dest: Path | None = None) -> int:
+    """Put spectra that COVER the window where the SWAN boundary builder wants them.
 
     Returns the number of station files staged.
 
     The archive is date-stamped and complete -- 81 stations per cycle, named
     cdip_<station>_<YYYYMMDDHH>.nc, exactly as get_cdip_data would name a fresh
     download -- so the boundary file can be built for a past window with no
-    network access at all.
+    network access at all.  Which init is right is decided by cdip_init_covering,
+    not by the stamp.
     """
     dest = Path(dest or C.CDIP_DA)
     dest.mkdir(parents=True, exist_ok=True)
-    stamp = t_da.strftime("%Y%m%d%H")
+    stamp = (cdip_init_covering(t_da, t_fore) if t_fore is not None
+             else t_da.strftime("%Y%m%d%H"))
     src = sorted(C.CDIP_ARCHIVE.glob(f"cdip_*_{stamp}.nc"))
     if not src:
         raise FileNotFoundError(
             f"no archived CDIP spectra for {stamp} in {C.CDIP_ARCHIVE}.  Without "
             f"them the SWAN boundary file cannot be built for this window, and "
             f"downloading is not an option for a window this far past.")
+    # the digest globs *.nc, so a leftover file from another init would be mixed
+    # in with this one -- clear anything that is not from the chosen init
+    for old in dest.glob("cdip_*.nc"):
+        if not old.name.endswith(f"_{stamp}.nc"):
+            old.unlink()
     n = 0
     for f in src:
         d = dest / f.name
@@ -361,7 +411,8 @@ def stage_cdip_from_archive(t_da: DT.datetime, dest: Path | None = None) -> int:
     return n
 
 
-def cdip_dict_from_archive(pkl: Path, t_da: DT.datetime) -> None:
+def cdip_dict_from_archive(pkl: Path, t_da: DT.datetime,
+                          t_fore: DT.datetime | None = None) -> None:
     """Build the CDIP pickle the SWAN boundary builder reads, from the archive.
 
     cdip_ncs_to_dict does two things: refresh the .nc files, then digest them into
@@ -382,7 +433,7 @@ def cdip_dict_from_archive(pkl: Path, t_da: DT.datetime) -> None:
         os.chdir(pfm_py)
         import swan_functions as SW
         real = SW.get_cdip_data
-        SW.get_cdip_data = lambda _pkl: stage_cdip_from_archive(t_da)
+        SW.get_cdip_data = lambda _pkl: stage_cdip_from_archive(t_da, t_fore)
         try:
             SW.cdip_ncs_to_dict("from-archive", str(pkl))
         finally:
