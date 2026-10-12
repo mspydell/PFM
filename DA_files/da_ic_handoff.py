@@ -1,0 +1,229 @@
+#!/usr/bin/env python3
+"""
+da_ic_handoff.py -- the PFM side of the DA handoff.
+
+Two functions, and nothing else:
+
+    detect_da_ics(t_fore)        can PFM start this forecast from the DA?
+    apply_da_ics(PFM, t_fore)    point the model-info dict at those ICs
+
+WHY THERE IS NO NEW IC MACHINERY HERE.  run_funs.py already branches on
+PFM['lv{N}_use_restart'] at every level:
+
+    if start_type == 1:  nrrec = PFM['lv{N}_nrrec']; dir = restart_ncfiles_dir_in
+    else:                nrrec = '0';                dir = PFM['lv{N}_forc_dir']
+    ininame = PFM['lv{N}_ini_file']
+
+So "use the DA IC" is exactly: use_restart = 0, the file in lv{N}_forc_dir,
+ini_file naming it.  That path is not speculative -- every PFM_DA cycle runs all
+four of its own levels through it.  apply_da_ics sets those three things and
+nothing more.
+
+FILES ARE THE TRUTH, THE MANIFEST IS CORROBORATION.  The manifest verdict is
+read and reported, but a cycle finished by hand in stages can carry a verdict
+that understates it, and a verdict cannot tell you a file was later corrupted or
+overwritten.  Every IC is therefore opened and checked against t_fore.  Checking
+the NAME is not enough and that is not hypothetical: LV1_fwd_outer0_20261007.nc
+in the archive held the 10/06 window for three cycles because ensure_archived
+skipped the copy on a size match.
+
+FALLING THROUGH IS NORMAL.  A forecast on restart files beats no forecast, so
+every failure here is a reported reason, never an exception.
+"""
+from __future__ import annotations
+
+import datetime as DT
+import shutil
+import subprocess
+import sys
+from dataclasses import dataclass, field
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import da_config as C          # noqa: E402
+import da_validate as V        # noqa: E402
+from da_manifest import Manifest   # noqa: E402
+
+LEVELS = ("LV1", "LV2", "LV3", "LV4")
+
+# What each level's IC must contain.  LV4 carries dye because coawstM needs it
+# in the IC, and its salt bound is wider because the bay and estuary hold
+# genuinely hypersaline water in intertidal cells -- 230 of them above 45 PSU,
+# inherited from PFM's own LV4, not produced by the DA.
+_NEED = {lv: ("zeta", "u", "v", "temp", "salt") for lv in LEVELS}
+_NEED["LV4"] = _NEED["LV4"] + ("dye_01", "dye_02")
+_RANGE = {lv: {"temp": (-3.0, 40.0), "salt": (0.0, 45.0), "zeta": (-5.0, 5.0)}
+          for lv in LEVELS}
+_RANGE["LV4"] = {"temp": (-3.0, 40.0), "salt": (0.0, 60.0), "zeta": (-5.0, 5.0)}
+
+# the DA history that holds t_fore as its LAST record, used only as a fallback
+_HIS = {"LV1": lambda y: C.io_dir() / "ocean_fwd_outer1.nc",
+        "LV2": lambda y: C.scratch_dir("LV2", "His") / f"LV2_DA_his_{y}.nc",
+        "LV3": lambda y: C.scratch_dir("LV3", "His") / f"LV3_DA_his_{y}.nc",
+        "LV4": lambda y: C.scratch_dir("LV4", "His") / f"LV4_DA_his_{y}.nc"}
+
+
+@dataclass
+class ICStatus:
+    level: str
+    ok: bool = False
+    path: Path | None = None
+    source: str = "none"          # scratch | archive | built | none
+    why: str = "not looked for"
+
+
+@dataclass
+class DetectResult:
+    t_fore: DT.datetime
+    status: str = "none"          # ok | partial | none
+    verdict: str = "absent"       # the manifest's own view
+    levels: dict = field(default_factory=dict)
+
+    def usable(self) -> list[str]:
+        return [lv for lv in LEVELS if self.levels.get(lv) and self.levels[lv].ok]
+
+    def text(self) -> str:
+        out = [f"  DA ICs for {self.t_fore:%Y-%m-%d %H}Z: {self.status.upper()} "
+               f"(manifest verdict: {self.verdict})"]
+        for lv in LEVELS:
+            st = self.levels.get(lv)
+            if st is None:
+                out.append(f"    {lv}  -- not checked")
+            elif st.ok:
+                out.append(f"    {lv}  OK   [{st.source}] {st.path.name}")
+            else:
+                out.append(f"    {lv}  no   {st.why}")
+        return "\n".join(out)
+
+
+def _ic_name(level: str, t_fore: DT.datetime) -> str:
+    return f"{level}_DA_IC_for_{t_fore:%Y%m%d%H}.nc"
+
+
+def _check(path: Path, level: str, t_fore: DT.datetime):
+    """nc_ok with this level's requirements, against t_fore."""
+    return V.nc_ok(path, need_vars=_NEED[level], expect_time=t_fore,
+                   min_bytes=20 << 20, finite_vars=("zeta", "temp", "salt"),
+                   water_range=_RANGE[level], grid=C.GRID[level])
+
+
+def _build_from_history(level: str, t_fore: DT.datetime, out: Path) -> ICStatus:
+    """Last resort: cut the IC out of the DA history that still holds t_fore.
+
+    stage_handoff normally does this at the end of a cycle.  It is repeated here
+    for the case the user described: the cycle ran, its histories are on disk,
+    but IC_out was never written (handoff died, or the files were cleaned).
+    Uses the same his_to_ic.py, so the result is the same artefact.
+    """
+    src = _HIS[level](C.ymd(t_fore - DT.timedelta(days=1)))
+    if not src.is_file():
+        return ICStatus(level, False, why=f"no handoff IC and no history at {src}")
+    if not V.nc_ok(src, need_vars=("zeta", "temp"), min_bytes=100 << 20):
+        return ICStatus(level, False, why=f"history {src.name} is not readable")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    rc = subprocess.run([C.PY, str(C.PYDIR / "his_to_ic.py"), "--his", str(src),
+                         "--time", f"{t_fore:%Y-%m-%dT%H:%M:%S}",
+                         "--out", str(out), "--sanitize"],
+                        capture_output=True, text=True).returncode
+    chk = _check(out, level, t_fore)
+    if not chk:
+        return ICStatus(level, False, why=f"built from {src.name} but invalid: "
+                                          f"{chk.why} (rc={rc})")
+    return ICStatus(level, True, out, "built", f"cut from {src.name}")
+
+
+def detect_da_ics(t_fore, *, allow_build: bool = True,
+                  levels: tuple[str, ...] = LEVELS) -> DetectResult:
+    """Can PFM start the forecast at t_fore from PFM_DA output?
+
+    t_fore is a datetime or a 'YYYYMMDDHH' string -- the FORECAST init time,
+    which is also the DA window's end, so the handoff IC is named for it exactly.
+
+    status is 'ok' when every requested level has a valid IC, 'partial' when some
+    do, 'none' when none do.  'partial' is a real and useful outcome: LV1-LV3
+    good with LV4 missing should start three levels from the analysis rather than
+    discard all of it.  The caller decides.
+    """
+    if isinstance(t_fore, str):
+        t_fore = DT.datetime.strptime(t_fore, "%Y%m%d%H")
+    stamp = f"{t_fore:%Y%m%d%H}"
+    res = DetectResult(t_fore=t_fore, verdict=Manifest.verdict_for(stamp))
+
+    for lv in levels:
+        name = _ic_name(lv, t_fore)
+        found = None
+        for where, d in (("scratch", C.SCRATCH / "IC_out"),
+                         ("archive", C.ARCHIVE / "IC_out")):
+            p = d / name
+            if not p.is_file():
+                continue
+            chk = _check(p, lv, t_fore)
+            if chk:
+                found = ICStatus(lv, True, p, where, "valid")
+                break
+            found = ICStatus(lv, False, p, where, f"{where} copy invalid: {chk.why}")
+        if found is None:
+            found = ICStatus(lv, False, why=f"{name} not in IC_out (scratch or archive)")
+        if not found.ok and allow_build:
+            built = _build_from_history(lv, t_fore, C.SCRATCH / "IC_out" / name)
+            if built.ok:
+                found = built
+            else:
+                # keep BOTH reasons: "no IC_out file" and why cutting one from
+                # the history did not work either.  Debugging a cycle that
+                # silently fell through to restarts needs the second one.
+                found.why = f"{found.why}; build: {built.why}"
+        res.levels[lv] = found
+
+    n = len(res.usable())
+    res.status = "ok" if n == len(levels) else ("partial" if n else "none")
+    return res
+
+
+def apply_da_ics(PFM: dict, t_fore, found: DetectResult | None = None,
+                 *, levels: tuple[str, ...] = LEVELS) -> list[str]:
+    """Point the model-info dict at the DA ICs.  Returns the levels applied.
+
+    Copies each IC into that level's forc dir and sets the three keys run_funs
+    already reads.  Levels without a usable IC are left exactly as they were, so
+    they fall through to the restart path -- which is the whole point: a forecast
+    on restarts beats no forecast.
+
+    Deliberately does NOT touch anything SWAN.  LV4's ocean IC coming from the DA
+    says nothing about its wave state; SWAN still hotstarts from
+    restart_swanfiles_dir_in as usual.
+    """
+    if found is None:
+        found = detect_da_ics(t_fore, levels=levels)
+    applied = []
+    for lv in levels:
+        st = found.levels.get(lv)
+        if st is None or not st.ok:
+            continue
+        n = lv[-1]
+        forc = Path(PFM[f"lv{n}_forc_dir"])
+        forc.mkdir(parents=True, exist_ok=True)
+        dst = forc / st.path.name
+        if not (dst.is_file() and dst.stat().st_size == st.path.stat().st_size):
+            shutil.copy2(st.path, dst)
+        PFM[f"lv{n}_use_restart"] = 0      # -> NRREC 0, ini from lv{n}_forc_dir
+        PFM[f"lv{n}_ini_file"] = dst.name
+        applied.append(lv)
+        print(f"    {lv}: DA IC {dst.name} (use_restart=0, NRREC=0)")
+    for lv in levels:
+        if lv not in applied:
+            print(f"    {lv}: no DA IC -- falling through to the restart file")
+    return applied
+
+
+if __name__ == "__main__":
+    import argparse
+    ap = argparse.ArgumentParser(description="report whether PFM can start from the DA")
+    ap.add_argument("t_fore", help="YYYYMMDDHH, the forecast init time")
+    ap.add_argument("--no-build", action="store_true",
+                    help="do not cut an IC from a DA history when IC_out lacks one")
+    a = ap.parse_args()
+    r = detect_da_ics(a.t_fore, allow_build=not a.no_build)
+    print(r.text())
+    raise SystemExit(0 if r.status == "ok" else (1 if r.status == "partial" else 2))
