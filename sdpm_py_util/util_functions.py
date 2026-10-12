@@ -41,6 +41,88 @@ def copy_mv_nc_file(nc_type,lvl,pkl_fnm):
     fn_out_full = dir_out + fn_out
     shutil.move(fn_in_full, fn_out_full)
 
+def archive_lv1_bc(pkl_fnm):
+    """Archive LV1_OCEAN_BC.nc as LV1_BC_<YYYYMMDDHH>.nc, stamped from its DATA.
+
+    Why this exists: hycom_data/ keeps only ~2 inits and is cleaned every cycle,
+    so nothing on disk records the ocean boundary a past forecast actually ran
+    with.  The BC file is ~44 MB, so a year of them is well under 20 GB -- cheap
+    insurance against a question ("what BC did the 2026-10-12 forecast use?")
+    that is otherwise unanswerable after about two days.
+
+    The stamp is the FIRST ocean_time record, read from the file, not
+    PFM['fetch_time'].  Those should agree, and when they do not the file is the
+    truth -- a stale derived pickle produces a perfectly valid BC for the wrong
+    day, and naming it after the intended day would hide exactly that.  (The
+    forecast stack has had that failure: see _assert_covers_window in the DA
+    stages.)
+
+    Archiving must never take a forecast down, so every failure here is reported
+    and swallowed.  Returns the destination path, or None if nothing was
+    archived.
+    """
+    import datetime as _dt
+    import shutil as _sh
+    import numpy as _np
+    import netCDF4 as _nc
+
+    try:
+        PFM = initfuns.get_model_info(pkl_fnm)
+        src = os.path.join(PFM['lv1_forc_dir'], PFM['lv1_bc_file'])
+        if not os.path.isfile(src):
+            print('archive_lv1_bc: no ' + src + ' to archive')
+            return None
+
+        dir_out = PFM.get('archive_lv1_bc_dir',
+                          '/dataSIO/PFM_Simulations/Archive/LV1_BC_files/')
+
+        # the time axis carries bare units ('days'), not a CF string, so the
+        # epoch comes from the model-info dict rather than from the attribute
+        t0 = PFM['modtime0']
+        with _nc.Dataset(src) as d:
+            tname = ('ocean_time' if 'ocean_time' in d.variables
+                     else next((v for v in d.variables if v.endswith('_time')), None))
+            if tname is None:
+                print('archive_lv1_bc: ' + os.path.basename(src) +
+                      ' has no *_time variable; not archiving')
+                return None
+            tv = _np.asarray(d[tname][:], dtype=float).ravel()
+            units = str(getattr(d[tname], 'units', 'days')).strip().lower()
+        if tv.size == 0:
+            print('archive_lv1_bc: ' + tname + ' is empty; not archiving')
+            return None
+        scale = 86400.0 if units.startswith('day') else 1.0
+        tfirst = t0 + _dt.timedelta(seconds=float(tv.min()) * scale)
+
+        stamp = tfirst.strftime('%Y%m%d%H')
+        fn_out = 'LV1_BC_' + stamp + '.nc'
+        dst = os.path.join(dir_out, fn_out)
+
+        want = os.path.getsize(src)
+        if os.path.isfile(dst) and os.path.getsize(dst) == want:
+            print('archive_lv1_bc: ' + fn_out + ' already archived')
+            return dst
+
+        os.makedirs(dir_out, exist_ok=True)
+        # copy via a temp name in the SAME directory, then rename: an
+        # interrupted copy must not leave a short file that the size test above
+        # would later mistake for a complete one
+        tmp = dst + '.part'
+        _sh.copyfile(src, tmp)
+        os.replace(tmp, dst)
+
+        exp = PFM['fetch_time'].strftime('%Y%m%d%H')
+        note = '' if stamp == exp else ('   NOTE: fetch_time says ' + exp +
+                                        ', the file says ' + stamp)
+        print('archive_lv1_bc: ' + src + ' -> ' + dst +
+              ' (%.1f MB)' % (want / 1e6) + note)
+        return dst
+    except Exception as e:
+        print('archive_lv1_bc: FAILED (' + type(e).__name__ + ': ' + str(e) +
+              ') -- continuing, archiving never fails a forecast')
+        return None
+
+
 def copy_mv_nc_file_v2(nc_type,lvl,pkl_fnm):
     # this copies an atm.nc or river.nc file to the archive location
     # nc_type can be ['atm','river']
