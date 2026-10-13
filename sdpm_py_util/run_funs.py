@@ -617,7 +617,7 @@ def run_slurm_LV3( pkl_fnm , mod_type ):
 # fitted coefficients would both invent a trade-off there is no evidence for and
 # miss each case when the other term is small.
 QTJ_DT_CRIT   = 12.0        # m3/s; override with PFM['lv4_qtj_dt_crit']
-HTIDE_DT_CRIT = 2.5         # m;    override with PFM['lv4_htide_dt_crit']
+HTIDE_DT_CRIT = 2.3         # m;    override with PFM['lv4_htide_dt_crit']
 
 # Tide range is measured at the COAST near the TJRE mouth, from the LV1 history,
 # NOT from LV1_OCEAN_BC.  The open boundary runs about 0.67 of the coastal range

@@ -1440,7 +1440,7 @@ def plot_his_temps_wuv(fn,It,Iz,sv_fig,lvl,cmn,cmx,pkl_fnm):
     elif lvl == 'LV3':
         RMG = grdfuns.roms_grid_to_dict(PFM['lv3_grid_file'])
         res = '10m'
-        res2 = 'f'
+        res2 = 'h'
     elif lvl == 'LV4':
         RMG = grdfuns.roms_grid_to_dict(PFM['lv4_grid_file'])
         res = '10m'
@@ -1484,7 +1484,7 @@ def plot_his_temps_wuv(fn,It,Iz,sv_fig,lvl,cmn,cmx,pkl_fnm):
     #print(np.shape(v))
 
     fig, ax = plt.subplots(figsize=(8, 12), subplot_kw={'projection': ccrs.PlateCarree()})
-    plevs = np.arange(cmn,cmx,.05)
+    plevs = np.arange(cmn,cmx, 0.1)
     cmap = plt.get_cmap('turbo')
     cset = ax.contourf(ln, lt, temp, plevs, cmap=cmap, extend="both", vmin=cmn, vmax=cmx, transform=ccrs.PlateCarree())        
     plt.set_cmap(cmap)
@@ -1573,7 +1573,7 @@ def plot_his_temps_wuv_v2(fn,It,Iz,sv_fig,lvl,cmn,cmx,fn_grd,dir_out):
         res2 = 'h'
     elif lvl == 'LV3':
         res = '10m'
-        res2 = 'f'
+        res2 = 'h'
     elif lvl == 'LV4':
         res = '10m'
         res2 = 'f'
