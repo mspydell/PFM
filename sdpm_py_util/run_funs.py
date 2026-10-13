@@ -585,6 +585,87 @@ def run_slurm_LV3( pkl_fnm , mod_type ):
     return proc
 
 
+# ---------------------------------------------------------------------------
+# LV4 adaptive timestep
+# ---------------------------------------------------------------------------
+# Strong ebb currents at the TJRE mouth are what break LV4, and they are driven
+# by river discharge and by the falling tide.  Measured over every operational
+# run from 2026-09-20 to 2026-10-12:
+#
+#   max(Qtj)   0.07 .. 10.21 m3/s   -> 22 runs, all completed at dt = 2
+#   max(Qtj)   56.81 m3/s           ->  1 run,  BLEW UP at dt = 2 (hour 19,
+#                                       MaxSpeed 20 m/s), completed at dt = 1.5
+#
+# Tide range over the same period was 1.47 .. 1.90 m and carried NO signal: the
+# blow-up day sat mid-range at 1.83, and the four days with a LARGER range all
+# completed fine.  So the rule is discharge-only on purpose.  A tide term is
+# physically sensible -- and the right form is a time-COINCIDENT ebb flux,
+# max_t[Qtj(t) + A_basin*|dzeta/dt|], not max(Qtj) + beta*max(Htide), which can
+# pair a flood peak on Tuesday with a spring tide on Friday -- but there is no
+# evidence to set its coefficient yet, and fitting one to a single event would
+# be fitting noise.
+#
+# The threshold sits just above the highest value observed to be SAFE, not
+# halfway into the gap, because the two errors are not equal: choosing 1.5
+# needlessly costs about 35 minutes of wall clock, while choosing 2.0 wrongly
+# costs the whole forecast.  There is no evidence about anything between 10.2
+# and 56.8 m3/s.
+QTJ_DT_CRIT = 12.0          # m3/s; override with PFM['lv4_qtj_dt_crit']
+
+
+def max_qtj_from_river_file(river_nc):
+    """Peak Tijuana River discharge in the forecast, m3/s.  None if unreadable.
+
+    The TJ sources are identified by their DYE TAG (river_dye_02 > 0), not by
+    column index.  The file has nine sources and TJ currently occupies columns
+    0-4 while Punta Bandera is column 5, but nothing guarantees that layout and
+    a silent mix-up would read PB's constant 1.5 as the river flow and never
+    trip the threshold.  The tag is what actually means "this is the TJ".
+    """
+    import netCDF4 as nc_
+    import numpy as np_
+    try:
+        with nc_.Dataset(river_nc) as d:
+            q = np_.asarray(d['river_transport'][:], dtype=float)
+            d2 = np_.asarray(d['river_dye_02'][:], dtype=float)
+        # river_dye_02 is (river_time, s_rho, river) -- 3-D, not 2-D.  Reduce
+        # over every axis EXCEPT the last, which is the river index, so the
+        # mask lines up with river_transport's (river_time, river).
+        if d2.ndim < 2 or q.ndim != 2:
+            return None
+        tj = np_.nanmax(d2, axis=tuple(range(d2.ndim - 1))) > 0
+        if tj.shape[0] != q.shape[1] or not tj.any():
+            return None
+        return float(np_.abs(q[:, tj]).sum(axis=1).max())
+    except Exception as e:                                  # noqa: BLE001
+        print('max_qtj_from_river_file: could not read ' + str(river_nc) +
+              ' (' + type(e).__name__ + ': ' + str(e) + ')')
+        return None
+
+
+def lv4_dt_for_forecast(PFM, river_nc, dt_default, ndtfast_default):
+    """(dtsec, ndtfast) for LV4, chosen from the river discharge.
+
+    Returns the small-timestep pair when the forecast's peak TJ discharge
+    exceeds the threshold, and ALSO when the discharge cannot be determined --
+    an unreadable river file is exactly the situation in which guessing the
+    cheap option is worst.
+    """
+    qcrit = float(PFM.get('lv4_qtj_dt_crit', QTJ_DT_CRIT))
+    qtj = max_qtj_from_river_file(river_nc)
+    if qtj is None:
+        print('LV4 dt: river discharge unknown -> using the SAFE small timestep '
+              '(dt=1.5, ndtfast=6)')
+        return 1.5, 6
+    if qtj > qcrit:
+        print('LV4 dt: max(Qtj) = %.2f m3/s > %.2f -> dt=1.5, ndtfast=6'
+              % (qtj, qcrit))
+        return 1.5, 6
+    print('LV4 dt: max(Qtj) = %.2f m3/s <= %.2f -> dt=%s, ndtfast=%s'
+          % (qtj, qcrit, dt_default, ndtfast_default))
+    return dt_default, ndtfast_default
+
+
 def  make_LV4_coawst_dotins_dotsb(pkl_fnm,mod_type):
 
     import pickle
@@ -655,6 +736,13 @@ def  make_LV4_coawst_dotins_dotsb(pkl_fnm,mod_type):
     if (mod_type == 'hind') and (PFM['hind_river_type'] == 'IBWC_raw') and (PFM['sim_time_1'] in PFM['dt1_days_ibwc']) :
         dtsec        = 1
         D['ndtfast'] = 4
+
+    # Forecasts choose the timestep from the river discharge; hindcasts keep
+    # their hand-curated dt1_days_* lists above, which are a deliberate override
+    # and should not be second-guessed by a rule tuned on forecast data.
+    if mod_type != 'hind':
+        dtsec, D['ndtfast'] = lv4_dt_for_forecast(
+            PFM, D['lv4_river_file'], dtsec, D['ndtfast'])
 
     print('dtsec = ')
     print(dtsec)
