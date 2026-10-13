@@ -610,7 +610,34 @@ def run_slurm_LV3( pkl_fnm , mod_type ):
 # needlessly costs about 35 minutes of wall clock, while choosing 2.0 wrongly
 # costs the whole forecast.  There is no evidence about anything between 10.2
 # and 56.8 m3/s.
-QTJ_DT_CRIT = 12.0          # m3/s; override with PFM['lv4_qtj_dt_crit']
+# TWO INDEPENDENT MECHANISMS, SO TWO TRIGGERS -- NOT A WEIGHTED SUM.
+# 2026-07-12 00Z blew up at 2.4 days with Qtj = 0.19 m3/s (no river at all) and
+# a tide range of 2.68 m.  2026-10-11 00Z blew up at 19 h with Qtj = 56.8 m3/s
+# and an unremarkable 1.83 m tide.  Either one alone is enough, so a sum with
+# fitted coefficients would both invent a trade-off there is no evidence for and
+# miss each case when the other term is small.
+QTJ_DT_CRIT   = 12.0        # m3/s; override with PFM['lv4_qtj_dt_crit']
+HTIDE_DT_CRIT = 2.5         # m;    override with PFM['lv4_htide_dt_crit']
+
+# Tide range is measured at the COAST near the TJRE mouth, from the LV1 history,
+# NOT from LV1_OCEAN_BC.  The open boundary runs about 0.67 of the coastal range
+# -- measured 2026-10-12: zeta_south 1.156 m and zeta_west 0.875 m against
+# 1.716 m at the mouth -- because the tide amplifies shoaling into the bight.
+# The thresholds here were calibrated on the coastal number, so reading the
+# boundary instead would under-read by a third and essentially never trigger.
+TJRE_LONLAT = (-117.13, 32.55)
+
+# The rule is AUTHORITATIVE for forecasts: these two pairs are the only
+# timesteps a forecast can use, and tinfo['L4','dtsec'/'ndtfast'] from the input
+# .py is ignored.  It has to be that way round -- while the input .py still set
+# the low-flow value, editing it by hand silently changed what "normal" meant,
+# so a quiet day inherited whatever the last high-flow emergency had left there.
+DT_NORMAL   = (2.0, 8)      # dtsec, ndtfast -- barotropic dt 0.25 s
+DT_HIGHFLOW = (1.5, 6)      # dtsec, ndtfast -- barotropic dt 0.25 s, unchanged
+# For the rare case the rule is not enough (Falk's commented "most stable"
+# choice was 1.2/4), set PFM['lv4_dt_override'] = (dtsec, ndtfast).  It wins
+# over the rule and says so in the log, so an override is visible rather than
+# inferred from a diff.
 
 
 def max_qtj_from_river_file(river_nc):
@@ -643,27 +670,81 @@ def max_qtj_from_river_file(river_nc):
         return None
 
 
-def lv4_dt_for_forecast(PFM, river_nc, dt_default, ndtfast_default):
-    """(dtsec, ndtfast) for LV4, chosen from the river discharge.
+def max_tide_range(his_nc, grid_nc, lonlat=TJRE_LONLAT):
+    """Largest consecutive high-to-low zeta swing in the forecast, m.
 
-    Returns the small-timestep pair when the forecast's peak TJ discharge
-    exceeds the threshold, and ALSO when the discharge cannot be determined --
-    an unreadable river file is exactly the situation in which guessing the
-    cheap option is worst.
+    Local maxima and minima of the sea-surface time series at the wet LV1 point
+    nearest the TJRE mouth, then the biggest difference between consecutive
+    extrema -- i.e. the largest single ebb (or flood) the forecast contains, not
+    a tidal amplitude.  Returns None if it cannot be computed.
     """
+    import netCDF4 as nc_
+    import numpy as np_
+    try:
+        with nc_.Dataset(grid_nc) as g:
+            glon = np_.asarray(g['lon_rho'][:], dtype=float)
+            glat = np_.asarray(g['lat_rho'][:], dtype=float)
+            gmsk = np_.asarray(g['mask_rho'][:], dtype=float)
+        d2 = (glon - lonlat[0]) ** 2 + (glat - lonlat[1]) ** 2
+        d2[gmsk < 0.5] = 1e9
+        j, i = np_.unravel_index(np_.argmin(d2), d2.shape)
+        with nc_.Dataset(his_nc) as d:
+            z = np_.asarray(d['zeta'][:, j, i], dtype=float)
+        z = z[np_.abs(z) < 1e30]
+        if z.size < 10:
+            return None
+        dz = np_.diff(z)
+        turn = np_.where(np_.diff(np_.sign(dz)) != 0)[0] + 1
+        ext = z[turn]
+        if ext.size < 2:
+            return None
+        return float(np_.abs(np_.diff(ext)).max())
+    except Exception as e:                                  # noqa: BLE001
+        print('max_tide_range: could not compute from ' + str(his_nc) +
+              ' (' + type(e).__name__ + ': ' + str(e) + ')')
+        return None
+
+
+def lv4_dt_for_forecast(PFM, river_nc):
+    """(dtsec, ndtfast) for an LV4 FORECAST, chosen from the river discharge.
+
+    Authoritative: whatever tinfo['L4','dtsec'/'ndtfast'] says is not consulted.
+    Returns the small pair when peak TJ discharge exceeds the threshold, and
+    ALSO when the discharge cannot be determined -- an unreadable river file is
+    exactly the situation in which guessing the cheap option is worst.
+    """
+    ov = PFM.get('lv4_dt_override')
+    if ov:
+        print('LV4 dt: PFM[lv4_dt_override] set -> dt=%s, ndtfast=%s '
+              '(the discharge rule is being bypassed on purpose)' % (ov[0], ov[1]))
+        return float(ov[0]), int(ov[1])
     qcrit = float(PFM.get('lv4_qtj_dt_crit', QTJ_DT_CRIT))
+    hcrit = float(PFM.get('lv4_htide_dt_crit', HTIDE_DT_CRIT))
     qtj = max_qtj_from_river_file(river_nc)
-    if qtj is None:
-        print('LV4 dt: river discharge unknown -> using the SAFE small timestep '
-              '(dt=1.5, ndtfast=6)')
-        return 1.5, 6
-    if qtj > qcrit:
-        print('LV4 dt: max(Qtj) = %.2f m3/s > %.2f -> dt=1.5, ndtfast=6'
-              % (qtj, qcrit))
-        return 1.5, 6
-    print('LV4 dt: max(Qtj) = %.2f m3/s <= %.2f -> dt=%s, ndtfast=%s'
-          % (qtj, qcrit, dt_default, ndtfast_default))
-    return dt_default, ndtfast_default
+    htide = max_tide_range(PFM.get('lv1_his_name_full'),
+                           PFM.get('lv1_grid_file_full'))
+
+    qs = 'unknown' if qtj is None else '%.2f' % qtj
+    hs = 'unknown' if htide is None else '%.3f' % htide
+    why = []
+    if qtj is None or htide is None:
+        why.append('a predictor could not be read')
+    if qtj is not None and qtj > qcrit:
+        why.append('max(Qtj) %.2f > %.2f m3/s' % (qtj, qcrit))
+    if htide is not None and htide > hcrit:
+        why.append('Htide %.3f > %.3f m' % (htide, hcrit))
+
+    print('LV4 dt rule: max(Qtj) = %s m3/s (limit %.2f), '
+          'Htide = %s m (limit %.3f)' % (qs, qcrit, hs, hcrit))
+    if why:
+        # Loud on purpose: this is the line someone greps for in the system log
+        # when they wonder why LV4 took 2h51 instead of 2h15, or why it did not.
+        print('*** LV4 TIMESTEP REDUCED: dt = %s s, ndtfast = %s  '
+              '(barotropic dt unchanged at 0.25 s) ***' % DT_HIGHFLOW)
+        print('*** reason: ' + '; '.join(why) + ' ***')
+        return DT_HIGHFLOW
+    print('LV4 timestep normal: dt = %s s, ndtfast = %s' % DT_NORMAL)
+    return DT_NORMAL
 
 
 def  make_LV4_coawst_dotins_dotsb(pkl_fnm,mod_type):
@@ -741,8 +822,7 @@ def  make_LV4_coawst_dotins_dotsb(pkl_fnm,mod_type):
     # their hand-curated dt1_days_* lists above, which are a deliberate override
     # and should not be second-guessed by a rule tuned on forecast data.
     if mod_type != 'hind':
-        dtsec, D['ndtfast'] = lv4_dt_for_forecast(
-            PFM, D['lv4_river_file'], dtsec, D['ndtfast'])
+        dtsec, D['ndtfast'] = lv4_dt_for_forecast(PFM, D['lv4_river_file'])
 
     print('dtsec = ')
     print(dtsec)
