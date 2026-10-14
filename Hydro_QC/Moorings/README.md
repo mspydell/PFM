@@ -24,7 +24,6 @@ The code they share, and the data cache, are in `common/`:
 | `common/plot_model_vs_obs.py` | The figures. |
 | `common/extract_model.py` | Extracts model profiles from `/dataSIO/PFM_Simulations/Archive/LV4_His` (SBOO, IB) and `LV3_His` (PLOO, Del Mar) into `common/cache/model/`. Python port of `PFM_Master_Code_For_TimeSeriesExtraction.m`. |
 | `common/download_obs.py` | Downloads mooring data from https://mooring.ucsd.edu (Jeff Sevadjian, SIO) into `common/cache/obs/`. |
-| `common/export_model_timeseries.m` | Old MATLAB export, replaced by `extract_model.py`. |
 
 ## Running
 
