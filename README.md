@@ -112,6 +112,38 @@ the change took effect with the 2026-10-09 00Z forecast.
 - t ≤ 2025-09-02 — NWM forecast.
 - t ≥ 2025-09-02 — persistence method, and NWM if rain is detected in NWM Q_TJ.
 
+**Cap — 75 m³/s, volume-conserving, from 2025-10-31.** `river_functions.make_flat_q`
+caps the TJ discharge, and it does **not** truncate: each timestep above the cap is
+set to the cap and the excess is pushed to the *next* timestep, repeatedly until
+nothing exceeds it. A storm therefore becomes a longer plateau at the cap rather
+than a clipped peak, and the total volume delivered is unchanged. That matters
+for the dye: clipping would quietly discard sewage load, whereas this only
+delays it.
+
+Where it is applied:
+
+| path | cap | set in |
+|---|---|---|
+| forecast, `use_IBWC = True` (the live path) | 75 m³/s | `ocn_funs_forecast.py` |
+| forecast, `use_IBWC = False` | **none** | — |
+| hindcast, NWM and vPFM | 75 m³/s | `ocn_funs_forecast.py` |
+| hindcast, IBWC_raw | `PFM['TJR_Qmax']`, else 100 m³/s | `river_functions.py` |
+
+Introduced in commit `087d560` (2025-10-31), which added `make_flat_q` and
+applied it to both the hindcast and the forecast river file in one go.
+
+**It has never actually bound.** Across all 595 archived `river_LV4_*.nc` files
+(2025-02-20 to 2026-10-13) the largest TJ discharge is **56.81 m³/s**, on
+2026-10-11 — the day LV4 blew up at dt = 2 s. Next largest is 37.29 on
+2025-12-22. No file exceeds 75, and no timestep anywhere sits pinned at it. So
+unlike the Q_PB and dye_PB changes, the effective date cannot be recovered from
+the output: the commit date is all there is, because the cap has never changed a
+single value. It is insurance, not an active control.
+
+Relevant to LV4 stability: the timestep rule in `run_funs.py` trips at
+Qtj > 12 m³/s, well below this cap, so the two never interact — the cap would
+only matter in a storm roughly 6× larger than anything on record.
+
 ### Tijuana River — C_TJ
 
 `river_dye_02` is the raw-sewage fraction of the TJ flow. It is always derived
