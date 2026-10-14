@@ -99,8 +99,33 @@ def archive_lv1_bc(pkl_fnm):
         dst = os.path.join(dir_out, fn_out)
 
         want = os.path.getsize(src)
-        if os.path.isfile(dst) and os.path.getsize(dst) == want:
-            print('archive_lv1_bc: ' + fn_out + ' already archived')
+        if os.path.isfile(dst):
+            # WRITE ONCE.  The operational forecast is the gold standard for a
+            # given stamp and must never be replaced by a later writer.
+            #
+            # The names really can collide: the stamp is the BC's first
+            # ocean_time, so a forecast initialised 2026-10-13 00Z and a PFM_DA
+            # window running 2026-10-13 00Z -> 10-14 00Z both resolve to
+            # LV1_BC_2026101300.nc -- from different HYCOM inits, over different
+            # spans.  PFM_DA does not archive today, but nothing stops it later,
+            # and an earlier version of this function replaced the file whenever
+            # the size differed, which is exactly when the two are NOT the same
+            # data.
+            #
+            # A partial capture is also possible: LV1_BC_2026101200.nc was
+            # archived by hand mid-rebuild and holds 25 zeta records instead of
+            # 109.  Refusing to overwrite keeps a bad file, but silently
+            # replacing a good one is worse, and a size mismatch is reported so
+            # it can be dealt with deliberately.
+            have = os.path.getsize(dst)
+            if have == want:
+                print('archive_lv1_bc: ' + fn_out + ' already archived')
+            else:
+                print('archive_lv1_bc: KEEPING the existing ' + fn_out +
+                      ' (%d bytes) and NOT replacing it with %d bytes from %s. '
+                      % (have, want, src) +
+                      'Same stamp, different content -- check which is right '
+                      'before removing one by hand.')
             return dst
 
         os.makedirs(dir_out, exist_ok=True)
