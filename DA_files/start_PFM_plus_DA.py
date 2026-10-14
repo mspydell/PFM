@@ -191,6 +191,9 @@ def main(argv=None) -> int:
         # and still wants its hotstart -- an empty sandbox restart dir makes the
         # generator fall back to ZERO and cold-start from a flat sea.
         SB.link_restarts_into_sandbox(MI, t_fore)
+        # ROMS reads VARNAME from each level's Run dir; an empty sandbox Run dir
+        # makes it abort in initialisation and still exit COMPLETED.
+        SB.stage_static_run_inputs(MI)
         SB.assert_not_operational(MI)        # raises, deliberately
         print("    assert_not_operational: clean")
 

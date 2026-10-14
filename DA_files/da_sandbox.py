@@ -253,3 +253,47 @@ def link_restarts_into_sandbox(PFM: dict, t_fore, *, verbose: bool = True) -> di
                 print("      NOTE: nothing matched %s in %s -- %s"
                       % (pat, oper, what))
     return out
+
+
+def stage_static_run_inputs(PFM: dict, *, verbose: bool = True) -> int:
+    """Symlink the static files ROMS expects to find in each level's Run dir.
+
+    VARNAME points at <level>/Run/LV<n>_varinfo.yaml, and LV4's coupled .in also
+    names coawst_mss.yaml.  These are fixed inputs dated 2026-07-07 that nothing
+    generates -- they simply live in the operational Run directories.  A sandbox
+    Run dir is created empty, so ROMS aborts in initialisation:
+
+        YAML_TREE_CREATE - Unable to open input YAML file: ...LV1_varinfo.yaml
+
+    and the job exits in about a minute having written nothing.  It reports
+    COMPLETED, which is what makes this one hard to spot: on 2026-10-13 LV1, LV2
+    and LV3 all "succeeded" in ~60 s with no history at all.
+
+    Symlinked, not copied: they are read-only inputs, and a test must use the
+    SAME metadata as the forecast or it is not testing the same configuration.
+    """
+    n = 0
+    for lv in ("LV1", "LV2", "LV3", "LV4"):
+        dst = PFM.get("%s_run_dir" % lv.lower())
+        if not dst or not str(dst).startswith((SANDBOX_SCRATCH, SANDBOX_ARCHIVE)):
+            continue                      # not sandboxed; operational dirs already have them
+        # map the sandbox path back to the operational one it mirrors
+        src = Path(str(dst).replace(SANDBOX_SCRATCH, "/scratch/PFM_Simulations"))
+        d = Path(dst)
+        d.mkdir(parents=True, exist_ok=True)
+        if not src.is_dir():
+            if verbose:
+                print("    %s: no operational Run dir at %s to copy inputs from"
+                      % (lv, src))
+            continue
+        for y in sorted(src.glob("*.yaml")):
+            link = d / y.name
+            if link.is_symlink() or link.exists():
+                continue
+            link.symlink_to(y)
+            n += 1
+            if verbose:
+                print("    %s: linked %s" % (lv, y.name))
+    if verbose and n == 0:
+        print("    static Run inputs: already present")
+    return n
