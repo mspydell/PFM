@@ -147,18 +147,33 @@ def assert_not_operational(PFM: dict, *, sandbox: tuple[str, ...] = ()) -> None:
             f"READ_ONLY_OK in da_sandbox.py if it is genuinely an input.")
 
 
-def ensure_sandbox_dirs(PFM: dict) -> int:
-    """mkdir -p every sandbox directory the run will write to."""
+def ensure_sandbox_dirs(PFM: dict, *, sandbox: tuple[str, ...] = (),
+                       verbose: bool = False) -> int:
+    """mkdir -p every sandbox directory the run will write to.
+
+    Selects paths that ARE in the sandbox.  It must NOT filter on _allowed():
+    after apply_testing_paths every write path is in the sandbox, and _allowed
+    returns True for exactly those -- so an earlier version that skipped
+    "allowed" paths skipped all of them and silently created nothing.
+
+    That was not a harmless no-op.  PFM makes its own Forc directories as a side
+    effect of writing forcing, but not Run, His or Plots, so the 2026-10-12 test
+    run got: no Run dir -> no .in file -> no sbatch -> no LV1/LV2/LV3 jobs at
+    all; no His dir -> LV3_ocean_his_*.nc never appeared -> LV4's BC failed ->
+    BC_LV4_tmp_file.pkl was missing -> clm failed -> "aborting simulation".  One
+    missing mkdir, and every level failed for a different-looking reason.
+    """
+    roots = tuple(sandbox) + (SANDBOX_SCRATCH, SANDBOX_ARCHIVE)
     made = 0
-    for k, v in PFM.items():
-        if not _is_path(v) or _allowed(v):
-            continue
-        if not v.startswith((SANDBOX_SCRATCH, SANDBOX_ARCHIVE)):
+    for k, v in sorted(PFM.items()):
+        if not _is_path(v) or not v.startswith(roots):
             continue
         d = Path(v if k.endswith("_dir") else str(Path(v).parent))
         if not d.is_dir():
             d.mkdir(parents=True, exist_ok=True)
             made += 1
+            if verbose:
+                print(f"    mkdir {d}")
     return made
 
 
@@ -184,3 +199,49 @@ if __name__ == "__main__":
         print(f"  remaining operational paths: {len(left)}")
         for k, v in sorted(left.items()):
             print(f"    STILL BAD {k:28s} {v}")
+
+
+def link_restarts_into_sandbox(PFM: dict, t_fore, *, verbose: bool = True) -> dict:
+    """Symlink the OPERATIONAL restart files valid at t_fore into the sandbox.
+
+    Why this is needed even when every level starts from a DA initial condition:
+    use_restart = 0 settles the OCEAN, but SWAN is initialised independently and
+    still wants its hotstart.  With an empty sandbox restart dir the .in
+    generator falls back to swan_init_txt_full = 'ZERO', and SWAN cold-starts
+    from a flat sea -- which takes longer than a one-day test window to spin up,
+    so the waves are meaningless and the test proves nothing about LV4.
+
+    Symlinks, not copies: the SWAN set is ~2.5 GB per stamp and is only read.
+    Removing a symlink never touches the operational file, so PFM's own restart
+    bookkeeping can delete in the sandbox as freely as it likes.
+    """
+    import datetime as _dt
+    if isinstance(t_fore, str):
+        t_fore = _dt.datetime.strptime(t_fore, "%Y%m%d%H")
+    stamp = t_fore.strftime("%Y%m%d%H%M")
+    out = {}
+    pairs = (("restart_swanfiles_dir_in", "/scratch/PFM_Simulations/restart_swan_data",
+              "LV4_swan_rst_%s*" % stamp),
+             ("restart_ncfiles_dir_in", "/scratch/PFM_Simulations/restart_roms_data_new",
+              "*_rst_%s*" % stamp))
+    for key, oper, pat in pairs:
+        dest = PFM.get(key)
+        if not dest or not dest.startswith((SANDBOX_SCRATCH, SANDBOX_ARCHIVE)):
+            continue                      # not sandboxed; nothing to do
+        d = Path(dest)
+        d.mkdir(parents=True, exist_ok=True)
+        n = 0
+        for src in sorted(Path(oper).glob(pat)):
+            link = d / src.name
+            if link.is_symlink() or link.exists():
+                continue
+            link.symlink_to(src)
+            n += 1
+        out[key] = n
+        if verbose:
+            print("    %s: %d restart file(s) linked from %s" % (key, n, oper))
+            if n == 0:
+                print("      NOTE: none matched %s -- SWAN will cold-start from "
+                      "ZERO and its waves will not be meaningful in a short test"
+                      % pat)
+    return out

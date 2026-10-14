@@ -153,8 +153,12 @@ def main(argv=None) -> int:
     if a.testing:
         print("  redirecting into the testing sandbox")
         n = SB.apply_testing_paths(MI, verbose=False)
-        SB.ensure_sandbox_dirs(MI)
-        print(f"    {n} path(s) redirected")
+        made = SB.ensure_sandbox_dirs(MI)
+        print(f"    {n} path(s) redirected, {made} directory/ies created")
+        # The ocean starts from the DA ICs, but SWAN is initialised separately
+        # and still wants its hotstart -- an empty sandbox restart dir makes the
+        # generator fall back to ZERO and cold-start from a flat sea.
+        SB.link_restarts_into_sandbox(MI, t_fore)
         SB.assert_not_operational(MI)        # raises, deliberately
         print("    assert_not_operational: clean")
 
