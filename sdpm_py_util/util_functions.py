@@ -41,6 +41,134 @@ def copy_mv_nc_file(nc_type,lvl,pkl_fnm):
     fn_out_full = dir_out + fn_out
     shutil.move(fn_in_full, fn_out_full)
 
+_LV1_BC_META_KEYS = ('vinfo', 'ocean_time_ref')
+
+
+def _lv1_bc_meta_name(stamp):
+    return 'LV1_BCmeta_' + stamp + '.pkl'
+
+
+def archive_lv1_bc_meta(pkl_fnm, stamp):
+    """Archive the two metadata keys LV2 needs out of the LV1 OCN_BC pickle.
+
+    mk_LV2_BC_dict_edges builds LV2's boundary from LV1's HISTORY file, but it
+    reads two things out of LV1's OCN_BC pickle: 'vinfo' (variable long_names
+    and units) and 'ocean_time_ref' (the epoch).  Nothing else.  When a rerun
+    reuses an archived BC .nc it never builds that pickle, so LV2 died with
+    FileNotFoundError on ocnBC_tmp_pckl_file.pkl.
+
+    The full pickle is ~44 MB and almost all of it is boundary field data that
+    is already in the .nc.  So archive only those two keys -- a few kB.
+
+    Failures are reported and swallowed: this must never take a forecast down.
+    Returns the destination path, or None.
+    """
+    import pickle as _pk
+
+    try:
+        PFM = initfuns.get_model_info(pkl_fnm)
+        src = os.path.join(PFM['lv1_forc_dir'], PFM['lv1_ocnBC_tmp_pckl_file'])
+        if not os.path.isfile(src):
+            print('archive_lv1_bc_meta: no ' + src + ' to archive')
+            return None
+        dir_out = PFM.get('archive_lv1_bc_dir',
+                          '/dataSIO/PFM_Simulations/Archive/LV1_BC_files/')
+        dst = os.path.join(dir_out, _lv1_bc_meta_name(stamp))
+        if os.path.isfile(dst):
+            print('archive_lv1_bc_meta: ' + os.path.basename(dst) +
+                  ' already archived')
+            return dst
+        with open(src, 'rb') as fin:
+            BC = _pk.load(fin)
+        meta = {k: BC[k] for k in _LV1_BC_META_KEYS if k in BC}
+        missing = [k for k in _LV1_BC_META_KEYS if k not in meta]
+        if missing:
+            print('archive_lv1_bc_meta: ' + os.path.basename(src) +
+                  ' has no ' + ', '.join(missing) + '; not archiving')
+            return None
+        os.makedirs(dir_out, exist_ok=True)
+        tmp = dst + '.part'
+        with open(tmp, 'wb') as fout:
+            _pk.dump(meta, fout, protocol=_pk.HIGHEST_PROTOCOL)
+        os.replace(tmp, dst)
+        print('archive_lv1_bc_meta: archived ' + os.path.basename(dst) +
+              ' (%d bytes)' % os.path.getsize(dst))
+        return dst
+    except Exception as e:                                   # noqa: BLE001
+        print('archive_lv1_bc_meta: ' + type(e).__name__ + ': ' + str(e) +
+              ' -- not archived (the forecast is unaffected)')
+        return None
+
+
+def stage_lv1_bc_meta(pkl_fnm):
+    """Put a minimal LV1 OCN_BC pickle in place so LV2's BC build can proceed.
+
+    Only called when the LV1 BC was REUSED from the archive, which means the
+    real pickle was never built.  See archive_lv1_bc_meta for why two keys are
+    enough.
+
+    Source preference:
+      1. the metadata archived for THIS stamp -- exact,
+      2. the newest metadata archived for any stamp,
+      3. the live operational LV1 pickle on scratch.
+    2 and 3 are not a compromise: 'vinfo' is static variable metadata and
+    'ocean_time_ref' is a fixed epoch (1999-01-01), so they do not vary by day.
+    The day-specific numbers LV2 actually uses come from LV1's history file.
+
+    Returns True if a pickle is in place, False otherwise (LV2 will then fail
+    loudly, which is the right outcome -- better than a silent wrong BC).
+    """
+    import glob as _gl
+    import pickle as _pk
+
+    try:
+        PFM = initfuns.get_model_info(pkl_fnm)
+        dst = os.path.join(PFM['lv1_forc_dir'], PFM['lv1_ocnBC_tmp_pckl_file'])
+        if os.path.isfile(dst):
+            return True
+
+        dir_in = PFM.get('archive_lv1_bc_dir',
+                         '/dataSIO/PFM_Simulations/Archive/LV1_BC_files/')
+        stamp = PFM['sim_time_1'].strftime('%Y%m%d%H')
+        cands = [os.path.join(dir_in, _lv1_bc_meta_name(stamp))]
+        cands += sorted(_gl.glob(os.path.join(dir_in, _lv1_bc_meta_name('*'))),
+                        reverse=True)
+        cands.append('/scratch/PFM_Simulations/LV1_Forecast/Forc/'
+                     + PFM['lv1_ocnBC_tmp_pckl_file'])
+
+        for src in cands:
+            if not os.path.isfile(src):
+                continue
+            try:
+                with open(src, 'rb') as fin:
+                    BC = _pk.load(fin)
+            except Exception as e:                           # noqa: BLE001
+                print('stage_lv1_bc_meta: cannot read ' + src + ': ' +
+                      type(e).__name__ + ': ' + str(e))
+                continue
+            if not all(k in BC for k in _LV1_BC_META_KEYS):
+                continue
+            meta = {k: BC[k] for k in _LV1_BC_META_KEYS}
+            os.makedirs(PFM['lv1_forc_dir'], exist_ok=True)
+            tmp = dst + '.part'
+            with open(tmp, 'wb') as fout:
+                _pk.dump(meta, fout, protocol=_pk.HIGHEST_PROTOCOL)
+            os.replace(tmp, dst)
+            note = '' if src == cands[0] else \
+                   '  (metadata only, taken from another cycle -- vinfo and ' \
+                   'ocean_time_ref do not vary by day)'
+            print('stage_lv1_bc_meta: wrote ' + os.path.basename(dst) +
+                  ' from ' + src + note)
+            return True
+
+        print('stage_lv1_bc_meta: found no LV1 OCN_BC metadata to stage; '
+              'LV2 BC build will fail')
+        return False
+    except Exception as e:                                   # noqa: BLE001
+        print('stage_lv1_bc_meta: ' + type(e).__name__ + ': ' + str(e))
+        return False
+
+
 def reuse_archived_lv1_bc(pkl_fnm):
     """Use an archived LV1 BC instead of rebuilding it, when one fits exactly.
 
@@ -113,6 +241,9 @@ def reuse_archived_lv1_bc(pkl_fnm):
               os.path.basename(src) + ' (covers ' + lo.strftime('%Y-%m-%d %H') +
               'Z .. ' + hi.strftime('%Y-%m-%d %H') + 'Z); skipping the HYCOM '
               'download.  This is a RERUN of a past forecast start. ***')
+        # LV2's BC build reads 'vinfo' and 'ocean_time_ref' out of LV1's
+        # OCN_BC pickle, which the skipped build never writes.
+        stage_lv1_bc_meta(pkl_fnm)
         return True
     except Exception as e:                                   # noqa: BLE001
         print('reuse_archived_lv1_bc: ' + type(e).__name__ + ': ' + str(e) +
@@ -176,6 +307,12 @@ def archive_lv1_bc(pkl_fnm):
         stamp = tfirst.strftime('%Y%m%d%H')
         fn_out = 'LV1_BC_' + stamp + '.nc'
         dst = os.path.join(dir_out, fn_out)
+
+        # a few-kB companion holding the 'vinfo' / 'ocean_time_ref' keys that
+        # LV2's BC build needs.  Archived under the SAME stamp, and before the
+        # write-once test below so an already-archived .nc still gains its
+        # metadata on the next cycle.
+        archive_lv1_bc_meta(pkl_fnm, stamp)
 
         want = os.path.getsize(src)
         if os.path.isfile(dst):

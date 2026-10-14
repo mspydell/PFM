@@ -1114,7 +1114,7 @@ def run_fore_LV1(pkl_fnm):
         dt_ic = []
         t05 = datetime.now()
         dt_ic.append(t05-t01)
-    else:
+    elif not PFM.get('lv1_ic_prebuilt', False):
         print('going to use a restart file for the LV1 IC. Setting this up...')
         cmd_list = ['python','-W','ignore','init_funs_forecast.py','restart_setup','LV1',pkl_fnm]
         os.chdir('../sdpm_py_util')
@@ -1133,6 +1133,19 @@ def run_fore_LV1(pkl_fnm):
         print('\n')
         if PFM['lv1_nrrec'] < 0:
             print('WARNING RESTARTING LV1 WILL NOT WORK!!!')
+
+    else:
+        # PFM_DA supplied this initial condition.  Do NOT call
+        # restart_setup: it globs the restart directory and would
+        # overwrite lv1_ini_file with 'none' (the DA IC lives in
+        # the Forc directory, not among the restarts).
+        dt_ic = []
+        dt_ic.append(datetime.now()-t01)
+        PFM = initfuns.get_model_info(pkl_fnm)
+        print('\nLV1: using the PREBUILT (PFM_DA) initial condition '
+              + str(PFM['lv1_ini_file']))
+        print('with time index ' + str(PFM['lv1_nrrec']))
+        print('\n')
 
     print('reloading PFM pkl info!')
     PFM = initfuns.get_model_info(pkl_fnm) # refresh this
@@ -1399,7 +1412,7 @@ def run_fore_LV2(pkl_fnm):
         print(t2-t1)
         print('\n')
         dt_ic.append(t2-t01)
-    else:
+    elif not MI.get('lv2_ic_prebuilt', False):
         print('going to use a restart file for the LV2 IC. Setting this up...')
         cmd_list = ['python','-W','ignore','init_funs_forecast.py','restart_setup','LV2',pkl_fnm]
         os.chdir('../sdpm_py_util')
@@ -1417,6 +1430,19 @@ def run_fore_LV2(pkl_fnm):
         print('\n')
         if MI['lv2_nrrec'] < 0:
             print('WARNING RESTARTING LV2 WILL NOT WORK!!!')
+
+    else:
+        # PFM_DA supplied this initial condition.  Do NOT call
+        # restart_setup: it globs the restart directory and would
+        # overwrite lv2_ini_file with 'none' (the DA IC lives in
+        # the Forc directory, not among the restarts).
+        dt_ic = []
+        dt_ic.append(datetime.now()-t01)
+        MI = initfuns.get_model_info(pkl_fnm)
+        print('\nLV2: using the PREBUILT (PFM_DA) initial condition '
+              + str(MI['lv2_ini_file']))
+        print('with time index ' + str(MI['lv2_nrrec']))
+        print('\n')
 
     # now make .in and .sb for roms, and run roms...
     print('making .in and .sb...')
@@ -1568,7 +1594,7 @@ def run_fore_LV3(pkl_fnm):
         print(t2-t1)
         print('\n')
         dt_ic.append(t2-t01)
-    else:
+    elif not MI.get('lv3_ic_prebuilt', False):
         print('going to use a restart file for the LV3 IC. Setting this up...')
         cmd_list = ['python','-W','ignore','init_funs_forecast.py','restart_setup','LV3',pkl_fnm]
         os.chdir('../sdpm_py_util')
@@ -1586,6 +1612,19 @@ def run_fore_LV3(pkl_fnm):
         print('\n')
         if MI['lv3_nrrec'] < 0:
             print('WARNING RESTARTING LV3 WILL NOT WORK!!!')
+
+    else:
+        # PFM_DA supplied this initial condition.  Do NOT call
+        # restart_setup: it globs the restart directory and would
+        # overwrite lv3_ini_file with 'none' (the DA IC lives in
+        # the Forc directory, not among the restarts).
+        dt_ic = []
+        dt_ic.append(datetime.now()-t01)
+        MI = initfuns.get_model_info(pkl_fnm)
+        print('\nLV3: using the PREBUILT (PFM_DA) initial condition '
+              + str(MI['lv3_ini_file']))
+        print('with time index ' + str(MI['lv3_nrrec']))
+        print('\n')
 
     # now make .in and .sb for roms, and run roms...
     print('making .in and .sb...')
