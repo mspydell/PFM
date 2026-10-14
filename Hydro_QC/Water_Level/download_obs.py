@@ -9,7 +9,7 @@ correction_WaterLevel_InverseBarometer.m (Observed_Master_Code_For_TimeSeriesExt
   inverse-barometer correction: wl_corr = wl - 0.01 m/hPa * (P - 1013.25), so the gauge can be
     compared with the model (which has no atmospheric pressure forcing)
   predictions: NOAA's hourly harmonic tide prediction (MSL), used by plot_noaa_tide.py
-Each month is cached in obs_cache/<station>/<product>_<YYYYMM>.csv; only the current and
+Each month is cached in cache/obs/<station>/<product>_<YYYYMM>.csv; only the current and
 previous month are downloaded again on later runs.
 
   python download_obs.py                      # refresh both stations from 2024-12 to now
@@ -28,7 +28,7 @@ from stations import STATIONS
 
 API = "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter"
 OUT_DIR = os.path.dirname(os.path.abspath(__file__))
-CACHE_DIR = os.path.join(OUT_DIR, "obs_cache")
+CACHE_DIR = os.path.join(OUT_DIR, "cache", "obs")
 FIRST_MONTH = "2024-12"
 P_REF = 1013.25      # hPa, reference pressure
 IB_M_PER_HPA = 0.01  # 1 hPa ~ 1 cm of sea level (rho g ~ 1e4 Pa/m)

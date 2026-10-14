@@ -5,7 +5,7 @@ Python port of PFM_Master_Code_For_TimeSeriesExtraction.m (vars {'zeta'}) with
 LV1to4_model_data_serial_PHM_PFM_V2.m: nearest rho point to the gauge (knnsearch on lon/lat),
 the forecast-day window of each history file (hours 1-24 for day 1), times rounded to the hour,
 later files win for duplicate hours.
-Output: model_cache/<station>_<level>_day<N>_zeta.csv (time UTC, zeta m). Reruns only read files
+Output: cache/model/<station>_<level>_day<N>_zeta.csv (time UTC, zeta m). Reruns only read files
 from the last saved day on.
 
   python extract_model.py                         # both stations, 2024-12-05 (first run) or last saved day to today
@@ -25,7 +25,7 @@ import pandas as pd
 from stations import STATIONS
 
 OUT_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_DIR = os.path.join(OUT_DIR, "model_cache")
+MODEL_DIR = os.path.join(OUT_DIR, "cache", "model")
 BASE_DATA = "/dataSIO/PFM_Simulations/Archive"
 TIME0 = pd.Timestamp("1999-01-01", tz="UTC")  # ocean_time is seconds since this
 
@@ -43,10 +43,11 @@ def file_date(name):
 
 
 def read_file(path, j, i, forecast_day):
+    """zeta at (j, i) for one forecast day of a history file, or all of it if forecast_day is None."""
     with netCDF4.Dataset(path) as ds:
         ds.set_auto_mask(False)
         nt = len(ds["ocean_time"])
-        t1, t2 = 24 * (forecast_day - 1), min(24 * forecast_day, nt)
+        t1, t2 = (0, nt) if forecast_day is None else (24 * (forecast_day - 1), min(24 * forecast_day, nt))
         if t1 >= nt:
             return None
         t = (TIME0 + pd.to_timedelta(ds["ocean_time"][t1:t2], unit="s")).round("h")
@@ -67,7 +68,20 @@ def load_model(station, forecast_day=1):
     return pd.Series(df["zeta"].values, index=df["time"].dt.tz_localize("UTC"))
 
 
-def extract(station, start="2024-12-05", end=None, forecast_day=1, workers=6):
+def latest_forecast(station, end):
+    """zeta over the whole run (~5 days, 121 h) of the latest history file dated on or before end (UTC date),
+    or None if there is none. Read straight from the archive, not cached."""
+    level = STATIONS[station]["level"]
+    end = pd.Timestamp(end, tz="UTC")
+    files = [f for f in sorted(glob.glob(os.path.join(BASE_DATA, f"{level}_His", f"{level}_ocean_his_*.nc")))
+             if file_date(f) <= end]
+    if not files:
+        return None
+    j, i = nearest_rho(station)[:2]
+    return read_file(files[-1], j, i, None)
+
+
+def extract(station,start="2024-12-05", end=None, forecast_day=1, workers=6):
     level = STATIONS[station]["level"]
     end = pd.Timestamp(end, tz="UTC") if end else pd.Timestamp.now(tz="UTC").normalize()
     old = load_model(station, forecast_day)
