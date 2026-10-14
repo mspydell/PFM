@@ -50,7 +50,7 @@ import da_config as C
 # the strength of _minfo_is_sane, which checks the window -- so without a version
 # marker an edit to build_minfo would silently not take on any t_fore whose
 # pickle already existed, and the bug it fixed would look unfixed.
-MINFO_VERSION = 8
+MINFO_VERSION = 9
 
 
 # ---------------------------------------------------------------------------
@@ -165,6 +165,12 @@ def build_minfo(t_fore: DT.datetime, t_da: DT.datetime, *,
     # LV4 runs coawstM_noanapassive: ANA_PASSIVE is undef so dye_01/dye_02 from
     # the IC file are honoured rather than zeroed at t=0.
     MI["lv4_executable"] = C.ROMS_EXE_LV4
+    # Where run_funs should read zeta from for the LV4 timestep rule's tide
+    # term.  The DA's LV1 is a 4D-Var: it writes ocean_fwd_outer0/1.nc and never
+    # an LV1_ocean_his_*.nc, so the default lv1_his_name_full names a file that
+    # cannot exist here.  outer1 is the analysis over exactly this window and is
+    # on disk by the time stage_lv4_fwd generates the .in files.
+    MI["lv4_htide_src"] = str(C.io_dir() / "ocean_fwd_outer1.nc")
     MI["river_pckl_file_full"] = str(C.scratch_dir("LV4", "Forc") / "river_Q.pkl")
     for lv, n in (("lv1", "LV1"), ("lv2", "LV2"), ("lv3", "LV3"), ("lv4", "LV4")):
         MI[f"{lv}_plot_dir"] = str(C.SCRATCH / "Log" / "figures" / n)

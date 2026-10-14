@@ -721,7 +721,13 @@ def lv4_dt_for_forecast(PFM, river_nc):
     qcrit = float(PFM.get('lv4_qtj_dt_crit', QTJ_DT_CRIT))
     hcrit = float(PFM.get('lv4_htide_dt_crit', HTIDE_DT_CRIT))
     qtj = max_qtj_from_river_file(river_nc)
-    htide = max_tide_range(PFM.get('lv1_his_name_full'),
+    # lv4_htide_src lets a caller name the zeta source explicitly.  PFM_DA needs
+    # it: its LV1 is a 4D-Var that writes ocean_fwd_outer0/1.nc, never an
+    # LV1_ocean_his_*.nc, so lv1_his_name_full points at a file that will never
+    # exist there -- and without this the tide would read "unknown" every cycle
+    # and the rule would hand back the safe small timestep forever, masking the
+    # discharge signal and costing ~30% of LV4's runtime on quiet days.
+    htide = max_tide_range(PFM.get('lv4_htide_src') or PFM.get('lv1_his_name_full'),
                            PFM.get('lv1_grid_file_full'))
 
     qs = 'unknown' if qtj is None else '%.2f' % qtj
