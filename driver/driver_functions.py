@@ -7,6 +7,16 @@ from datetime import datetime, timedelta
 import run_funs as runfuns 
 import init_funs_forecast as initfuns
 import util_functions as utilfuns
+
+
+class _SkippedStep:
+    """Stand-in for a subprocess that was deliberately not run.
+
+    The ocean steps in run_fore_LV1 are each followed by a
+    "if ret.returncode != 0" check.  Returning this instead of re-indenting the
+    whole block keeps those checks correct and keeps the diff small.
+    """
+    returncode = 0
 import ocn_funs_forecast as ocnfuns_fore
 
 # ---------------------------------------------------------------------------
@@ -902,10 +912,30 @@ def run_fore_LV1(pkl_fnm):
     t2str = "%d%02d%02d%02d%02d" % (t2.year, t2.month, t2.day, t2.hour, t2.minute)
     # get_hycom_foretime is a function that returns the lates hycom forecast date with data to span the PFM forecast from 
     # this functions cleans, then refreshes the hycom directory.
+    # SKIP THE WHOLE OCEAN CHAIN when the initial condition is already in place
+    # AND an archived boundary covers this window.  Everything between here and
+    # the atm steps -- the hycom download, the pickles, the regridding, the IC,
+    # the BC and the ocean diagnostic plots -- exists only to produce those two
+    # files.  If both are already correct, none of it is needed, and on
+    # 2026-10-14 it meant re-downloading 614 HYCOM files, about 110 minutes, for
+    # a boundary that was sitting in the archive.
+    #
+    # Only ever true for a RERUN of a past forecast start: a new forecast's BC
+    # has not been archived yet (archive_lv1_bc runs below, after it is built),
+    # so operationally this is False and nothing changes.  The 'and'
+    # short-circuits, so without lv1_ic_prebuilt the archive is not even read.
+    skip_ocn = bool(PFM.get('lv1_ic_prebuilt', False)) and \
+        utilfuns.reuse_archived_lv1_bc(pkl_fnm)
+    if skip_ocn:
+        print('*** LV1: initial condition prebuilt and archived boundary in '
+              'place -- skipping the HYCOM download, the regridding, the IC/BC '
+              'build and the ocean plots. ***')
+
     print('getting the hycom forecast time...')
     print('this will clean, download new hycom files, then find the forecast date covering the PFM times.')
     t01 = datetime.now()
-    yyyymmdd_hy = ocnfuns_fore.get_hycom_foretime_v2(yyyymmddhhmm_pfm,t2str,pkl_fnm)
+    yyyymmdd_hy = None if skip_ocn else \
+        ocnfuns_fore.get_hycom_foretime_v2(yyyymmddhhmm_pfm,t2str,pkl_fnm)
     #print(yyyymmdd_hy)
  
     dt_download_ocn = []
@@ -928,7 +958,7 @@ def run_fore_LV1(pkl_fnm):
     t01 = datetime.now() 
     os.chdir('../sdpm_py_util')
     cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','hycom_ncfiles_to_pickle',yyyymmdd_hy,pkl_fnm]
-    ret1 = subprocess.run(cmd_list)     
+    ret1 = _SkippedStep() if skip_ocn else subprocess.run(cmd_list)
     os.chdir('../driver')
     if ret1.returncode != 0:
         print('FATAL')
@@ -978,7 +1008,7 @@ def run_fore_LV1(pkl_fnm):
         print('making some plots from: ' + fn_pckl)
         cmd_list = ['python','-W','ignore','plotting_functions.py','plot_ocn_fields_from_dict_pckl',fn_pckl,pkl_fnm]
         os.chdir('../sdpm_py_util')
-        ret1 = subprocess.run(cmd_list)     
+        ret1 = _SkippedStep() if skip_ocn else subprocess.run(cmd_list)
         #pltfuns.plot_ocn_fields_from_dict_pckl(fn_pckl)
         print('subprocess return code? ' + str(ret1.returncode) +  ' (0=good)')
         print('...done')
@@ -1001,7 +1031,11 @@ def run_fore_LV1(pkl_fnm):
     # one allocation for the whole 18-variable loop: the subprocesses it spawns
     # inherit SLURM_JOB_ID, so they see in_slurm_allocation() and run in place
     # rather than each queueing an srun of its own.
-    ret1 = run_cmd_maybe_srun(cmd_list, 'PFM_lv1_hy2grid')
+    # same skip: the hycom-to-roms regrid, which main runs under srun rather
+    # than subprocess.run -- a guard matching only subprocess.run misses it,
+    # and it would run against pickles that were never written.
+    ret1 = _SkippedStep() if skip_ocn else \
+        run_cmd_maybe_srun(cmd_list, 'PFM_lv1_hy2grid')
     os.chdir('../driver')
     if ret1.returncode != 0:
         print('FATAL')
@@ -1015,7 +1049,7 @@ def run_fore_LV1(pkl_fnm):
 
     cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','print_maxmin_HYrm_pickles',pkl_fnm]
     os.chdir('../sdpm_py_util')
-    ret1 = subprocess.run(cmd_list)     
+    ret1 = _SkippedStep() if skip_ocn else subprocess.run(cmd_list)
     os.chdir('../driver')
     print('driver_run_forecast_LV1: done with hycom_to_roms_latlon')
     t02 = datetime.now()
@@ -1025,7 +1059,7 @@ def run_fore_LV1(pkl_fnm):
         print('plotting LV1 ocn_R_fields...')
         cmd_list = ['python','-W','ignore','plotting_functions.py','plot_ocn_R_fields_pckl',pkl_fnm]
         os.chdir('../sdpm_py_util')
-        ret1 = subprocess.run(cmd_list)     
+        ret1 = _SkippedStep() if skip_ocn else subprocess.run(cmd_list)
         os.chdir('../driver')
         print('subprocess return code? ' + str(ret1.returncode) +  ' (0=good)')
 
@@ -1040,7 +1074,7 @@ def run_fore_LV1(pkl_fnm):
     print(fname_depths)
     cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','make_rom_depths_1hrzeta',fname_depths,pkl_fnm]
     os.chdir('../sdpm_py_util')
-    ret6 = subprocess.run(cmd_list)     
+    ret6 = _SkippedStep() if skip_ocn else subprocess.run(cmd_list)
     os.chdir('../driver')
     print('...done makeing depth pickle file.')
     print('subprocess return code? ' + str(ret6.returncode) +  ' (0=good)')
@@ -1062,7 +1096,7 @@ def run_fore_LV1(pkl_fnm):
         print('going to save OCN_IC to a pickle file: ' + ocnIC_pckl)
         os.chdir('../sdpm_py_util')
         cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','ocnr_2_ICdict_from_tmppkls',ocnIC_pckl,pkl_fnm]
-        ret3 = subprocess.run(cmd_list)     
+        ret3 = _SkippedStep() if skip_ocn else subprocess.run(cmd_list)
         os.chdir('../driver')
         if ret3.returncode != 0:
             print('FATAL')
@@ -1083,7 +1117,7 @@ def run_fore_LV1(pkl_fnm):
         t03 = datetime.now()
         cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','ocn_roms_IC_dict_to_netcdf_pckl',ocnIC_pckl,ic_file_out]
         os.chdir('../sdpm_py_util')
-        ret4 = subprocess.run(cmd_list)     
+        ret4 = _SkippedStep() if skip_ocn else subprocess.run(cmd_list)
         os.chdir('../driver')
         if ret4.returncode != 0:
             print('FATAL')
@@ -1100,7 +1134,7 @@ def run_fore_LV1(pkl_fnm):
         print('going to use a restart file for the LV1 IC. Setting this up...')
         cmd_list = ['python','-W','ignore','init_funs_forecast.py','restart_setup','LV1',pkl_fnm]
         os.chdir('../sdpm_py_util')
-        ret4 = subprocess.run(cmd_list)     
+        ret4 = _SkippedStep() if skip_ocn else subprocess.run(cmd_list)
         os.chdir('../driver')
         print('...done setting up for restart.')
         print('this took:')
@@ -1127,7 +1161,7 @@ def run_fore_LV1(pkl_fnm):
     print(ocnBC_pckl) 
     os.chdir('../sdpm_py_util')
     cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','ocnr_2_BCdict_1hrzeta_from_tmppkls',ocnBC_pckl,pkl_fnm]
-    ret4 = subprocess.run(cmd_list)     
+    ret4 = _SkippedStep() if skip_ocn else subprocess.run(cmd_list)
     os.chdir('../driver')
     if ret4.returncode != 0:
         print('FATAL')
@@ -1146,7 +1180,7 @@ def run_fore_LV1(pkl_fnm):
     t01 = datetime.now()
     cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','ocn_roms_BC_dict_to_netcdf_pckl_1hrzeta',ocnBC_pckl,bc_file_out]
     os.chdir('../sdpm_py_util')
-    ret5 = subprocess.run(cmd_list)     
+    ret5 = _SkippedStep() if skip_ocn else subprocess.run(cmd_list)
     os.chdir('../driver')
     print('OCN BC nc data saved, correctly? ' + str(ret5.returncode) + ' (0=yes)')
     print('done makeing BC nc file.')
