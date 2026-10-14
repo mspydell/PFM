@@ -769,7 +769,23 @@ def restart_setup(lvl,pkl_fnm):
     PFM = get_model_info(pkl_fnm)
     older_than_days = 7.0
     PFM_edit = dict()
-    fname1,tindex1 = get_restart_file_and_index(lvl,pkl_fnm)
+
+    # lv{N}_ic_prebuilt means PFM_DA already wrote this level's initial
+    # condition and pointed lv{N}_ini_file at it.  That file lives in the
+    # Forc directory, NOT among the restarts, so the glob below would come
+    # up empty and clobber lv{N}_ini_file with 'none'.  Skip the ROMS
+    # restart lookup in that case -- but still fall through to the
+    # level-specific housekeeping below, which is where LV4's SWAN
+    # HOTSTART line gets set.
+    n = lvl[2:]
+    ic_prebuilt = bool(PFM.get('lv' + n + '_ic_prebuilt', False))
+    if ic_prebuilt:
+        print(lvl + ': initial condition is PREBUILT (' +
+              str(PFM.get('lv' + n + '_ini_file')) + '), keeping it and '
+              'skipping the restart-file lookup.')
+        fname1, tindex1 = None, None
+    else:
+        fname1,tindex1 = get_restart_file_and_index(lvl,pkl_fnm)
 
     if lvl == 'LV1':
         if PFM['run_type']=='forecast':
@@ -811,9 +827,11 @@ def restart_setup(lvl,pkl_fnm):
                 print(PFM_edit['swan_init_txt_full'])
 
     # these are now the index and file name used to restart the simulation
-    PFM_edit[key_rec] = tindex1+1 # need to add 1 to get non-python indexing    
-    PFM_edit[key_file] = fname1
-    edit_and_save_MI(PFM_edit,pkl_fnm)
+    if not ic_prebuilt:
+        PFM_edit[key_rec] = tindex1+1 # need to add 1 to get non-python indexing
+        PFM_edit[key_file] = fname1
+    if len(PFM_edit) > 0:
+        edit_and_save_MI(PFM_edit,pkl_fnm)
 
 def update_PFM_pkl(t1str,lvl,pkl_fnm):
     PFM = get_model_info(pkl_fnm)
