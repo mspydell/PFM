@@ -953,8 +953,26 @@ def  make_LV4_coawst_dotins_dotsb(pkl_fnm,mod_type):
     lv4_infile = D['lv4_run_dir'] + '/' + lv4_infile_roms
     lv4_sbfile   = D['lv4_run_dir'] + '/' + lv4_sbfile_local
     D['swan_to_roms'] = PFM['swan_to_roms']
-    D['lv4_roms_infile'] = lv4_infile
-    D['lv4_swan_infile'] = lv4_swan_infile
+    # RELATIVE, deliberately.  These two go into the coupled .in as OCN_name
+    # and WAV_name, and COAWST reads WAV_name into INPFIL, declared
+    # CHARACTER*80 in SWAN/src_coawst/swmod1.ftn.  An absolute path longer than
+    # 80 characters is silently truncated and SWAN dies with
+    # 'Input file missing' on every rank -- which is what happened in the
+    # PFM_DA sandbox on 2026-10-14, where the path came to 81 characters:
+    #   /scratch/PFM_Simulations/DA_Sim/PFM_testing/LV4_Forecast/Run/LV4_forecast_swan.in
+    # OCN_name was exactly 80, so ROMS started and only SWAN failed.
+    #
+    # A bare file name is 21 characters and can never overflow.  It resolves
+    # because the job's cwd IS the run directory: the driver chdirs there
+    # before sbatch, and LV4_SLURM.sb already passes the coupled .in itself
+    # relatively ('srun ... $MYAPP LV4_forecast_coupled.in').  Relative is also
+    # what COAWST's own template used -- see the './swan_NADB_r0.in' comment
+    # still sitting on that line in LV4_COUPLING_BLANK.in.
+    #
+    # lv4_infile / lv4_swan_infile stay ABSOLUTE below, because this process
+    # writes those files from sdpm_py_util, not from the run directory.
+    D['lv4_roms_infile'] = lv4_infile_roms
+    D['lv4_swan_infile'] = lv4_infile_swan
 
     D['swan_init_txt'] = PFM['swan_init_txt_full'] # 'ZERO'
                                                     # or 'HOTSTART PFM['restart_files_dir']+swan_file_name
