@@ -229,6 +229,23 @@ def initialize_simulation(pkl_fnm):
 
         runl = ['/*.out','/*.sb','/*.log','/*.in','*_timing_info.pkl']
 
+        # Files a caller has already put in place and told us not to rebuild.
+        # lv{N}_ic_prebuilt means PFM_DA supplied that initial condition, and the
+        # Forc sweep below is '/*.*' -- it deletes EVERY file in all four Forc
+        # directories, so without this it removes the very ICs the run was told
+        # to start from.  ROMS then stops with
+        #   FIND_FILE - Grid 01, cannot find input file: ...LV1_DA_IC_for_*.nc
+        # which is what happened on 2026-10-14.  "Prebuilt" has to mean do not
+        # build it AND do not delete it.
+        keep = set()
+        for n in ('1', '2', '3', '4'):
+            if PFM.get('lv' + n + '_ic_prebuilt', False) and PFM.get('lv' + n + '_ini_file'):
+                keep.add(os.path.join(PFM['lv' + n + '_forc_dir'], PFM['lv' + n + '_ini_file']))
+        if keep:
+            print('keeping ' + str(len(keep)) + ' prebuilt initial condition(s):')
+            for k in sorted(keep):
+                print('   ' + k)
+
         print('Removing files from directories...')
         for dd in dirs: # for everything but run dir
             if 'Forc' in dd or 'His' in dd:
@@ -236,6 +253,8 @@ def initialize_simulation(pkl_fnm):
             elif 'Plots' in dd:
                 ddd = dd + '/*.png'
             for f in glob.glob(ddd):
+                if os.path.abspath(f) in {os.path.abspath(k) for k in keep}:
+                    continue
                 os.remove(f)        
         for pp in ['lv1_run_dir','lv2_run_dir','lv3_run_dir','lv4_run_dir']:
             for dd in runl:
