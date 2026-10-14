@@ -40,6 +40,7 @@ sys.path.insert(0, str(HERE.parent / "sdpm_py_util"))
 
 import da_config as C            # noqa: E402
 import da_ic_handoff as ICH      # noqa: E402
+import da_pfm_bridge as B        # noqa: E402
 import da_sandbox as SB          # noqa: E402
 
 DRIVER_DIR = HERE.parent / "driver"
@@ -48,6 +49,30 @@ OPER_PKL = Path("/scratch/PFM_Simulations/forecast_info.pkl")
 TEST_PKL = Path(SB.SANDBOX_SCRATCH) / "forecast_info_testing.pkl"
 
 KEYWORDS = {"PFM_only", "DA_only", "no_DA", "testing"}
+
+
+def load_pfm_env() -> None:
+    """Merge PFM/.env into os.environ so the forecast can download.
+
+    PFM_DA never needs this -- it reads ECMWF and HYCOM off disk by design and
+    does not fetch.  The FORECAST does: LV1's atm step calls
+    get_ecmwf_forecast_grbs_v2, which raises
+
+        ECMWF credentials missing: WGET_ECMWF_USER / WGET_ECMWF_PASS
+
+    when they are unset.  On 2026-10-12 that cost 71 minutes before LV1 gave up,
+    so the check happens here, at startup, before anything expensive.
+
+    Merged into os.environ rather than passed per-subprocess because
+    initialize_model runs IN THIS PROCESS and the level drivers are started
+    several subprocess layers down; setting it once covers both.
+    """
+    env = B.pfm_env()                       # raises with a useful message
+    for k in ("WGET_ECMWF_USER", "WGET_ECMWF_PASS"):
+        os.environ[k] = env[k]
+    # carry anything else .env defines that we do not already have
+    for k, v in env.items():
+        os.environ.setdefault(k, v)
 
 
 def _parse(argv):
@@ -117,6 +142,13 @@ def _build_pkl(pkl: Path, t_fore: str | None) -> dict:
 def main(argv=None) -> int:
     a = _parse(argv if argv is not None else sys.argv[1:])
     print("  start_PFM_plus_DA")
+    # Fail in seconds, not 71 minutes into LV1's atm step.
+    try:
+        load_pfm_env()
+        print("    credentials: PFM/.env loaded")
+    except RuntimeError as e:
+        print("    " + str(e))
+        return 2
     print(f"    DA pre-step : {'yes' if a.run_da else 'no'}")
     print(f"    forecast    : {'yes' if a.run_pfm else 'no'}"
           + ("" if a.use_da_ics else "   (no_DA: restart files, as PFM always has)"))

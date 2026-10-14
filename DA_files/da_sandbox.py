@@ -230,18 +230,26 @@ def link_restarts_into_sandbox(PFM: dict, t_fore, *, verbose: bool = True) -> di
             continue                      # not sandboxed; nothing to do
         d = Path(dest)
         d.mkdir(parents=True, exist_ok=True)
-        n = 0
+        new = have = 0
         for src in sorted(Path(oper).glob(pat)):
             link = d / src.name
             if link.is_symlink() or link.exists():
+                have += 1
                 continue
             link.symlink_to(src)
-            n += 1
-        out[key] = n
+            new += 1
+        out[key] = new + have
         if verbose:
-            print("    %s: %d restart file(s) linked from %s" % (key, n, oper))
-            if n == 0:
-                print("      NOTE: none matched %s -- SWAN will cold-start from "
-                      "ZERO and its waves will not be meaningful in a short test"
-                      % pat)
+            print("    %s: %d restart file(s) available (%d newly linked)"
+                  % (key, new + have, new))
+            # Warn on TOTAL, not on how many were new.  Counting only new links
+            # made a fully-populated directory report "0 ... none matched",
+            # which reads as a failure when it is the opposite.
+            if new + have == 0:
+                what = ("SWAN will cold-start from ZERO and its waves will not "
+                        "be meaningful in a short test"
+                        if "swan" in key else
+                        "any level needing a restart will have none")
+                print("      NOTE: nothing matched %s in %s -- %s"
+                      % (pat, oper, what))
     return out
