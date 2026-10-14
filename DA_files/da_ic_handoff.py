@@ -190,9 +190,8 @@ def apply_da_ics(PFM: dict, t_fore, found: DetectResult | None = None,
     they fall through to the restart path -- which is the whole point: a forecast
     on restarts beats no forecast.
 
-    Deliberately does NOT touch anything SWAN.  LV4's ocean IC coming from the DA
-    says nothing about its wave state; SWAN still hotstarts from
-    restart_swanfiles_dir_in as usual.
+    When LV4's ocean IC comes from the DA, its WAVE state is taken from the DA
+    too -- see apply_da_swan_hotstart, called at the end.
     """
     if found is None:
         found = detect_da_ics(t_fore, levels=levels)
@@ -231,7 +230,63 @@ def apply_da_ics(PFM: dict, t_fore, found: DetectResult | None = None,
     for lv in levels:
         if lv not in applied:
             print(f"    {lv}: no DA IC -- falling through to the restart file")
+    if "LV4" in applied:
+        apply_da_swan_hotstart(PFM, t_fore)
     return applied
+
+
+def apply_da_swan_hotstart(PFM: dict, t_fore, lookback_days: int = 3) -> str | None:
+    """Point SWAN at the DA chain's own LV4 wave field at t_fore.
+
+    Only called when LV4's ocean IC came from the DA, because the two have to
+    agree: starting LV4's ocean from the analysis and its waves from the
+    operational forecast is the inconsistency this exists to remove.
+
+    The DA cycle that produced the ICs for t_fore ran LV4 over
+    [t_fore - 1 day, t_fore] with
+
+        RESTART '<SWAN_RST_DA_OUT>/LV4_swan_rst_<t_fore - 1 day>.dat' FREE <n> HR
+
+    and, with no _HHH suffix and no check_and_move watcher, overwrote that one
+    name every interval -- so what survives is the LAST write, the wave field at
+    t_fore exactly.  SWAN appends the rank suffix to a HOTSTART name itself, so
+    the unsuffixed stem is handed over as-is; FILENM is CHARACTER*140
+    (SWAN/src_coawst/swmod1.ftn), so the ~65-character path is nowhere near the
+    80-character limit that bites INPFIL.
+
+    Set directly rather than symlinked into restart_swanfiles_dir_in, because
+    the name PFM's lookup would want -- LV4_swan_rst_<t_fore - 1 day>_024 for a
+    daily cycle -- is ALREADY OWNED by the operational day N-1 forecast's own
+    t = 24 h restart.  Linking there would shadow real operational data.
+    lv4_swan_ic_prebuilt then stops restart_setup running the lookup and
+    replacing this with PFM's own choice.
+
+    Returns the HOTSTART line, or None if no DA restart was found (SWAN then
+    falls through to PFM's usual lookup, which is the right fallback).
+    """
+    import datetime as _dt
+
+    if isinstance(t_fore, str):
+        t_fore = _dt.datetime.strptime(t_fore, "%Y%m%d%H")
+
+    for k in range(1, lookback_days + 1):
+        t_prev = t_fore - _dt.timedelta(days=k)
+        stem = C.SWAN_RST_DA_OUT / f"LV4_swan_rst_{t_prev:%Y%m%d%H%M}.dat"
+        parts = sorted(C.SWAN_RST_DA_OUT.glob(stem.name + "-*"))
+        if not parts:
+            continue
+        txt = f"HOTSTART '{stem}'"
+        PFM["swan_init_txt_full"] = txt
+        PFM["lv4_swan_ic_prebuilt"] = True
+        print(f"    LV4 swan: DA hotstart {stem.name} "
+              f"({len(parts)} ranks, the DA's own wave field at "
+              f"{t_fore:%Y-%m-%d %H}Z)")
+        return txt
+
+    print(f"    LV4 swan: no DA wave restart within {lookback_days} day(s) of "
+          f"{t_fore:%Y-%m-%d %H}Z in {C.SWAN_RST_DA_OUT} -- leaving SWAN to "
+          f"PFM's own restart lookup")
+    return None
 
 
 if __name__ == "__main__":

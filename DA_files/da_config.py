@@ -110,6 +110,15 @@ SWAN_RST_SHARED = Path("/scratch/PFM_Simulations/restart_swan_data")
 # never point at SWAN_RST_SHARED.
 SWAN_RST_DA_IN = SCRATCH / "LV4" / "Run" / "swan_rst_in"
 
+# Where the DA chain's OWN LV4 run deposits its SWAN restarts.  stage_lv4_fwd
+# writes RESTART '<here>/LV4_swan_rst_<t_da>.dat' FREE <int> HR, with no _HHH
+# suffix and no check_and_move watcher, so the one name is overwritten every
+# interval and what survives is the LAST write -- the wave field at t_da + 24 h.
+# That is the DA's own wave state, and it is what the NEXT DA cycle and the
+# forecast should both hotstart from, exactly as the ocean warm-starts from
+# {lv}_DA_his / IC_out rather than from the operational forecast.
+SWAN_RST_DA_OUT = SCRATCH / "Rst"
+
 CDIP_ARCHIVE = Path("/dataSIO/PFM_Simulations/Archive/cdip_ncs")
 CDIP_DA = SCRATCH / "LV4" / "Forc" / "cdip_data"
 

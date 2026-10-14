@@ -516,10 +516,34 @@ def stage_lv4_clm(t_da: DT.datetime, t_fore: DT.datetime,
     return out
 
 
-def stage_swan_hotstart(t_da: DT.datetime, dest: Path | None = None) -> int:
+def stage_swan_hotstart(t_da: DT.datetime, dest: Path | None = None,
+                        lookback_days: int = 3) -> int:
     """Symlink the SWAN restarts valid at t_da into a DA-private directory.
 
     Returns the number of parts linked (72 when complete, one per SWAN rank).
+
+    WARM FIRST, from the DA's OWN previous cycle.  The cycle before this one ran
+    LV4 over [t_da - 1 day, t_da] and left its wave field at t_da in
+
+        <SWAN_RST_DA_OUT>/LV4_swan_rst_<t_da - 1 day>.dat-001 .. -072
+
+    so the DA cycles its waves through its own state, the same way
+    _child_base_ic and stage_lv1_ic cycle the ocean.  Until this existed the
+    waves were pulled back onto the OPERATIONAL forecast every single cycle
+    (LV4_swan_rst_<t_da>_000 out of SWAN_RST_SHARED, i.e. PFM's own hour 0),
+    while the ocean warm-started from the DA -- the same inconsistency
+    stage_lv1_ic's comment describes for LV1, left unfixed on the SWAN side.
+
+    The name has to be bridged.  The DA writes one unsuffixed name per rank,
+    while PFM's get_swan_restart_file_name globs '*_???.dat-001' and accepts a
+    file only when stamp + hour == the start time, so each part is linked as
+        LV4_swan_rst_<stamp>_<HHH>.dat-<rank>,  HHH = (t_da - stamp) in hours
+    which is _024 for the usual daily cycle.  The stamp stays EARLIER than t_da,
+    which also keeps remove_swan_restarts_eq_foretime from deleting it.
+
+    COLD fallback: the operational set at t_da hour 0, which is what this used
+    to do unconditionally.  A missed night then costs wave continuity but not a
+    cold start.
 
     Symlinks rather than copies: each candidate set is ~2.5 GB and SWAN only
     reads them.  Private rather than shared because PFM's restart bookkeeping
@@ -528,11 +552,34 @@ def stage_swan_hotstart(t_da: DT.datetime, dest: Path | None = None) -> int:
     dest = Path(dest or C.SWAN_RST_DA_IN)
     dest.mkdir(parents=True, exist_ok=True)
     stamp = t_da.strftime("%Y%m%d%H%M")
+
+    # WARM: the DA's own previous cycle
+    for k in range(1, lookback_days + 1):
+        t_prev = t_da - DT.timedelta(days=k)
+        src = sorted(C.SWAN_RST_DA_OUT.glob(
+            f"LV4_swan_rst_{t_prev:%Y%m%d%H%M}.dat-*"))
+        if not src:
+            continue
+        hrs = int(round((t_da - t_prev).total_seconds() / 3600.0))
+        for f in src:
+            rank = f.name.rsplit("-", 1)[-1]
+            link = dest / ("LV4_swan_rst_%s_%03d.dat-%s"
+                           % (t_prev.strftime("%Y%m%d%H%M"), hrs, rank))
+            if link.is_symlink() or link.exists():
+                link.unlink()
+            link.symlink_to(f)
+        print(f"    SWAN hotstart WARM from the DA's own previous cycle: "
+              f"LV4_swan_rst_{t_prev:%Y%m%d%H%M}_{hrs:03d} "
+              f"({t_prev:%Y-%m-%d %H}Z + {hrs} h = {t_da:%Y-%m-%d %H}Z)")
+        return len(src)
+
+    # COLD: the operational forecast at t_da, hour 0
     src = sorted(C.SWAN_RST_SHARED.glob(f"LV4_swan_rst_{stamp}_000.dat-*"))
     if not src:
         raise FileNotFoundError(
-            f"no SWAN restart valid at {t_da:%Y-%m-%d %H}Z in "
-            f"{C.SWAN_RST_SHARED} (looked for LV4_swan_rst_{stamp}_000.dat-*).  "
+            f"no SWAN restart valid at {t_da:%Y-%m-%d %H}Z: no DA restart "
+            f"within {lookback_days} day(s) in {C.SWAN_RST_DA_OUT}, and no "
+            f"LV4_swan_rst_{stamp}_000.dat-* in {C.SWAN_RST_SHARED}.  "
             f"Without one SWAN would have to cold-start from a flat sea, which "
             f"takes longer than the 24 h window to spin up.")
     for f in src:
@@ -540,6 +587,9 @@ def stage_swan_hotstart(t_da: DT.datetime, dest: Path | None = None) -> int:
         if link.is_symlink() or link.exists():
             link.unlink()
         link.symlink_to(f)
+    print(f"    SWAN hotstart COLD from the operational forecast "
+          f"(LV4_swan_rst_{stamp}_000); no DA restart within "
+          f"{lookback_days} day(s)")
     return len(src)
 
 

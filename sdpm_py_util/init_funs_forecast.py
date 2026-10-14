@@ -813,7 +813,18 @@ def restart_setup(lvl,pkl_fnm):
             #print('older than 2 days from this hindcast ', PFM['sim_time_1'])
             #remove_old_swan_hind_restarts(pkl_fnm)
 
-        if PFM['lv4_swan_use_rst'] == 1:
+        if PFM.get('lv4_swan_ic_prebuilt', False):
+            # PFM_DA already chose this hotstart and wrote swan_init_txt_full.
+            # Do NOT run the lookup: it globs restart_swanfiles_dir_in, which
+            # holds the OPERATIONAL forecast's restarts, and would replace the
+            # DA's own wave field with PFM's.  The DA file cannot be linked into
+            # that directory under the name the lookup wants either -- for a
+            # daily cycle that name is LV4_swan_rst_<t_fore - 1 day>_024, which
+            # the operational day N-1 forecast already owns, so linking there
+            # would shadow a real operational restart.
+            print('LV4 swan: using the PREBUILT (PFM_DA) hotstart ...')
+            print(PFM['swan_init_txt_full'])
+        elif PFM['lv4_swan_use_rst'] == 1:
             fn0 = PFM['lv4_swan_rst_name'][0:13]
             fnm_swan = get_swan_restart_file_name(pkl_fnm)
             if fnm_swan == None:
