@@ -271,8 +271,12 @@ def apply_da_swan_hotstart(PFM: dict, t_fore, lookback_days: int = 3) -> str | N
 
     for k in range(1, lookback_days + 1):
         t_prev = t_fore - _dt.timedelta(days=k)
-        stem = C.SWAN_RST_DA_OUT / f"LV4_swan_rst_{t_prev:%Y%m%d%H%M}.dat"
+        stem = C.SWAN_RST_DA_OUT / f"LV4_DA_swan_rst_{t_prev:%Y%m%d%H%M}.dat"
         parts = sorted(C.SWAN_RST_DA_OUT.glob(stem.name + "-*"))
+        if not parts:
+            # cycles before the 'DA' rename wrote the un-marked name
+            stem = C.SWAN_RST_DA_OUT / f"LV4_swan_rst_{t_prev:%Y%m%d%H%M}.dat"
+            parts = sorted(C.SWAN_RST_DA_OUT.glob(stem.name + "-*"))
         if not parts:
             continue
         txt = f"HOTSTART '{stem}'"

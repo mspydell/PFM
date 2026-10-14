@@ -304,6 +304,38 @@ def move_restart_ncs(pkl_fnm):
                 fnew = PFM['restart_file_dir'] + '/' + tail
                 shutil.move(f,fnew)
 
+def stamp_in_name(tail, i1, i2):
+    """The YYYYMMDDHH a PFM restart name carries at [i1:i2], or None.
+
+    Returns None instead of raising when a name does not carry a stamp there.
+
+    These restart directories are globbed with patterns loose enough to match
+    files that are NOT PFM-named restarts -- 'LV*.nc', 'LV4*dat*' -- and PFM_DA
+    shares them: restart_ncfiles_dir_in is DA_Sim/Rst, which already holds
+    LV4_DA_IC_<ymd>.nc, and now LV4_DA_swan_rst_* / LV4_DA_ocean_rst_* too.  The
+    'DA_' shifts the stamp four characters, so tail[14:24] of
+    LV4_DA_IC_20261006.nc is '1006.nc' and strptime raised ValueError.  Every one
+    of these functions would then have taken a forecast down over a file it had
+    no business reading -- and that was already true before the rename, for
+    LV4_DA_IC_*.nc.
+
+    Skipping is the correct response, not a workaround: a name this code cannot
+    parse is not a restart this code owns.
+    """
+    try:
+        return datetime.strptime(tail[i1:i2], '%Y%m%d%H')
+    except Exception:                                        # noqa: BLE001
+        return None
+
+
+def lead_hours_in_name(tail, i1, i2):
+    """The lead hours a SWAN restart name carries at [i1:i2], or None."""
+    try:
+        return int(tail[i1:i2])
+    except Exception:                                        # noqa: BLE001
+        return None
+
+
 def remove_old_restart_ncs(pkl_fnm):
     PFM = get_model_info(pkl_fnm)
     #PFM['restart_files_dir'] = '/scratch/PFM_Simulations/restart_data'
@@ -311,11 +343,11 @@ def remove_old_restart_ncs(pkl_fnm):
         rst_files = glob.glob(PFM['restart_ncfiles_dir_in'] + '/' + lvl + '*.nc')
         for rf in rst_files:
             head, tail = os.path.split(rf)
-            yyyymmddhh = tail[14:24]
-            #print(yyyymmddhh)
             tnow = datetime.now()
             told = tnow - timedelta(days=7) # removing files older than 1 week from now
-            tf = datetime.strptime(yyyymmddhh,"%Y%m%d%H")
+            tf = stamp_in_name(tail, 14, 24)
+            if tf is None:
+                continue          # not ours; see stamp_in_name
             if tf<told:
                 print('removing old restart file:' + rf)
 
@@ -349,23 +381,32 @@ def get_swan_restart_file_name(pkl_fnm):
     #print(rst_files)
 
     dtfor = []
+    keep = []
     if len(rst_files) > 0:
         for rf in rst_files:
             head, tail = os.path.split(rf)
-            yyyymmddhh = tail[13:23]
-            tnc = datetime.strptime(yyyymmddhh,"%Y%m%d%H")
+            tnc = stamp_in_name(tail, 13, 23)
+            if tnc is None:
+                continue          # not a PFM-named SWAN restart; see stamp_in_name
+            keep.append(rf)
             dtfor.append(t_fore - tnc)
     else:
         print('there were no swan restart files to use. We must use IC=ZERO for swan. Going to force that')
         return fnm_swan
 
+    rst_files = keep
+    if len(rst_files) == 0:
+        print('no PFM-named SWAN restart files to use. We must use IC=ZERO for swan.')
+        return fnm_swan
     isort = np.argsort(dtfor)
     cnt = 0
     while cnt < len(isort):
         head,tail = os.path.split( rst_files[isort[cnt]] )
-        yyyymmddhh = tail[13:23]
-        tnc = datetime.strptime(yyyymmddhh,"%Y%m%d%H")
-        hr = int( tail[26:29] )
+        tnc = stamp_in_name(tail, 13, 23)
+        hr = lead_hours_in_name(tail, 26, 29)
+        if tnc is None or hr is None:
+            cnt = cnt+1
+            continue
         t_tot = tnc + hr*timedelta(hours = 1)
         #print(cnt)
         #print(t_fore)
@@ -518,12 +559,19 @@ def get_restart_file_and_index(lvl,pkl_fnm):
     print(t_fore)
     rst_files = glob.glob(PFM['restart_ncfiles_dir_in'] + '/' + lvl + '*.nc')
     dts = []
+    keep = []
     for rf in rst_files:
         head, tail = os.path.split(rf)
-        yyyymmddhh = tail[14:24]
-        tnc = datetime.strptime(yyyymmddhh,"%Y%m%d%H")
+        tnc = stamp_in_name(tail, 14, 24)
+        if tnc is None:
+            continue              # not a PFM-named restart; see stamp_in_name
+        keep.append(rf)
         dts.append(t_fore - tnc)
-    
+
+    rst_files = keep
+    if len(rst_files) == 0:
+        print('WARNIG no PFM-named ' + lvl + ' restart files. CANT USE RESTART')
+        return 'none', -99
     isort = np.argsort(dts)
     cnt = 0
     found = 0
@@ -663,10 +711,11 @@ def remove_old_swan_rst(pkl_fnm):
     if len(rst_files)>0:
         for rf in rst_files:
             head, tail = os.path.split(rf)
-            yyyymmddhh = tail[13:23]
             tnow = datetime.now()
             told = tnow - timedelta(days=7) # removing files older than 1 week from now
-            tf = datetime.strptime(yyyymmddhh,"%Y%m%d%H")
+            tf = stamp_in_name(tail, 13, 23)
+            if tf is None:
+                continue          # not ours; see stamp_in_name
             if tf<told:
                 print('removing old swan restart file:' + rf)
 
@@ -696,8 +745,9 @@ def get_old_restart_files_list(ftype,older_than_days,pkl_fnm):
     if len(rst_files)>0:
         for rf in rst_files:
             head, tail = os.path.split(rf)
-            tstmp = datetime.strptime(tail[i1:i2],'%Y%m%d%H')
-            #print(tail[i1:i2])
+            tstmp = stamp_in_name(tail, i1, i2)
+            if tstmp is None:
+                continue          # not ours to delete; see stamp_in_name
             if tstmp < dt_test:
                 file_list.append(rf) # this is the list of files
 
@@ -738,9 +788,10 @@ def remove_swan_restarts_eq_foretime(pkl_fnm):
     if len(rst_files)>0:
        for rf in rst_files:
             head, tail = os.path.split(rf)
-            tstmp = datetime.strptime(tail[i1:i2],'%Y%m%d%H')
+            tstmp = stamp_in_name(tail, i1, i2)
+            if tstmp is None:
+                continue          # not ours to delete; see stamp_in_name
             dt_test = np.abs ( np.round( (t_fore - tstmp).total_seconds() ) )
-            #print(tail[i1:i2])
             if dt_test < 3600:
                 os.remove(rf)
                 rmd = 1            

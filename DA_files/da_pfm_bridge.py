@@ -152,6 +152,7 @@ def build_minfo(t_fore: DT.datetime, t_da: DT.datetime, *,
     MI["restart_ncfiles_dir_in"] = str(C.SCRATCH / "Rst")
     MI["restart_ncfiles_dir_out"] = str(C.SCRATCH / "Rst")
 
+
     # cdip_data_dir MUST be redirected.  swan_functions.cdip_ncs_to_dict sets
     # refresh='refresh' unconditionally on its second line, overriding the
     # argument, and then os.remove()s every *.nc in cdip_data_dir before
@@ -247,6 +248,39 @@ def build_minfo(t_fore: DT.datetime, t_da: DT.datetime, *,
     MI2["lv4_his_name"] = f"LV4_DA_his_{ymd2}.nc"
     MI2["lv4_his_name_full"] = str(C.scratch_dir("LV4", "His")
                                    / MI2["lv4_his_name"])
+
+    # Mark the DA's OWN restarts with 'DA', like every other artifact the DA
+    # produces (LV4_DA_his_, LV4_DA_IC_for_, LV1_DA_BC_, ...).  ROMS and SWAN
+    # name these from the two keys below, which is the only reason they were
+    # inheriting PFM's un-marked names while everything around them was marked.
+    #
+    # It is not cosmetic.  LV4_swan_rst_<stamp>_<HHH> and
+    # LV4_ocean_rst_<stamp>_<end> are names the OPERATIONAL forecast owns in its
+    # own restart store, so an identically-named DA file could be mistaken for
+    # one, or copied over one.  That very nearly happened: the first version of
+    # apply_da_swan_hotstart linked the DA's wave field into
+    # restart_swanfiles_dir_in as LV4_swan_rst_<t_fore - 1 day>_024, which is
+    # exactly the file the operational day N-1 forecast writes there.
+    #
+    # Here, not earlier: add_file_names_2MI runs just above and rebuilds both
+    # keys from PFM's convention, so anything set before it is silently undone --
+    # which is the same reason lv4_his_name is overridden here.
+    #
+    # The 'DA_' shifts the stamp four characters, breaking the fixed offsets PFM
+    # parses these names at (tail[13:23] for SWAN, tail[14:24] for ROMS).
+    # init_funs_forecast.stamp_in_name now returns None rather than raising on a
+    # name it cannot parse, so the functions that glob 'LV*.nc' and 'LV4*dat*'
+    # skip these instead of taking a forecast down.  That guard was needed
+    # anyway: LV4_DA_IC_<ymd>.nc has sat in restart_ncfiles_dir_in since the
+    # first cycle and would have crashed the same parsers.
+    _s1 = MI2["sim_time_1"].strftime("%Y%m%d%H%M")
+    _s2 = MI2["sim_time_2"].strftime("%Y%m%d%H%M")
+    MI2["lv4_swan_rst_name"] = f"LV4_DA_swan_rst_{_s1}.dat"
+    MI2["lv4_rst_name"] = f"LV4_DA_ocean_rst_{_s1}_{_s2}.nc"
+    MI2["lv4_swan_rst_name_full"] = str(
+        Path(MI2["restart_swanfiles_dir_out"]) / MI2["lv4_swan_rst_name"])
+    MI2["lv4_rst_name_full"] = str(
+        Path(MI2["restart_ncfiles_dir_out"]) / MI2["lv4_rst_name"])
     with open(out, "wb") as fp:
         pickle.dump(MI2, fp, protocol=pickle.HIGHEST_PROTOCOL)
 
@@ -557,7 +591,12 @@ def stage_swan_hotstart(t_da: DT.datetime, dest: Path | None = None,
     for k in range(1, lookback_days + 1):
         t_prev = t_da - DT.timedelta(days=k)
         src = sorted(C.SWAN_RST_DA_OUT.glob(
-            f"LV4_swan_rst_{t_prev:%Y%m%d%H%M}.dat-*"))
+            f"LV4_DA_swan_rst_{t_prev:%Y%m%d%H%M}.dat-*"))
+        if not src:
+            # cycles before the 'DA' rename wrote the un-marked name; accept it
+            # so the six already-run cycles stay usable.  Drop when they age off.
+            src = sorted(C.SWAN_RST_DA_OUT.glob(
+                f"LV4_swan_rst_{t_prev:%Y%m%d%H%M}.dat-*"))
         if not src:
             continue
         hrs = int(round((t_da - t_prev).total_seconds() / 3600.0))
