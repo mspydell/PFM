@@ -209,6 +209,13 @@ def apply_da_ics(PFM: dict, t_fore, found: DetectResult | None = None,
             shutil.copy2(st.path, dst)
         PFM[f"lv{n}_use_restart"] = 0      # -> NRREC 0, ini from lv{n}_forc_dir
         PFM[f"lv{n}_ini_file"] = dst.name
+        # Tell the driver the IC already exists.  use_restart == 0 alone means
+        # "build an IC from HYCOM and write it to lv{n}_ini_file" -- which is
+        # exactly this file.  Without this flag PFM overwrites the DA analysis
+        # with a HYCOM cold start before ROMS reads it, and the run still looks
+        # like a success.  Found 2026-10-14, after the varinfo failure had been
+        # masking it.
+        PFM[f"lv{n}_ic_prebuilt"] = True
         applied.append(lv)
         print(f"    {lv}: DA IC {dst.name} (use_restart=0, NRREC=0)")
     for lv in levels:

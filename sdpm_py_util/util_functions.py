@@ -41,6 +41,85 @@ def copy_mv_nc_file(nc_type,lvl,pkl_fnm):
     fn_out_full = dir_out + fn_out
     shutil.move(fn_in_full, fn_out_full)
 
+def reuse_archived_lv1_bc(pkl_fnm):
+    """Use an archived LV1 BC instead of rebuilding it, when one fits exactly.
+
+    Returns True if the archived file was put in place and the HYCOM download
+    can be skipped; False to build normally.
+
+    IN NORMAL OPERATION THIS ALWAYS RETURNS FALSE.  The lookup is by the
+    forecast's own start time, and tonight's BC has not been archived yet --
+    archive_lv1_bc runs AFTER the BC is built, later in this same function.  So
+    a new forecast never finds one and nothing changes.  It hits only when a
+    PAST forecast start is re-run, which is the testing and hindcast-rerun case.
+
+    That is also why it is worth having: a rerun then uses the SAME boundary the
+    original forecast used, rather than whatever HYCOM happens to serve today.
+    hycom_data/ keeps about two inits and is cleaned every cycle, so without
+    this a rerun of a week-old date silently gets a different ocean -- and on
+    2026-10-14 it also meant re-downloading 614 files, roughly 110 minutes,
+    for a boundary that was already on disk.
+
+    The file must COVER the window, checked on its time axis rather than its
+    name: the 10/12 archive spans exactly one day, which suits --length 1 and
+    would be wrong for a five-day run.
+
+    Disable with PFM['lv1_bc_reuse'] = False.
+    """
+    import datetime as _dt
+    import shutil as _sh
+    import numpy as _np
+    import netCDF4 as _nc
+
+    try:
+        PFM = initfuns.get_model_info(pkl_fnm)
+        if not PFM.get('lv1_bc_reuse', True):
+            return False
+        t1, t2 = PFM['sim_time_1'], PFM['sim_time_2']
+        dir_in = PFM.get('archive_lv1_bc_dir',
+                         '/dataSIO/PFM_Simulations/Archive/LV1_BC_files/')
+        src = os.path.join(dir_in, 'LV1_BC_' + t1.strftime('%Y%m%d%H') + '.nc')
+        if not os.path.isfile(src):
+            return False
+
+        t0 = PFM['modtime0']
+        with _nc.Dataset(src) as d:
+            spans = []
+            for v in [x for x in d.variables if x.endswith('_time')]:
+                tv = _np.asarray(d[v][:], dtype=float).ravel()
+                if tv.size == 0:
+                    return False
+                u = str(getattr(d[v], 'units', 'days')).strip().lower()
+                sc = 86400.0 if u.startswith('day') else 1.0
+                spans.append((t0 + _dt.timedelta(seconds=float(tv.min()) * sc),
+                              t0 + _dt.timedelta(seconds=float(tv.max()) * sc)))
+        if not spans:
+            return False
+        lo, hi = max(s[0] for s in spans), min(s[1] for s in spans)
+        slack = _dt.timedelta(minutes=1)
+        if lo > t1 + slack or hi < t2 - slack:
+            print('reuse_archived_lv1_bc: ' + os.path.basename(src) + ' spans ' +
+                  lo.strftime('%Y-%m-%d %H:%M') + ' .. ' + hi.strftime('%Y-%m-%d %H:%M') +
+                  ', which does not cover ' + t1.strftime('%Y-%m-%d %H:%M') + ' .. ' +
+                  t2.strftime('%Y-%m-%d %H:%M') + ' -- building from HYCOM instead')
+            return False
+
+        dst = os.path.join(PFM['lv1_forc_dir'], PFM['lv1_bc_file'])
+        os.makedirs(PFM['lv1_forc_dir'], exist_ok=True)
+        tmp = dst + '.part'
+        _sh.copyfile(src, tmp)
+        os.replace(tmp, dst)
+        print('*** reuse_archived_lv1_bc: using the ARCHIVED boundary ' +
+              os.path.basename(src) + ' (covers ' + lo.strftime('%Y-%m-%d %H') +
+              'Z .. ' + hi.strftime('%Y-%m-%d %H') + 'Z); skipping the HYCOM '
+              'download.  This is a RERUN of a past forecast start. ***')
+        return True
+    except Exception as e:                                   # noqa: BLE001
+        print('reuse_archived_lv1_bc: ' + type(e).__name__ + ': ' + str(e) +
+              ' -- building from HYCOM instead')
+        return False
+
+
 def archive_lv1_bc(pkl_fnm):
     """Archive LV1_OCEAN_BC.nc as LV1_BC_<YYYYMMDDHH>.nc, stamped from its DATA.
 

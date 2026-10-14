@@ -1040,7 +1040,14 @@ def run_fore_LV1(pkl_fnm):
     lv1_use_restart = PFM['lv1_use_restart']
 
     ocnIC_pckl = PFM['lv1_forc_dir'] + '/' + PFM['lv1_ocnIC_tmp_pckl_file']
-    if lv1_use_restart==0:
+    # ic_prebuilt: the initial condition is ALREADY in place (PFM_DA writes
+    # one and apply_da_ics points lv{N}_ini_file at it).  use_restart == 0
+    # does NOT mean "an IC was supplied" -- it means "build one from HYCOM
+    # and write it to lv{N}_ini_file", which is the very path the DA IC
+    # occupies.  Without this guard PFM silently overwrites the analysis
+    # with a HYCOM cold start and runs from that, and the run still looks
+    # like a complete success.
+    if lv1_use_restart==0 and not PFM.get('lv1_ic_prebuilt', False):
         print('going to save OCN_IC to a pickle file: ' + ocnIC_pckl)
         os.chdir('../sdpm_py_util')
         cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','ocnr_2_ICdict_from_tmppkls',ocnIC_pckl,pkl_fnm]
@@ -1327,7 +1334,14 @@ def run_fore_LV2(pkl_fnm):
     dt_ic = []
     t1=datetime.now()
     t01 = datetime.now()
-    if MI['lv2_use_restart']==0:
+    # ic_prebuilt: the initial condition is ALREADY in place (PFM_DA writes
+    # one and apply_da_ics points lv{N}_ini_file at it).  use_restart == 0
+    # does NOT mean "an IC was supplied" -- it means "build one from HYCOM
+    # and write it to lv{N}_ini_file", which is the very path the DA IC
+    # occupies.  Without this guard PFM silently overwrites the analysis
+    # with a HYCOM cold start and runs from that, and the run still looks
+    # like a complete success.
+    if MI['lv2_use_restart']==0 and not MI.get('lv2_ic_prebuilt', False):
         print('driver_run_forcast_LV2: making and saving LV2_OCN_IC pickle file')
         os.chdir('../sdpm_py_util')
         cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','mk_LV2_IC_dict',str(level),pkl_fnm]
@@ -1489,7 +1503,14 @@ def run_fore_LV3(pkl_fnm):
     dt_ic = []
     t1=datetime.now()
     t01 = datetime.now()
-    if MI['lv3_use_restart']==0:
+    # ic_prebuilt: the initial condition is ALREADY in place (PFM_DA writes
+    # one and apply_da_ics points lv{N}_ini_file at it).  use_restart == 0
+    # does NOT mean "an IC was supplied" -- it means "build one from HYCOM
+    # and write it to lv{N}_ini_file", which is the very path the DA IC
+    # occupies.  Without this guard PFM silently overwrites the analysis
+    # with a HYCOM cold start and runs from that, and the run still looks
+    # like a complete success.
+    if MI['lv3_use_restart']==0 and not MI.get('lv3_ic_prebuilt', False):
         print('driver_run_forcast_LV3: making and saving LV3_OCN_IC pickle file')
         os.chdir('../sdpm_py_util')
         cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','mk_LV2_IC_dict',str(level),pkl_fnm]
@@ -1661,7 +1682,14 @@ def run_fore_LV4(pkl_fnm):
     dt_ic = []
     t1=datetime.now()
     t01 = datetime.now()
-    if MI['lv4_use_restart']==0:
+    # ic_prebuilt: the initial condition is ALREADY in place (PFM_DA writes
+    # one and apply_da_ics points lv{N}_ini_file at it).  use_restart == 0
+    # does NOT mean "an IC was supplied" -- it means "build one from HYCOM
+    # and write it to lv{N}_ini_file", which is the very path the DA IC
+    # occupies.  Without this guard PFM silently overwrites the analysis
+    # with a HYCOM cold start and runs from that, and the run still looks
+    # like a complete success.
+    if MI['lv4_use_restart']==0 and not MI.get('lv4_ic_prebuilt', False):
         print('driver_run_forcast_LV4: making and saving LV4_OCN_IC pickle file')
         os.chdir('../sdpm_py_util')
         cmd_list = ['python','-W','ignore','ocn_funs_forecast.py','mk_LV2_IC_dict',str(level),pkl_fnm]
@@ -2010,7 +2038,14 @@ def run_fore_lv4_fillin(pkl_fnm):
         print('using existing BC.nc file: ' + BC_nc_fname)
  
     # make and save the LV3_IC.pkl file
-    if MI['lv4_use_restart']==0:
+    # ic_prebuilt: the initial condition is ALREADY in place (PFM_DA writes
+    # one and apply_da_ics points lv{N}_ini_file at it).  use_restart == 0
+    # does NOT mean "an IC was supplied" -- it means "build one from HYCOM
+    # and write it to lv{N}_ini_file", which is the very path the DA IC
+    # occupies.  Without this guard PFM silently overwrites the analysis
+    # with a HYCOM cold start and runs from that, and the run still looks
+    # like a complete success.
+    if MI['lv4_use_restart']==0 and not MI.get('lv4_ic_prebuilt', False):
         print('driver_run_forcast_LV4: making and saving LV4_OCN_IC pickle file')
         os.chdir('../sdpm_py_util')
         lv4_ic_file_out = MI['lv4_forc_dir'] + '/' + MI['lv4_ini_file']
