@@ -301,11 +301,12 @@ def setup_window(start, end, sites):
     global _fc
     last = pd.Timestamp(end, tz="UTC") + pd.Timedelta(hours=23)
     model = {s: load_model(s) for s in sites}
-    # model forecast (days 2-5 of the latest history file): shown when it starts by the end of the window
+    # model forecast (days 2-5 of the latest history file): shown when the window reaches the end of day 1
+    # (also when day 1 ends exactly at the window's end), running on past the window to the forecast's end
     day1 = [read_model_csv(model_csv(s, 1)) for s in sites]
     d1_end = max((d.index.max() for d in day1 if d is not None), default=None)
     fc_end = max((m.index.max() for m in model.values() if m is not None), default=None)
-    _fc = (d1_end + pd.Timedelta(hours=1) if d1_end is not None and fc_end > d1_end and d1_end < last else None)
+    _fc = (d1_end + pd.Timedelta(hours=1) if d1_end is not None and fc_end > d1_end and d1_end <= last else None)
     if _fc is not None:
         last = max(last, fc_end)
     else:
