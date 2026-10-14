@@ -839,13 +839,15 @@ def  make_LV4_coawst_dotins_dotsb(pkl_fnm,mod_type):
     his_interval  = PFM['outputinfo']['L4','his_interval']
     rst_interval  = PFM['outputinfo']['L4','rst_interval']
 
-    # a string version of dtsec, for the .in file
-    if dtsec == int(dtsec):  ## should this be a floating point number?  it could be 2.5 etc.
-        dt = str(dtsec) + '.0d0'
-        D['dt']=dt
-    else:
-        dt = str(dtsec) + 'd0'
-        D['dt'] = dt
+    # a string version of dtsec, for the .in file.
+    # this used to be str(dtsec) + '.0d0' under "if dtsec == int(dtsec)", which
+    # assumed dtsec was an int: str(2) + '.0d0' -> '2.0d0', correct. since
+    # lv4_dt_for_forecast started choosing the timestep it returns a float, and
+    # str(2.0) + '.0d0' -> '2.0.0d0' -- not a number. coawst died 15 s in with
+    # forrtl: severe (59) list-directed I/O syntax error on 2026-10-14. the
+    # high-flow branch (1.5) took the else and was fine, so this only broke on
+    # ordinary days. repr(float()) gives '2.0' and '1.5' alike, no branch needed.
+    D['dt'] = repr(float(dtsec)) + 'd0'
 
     # this is the number of time steps to run runs for.  dtsec is BC timestep
     D['ntimes']  = int(days_to_run*86400/dtsec)
