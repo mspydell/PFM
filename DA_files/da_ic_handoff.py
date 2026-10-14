@@ -216,6 +216,16 @@ def apply_da_ics(PFM: dict, t_fore, found: DetectResult | None = None,
         # like a success.  Found 2026-10-14, after the varinfo failure had been
         # masking it.
         PFM[f"lv{n}_ic_prebuilt"] = True
+        # NRREC 0: the DA IC is a SINGLE-RECORD file, so record 0 is the only
+        # one there.  run_funs does not read this key when use_restart == 0 (it
+        # hardcodes '0'), but the DRIVER prints it unconditionally on the branch
+        # we now take -- "Going to use the file ... to restart the simulation /
+        # with time index <lv{n}_nrrec>" -- and raised KeyError: 'lv1_nrrec'
+        # 1.5 s into LV1.  The same print exists at all four levels and in the
+        # hindcast and fillin paths, so setting the key here fixes every one of
+        # them without touching PFM.  It also keeps the driver's
+        # "if nrrec < 0: RESTARTING WILL NOT WORK" check honest.
+        PFM[f"lv{n}_nrrec"] = 0
         applied.append(lv)
         print(f"    {lv}: DA IC {dst.name} (use_restart=0, NRREC=0)")
     for lv in levels:
