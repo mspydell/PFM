@@ -201,8 +201,88 @@ if __name__ == "__main__":
             print(f"    STILL BAD {k:28s} {v}")
 
 
+DA_RST = Path("/scratch/PFM_Simulations/DA_Sim/Rst")
+
+
+def _link_da_swan_hotstart(PFM: dict, t_fore, *, lookback_days: int = 3,
+                           verbose: bool = True) -> dict:
+    """Link the DA chain's LV4 SWAN restart under the name PFM's lookup expects.
+
+    Two naming conventions have to be bridged.
+
+    The DA chain writes one file per rank with NO hour suffix:
+        <DA_RST>/LV4_swan_rst_<stamp>.dat-001 .. -072
+    holding the wave field at <stamp> + 24 h, because the run covered
+    [<stamp>, <stamp> + 1 day] and RESTART ... FREE 6 HR kept overwriting it.
+
+    PFM's get_swan_restart_file_name globs '*_???.dat-001' and reads the stamp
+    from tail[13:23] and the hour from tail[26:29], accepting the file only when
+    stamp + hour == t_fore.  An unsuffixed name does not match that glob at all.
+
+    So each rank file is linked as
+        LV4_swan_rst_<stamp>_<HHH>.dat-<rank>,  HHH = (t_fore - stamp) in hours
+    which for the usual daily cycle is _024.
+
+    The stamp must stay EARLIER than t_fore.  restart_setup calls
+    remove_swan_restarts_eq_foretime before the lookup, which deletes everything
+    stamped at t_fore precisely to force a lookback -- so naming this file with
+    the t_fore stamp would have it deleted before it could be used.  That is the
+    bug this replaced: the sandbox used to link the operational t_fore stamp,
+    PFM deleted all 1368 of them, the glob found nothing, and SWAN cold-started
+    from ZERO -- the exact outcome this function exists to prevent.
+    """
+    import datetime as _dt
+
+    key = "restart_swanfiles_dir_in"
+    dest = PFM.get(key)
+    if not dest or not dest.startswith((SANDBOX_SCRATCH, SANDBOX_ARCHIVE)):
+        return {}
+    d = Path(dest)
+    d.mkdir(parents=True, exist_ok=True)
+
+    # most recent DA stamp STRICTLY before t_fore
+    chosen = None
+    for k in range(1, lookback_days + 1):
+        t_prev = t_fore - _dt.timedelta(days=k)
+        srcs = sorted(DA_RST.glob("LV4_swan_rst_%s.dat-*"
+                                  % t_prev.strftime("%Y%m%d%H%M")))
+        if srcs:
+            chosen = (t_prev, srcs)
+            break
+
+    if chosen is None:
+        if verbose:
+            print("    %s: no DA LV4 SWAN restart within %d day(s) of %s in %s"
+                  % (key, lookback_days, t_fore.strftime("%Y-%m-%d %HZ"), DA_RST))
+            print("      NOTE: SWAN will cold-start from ZERO and its waves will "
+                  "not be meaningful in a short test")
+        return {key: 0}
+
+    t_prev, srcs = chosen
+    hrs = int(round((t_fore - t_prev).total_seconds() / 3600.0))
+    new = have = 0
+    for src in srcs:
+        rank = src.name.rsplit("-", 1)[-1]                # '001'
+        name = "LV4_swan_rst_%s_%03d.dat-%s" % (
+            t_prev.strftime("%Y%m%d%H%M"), hrs, rank)
+        link = d / name
+        if link.is_symlink() or link.exists():
+            have += 1
+            continue
+        link.symlink_to(src)
+        new += 1
+    if verbose:
+        print("    %s: %d DA SWAN restart file(s) available (%d newly linked)"
+              % (key, new + have, new))
+        print("      hotstart: LV4_swan_rst_%s_%03d  (%s + %d h = %s)"
+              % (t_prev.strftime("%Y%m%d%H%M"), hrs,
+                 t_prev.strftime("%Y-%m-%d %HZ"), hrs,
+                 t_fore.strftime("%Y-%m-%d %HZ")))
+    return {key: new + have}
+
+
 def link_restarts_into_sandbox(PFM: dict, t_fore, *, verbose: bool = True) -> dict:
-    """Symlink the OPERATIONAL restart files valid at t_fore into the sandbox.
+    """Symlink the restart files valid at t_fore into the sandbox.
 
     Why this is needed even when every level starts from a DA initial condition:
     use_restart = 0 settles the OCEAN, but SWAN is initialised independently and
@@ -211,33 +291,46 @@ def link_restarts_into_sandbox(PFM: dict, t_fore, *, verbose: bool = True) -> di
     from a flat sea -- which takes longer than a one-day test window to spin up,
     so the waves are meaningless and the test proves nothing about LV4.
 
+    SWAN's hotstart comes from the DA CHAIN's own LV4 run, not from the
+    operational forecast.  The DA cycle that produced the initial conditions for
+    t_fore ran LV4 over [t_fore - 1 day, t_fore] with
+
+        RESTART '<DA_RST>/LV4_swan_rst_<t_fore - 1 day>.dat' FREE 6 HR
+
+    and, having no _HHH suffix and no check_and_move watcher, it overwrote that
+    one name every 6 h.  So what survives is the LAST write -- the wave field at
+    t_fore exactly -- and it is consistent with the DA ocean analysis the test is
+    starting from, which the operational forecast's wave field is not.
+
     Symlinks, not copies: the SWAN set is ~2.5 GB per stamp and is only read.
-    Removing a symlink never touches the operational file, so PFM's own restart
+    Removing a symlink never touches the source, so PFM's own restart
     bookkeeping can delete in the sandbox as freely as it likes.
     """
     import datetime as _dt
     if isinstance(t_fore, str):
         t_fore = _dt.datetime.strptime(t_fore, "%Y%m%d%H")
     stamp = t_fore.strftime("%Y%m%d%H%M")
+
     out = {}
-    pairs = (("restart_swanfiles_dir_in", "/scratch/PFM_Simulations/restart_swan_data",
-              "LV4_swan_rst_%s*" % stamp),
-             ("restart_ncfiles_dir_in", "/scratch/PFM_Simulations/restart_roms_data_new",
-              "*_rst_%s*" % stamp))
-    for key, oper, pat in pairs:
+    out.update(_link_da_swan_hotstart(PFM, t_fore, verbose=verbose))
+
+    pairs = (("restart_ncfiles_dir_in", "/scratch/PFM_Simulations/restart_roms_data_new",
+              ["*_rst_%s*" % stamp]),)
+    for key, oper, pats in pairs:
         dest = PFM.get(key)
         if not dest or not dest.startswith((SANDBOX_SCRATCH, SANDBOX_ARCHIVE)):
             continue                      # not sandboxed; nothing to do
         d = Path(dest)
         d.mkdir(parents=True, exist_ok=True)
         new = have = 0
-        for src in sorted(Path(oper).glob(pat)):
-            link = d / src.name
-            if link.is_symlink() or link.exists():
-                have += 1
-                continue
-            link.symlink_to(src)
-            new += 1
+        for pat in pats:
+            for src in sorted(Path(oper).glob(pat)):
+                link = d / src.name
+                if link.is_symlink() or link.exists():
+                    have += 1
+                    continue
+                link.symlink_to(src)
+                new += 1
         out[key] = new + have
         if verbose:
             print("    %s: %d restart file(s) available (%d newly linked)"
@@ -251,7 +344,7 @@ def link_restarts_into_sandbox(PFM: dict, t_fore, *, verbose: bool = True) -> di
                         if "swan" in key else
                         "any level needing a restart will have none")
                 print("      NOTE: nothing matched %s in %s -- %s"
-                      % (pat, oper, what))
+                      % (" or ".join(pats), oper, what))
     return out
 
 
