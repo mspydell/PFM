@@ -8,7 +8,10 @@
 # takes a lock so a slow catch-up run is never doubled up on.
 #
 # Install with:  crontab -e
-#   23 * * * * /home/mspydell/models/PFM_root/PFM/driver/run_hycom_grabber.sh
+#   0 * * * * /home/mspydell/models/PFM_root/PFM/driver/run_hycom_grabber.sh
+#
+# Top of the hour on purpose: the 45 min budget then puts the end at :45, so
+# a block in the log always starts at :00 and stops by :45.
 #
 # Deliberately NOT doing what the forecast runners do:
 #   - no git branch check or switch. This runs hourly, possibly while a

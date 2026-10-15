@@ -116,6 +116,7 @@ MAINT_HOURS_ET = (2, 12)
 LOCAL_TZ = 'America/Los_Angeles'
 
 LOCK_NAME = '.grabber.lock'      # inside the hycom dir
+LOCK_POLL_SEC = 30               # how often --wait rechecks
 
 # A mirror on /dataSIO, so losing /scratch costs a copy rather than a day of
 # re-downloading from a server that has been slow and lossy since 2026-10-07.
@@ -770,14 +771,32 @@ class CacheLock:
         self.path = os.path.join(hydir, LOCK_NAME)
         self.fh = None
 
-    def __enter__(self):
-        self.fh = open(self.path, 'w')
-        try:
-            fcntl.flock(self.fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except OSError:
-            self.fh.close()
-            self.fh = None
-            return False
+    def __enter__(self, wait_min=0.0, log=print):
+        """Take the lock. wait_min > 0 polls instead of giving up at once.
+
+        The cron wants the no-wait behaviour: if another run holds the lock
+        the work is already happening and this one has nothing to add. PFM
+        wants the opposite -- it is about to start a forecast and needs the
+        cache as current as it can be, so it waits for the run in progress
+        rather than proceeding against a half-filled cache.
+        """
+        deadline = time.time() + wait_min * 60
+        said = False
+        while True:
+            self.fh = open(self.path, 'w')
+            try:
+                fcntl.flock(self.fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except OSError:
+                self.fh.close()
+                self.fh = None
+                if time.time() >= deadline:
+                    return False
+                if not said:
+                    log('WAIT    another grabber holds the lock; waiting up '
+                        'to %g min for it to finish' % wait_min)
+                    said = True
+                time.sleep(LOCK_POLL_SEC)
         self.fh.write('%d %s\n' % (os.getpid(),
                                    datetime.now(timezone.utc).isoformat()))
         self.fh.flush()
@@ -817,6 +836,11 @@ def main():
                     help='fill: run even during a hycom maintenance hour')
     ap.add_argument('--archive', default=ARCHIVE_DIR,
                     help='fill: mirror the cache here (empty string = off)')
+    ap.add_argument('--wait', type=float, default=0.0,
+                    help='fill: minutes to wait for another grabber or an '
+                         'in-flight download to finish, instead of giving up '
+                         'at once. PFM uses this before a forecast; the cron '
+                         'does not, because another run fires in an hour.')
     ap.add_argument('--also-stdout', action='store_true',
                     help='fill: with --log, print as well as append. PFM uses '
                          'this so the grab appears both in the daily grabber '
@@ -861,10 +885,21 @@ def main():
 
         busy = foreign_hycom_fetches()
         if busy and not args.force:
-            stamp('BUSY    %d hycom fetches already running (pid %s) -- a '
-                  'forecast is downloading; not adding to its connections'
-                  % (len(busy), ','.join(str(p) for p in busy[:5])))
-            return 0
+            if args.wait > 0:
+                stamp('WAIT    %d hycom fetches already running (pid %s); '
+                      'waiting up to %g min rather than adding connections'
+                      % (len(busy), ','.join(str(p) for p in busy[:5]),
+                         args.wait))
+                stop = time.time() + args.wait * 60
+                while busy and time.time() < stop:
+                    time.sleep(LOCK_POLL_SEC)
+                    busy = foreign_hycom_fetches()
+            if busy:
+                stamp('BUSY    %d hycom fetches already running (pid %s) -- a '
+                      'forecast is downloading; not adding to its connections'
+                      % (len(busy), ','.join(str(p) for p in busy[:5])))
+                return 0
+            stamp('WAIT    the other fetches finished; carrying on')
         if args.dry_run:
             keep = recent_cycles()
             rows = scan(hydir)
@@ -882,7 +917,7 @@ def main():
             stamp('DRY-RUN would delete %d bad, fetch %d files' % (len(bad), len(want)))
             return 0
         lock = CacheLock(hydir)
-        if not lock.__enter__():
+        if not lock.__enter__(wait_min=args.wait, log=stamp):
             stamp('LOCKED  another grabber is still running -- not starting')
             return 0
         try:
