@@ -1433,6 +1433,33 @@ def _stage_lv4_window_inputs(ctx: Ctx, MI: dict, pkl: Path) -> None:
     # is different every day.
     B.stage_lv4_clm(ctx.t_da, ctx.t_fore, fd / MI["lv4_clm_file"])
 
+    # interior nudging coefficients.  BUILT, with PFM's own mk_lv4_nud_nc, which
+    # needs only lv4_grid_file and stretching['L4','Nz'] -- no BC pickle, no
+    # network -- and writes to lv4_forc_dir/lv4_nud_file, exactly where the
+    # check below looks.
+    #
+    # Nothing used to produce this.  It was placed by hand when the chain was
+    # first set up and simply sat in LV4/Forc, until SCRATCH_PURGE_SUBDIRS
+    # ("Forc", "His") with SCRATCH_RETAIN_DAYS = 7 finally deleted it and the
+    # 2026-10-13 cycle died here, after LV1's 4D-Var and both LV2/LV3 forwards
+    # had already succeeded:
+    #     [lv4_fwd] FAILED: LV4 nudging missing: .../LV4/Forc/LV4_nud.nc
+    # A static input living in a purged directory is a time bomb; building it is
+    # what makes the cycle self-sufficient.
+    #
+    # Only when missing: the field is purely static (temp/salt/tracer_NudgeCoef
+    # on (s_rho, er, xr), no time axis at all), so unlike the climatology there
+    # is nothing per-cycle to get right, and it is 142 MB to rewrite.
+    nud = fd / MI["lv4_nud_file"]
+    if not nud.is_file():
+        B.run_pfm("ocn_funs_forecast.py", "mk_lv4_nud_nc", pkl, timeout=1800)
+        if not nud.is_file():
+            raise FileNotFoundError(
+                f"mk_lv4_nud_nc did not write {nud}.  It is static, so a copy "
+                f"can be staged by hand from "
+                f"/dataSIO/DA_Simulations/LV4/input_files/LV4_nud.nc")
+        print(f"    LV4 nudging coefficients built -> {nud.name}")
+
     # CDIP spectra -> the pickle -> the SWAN boundary file.  All from the
     # date-stamped archive, so no network call.
     n = B.stage_cdip_from_archive(ctx.t_da, ctx.t_fore)
