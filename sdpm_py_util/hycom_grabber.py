@@ -346,18 +346,21 @@ def scan(hycom_dir):
     return out
 
 
-def cycle_reach_days(rows, cycle):
-    """How long a PFM forecast this cycle could drive, in days.
+def cycle_reach(rows, cycle):
+    """How far a cycle is usable, as (last_good_time, days, reason).
 
-    The limit is the shortest contiguous run of any one variable measured from
-    the cycle's own init: a cycle with 8 days of ssh and 2 days of salinity is
-    a 2 day cycle. Files after an interior gap do not count, and neither does
-    a block that starts late -- that is the 2026-10-14 case, where t3z and s3z
-    begin at lead 39 h, so the cycle drives nothing at all despite holding 427
-    good files.
+    The limit is the shortest contiguous run of any ONE variable measured
+    from the cycle's own init: a cycle with 8 days of ssh and 2 days of
+    salinity is a 2 day cycle, because the roms boundary needs all five at
+    every time. Files after an interior gap do not count, and neither does a
+    block that starts late -- that is the 2026-10-14 case, where t3z and s3z
+    begin at lead 39 h, so the cycle drives nothing at all despite holding
+    427 good files.
+
+    Returns (None, 0.0, why) when the cycle cannot start at its own init.
     """
     t0 = datetime.strptime(cycle, '%Y-%m-%dT%H')
-    worst = None
+    worst, late = None, []
     for prefix in VAR_OF_PREFIX:
         step = 1 if prefix == 'ssh' else 3
         times = sorted(
@@ -365,7 +368,8 @@ def cycle_reach_days(rows, cycle):
             for r in rows
             if r['state'] == OK and r['cycle'] == cycle and r['prefix'] == prefix)
         if not times or times[0] != t0:
-            return 0.0                    # nothing usable from the init
+            late.append(prefix)
+            continue
         reach = times[0]
         for a, b in zip(times, times[1:]):
             if (b - a).total_seconds() / 3600.0 > step:
@@ -373,33 +377,47 @@ def cycle_reach_days(rows, cycle):
             reach = b
         if worst is None or reach < worst:
             worst = reach
-    if worst is None:
-        return 0.0
-    return (worst - t0).total_seconds() / 86400.0
+    if late:
+        return None, 0.0, 'no ' + '/'.join(sorted(late)) + ' from the start'
+    return worst, (worst - t0).total_seconds() / 86400.0, ''
 
 
 def inventory(rows, catalog, keep, log=print):
-    """Close every run with what we actually have. Without this the log says
-    what moved but never what is on hand, which is the thing you want at
-    07:00 when a forecast is about to start."""
-    log('INVENTORY  cycle          files   missing  absent  PFM days')
+    """Close every run with what we actually have.
+
+    Without this the log said what moved but never what was on hand, which is
+    the thing you want at 01:00 when a forecast is about to start.
+
+    The two count columns answer different questions and the names say which:
+    "to get" is ours to fix -- the server has it, we do not, a later run will
+    fetch it. "not on server" is hycom's, and no amount of running helps.
+    A cycle hycom has not published yet is entirely "not on server", which is
+    why that row shows 0 to get rather than 453.
+    """
+    log('INVENTORY  hycom cycle      have    to get  not on server  good through')
     for cyc in keep:
         want_n = len(cycle_files(cyc))
         have = [r for r in rows if r['cycle'] == cyc and r['state'] == OK]
-        if catalog:
-            absent = sum(1 for f in cycle_files(cyc)
-                         if server_name(f) not in catalog)
+        absent = (sum(1 for f in cycle_files(cyc) if server_name(f) not in catalog)
+                  if catalog else 0)
+        to_get = want_n - len(have) - absent
+        reach, days, why = cycle_reach(rows, cyc)
+        if reach is not None:
+            tail = '%s  (%.1f d)' % (reach.strftime('%Y-%m-%dT%H'), days)
+        elif not have and absent == want_n:
+            tail = '-- not published yet'
+        elif not have:
+            tail = '-- nothing fetched yet'
+        elif to_get:
+            # still filling. saying "unusable" here would be true this minute
+            # and wrong an hour later, which is worse than saying nothing --
+            # the whole point of the column is to tell a cycle that is still
+            # arriving apart from one hycom has broken.
+            tail = '-- incomplete, %d still to fetch' % to_get
         else:
-            absent = 0
-        missing = want_n - len(have) - absent
-        days = cycle_reach_days(rows, cyc)
-        note = ''
-        if not have:
-            note = '   (not on the server yet)' if absent == want_n else ''
-        elif days == 0.0:
-            note = '   <-- unusable: a variable is missing from the start'
-        log('           %s  %4d/%-4d  %6d  %6d  %7.1f%s'
-            % (cyc, len(have), want_n, missing, absent, days, note))
+            tail = '-- unusable: ' + why + ' (complete as far as hycom goes)'
+        log('           %s  %4d/%-4d  %6d  %13d  %s'
+            % (cyc, len(have), want_n, to_get, absent, tail))
 
 
 def mirror(hydir, archdir, keep, log=print):
