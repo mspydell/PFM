@@ -959,6 +959,14 @@ def run_fore_LV1(pkl_fnm):
         os.chdir('../sdpm_py_util')
         cmd_list = ['python','-u','-W','ignore','hycom_grabber.py','fill',
                     '--budget', str(gb), '--pkl', pkl_fnm,
+                    # Only what THIS forecast needs. Without it the grabber
+                    # runs in cron mode and tops up all five retained cycles:
+                    # on 2026-10-15 the cycle PFM needed was already complete
+                    # and it still queued 641 files of backfill for two older
+                    # ones, holding the forecast 45 min for data it had no use
+                    # for. The cron keeps the rest of the cache current.
+                    '--for-window', t1.strftime('%Y%m%d%H%M'),
+                                    t2.strftime('%Y%m%d%H%M'),
                     '--wait', str(PFM.get('hycom_grabber_wait_min', 0)),
                     '--log', os.path.join(
                         os.path.dirname(os.path.dirname(

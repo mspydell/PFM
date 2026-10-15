@@ -578,7 +578,7 @@ def prune(hydir, keep, log=print):
 
 
 def fill(hydir, box, workers=DEFAULT_WORKERS, budget_min=DEFAULT_BUDGET_MIN,
-         archdir=ARCHIVE_DIR, log=print):
+         archdir=ARCHIVE_DIR, window=None, log=print):
     """Verify, delete what fails, refetch it along with anything missing.
 
     Newest cycle first, so a run that runs out of budget still leaves the
@@ -614,6 +614,31 @@ def fill(hydir, box, workers=DEFAULT_WORKERS, budget_min=DEFAULT_BUDGET_MIN,
 
     have = {r['file'] for r in rows if r['state'] == OK}
 
+    # --for-window: PFM's question is not "is every retained cycle topped
+    # up", it is "can I run this forecast". Those differ enormously. On
+    # 2026-10-15 the cycle PFM needed was already complete at 453/453 and the
+    # grabber still queued 641 files of backfill for two older cycles, which
+    # would have held the forecast for 45 minutes to fetch data it had no use
+    # for. Answer the narrow question: if some cycle already covers the
+    # window, there is nothing to do.
+    if window is not None:
+        t1, t2 = window
+        for cyc in keep:
+            if datetime.strptime(cyc, '%Y-%m-%dT%H') > t1:
+                continue                   # starts after the forecast does
+            reach, days, why = cycle_reach(rows, cyc)
+            if reach is not None and reach >= t2:
+                log('WINDOW  cycle %s already covers %s .. %s (reaches %s). '
+                    'Nothing to fetch for this forecast.'
+                    % (cyc, t1.strftime('%Y-%m-%dT%H'),
+                       t2.strftime('%Y-%m-%dT%H'),
+                       reach.strftime('%Y-%m-%dT%H')))
+                inventory(rows, fetch_catalog(hydir, log=log), keep, log=log)
+                mirror(hydir, archdir, keep, log=log)
+                return 0
+        log('WINDOW  no cycle covers %s .. %s yet; fetching what could'
+            % (t1.strftime('%Y-%m-%dT%H'), t2.strftime('%Y-%m-%dT%H')))
+
     # Ask the server what it actually has before asking it for anything. One
     # request, and it removes every doomed fetch from the queue: unpublished
     # cycles, retired cycles, and the per-file gaps hycom leaves behind.
@@ -621,6 +646,8 @@ def fill(hydir, box, workers=DEFAULT_WORKERS, budget_min=DEFAULT_BUDGET_MIN,
 
     want = []
     for cyc in keep:                       # newest first
+        if window is not None and datetime.strptime(cyc, '%Y-%m-%dT%H') > window[0]:
+            continue        # cannot serve this forecast; leave it to the cron
         need = [f for f in cycle_files(cyc) if f not in have]
         if not need:
             continue
@@ -783,7 +810,11 @@ class CacheLock:
         deadline = time.time() + wait_min * 60
         said = False
         while True:
-            self.fh = open(self.path, 'w')
+            # 'a', not 'w': 'w' truncates, so a failed acquire blanked the
+            # holder's lock file to zero bytes -- which then looked like junk
+            # to PFM's zero-size sweep and got deleted out from under the
+            # running grabber.
+            self.fh = open(self.path, 'a')
             try:
                 fcntl.flock(self.fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
                 break
@@ -797,6 +828,9 @@ class CacheLock:
                         'to %g min for it to finish' % wait_min)
                     said = True
                 time.sleep(LOCK_POLL_SEC)
+        # only now that the lock is ours is it safe to rewrite the contents
+        self.fh.seek(0)
+        self.fh.truncate()
         self.fh.write('%d %s\n' % (os.getpid(),
                                    datetime.now(timezone.utc).isoformat()))
         self.fh.flush()
@@ -836,6 +870,11 @@ def main():
                     help='fill: run even during a hycom maintenance hour')
     ap.add_argument('--archive', default=ARCHIVE_DIR,
                     help='fill: mirror the cache here (empty string = off)')
+    ap.add_argument('--for-window', nargs=2, metavar=('T1', 'T2'), default=None,
+                    help='fill: YYYYMMDDHHMM pair. Fetch only what a forecast '
+                         'over this window needs, and do nothing at all if a '
+                         'cycle already covers it. PFM uses this; the cron '
+                         'does not, because the cron keeps the whole cache.')
     ap.add_argument('--wait', type=float, default=0.0,
                     help='fill: minutes to wait for another grabber or an '
                          'in-flight download to finish, instead of giving up '
@@ -916,13 +955,18 @@ def main():
             stamp('DRY-RUN would prune cycles: %s' % (','.join(stale) or 'none'))
             stamp('DRY-RUN would delete %d bad, fetch %d files' % (len(bad), len(want)))
             return 0
+        win = None
+        if args.for_window:
+            win = tuple(datetime.strptime(x, '%Y%m%d%H%M')
+                        for x in args.for_window)
+
         lock = CacheLock(hydir)
         if not lock.__enter__(wait_min=args.wait, log=stamp):
             stamp('LOCKED  another grabber is still running -- not starting')
             return 0
         try:
             return fill(hydir, box, workers=args.workers,
-                        budget_min=args.budget,
+                        budget_min=args.budget, window=win,
                         archdir=args.archive or None, log=stamp)
         finally:
             lock.__exit__()
