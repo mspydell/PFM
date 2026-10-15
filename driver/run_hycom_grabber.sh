@@ -18,12 +18,19 @@
 
 PFM_ROOT=/home/mspydell/models/PFM_root/PFM
 CONDA_SH=/home/mspydell/anaconda3/etc/profile.d/conda.sh
+PROXY_SH=/etc/profile.d/proxy.sh
 ENV_NAME=PHM-env
 LOGDIR=${PFM_ROOT}/log
 
 mkdir -p "${LOGDIR}"
 LOGFILE=${LOGDIR}/hycom_grabber_$(date -u '+%Y%m%d').log
 fail () { echo "$(date -u '+%Y-%m-%dT%H:%MZ')  FATAL $*" >> "${LOGFILE}"; exit 1; }
+
+# Everything this script says goes to the daily log, including anything conda
+# or python prints on their own. Otherwise cron mails it, and a job that mails
+# on every run is a job whose mail nobody reads. The grabber's own --log below
+# appends to this same file.
+exec >> "${LOGFILE}" 2>&1
 
 # cron gets a bare environment, so conda has to be set up by hand -- "conda
 # activate" only exists after the shell hook is sourced.
@@ -34,6 +41,21 @@ fail () { echo "$(date -u '+%Y-%m-%dT%H:%MZ')  FATAL $*" >> "${LOGFILE}"; exit 1
 # a real failure, not a hypothetical -- it is how the first version of this
 # script ran /usr/bin/python and died on "No module named netCDF4" while
 # conda activate had reported success.
+# This host reaches the outside world only through a proxy, and cron does
+# not read /etc/profile.d or .bashrc -- so without this the grabber runs with
+# no http_proxy, every request times out, and the symptom is a quiet
+# "CATALOG fetch failed (rc=28)" followed by a run that downloads nothing.
+# Found exactly that way: the script worked by hand and did nothing under
+# env -i. Prefer the system file so an admin changing the proxy fixes this
+# too; fall back to the address in .bashrc if it ever disappears.
+if [ -r "${PROXY_SH}" ]; then
+    source "${PROXY_SH}"
+else
+    export http_proxy=http://132.239.2.228:3128/
+    export https_proxy=http://132.239.2.228:3128/
+fi
+export ftp_proxy="${ftp_proxy:-$http_proxy}"
+
 [ -r "${CONDA_SH}" ] || fail "no conda hook at ${CONDA_SH}"
 source "${CONDA_SH}"
 conda activate "${ENV_NAME}" || fail "could not activate ${ENV_NAME}"
@@ -50,6 +72,12 @@ esac
 # ncks is the system build at /usr/bin, not a conda package, so make sure the
 # bare cron PATH still reaches it.
 command -v ncks >/dev/null || fail "ncks not on PATH (${PATH})"
+
+# prove the proxy actually works before spending 45 minutes finding out it
+# does not. the catalog url is the same host everything else will use.
+curl -s -o /dev/null --max-time 60 -w '' \
+     https://tds.hycom.org/thredds/catalog.xml \
+    || fail "cannot reach tds.hycom.org (http_proxy=${http_proxy:-unset})"
 
 cd "${PFM_ROOT}/sdpm_py_util" || fail "no ${PFM_ROOT}/sdpm_py_util"
 

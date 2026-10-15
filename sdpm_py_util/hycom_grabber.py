@@ -121,7 +121,7 @@ LOCK_NAME = '.grabber.lock'      # inside the hycom dir
 # how an IP gets throttled or blocked. the lock below only keeps grabbers
 # apart; this keeps the grabber away from the forecast. it goes away once PFM
 # reads the cache instead of filling it.
-FOREIGN_FETCH_PAT = r'ncks.*tds\.hycom\.org'
+FETCH_HOST = 'tds.hycom.org'
 
 
 def cycle_files(cycle):
@@ -544,22 +544,31 @@ def in_maintenance(now=None):
 
 def foreign_hycom_fetches():
     """PIDs of hycom ncks fetches that are not ours -- almost always a PFM
-    forecast running its own download step."""
+    forecast running its own download step.
+
+    Matches on the process NAME and then reads the argv, rather than doing a
+    pgrep -f for the whole pattern: -f matches any command line containing the
+    text, so a shell running a diagnostic that merely mentions the url counts
+    as a fetch. That produced a false BUSY while nothing was downloading.
+    """
     try:
-        r = subprocess.run(['pgrep', '-f', FOREIGN_FETCH_PAT],
+        r = subprocess.run(['pgrep', '-x', 'ncks'],
                            capture_output=True, text=True, timeout=30)
     except Exception:                                        # noqa: BLE001
         return []
-    mine = {os.getpid()}
     out = []
     for ln in r.stdout.split():
         try:
             pid = int(ln)
         except ValueError:
             continue
-        if pid in mine:
-            continue
-        out.append(pid)
+        try:
+            with open('/proc/%d/cmdline' % pid, 'rb') as f:
+                argv = f.read().decode('utf-8', 'replace')
+        except OSError:
+            continue                 # exited between pgrep and here
+        if FETCH_HOST in argv:
+            out.append(pid)
     return out
 
 
