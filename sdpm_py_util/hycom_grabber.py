@@ -113,6 +113,15 @@ MAINT_HOURS_ET = (2, 12)
 
 LOCK_NAME = '.grabber.lock'      # inside the hycom dir
 
+# hycom allows 10 concurrent connections per IP and we use all 10. a PFM
+# forecast still fetches hycom itself, with its own 10, so a grabber that
+# starts mid-forecast puts 20 connections on the server from this address --
+# over the documented limit, and the forum is explicit that exceeding it is
+# how an IP gets throttled or blocked. the lock below only keeps grabbers
+# apart; this keeps the grabber away from the forecast. it goes away once PFM
+# reads the cache instead of filling it.
+FOREIGN_FETCH_PAT = r'ncks.*tds\.hycom\.org'
+
 
 def cycle_files(cycle):
     """Every filename a complete cycle should have. cycle is '2026-10-13T12'."""
@@ -512,6 +521,27 @@ def in_maintenance(now=None):
     return now.hour in MAINT_HOURS_ET, now.strftime('%H:%M %Z')
 
 
+def foreign_hycom_fetches():
+    """PIDs of hycom ncks fetches that are not ours -- almost always a PFM
+    forecast running its own download step."""
+    try:
+        r = subprocess.run(['pgrep', '-f', FOREIGN_FETCH_PAT],
+                           capture_output=True, text=True, timeout=30)
+    except Exception:                                        # noqa: BLE001
+        return []
+    mine = {os.getpid()}
+    out = []
+    for ln in r.stdout.split():
+        try:
+            pid = int(ln)
+        except ValueError:
+            continue
+        if pid in mine:
+            continue
+        out.append(pid)
+    return out
+
+
 class CacheLock:
     """One grabber at a time. The cron fires hourly and a catch-up run can
     exceed an hour, so without this two runs fetch the same files into the
@@ -597,6 +627,13 @@ def main():
         if down and not args.force:
             stamp('MAINT   hycom is in its maintenance hour (%s) -- not running'
                   % et_now)
+            return 0
+
+        busy = foreign_hycom_fetches()
+        if busy and not args.force:
+            stamp('BUSY    %d hycom fetches already running (pid %s) -- a '
+                  'forecast is downloading; not adding to its connections'
+                  % (len(busy), ','.join(str(p) for p in busy[:5])))
             return 0
         if args.dry_run:
             keep = recent_cycles()
