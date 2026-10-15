@@ -15,11 +15,12 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 import numpy as np
 import pandas as pd
 
 from download_obs import load_obs, update as update_obs
-from extract_model import extract, load_model
+from extract_model import extract, latest_forecast, load_model
 from stations import STATIONS
 
 OUT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -61,13 +62,18 @@ def date_window(p, args, default_start):
     return start, end
 
 
-def two_panel(idx, obs, model, title, out_path, obs_label, model_label, shade=None):
-    """SSH panel and Delta SSH panel. shade = (start time, legend text) greys out the end of the window."""
+def two_panel(idx, obs, model, title, out_path, obs_label, model_label, shade=None, split=None):
+    """SSH panel and Delta SSH panel. shade = (start time, legend text) greys out the end of the window.
+    split: the model is solid up to this time and dashed after it (forecast), with a dotted line there."""
     diff = obs - model
     fig, axes = plt.subplots(2, 1, figsize=(13, 7.5), sharex=True)
     ax = axes[0]
     ax.plot(idx, obs, color=OBS_COLOR, lw=0.8, label=obs_label)
-    ax.plot(idx, model, color=MODEL_COLOR, lw=0.8, label=model_label)
+    if split is None:
+        ax.plot(idx, model, color=MODEL_COLOR, lw=0.8, label=model_label)
+    else:
+        ax.plot(model[:split].index, model[:split], color=MODEL_COLOR, lw=0.8, label=model_label)
+        ax.plot(model[split:].index, model[split:], color=MODEL_COLOR, lw=0.8, ls="--")
     both = pd.concat([obs, model], axis=1).dropna()
     if len(both) > 48:
         d = both.iloc[:, 1] - both.iloc[:, 0]
@@ -89,9 +95,14 @@ def two_panel(idx, obs, model, title, out_path, obs_label, model_label, shade=No
         if shade is not None and shade[0] < idx[-1]:
             ax.axvspan(max(shade[0], idx[0]), idx[-1], color="0.92", zorder=0,
                        label=shade[1] if ax is axes[0] else None)
-    axes[0].legend(loc="upper left", fontsize=8, frameon=False, ncol=3)
+        if split is not None:
+            ax.axvline(split, color="0.4", lw=0.8, ls=":")          # now: forecast to the right
+    handles = axes[0].get_legend_handles_labels()[0]
+    if split is not None:
+        handles.append(Line2D([], [], color=MODEL_COLOR, lw=0.8, ls="--", label="PFM forecast, next days (dashed)"))
+    axes[0].legend(handles=handles, loc="upper left", fontsize=8, frameon=False, ncol=3)
 
-    span = (idx[-1] - idx[0]).days
+    span = ((split if split is not None else idx[-1]) - idx[0]).days   # tick spacing from the past window
     if span > 200:
         loc, fmt = mdates.MonthLocator(), "%b\n%Y"
     elif span > 60:
@@ -112,11 +123,24 @@ def two_panel(idx, obs, model, title, out_path, obs_label, model_label, shade=No
 
 
 def plot_window(station, start, end, out, period):
-    """Hourly SSH figure for UTC dates start..end (both inclusive, YYYY-MM-DD); out(name) gives the PNG path."""
+    """Hourly SSH figure for UTC dates start..end (both inclusive, YYYY-MM-DD); out(name) gives the PNG path.
+    The model runs on past the window to the end of the latest forecast issued by then (its next ~5 days),
+    dashed after now (or after the window's end, for an older window); observations stop there too."""
     idx = hours(start, end)
     obs, model = load_series(station, idx)
-    two_panel(idx, obs, model, f"{STATIONS[station]['title']} sea surface height: PFM vs tide gauge (hourly), {period}",
-              out(f"{station}_ssh"), *labels(station))
+    title = f"{STATIONS[station]['title']} sea surface height: PFM vs tide gauge (hourly), {period}"
+    fc = latest_forecast(station, end)
+    split = None
+    if fc is not None and fc.index[-1] > idx[-1]:
+        split = min(pd.Timestamp.now(tz="UTC").floor("h"), idx[-1] + pd.Timedelta(hours=1))
+        idx = pd.date_range(idx[0], fc.index[-1], freq="h")
+        # day 1 up to split, then the latest forecast; split hour in both so the lines join
+        model = model.reindex(idx)
+        model[model.index > split] = np.nan
+        model = model.fillna(fc[fc.index >= split].reindex(idx))
+        obs = obs.reindex(idx)
+        title += f" + forecast to {idx[-1]:%Y-%m-%d %H:%M}"
+    two_panel(idx, obs, model, title, out(f"{station}_ssh"), *labels(station), split=split)
 
 
 def update_data(station, end):

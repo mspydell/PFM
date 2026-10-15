@@ -1,0 +1,5 @@
+cache/
+plots/
+plots_web/
+__pycache__/
+*.log

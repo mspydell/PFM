@@ -18,8 +18,8 @@ This is a Python version of MATLAB location IDs 1 (SD Bay) and 11 (La Jolla) in 
 | `plot_sdbay_3weeks.py`, `plot_lajolla_3weeks.py` | Plot of the past 3 weeks for that station, saved to `plots_web/`. Updates the data first. | yes |
 | `plot_ssh.py` | Shared code for the hourly figure and the 3-week run. | yes |
 | `stations.py` | Station settings: NOAA ID, position, grid. | yes |
-| `download_obs.py` | Downloads water level, air pressure and tide predictions from the NOAA CO-OPS API into `obs_cache/<station>/`. | yes |
-| `extract_model.py` | Extracts `zeta` at each gauge from `/dataSIO/PFM_Simulations/Archive/<LV>_His` into `model_cache/`. | yes |
+| `download_obs.py` | Downloads water level, air pressure and tide predictions from the NOAA CO-OPS API into `cache/obs/<station>/`. | yes |
+| `extract_model.py` | Extracts `zeta` at each gauge from `/dataSIO/PFM_Simulations/Archive/<LV>_His` into `cache/model/`. | yes |
 | `plot_sdbay_range.py`, `plot_lajolla_range.py` | Hourly and tides-removed figures for any dates, saved to `plots/`. | no |
 | `plot_ssh_lowpass.py` | Shared code: the PL64 low-pass filter, the tides-removed figure and the date-range run. | no |
 | `plot_sdbay_noaa_tide.py`, `plot_lajolla_noaa_tide.py` | NOAA measured vs predicted water level and their difference; no model. | no |
@@ -42,7 +42,7 @@ The figure has two panels, laid out like `Plot_SSH.m`:
 
 | Panel | Contents |
 |---|---|
-| 1 | Hourly observed water level (pressure-corrected, MSL datum) and model `zeta`, with r, RMSE, bias and the number of hours compared |
+| 1 | Hourly observed water level (pressure-corrected, MSL datum) and model `zeta`, with r, RMSE, bias and the number of hours compared. The model continues past the window to the end of the latest history file (about 5 days), dashed after now, with a dotted line at now (as in the FlowRate plot) |
 | 2 | ΔSSH = observed − model, with its mean and standard deviation; y axis fixed at −0.5 to 0.5 m |
 
 ## Date-range plots: plot_sdbay_range.py and plot_lajolla_range.py
@@ -110,8 +110,8 @@ The residual is the sea level the tide prediction leaves out:
 
 ## Data
 
-- **Model:** `model_cache/SDBay_LV4_day1_zeta.csv` and `model_cache/LaJolla_LV3_day1_zeta.csv`. Later runs only read new days. A full rebuild (delete the file) reads every history file since 5 Dec 2024 and takes about 6–8 minutes per station. To start from a later date on a new machine, run `python extract_model.py --start YYYY-MM-DD` once first.
-- **Observations:** `obs_cache/<station>/<product>_<YYYYMM>.csv`, one file per month for `water_level`, `air_pressure` and `predictions`. Each run downloads missing months plus the current and previous month again, so preliminary data are replaced by verified data within about a month.
+- **Model:** `cache/model/SDBay_LV4_day1_zeta.csv` and `cache/model/LaJolla_LV3_day1_zeta.csv`. Later runs only read new days. A full rebuild (delete the file) reads every history file since 5 Dec 2024 and takes about 6–8 minutes per station. To start from a later date on a new machine, run `python extract_model.py --start YYYY-MM-DD` once first.
+- **Observations:** `cache/obs/<station>/<product>_<YYYYMM>.csv`, one file per month for `water_level`, `air_pressure` and `predictions`. Each run downloads missing months plus the current and previous month again, so preliminary data are replaced by verified data within about a month.
 
 ## Requirements
 
