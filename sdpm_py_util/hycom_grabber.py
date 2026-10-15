@@ -616,14 +616,24 @@ def fill(hydir, box, workers=DEFAULT_WORKERS, budget_min=DEFAULT_BUDGET_MIN,
             continue
         if absent:
             # hycom has the cycle but not all of it. say which fields, because
-            # a forecast started here is missing that variable outright, and
-            # no amount of retrying will produce it.
+            # a forecast started from here is missing that variable outright.
+            #
+            # Skipped for THIS run only. The queue is rebuilt from all five
+            # cycles against a fresh listing every run, so anything hycom adds
+            # later -- to an old cycle as readily as a new one -- is picked up
+            # on the next pass without special handling. We do not know
+            # whether hycom backfills: watching 2026-10-14 for 12.5 h on
+            # 2026-10-15 showed zero names added to the whole server, but no
+            # new cycle published in that window either, so that observes a
+            # quiet server rather than a refusal to backfill. Either way the
+            # behaviour is the same, which is why this is worth not guessing
+            # about.
             miss = {}
             for f in need:
                 if server_name(f) not in catalog:
                     miss[f[3:6]] = miss.get(f[3:6], 0) + 1
-            log('GAP     cycle %s: server does not have %s (never will -- '
-                'not counted as outstanding)'
+            log('GAP     cycle %s: server does not have %s right now '
+                '(skipped this run, rechecked next run)'
                 % (cyc, ', '.join('%d %s' % (n, k)
                                   for k, n in sorted(miss.items()))))
         want += offered
