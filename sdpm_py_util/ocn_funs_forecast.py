@@ -1195,15 +1195,30 @@ def check_and_redownload_ncfiles(yyyymmdd,pkl_fnm):
     nc_in_names = get_hycom_nc_file_names(yyyymmdd,t1str,t2str,pkl_fnm)
     chk = 1
     cnt2 = 0
+    eecode = 1   # assume failure until a pass finds every file good. this used
+                 # to be bound only inside the success branch, so exhausting the
+                 # retries raised UnboundLocalError on the return below.
     while chk==1 and cnt2<3:
         bad_files = []
+        missing = []
         urls = []
         for fn in nc_in_names:
             if "_ssh_" in fn:
                 mnfsz = 0.4 # this is the minimum filesize for ssh in Mb
             else:
                 mnfsz = 1.5 # for other vars
-        
+
+            # a pass deletes the bad files and redownloads them; when that
+            # redownload fails the file is simply gone. getsize then raised
+            # FileNotFoundError here and killed the whole function, which is
+            # why 2026-10-15 printed "Attempt 1" and nothing further -- the
+            # three retries were only ever one. treat absent as bad and let
+            # the loop try again.
+            if not os.path.isfile(fn):
+                missing.append(fn)
+                bad_files.append(fn)
+                continue
+
             file_size_mb = os.path.getsize(fn) / (1024*1024)
             if file_size_mb < mnfsz:
                 bad_files.append(fn)
@@ -1214,7 +1229,14 @@ def check_and_redownload_ncfiles(yyyymmdd,pkl_fnm):
             eecode = 0 # return zero if there are no bad files
         else:
             print('there were ', str(len(bad_files)), ' bad hycom nc files.')
-            print('attempting to fix this. Attempt ', str(cnt2+1))
+            if missing:
+                print('  of those, ' + str(len(missing)) + ' are absent entirely'
+                      ' -- a previous redownload did not land them:')
+                for m in missing[:5]:
+                    print('    ' + os.path.basename(m))
+                if len(missing) > 5:
+                    print('    ... and ' + str(len(missing)-5) + ' more')
+            print('attempting to fix this. Attempt ', str(cnt2+1), ' of 3')
             print('Deleting offending files...')
             delete_files(bad_files)
             print('...done. pausing 15 sec...')
@@ -1254,6 +1276,16 @@ def check_and_redownload_ncfiles(yyyymmdd,pkl_fnm):
             print('...done') 
         cnt2 = cnt2 + 1
 
+    if eecode != 0:
+        # say what is still wrong. hycom throttles after heavy use -- the
+        # 2026-10-15 run made 104 batched requests over 52 minutes and then
+        # could not refetch 5 ssh files that were fine on the server minutes
+        # later -- so "try again shortly" is usually the right response.
+        print('check_and_redownload_ncfiles: giving up after ' + str(cnt2) +
+              ' attempts; ' + str(len(bad_files)) + ' files are still bad or'
+              ' missing. these are often fine on the server and this is hycom'
+              ' throttling us after a heavy download; retrying later usually'
+              ' works.')
     #remove_files_by_pattern(hydir,'*.tmp')
     return eecode
 
