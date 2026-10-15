@@ -86,6 +86,7 @@ LEAD_HOURS_3Z = list(range(0, 193, 3))
 KEEP_DAYS = 5          # retain the five most recent cycles, prune the rest
 DEFAULT_WORKERS = 10   # hycom's documented ceiling is 10 per IP
 DEFAULT_BUDGET_MIN = 45
+PROGRESS_EVERY_MIN = 5 # a 45 min run should say something in between
 PER_FILE_TRIES = 5     # stripping is random per request: ~40% when measured,
                        # so a handful of immediate retries usually wins
 
@@ -475,6 +476,11 @@ def fill(hydir, box, workers=DEFAULT_WORKERS, budget_min=DEFAULT_BUDGET_MIN,
 
     got = failed = skipped = 0
     reasons = {}
+    # progress used to be "every 20 waves", i.e. every 200 files. hycom's
+    # throughput swings by more than a factor of ten (58 files/min measured
+    # one hour, 3 the next), so that was either chatter or forty minutes of
+    # silence depending on the day. report on the clock instead.
+    next_report = t_start + PROGRESS_EVERY_MIN * 60
     # submit in waves rather than all at once. submitting is instant, so
     # checking the deadline before each submit bounded nothing -- the pool
     # still had to drain every queued task and a 3 min budget ran for as long
@@ -498,9 +504,15 @@ def fill(hydir, box, workers=DEFAULT_WORKERS, budget_min=DEFAULT_BUDGET_MIN,
                     failed += 1
                     key = why.split('(')[0].strip()
                     reasons[key] = reasons.get(key, 0) + 1
-        if got and (i // workers) % 20 == 0:
-            log('....    %d fetched, %d failed, %.1fmin elapsed'
-                % (got, failed, (time.time() - t_start) / 60.0))
+        if time.time() >= next_report:
+            done_frac = done_n / float(len(want)) if want else 1.0
+            rate = got / max((time.time() - t_start) / 60.0, 1e-9)
+            left = (len(want) - done_n) / rate if rate > 0 else float('inf')
+            log('....    %d of %d fetched (%.0f%%), %d failed, %.1f/min, '
+                '%s' % (got, len(want), 100 * done_frac, failed, rate,
+                        ('~%.0f min to finish the queue' % left)
+                        if left < 1e4 else 'stalled'))
+            next_report = time.time() + PROGRESS_EVERY_MIN * 60
 
     shutil.rmtree(scratch, ignore_errors=True)
 
@@ -511,7 +523,16 @@ def fill(hydir, box, workers=DEFAULT_WORKERS, budget_min=DEFAULT_BUDGET_MIN,
         log('BUDGET  %d files left for the next run' % skipped)
     log('DONE    %d fetched, %d failed, %d outstanding, %.1fmin'
         % (got, failed, failed + skipped, mins))
-    return 0 if (failed + skipped) == 0 else 1
+
+    # Exit status is read by cron, which mails the user on anything non-zero.
+    # Leftover work is the normal state of this job, not a fault: the budget
+    # is meant to run out, and the odd transient failure gets picked up an
+    # hour later. Returning 1 for those would mail on nearly every run and the
+    # mail would stop being read -- so reserve it for "this run accomplished
+    # nothing and the next one probably will not either".
+    if want and got == 0 and failed > 0:
+        return 1
+    return 0
 
 
 def in_maintenance(now=None):
