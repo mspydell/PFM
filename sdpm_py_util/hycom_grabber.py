@@ -24,14 +24,17 @@ would stop working the moment HYCOM changed its compression.
 """
 
 import os
+import re
 import sys
 import glob
 import json
 import time
+import fcntl
 import shutil
 import argparse
 import subprocess
 from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import numpy as np
@@ -86,6 +89,30 @@ DEFAULT_BUDGET_MIN = 45
 PER_FILE_TRIES = 5     # stripping is random per request: ~40% when measured,
                        # so a handful of immediate retries usually wins
 
+# The THREDDS catalog lists every file the server actually holds -- 7525 of
+# them in one 3.3 MB request taking ~8 s. That is cheaper than probing even a
+# single cycle (453 files) and it is the only way to tell "hycom has not
+# published this yet" apart from "hycom will never publish this".
+#
+# It matters because the server does have real gaps. Cycle 2026-10-14T12 has
+# no t3z and no s3z for leads t0000..t0036 -- temperature and salinity simply
+# do not exist for the first 36 h of that forecast, while ssh, u3z and v3z are
+# complete. Without the catalog those 26 files look like 26 fetch failures,
+# get retried 5x each every hour forever, and the real news (hycom is missing
+# a day and a half of T/S) never reaches the log.
+CATALOG_URL = ('https://tds.hycom.org/thredds/catalog/datasets/ESPC-D-V02/'
+               'data/forecasts/catalog.xml')
+CATALOG_CACHE = '.catalog.txt'   # inside the hycom dir
+CATALOG_MAX_AGE_MIN = 20         # refetch if older; cycles appear hourly at most
+
+# HYCOM takes the service down twice a day for maintenance, 02:00-03:00 and
+# 12:00-13:00 US Eastern. Eastern, not UTC: the offset shifts with daylight
+# saving, so an hourly cron written in UTC would drift into the window for
+# half the year. Fetching through it produces nothing but failed requests.
+MAINT_HOURS_ET = (2, 12)
+
+LOCK_NAME = '.grabber.lock'      # inside the hycom dir
+
 
 def cycle_files(cycle):
     """Every filename a complete cycle should have. cycle is '2026-10-13T12'."""
@@ -129,6 +156,67 @@ def parse_name(path):
     except (ValueError, IndexError):
         return None
     return prefix, cycle, valid
+
+
+def server_name(name):
+    """Our 'hy_ssh_<cycle>_<valid>.nc' -> hycom's filename for the same field.
+
+    Mirrors ocn_funs_forecast.myname_to_urls so a catalog listing can be
+    compared against what we want without building a URL for each one.
+    """
+    t_f = datetime.strptime(name[7:20], '%Y-%m-%dT%H')
+    t_2 = datetime.strptime(name[24:37], '%Y-%m-%dT%H')
+    hr = int((t_2 - t_f).total_seconds() // 3600)
+    return ('US058GCOM-OPSnce.espc-d-031-hycom_fcst_glby008_%s_t%04d_%s.nc'
+            % (t_f.strftime('%Y%m%d%H'), hr, name[3:6]))
+
+
+def cycle_in_catalog(cycle, catalog):
+    """Whether the server offers this cycle at all, as opposed to offering it
+    with gaps. 'not published yet' and 'published but incomplete' call for
+    very different log lines."""
+    tag = 'glby008_%s_' % datetime.strptime(
+        cycle, '%Y-%m-%dT%H').strftime('%Y%m%d%H')
+    return any(tag in n for n in catalog)
+
+
+def fetch_catalog(hydir, max_age_min=CATALOG_MAX_AGE_MIN, log=print):
+    """Every filename the server currently offers, as a set.
+
+    Cached on disk so several runs in one hour cost one request. Returns an
+    empty set on failure, and the caller then falls back to asking for
+    everything -- degraded, but never worse than having no catalog at all.
+    """
+    cache = os.path.join(hydir, CATALOG_CACHE)
+    if os.path.isfile(cache):
+        age = (time.time() - os.path.getmtime(cache)) / 60.0
+        if age < max_age_min:
+            with open(cache) as f:
+                names = {ln.strip() for ln in f if ln.strip()}
+            log('CATALOG %d files (cached, %.0f min old)' % (len(names), age))
+            return names
+    try:
+        r = subprocess.run(['curl', '-s', '--max-time', '180', CATALOG_URL],
+                           capture_output=True, text=True, timeout=240)
+    except subprocess.TimeoutExpired:
+        log('CATALOG fetch timed out -- proceeding without it')
+        return set()
+    if r.returncode != 0 or not r.stdout:
+        log('CATALOG fetch failed (rc=%d) -- proceeding without it' % r.returncode)
+        return set()
+    names = set(re.findall(r'name="(US058GCOM[^"]*\.nc)"', r.stdout))
+    if not names:
+        log('CATALOG parsed 0 names -- proceeding without it')
+        return set()
+    tmp = cache + '.part'
+    try:
+        with open(tmp, 'w') as f:
+            f.write('\n'.join(sorted(names)) + '\n')
+        os.replace(tmp, cache)
+    except OSError:
+        pass
+    log('CATALOG %d files listed by the server' % len(names))
+    return names
 
 
 def verify_file(path):
@@ -217,7 +305,7 @@ def scan(hycom_dir):
     return out
 
 
-def fetch_one(name, hydir, box, tries=PER_FILE_TRIES, log=print):
+def fetch_one(name, hydir, box, tries=PER_FILE_TRIES, scratch=None, log=print):
     """Fetch one file and only keep it if it verifies.
 
     Writes to <name>.part and renames on success, so a failed or stripped
@@ -230,6 +318,13 @@ def fetch_one(name, hydir, box, tries=PER_FILE_TRIES, log=print):
     import ocn_funs_forecast as O
     url = O.myname_to_urls([name])[0]
     final = os.path.join(hydir, name)
+    # When a DAP open fails, ncks decides the URL might be an HPSS path and
+    # wgets it, creating ./tds.hycom.org/thredds/dodsC/... under the current
+    # directory and leaving junk in it. That is where the tds.hycom.org trees
+    # kept appearing in the repo. Run it somewhere disposable instead.
+    if scratch is None:
+        scratch = os.path.join(hydir, '.ncks_scratch')
+    os.makedirs(scratch, exist_ok=True)
     part = final + '.part'
     s_, n_, w_, e_ = box
     last = 'no attempt'
@@ -239,11 +334,15 @@ def fetch_one(name, hydir, box, tries=PER_FILE_TRIES, log=print):
                 ['ncks', '-d', 'lon,' + str(w_) + ',' + str(e_),
                  '-d', 'lat,' + str(s_) + ',' + str(n_),
                  url, '-4', '-O', part],
-                capture_output=True, text=True, timeout=300)
+                capture_output=True, text=True, timeout=300, cwd=scratch)
         except subprocess.TimeoutExpired:
             last = 'timeout'
             continue
         if r.returncode != 0 or not os.path.isfile(part):
+            err = (r.stderr or '')
+            if 'file not found' in err or 'ERROR 404' in err:
+                # the server does not have it; retrying only burns requests
+                return False, 'not on server'
             last = 'ncks rc=%d' % r.returncode
             continue
         state, reason = verify_file(part)
@@ -264,13 +363,9 @@ def fetch_one(name, hydir, box, tries=PER_FILE_TRIES, log=print):
 
 
 def cycle_published(cycle, log=print):
-    """One cheap HEAD-ish probe per cycle before queueing its 453 files.
-
-    Today's 12Z cycle usually is not up yet. Without this the fill spends its
-    whole budget failing against URLs that do not exist -- 1.5 min produced
-    150 failures and 0 fetches when measured -- and the hycom forum warns that
-    requesting URLs that do not exist is itself a way to get an IP blocked.
-    """
+    """Probe a single cycle. Superseded by the catalog for fill, kept because
+    it answers the question for one cycle without pulling 3.3 MB -- useful
+    from the shell and as a fallback if the catalog is ever unavailable."""
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import ocn_funs_forecast as O
     name = 'hy_ssh_%s:00_%s:00.nc' % (cycle, cycle)
@@ -315,6 +410,7 @@ def fill(hydir, box, workers=DEFAULT_WORKERS, budget_min=DEFAULT_BUDGET_MIN,
     """
     t_start = time.time()
     deadline = t_start + budget_min * 60
+    scratch = os.path.join(hydir, '.ncks_scratch')
     keep = recent_cycles()
     log('START   keep=%s workers=%d budget=%dmin' % (','.join(keep), workers,
                                                      budget_min))
@@ -333,16 +429,39 @@ def fill(hydir, box, workers=DEFAULT_WORKERS, budget_min=DEFAULT_BUDGET_MIN,
             (len(bad), bad[0]['reason'].split('(')[0].strip()))
 
     have = {r['file'] for r in rows if r['state'] == OK}
+
+    # Ask the server what it actually has before asking it for anything. One
+    # request, and it removes every doomed fetch from the queue: unpublished
+    # cycles, retired cycles, and the per-file gaps hycom leaves behind.
+    catalog = fetch_catalog(hydir, log=log)
+
     want = []
     for cyc in keep:                       # newest first
         need = [f for f in cycle_files(cyc) if f not in have]
         if not need:
             continue
-        if not cycle_published(cyc, log=log):
-            log('SKIP    cycle %s not published yet (%d files deferred)'
+        if not catalog:
+            want += need                   # no catalog: fall back to trying
+            continue
+        offered = [f for f in need if server_name(f) in catalog]
+        absent = len(need) - len(offered)
+        if absent and not cycle_in_catalog(cyc, catalog):
+            log('SKIP    cycle %s not on the server yet (%d files deferred)'
                 % (cyc, len(need)))
             continue
-        want += need
+        if absent:
+            # hycom has the cycle but not all of it. say which fields, because
+            # a forecast started here is missing that variable outright, and
+            # no amount of retrying will produce it.
+            miss = {}
+            for f in need:
+                if server_name(f) not in catalog:
+                    miss[f[3:6]] = miss.get(f[3:6], 0) + 1
+            log('GAP     cycle %s: server does not have %s (never will -- '
+                'not counted as outstanding)'
+                % (cyc, ', '.join('%d %s' % (n, k)
+                                  for k, n in sorted(miss.items()))))
+        want += offered
     log('SCAN    %d verified on disk, %d to fetch' % (len(have), len(want)))
 
     got = failed = skipped = 0
@@ -358,7 +477,8 @@ def fill(hydir, box, workers=DEFAULT_WORKERS, budget_min=DEFAULT_BUDGET_MIN,
             break
         wave = want[i:i + workers]
         with ThreadPoolExecutor(max_workers=workers) as ex:
-            futs = {ex.submit(fetch_one, name, hydir, box, log=log): name
+            futs = {ex.submit(fetch_one, name, hydir, box,
+                              scratch=scratch, log=log): name
                     for name in wave}
             for fu in as_completed(futs):
                 ok, why = fu.result()
@@ -373,6 +493,8 @@ def fill(hydir, box, workers=DEFAULT_WORKERS, budget_min=DEFAULT_BUDGET_MIN,
             log('....    %d fetched, %d failed, %.1fmin elapsed'
                 % (got, failed, (time.time() - t_start) / 60.0))
 
+    shutil.rmtree(scratch, ignore_errors=True)
+
     mins = (time.time() - t_start) / 60.0
     for key, cnt in sorted(reasons.items(), key=lambda kv: -kv[1]):
         log('FAILED  %4d  %s' % (cnt, key))
@@ -381,6 +503,42 @@ def fill(hydir, box, workers=DEFAULT_WORKERS, budget_min=DEFAULT_BUDGET_MIN,
     log('DONE    %d fetched, %d failed, %d outstanding, %.1fmin'
         % (got, failed, failed + skipped, mins))
     return 0 if (failed + skipped) == 0 else 1
+
+
+def in_maintenance(now=None):
+    """True inside a hycom maintenance hour. Returns (bool, local time str)."""
+    et = ZoneInfo('America/New_York')
+    now = (now or datetime.now(timezone.utc)).astimezone(et)
+    return now.hour in MAINT_HOURS_ET, now.strftime('%H:%M %Z')
+
+
+class CacheLock:
+    """One grabber at a time. The cron fires hourly and a catch-up run can
+    exceed an hour, so without this two runs fetch the same files into the
+    same .part paths and fight each other."""
+
+    def __init__(self, hydir):
+        self.path = os.path.join(hydir, LOCK_NAME)
+        self.fh = None
+
+    def __enter__(self):
+        self.fh = open(self.path, 'w')
+        try:
+            fcntl.flock(self.fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            self.fh.close()
+            self.fh = None
+            return False
+        self.fh.write('%d %s\n' % (os.getpid(),
+                                   datetime.now(timezone.utc).isoformat()))
+        self.fh.flush()
+        return True
+
+    def __exit__(self, *exc):
+        if self.fh:
+            fcntl.flock(self.fh, fcntl.LOCK_UN)
+            self.fh.close()
+        return False
 
 
 def hycom_dir_from_pkl(pkl_fnm):
@@ -403,6 +561,11 @@ def main():
                     help='minutes before fill stops and leaves the rest')
     ap.add_argument('--dry-run', action='store_true',
                     help='fill: say what would happen, touch nothing')
+    ap.add_argument('--log', default=None,
+                    help='fill: append to this file instead of stdout. '
+                         'YYYYMMDD in the name is replaced with today (UTC)')
+    ap.add_argument('--force', action='store_true',
+                    help='fill: run even during a hycom maintenance hour')
     args = ap.parse_args()
 
     hydir = args.dir or hycom_dir_from_pkl(args.pkl)
@@ -418,21 +581,48 @@ def main():
         import init_funs_forecast as initfuns
         b = initfuns.get_model_info(args.pkl)['latlonbox']['L1']
         box = (b[0], b[1], b[2] + 360.0, b[3] + 360.0)
-        stamp = lambda m: print('%s  %s' % (
-            datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%MZ'), m), flush=True)
+        sink = sys.stdout
+        if args.log:
+            path = args.log.replace(
+                'YYYYMMDD', datetime.now(timezone.utc).strftime('%Y%m%d'))
+            os.makedirs(os.path.dirname(path) or '.', exist_ok=True)
+            sink = open(path, 'a')
+
+        def stamp(m):
+            sink.write('%s  %s\n' % (
+                datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%MZ'), m))
+            sink.flush()
+
+        down, et_now = in_maintenance()
+        if down and not args.force:
+            stamp('MAINT   hycom is in its maintenance hour (%s) -- not running'
+                  % et_now)
+            return 0
         if args.dry_run:
             keep = recent_cycles()
             rows = scan(hydir)
             have = {r['file'] for r in rows if r['state'] == OK}
             bad = [r for r in rows if r['state'] != OK]
-            want = [f for c in keep for f in cycle_files(c) if f not in have]
+            catalog = fetch_catalog(hydir, log=stamp)
+            want = []
+            for c in keep:
+                nd = [f for f in cycle_files(c) if f not in have]
+                want += ([f for f in nd if server_name(f) in catalog]
+                         if catalog else nd)
             stale = sorted({r['cycle'] for r in rows if r['cycle'] not in keep})
             stamp('DRY-RUN keep=%s' % ','.join(keep))
             stamp('DRY-RUN would prune cycles: %s' % (','.join(stale) or 'none'))
             stamp('DRY-RUN would delete %d bad, fetch %d files' % (len(bad), len(want)))
             return 0
-        return fill(hydir, box, workers=args.workers, budget_min=args.budget,
-                    log=stamp)
+        lock = CacheLock(hydir)
+        if not lock.__enter__():
+            stamp('LOCKED  another grabber is still running -- not starting')
+            return 0
+        try:
+            return fill(hydir, box, workers=args.workers,
+                        budget_min=args.budget, log=stamp)
+        finally:
+            lock.__exit__()
 
     rows = scan(hydir)
 
