@@ -223,7 +223,9 @@ def fetch_catalog(hydir, max_age_min=CATALOG_MAX_AGE_MIN, log=print):
         age = (time.time() - os.path.getmtime(cache)) / 60.0
         with open(cache) as f:
             names = {ln.strip() for ln in f if ln.strip()}
-        log('CATALOG %s -- using the cached copy (%d files, %.0f min old)'
+        log('CATALOG %s -- using the saved listing (%d names, %.0f min old). '
+            'This is hycom\'s index of what it offers, not our data; no '
+            'verified file is refetched because of it.'
             % (why, len(names), age))
         return names
 
@@ -232,7 +234,8 @@ def fetch_catalog(hydir, max_age_min=CATALOG_MAX_AGE_MIN, log=print):
         if age < max_age_min:
             with open(cache) as f:
                 names = {ln.strip() for ln in f if ln.strip()}
-            log('CATALOG %d files (cached, %.0f min old)' % (len(names), age))
+            log('CATALOG %d names (saved listing, %.0f min old)'
+                % (len(names), age))
             return names
     # 90 s, not 180: a 2 min budget once went entirely on one catalog attempt
     # that timed out anyway. the fallback below costs nothing.
@@ -253,7 +256,7 @@ def fetch_catalog(hydir, max_age_min=CATALOG_MAX_AGE_MIN, log=print):
         os.replace(tmp, cache)
     except OSError:
         pass
-    log('CATALOG %d files listed by the server' % len(names))
+    log('CATALOG %d names listed by the server' % len(names))
     return names
 
 
