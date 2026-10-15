@@ -931,6 +931,38 @@ def run_fore_LV1(pkl_fnm):
               'place -- skipping the HYCOM download, the regridding, the IC/BC '
               'build and the ocean plots. ***')
 
+    # Bring the cache up to date before choosing a cycle.
+    #
+    # The hourly cron normally leaves nothing to do here -- a minute or two --
+    # but PFM starts at 01:00 and must not depend on the cron having worked.
+    # If it has been down for a day the forecast catches up for itself rather
+    # than quietly running on stale hycom or shortening itself, which is how a
+    # broken cron would otherwise present.
+    #
+    # The grabber takes a lock, so if the :23 cron is mid-run this waits for
+    # nothing and simply reports LOCKED -- the cron run is already doing the
+    # same work. No need to carve an exception out of the crontab for this
+    # hour; the lock is what makes the two safe together.
+    if not skip_ocn and PFM.get('hycom_use_cache', True):
+        gb = PFM.get('hycom_grabber_budget_min', 45)
+        print('bringing the hycom cache up to date before picking a cycle '
+              '(hycom_grabber, budget ' + str(gb) + ' min)...')
+        os.chdir('../sdpm_py_util')
+        cmd_list = ['python','-u','-W','ignore','hycom_grabber.py','fill',
+                    '--budget', str(gb), '--pkl', pkl_fnm,
+                    '--log', os.path.join(
+                        os.path.dirname(os.path.dirname(
+                            os.path.abspath(__file__))),
+                        'log', 'hycom_grabber_YYYYMMDD.log'),
+                    '--also-stdout']
+        retg = subprocess.run(cmd_list)
+        os.chdir('../driver')
+        if retg.returncode != 0:
+            print('hycom_grabber exited ' + str(retg.returncode) +
+                  ' -- continuing. The coverage check in '
+                  'get_hycom_foretime_v2 decides whether we actually have '
+                  'enough, and will download if we do not.')
+
     print('getting the hycom forecast time...')
     print('this will clean, download new hycom files, then find the forecast date covering the PFM times.')
     t01 = datetime.now()

@@ -112,7 +112,16 @@ CATALOG_MAX_AGE_MIN = 20         # refetch if older; cycles appear hourly at mos
 # half the year. Fetching through it produces nothing but failed requests.
 MAINT_HOURS_ET = (2, 12)
 
+# for the log banner only -- the maintenance window is Eastern, PFM is Pacific
+LOCAL_TZ = 'America/Los_Angeles'
+
 LOCK_NAME = '.grabber.lock'      # inside the hycom dir
+
+# A mirror on /dataSIO, so losing /scratch costs a copy rather than a day of
+# re-downloading from a server that has been slow and lossy since 2026-10-07.
+# It tracks the cache exactly, retention included: the point is "restore the
+# working set", not "keep everything forever".
+ARCHIVE_DIR = '/dataSIO/PFM_Simulations/Archive/hycom_raw'
 
 # hycom allows 10 concurrent connections per IP and we use all 10. a PFM
 # forecast still fetches hycom itself, with its own 10, so a grabber that
@@ -198,6 +207,26 @@ def fetch_catalog(hydir, max_age_min=CATALOG_MAX_AGE_MIN, log=print):
     everything -- degraded, but never worse than having no catalog at all.
     """
     cache = os.path.join(hydir, CATALOG_CACHE)
+
+    def cached(why):
+        """Fall back to the copy on disk at any age.
+
+        Going without a catalog is much worse than using a stale one. The
+        server's file list changes once a day, so an hours-old copy is very
+        nearly right -- whereas no catalog means queueing cycles that are not
+        published, which is the failure the catalog was added to prevent and
+        which the hycom forum calls a way to get an IP blocked.
+        """
+        if not os.path.isfile(cache):
+            log('CATALOG %s, and no cached copy -- proceeding without it' % why)
+            return set()
+        age = (time.time() - os.path.getmtime(cache)) / 60.0
+        with open(cache) as f:
+            names = {ln.strip() for ln in f if ln.strip()}
+        log('CATALOG %s -- using the cached copy (%d files, %.0f min old)'
+            % (why, len(names), age))
+        return names
+
     if os.path.isfile(cache):
         age = (time.time() - os.path.getmtime(cache)) / 60.0
         if age < max_age_min:
@@ -205,19 +234,18 @@ def fetch_catalog(hydir, max_age_min=CATALOG_MAX_AGE_MIN, log=print):
                 names = {ln.strip() for ln in f if ln.strip()}
             log('CATALOG %d files (cached, %.0f min old)' % (len(names), age))
             return names
+    # 90 s, not 180: a 2 min budget once went entirely on one catalog attempt
+    # that timed out anyway. the fallback below costs nothing.
     try:
-        r = subprocess.run(['curl', '-s', '--max-time', '180', CATALOG_URL],
-                           capture_output=True, text=True, timeout=240)
+        r = subprocess.run(['curl', '-s', '--max-time', '90', CATALOG_URL],
+                           capture_output=True, text=True, timeout=120)
     except subprocess.TimeoutExpired:
-        log('CATALOG fetch timed out -- proceeding without it')
-        return set()
+        return cached('fetch timed out')
     if r.returncode != 0 or not r.stdout:
-        log('CATALOG fetch failed (rc=%d) -- proceeding without it' % r.returncode)
-        return set()
+        return cached('fetch failed (rc=%d)' % r.returncode)
     names = set(re.findall(r'name="(US058GCOM[^"]*\.nc)"', r.stdout))
     if not names:
-        log('CATALOG parsed 0 names -- proceeding without it')
-        return set()
+        return cached('parsed 0 names')
     tmp = cache + '.part'
     try:
         with open(tmp, 'w') as f:
@@ -313,6 +341,122 @@ def scan(hycom_dir):
                        if os.path.isfile(path) else 0.0,
         })
     return out
+
+
+def cycle_reach_days(rows, cycle):
+    """How long a PFM forecast this cycle could drive, in days.
+
+    The limit is the shortest contiguous run of any one variable measured from
+    the cycle's own init: a cycle with 8 days of ssh and 2 days of salinity is
+    a 2 day cycle. Files after an interior gap do not count, and neither does
+    a block that starts late -- that is the 2026-10-14 case, where t3z and s3z
+    begin at lead 39 h, so the cycle drives nothing at all despite holding 427
+    good files.
+    """
+    t0 = datetime.strptime(cycle, '%Y-%m-%dT%H')
+    worst = None
+    for prefix in VAR_OF_PREFIX:
+        step = 1 if prefix == 'ssh' else 3
+        times = sorted(
+            datetime.strptime(r['valid'], '%Y-%m-%dT%H')
+            for r in rows
+            if r['state'] == OK and r['cycle'] == cycle and r['prefix'] == prefix)
+        if not times or times[0] != t0:
+            return 0.0                    # nothing usable from the init
+        reach = times[0]
+        for a, b in zip(times, times[1:]):
+            if (b - a).total_seconds() / 3600.0 > step:
+                break
+            reach = b
+        if worst is None or reach < worst:
+            worst = reach
+    if worst is None:
+        return 0.0
+    return (worst - t0).total_seconds() / 86400.0
+
+
+def inventory(rows, catalog, keep, log=print):
+    """Close every run with what we actually have. Without this the log says
+    what moved but never what is on hand, which is the thing you want at
+    07:00 when a forecast is about to start."""
+    log('INVENTORY  cycle          files   missing  absent  PFM days')
+    for cyc in keep:
+        want_n = len(cycle_files(cyc))
+        have = [r for r in rows if r['cycle'] == cyc and r['state'] == OK]
+        if catalog:
+            absent = sum(1 for f in cycle_files(cyc)
+                         if server_name(f) not in catalog)
+        else:
+            absent = 0
+        missing = want_n - len(have) - absent
+        days = cycle_reach_days(rows, cyc)
+        note = ''
+        if not have:
+            note = '   (not on the server yet)' if absent == want_n else ''
+        elif days == 0.0:
+            note = '   <-- unusable: a variable is missing from the start'
+        log('           %s  %4d/%-4d  %6d  %6d  %7.1f%s'
+            % (cyc, len(have), want_n, missing, absent, days, note))
+
+
+def mirror(hydir, archdir, keep, log=print):
+    """Copy the verified cache to /dataSIO and drop what the cache has dropped.
+
+    Copies by name and size, so an interrupted run resumes rather than
+    restarting, and writes through a .part so a half-copy is never mistaken
+    for a good file. Never the source of truth: if a mirrored file disagrees
+    with the cache, the cache wins.
+    """
+    if not archdir:
+        return
+    try:
+        os.makedirs(archdir, exist_ok=True)
+    except OSError as e:
+        log('MIRROR  cannot use %s: %s' % (archdir, e))
+        return
+
+    t0 = time.time()
+    src = {}
+    for path in glob.glob(os.path.join(hydir, 'hy_*.nc')):
+        meta = parse_name(path)
+        if meta and meta[1] in keep:
+            src[os.path.basename(path)] = os.path.getsize(path)
+
+    copied = removed = 0
+    for name, size in sorted(src.items()):
+        dst = os.path.join(archdir, name)
+        try:
+            if os.path.isfile(dst) and os.path.getsize(dst) == size:
+                continue
+        except OSError:
+            pass
+        tmp = dst + '.part'
+        try:
+            shutil.copyfile(os.path.join(hydir, name), tmp)
+            os.replace(tmp, dst)
+            try:
+                os.chmod(dst, os.stat(dst).st_mode | 0o660)
+            except OSError:
+                pass
+            copied += 1
+        except OSError as e:
+            log('MIRROR  could not copy %s: %s' % (name, e))
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+
+    # the mirror follows the cache, retention included
+    for path in glob.glob(os.path.join(archdir, 'hy_*.nc')):
+        if os.path.basename(path) not in src:
+            try:
+                os.remove(path)
+                removed += 1
+            except OSError:
+                pass
+
+    log('MIRROR  %s: %d copied, %d removed, %d files total, %.1fmin'
+        % (archdir, copied, removed, len(src), (time.time() - t0) / 60.0))
 
 
 def fetch_one(name, hydir, box, tries=PER_FILE_TRIES, scratch=None, log=print):
@@ -412,7 +556,7 @@ def prune(hydir, keep, log=print):
 
 
 def fill(hydir, box, workers=DEFAULT_WORKERS, budget_min=DEFAULT_BUDGET_MIN,
-         log=print):
+         archdir=ARCHIVE_DIR, log=print):
     """Verify, delete what fails, refetch it along with anything missing.
 
     Newest cycle first, so a run that runs out of budget still leaves the
@@ -422,6 +566,14 @@ def fill(hydir, box, workers=DEFAULT_WORKERS, budget_min=DEFAULT_BUDGET_MIN,
     deadline = t_start + budget_min * 60
     scratch = os.path.join(hydir, '.ncks_scratch')
     keep = recent_cycles()
+    # Each run opens with a banner naming the local hour, because these all
+    # land in one file per day and "which grab was this" is the first thing
+    # you ask when reading it back.
+    loc = datetime.now(timezone.utc).astimezone(ZoneInfo(LOCAL_TZ))
+    log('=' * 68)
+    log('%s GRAB   %s' % (loc.strftime('%H:%M %Z'),
+                          loc.strftime('%a %Y-%m-%d')))
+    log('=' * 68)
     log('START   keep=%s workers=%d budget=%dmin' % (','.join(keep), workers,
                                                      budget_min))
     prune(hydir, keep, log=log)
@@ -530,6 +682,12 @@ def fill(hydir, box, workers=DEFAULT_WORKERS, budget_min=DEFAULT_BUDGET_MIN,
     # hour later. Returning 1 for those would mail on nearly every run and the
     # mail would stop being read -- so reserve it for "this run accomplished
     # nothing and the next one probably will not either".
+    # rescan rather than reusing the pre-fetch rows: the whole point is to
+    # report what is on disk NOW, after everything this run did.
+    rows = scan(hydir)
+    inventory(rows, catalog, keep, log=log)
+    mirror(hydir, archdir, keep, log=log)
+
     if want and got == 0 and failed > 0:
         return 1
     return 0
@@ -626,6 +784,13 @@ def main():
                          'YYYYMMDD in the name is replaced with today (UTC)')
     ap.add_argument('--force', action='store_true',
                     help='fill: run even during a hycom maintenance hour')
+    ap.add_argument('--archive', default=ARCHIVE_DIR,
+                    help='fill: mirror the cache here (empty string = off)')
+    ap.add_argument('--also-stdout', action='store_true',
+                    help='fill: with --log, print as well as append. PFM uses '
+                         'this so the grab appears both in the daily grabber '
+                         'log and in the forecast log. The cron must not: its '
+                         'wrapper already redirects stdout to the same file.')
     args = ap.parse_args()
 
     hydir = args.dir or hycom_dir_from_pkl(args.pkl)
@@ -649,9 +814,13 @@ def main():
             sink = open(path, 'a')
 
         def stamp(m):
-            sink.write('%s  %s\n' % (
-                datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%MZ'), m))
+            line = '%s  %s\n' % (
+                datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%MZ'), m)
+            sink.write(line)
             sink.flush()
+            if args.also_stdout and sink is not sys.stdout:
+                sys.stdout.write(line)
+                sys.stdout.flush()
 
         down, et_now = in_maintenance()
         if down and not args.force:
@@ -687,7 +856,8 @@ def main():
             return 0
         try:
             return fill(hydir, box, workers=args.workers,
-                        budget_min=args.budget, log=stamp)
+                        budget_min=args.budget,
+                        archdir=args.archive or None, log=stamp)
         finally:
             lock.__exit__()
 
