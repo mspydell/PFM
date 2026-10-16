@@ -271,12 +271,19 @@ def apply_da_swan_hotstart(PFM: dict, t_fore, lookback_days: int = 3) -> str | N
 
     for k in range(1, lookback_days + 1):
         t_prev = t_fore - _dt.timedelta(days=k)
-        stem = C.SWAN_RST_DA_OUT / f"LV4_DA_swan_rst_{t_prev:%Y%m%d%H%M}.dat"
-        parts = sorted(C.SWAN_RST_DA_OUT.glob(stem.name + "-*"))
-        if not parts:
-            # cycles before the 'DA' rename wrote the un-marked name
-            stem = C.SWAN_RST_DA_OUT / f"LV4_swan_rst_{t_prev:%Y%m%d%H%M}.dat"
-            parts = sorted(C.SWAN_RST_DA_OUT.glob(stem.name + "-*"))
+        # three name forms, newest first -- see stage_swan_hotstart.  SWAN takes
+        # the stem and appends the rank itself, so the _024 in the name is
+        # inert here; it is carried only so the file says what it holds.
+        stamp = t_prev.strftime("%Y%m%d%H%M")
+        hrs = int(round((t_fore - t_prev).total_seconds() / 3600.0))
+        stem = parts = None
+        for nm in (f"LV4_DA_swan_rst_{stamp}_{hrs:03d}.dat",
+                   f"LV4_DA_swan_rst_{stamp}.dat",
+                   f"LV4_swan_rst_{stamp}.dat"):
+            cand = sorted(C.SWAN_RST_DA_OUT.glob(nm + "-*"))
+            if cand:
+                stem, parts = C.SWAN_RST_DA_OUT / nm, cand
+                break
         if not parts:
             continue
         txt = f"HOTSTART '{stem}'"

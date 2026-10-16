@@ -275,7 +275,20 @@ def build_minfo(t_fore: DT.datetime, t_da: DT.datetime, *,
     # first cycle and would have crashed the same parsers.
     _s1 = MI2["sim_time_1"].strftime("%Y%m%d%H%M")
     _s2 = MI2["sim_time_2"].strftime("%Y%m%d%H%M")
-    MI2["lv4_swan_rst_name"] = f"LV4_DA_swan_rst_{_s1}.dat"
+    # _024 in the name, because the STAMP IS THE START TIME and the surviving
+    # content is ~24 h later.  SWAN writes this file every lv4_swan_rst_int_hr
+    # to the same name with no watcher snapshotting it, so what is left at the
+    # end is the LAST write -- read out of the file itself, 20261012.235600 for
+    # the cycle stamped 202610120000.  That is 23:56, one 240 s step short of
+    # 24 h, because this restart write coincides with the end of the COMPUTE
+    # window; PFM's own _HHH files land exactly on the hour because for a 5-day
+    # run t=24 h is an interior mark.  4 minutes is one timestep and physically
+    # irrelevant for swell, so the label is _024.
+    #
+    # This is also the name stage_swan_hotstart used to SYNTHESIZE as a symlink
+    # to satisfy PFM's stamp+lead lookup.  Writing it directly removes that
+    # bridge: the next cycle can link the file as it stands.
+    MI2["lv4_swan_rst_name"] = f"LV4_DA_swan_rst_{_s1}_024.dat"
     MI2["lv4_rst_name"] = f"LV4_DA_ocean_rst_{_s1}_{_s2}.nc"
     MI2["lv4_swan_rst_name_full"] = str(
         Path(MI2["restart_swanfiles_dir_out"]) / MI2["lv4_swan_rst_name"])
@@ -590,25 +603,40 @@ def stage_swan_hotstart(t_da: DT.datetime, dest: Path | None = None,
     # WARM: the DA's own previous cycle
     for k in range(1, lookback_days + 1):
         t_prev = t_da - DT.timedelta(days=k)
+        stamp = t_prev.strftime("%Y%m%d%H%M")
+        hrs = int(round((t_da - t_prev).total_seconds() / 3600.0))
+
+        # THREE name forms, newest first.  Since the DA started writing the
+        # offset into the name itself, the file already carries the _HHH that
+        # PFM's stamp+lead lookup wants and can be linked AS IT STANDS -- no
+        # synthesising.  The two older forms are unsuffixed and still need the
+        # label bridged on: LV4_DA_swan_rst_ from the 10/12 cycle, and the
+        # un-marked LV4_swan_rst_ from 10/06..10/11.  Both can go once those
+        # cycles age out of use.
         src = sorted(C.SWAN_RST_DA_OUT.glob(
-            f"LV4_DA_swan_rst_{t_prev:%Y%m%d%H%M}.dat-*"))
+            f"LV4_DA_swan_rst_{stamp}_{hrs:03d}.dat-*"))
+        synth = False
         if not src:
-            # cycles before the 'DA' rename wrote the un-marked name; accept it
-            # so the six already-run cycles stay usable.  Drop when they age off.
-            src = sorted(C.SWAN_RST_DA_OUT.glob(
-                f"LV4_swan_rst_{t_prev:%Y%m%d%H%M}.dat-*"))
+            for pat in (f"LV4_DA_swan_rst_{stamp}.dat-*",
+                        f"LV4_swan_rst_{stamp}.dat-*"):
+                src = sorted(C.SWAN_RST_DA_OUT.glob(pat))
+                if src:
+                    synth = True
+                    break
         if not src:
             continue
-        hrs = int(round((t_da - t_prev).total_seconds() / 3600.0))
+
         for f in src:
             rank = f.name.rsplit("-", 1)[-1]
-            link = dest / ("LV4_swan_rst_%s_%03d.dat-%s"
-                           % (t_prev.strftime("%Y%m%d%H%M"), hrs, rank))
+            name = (f"LV4_swan_rst_{stamp}_{hrs:03d}.dat-{rank}" if synth
+                    else f.name)
+            link = dest / name
             if link.is_symlink() or link.exists():
                 link.unlink()
             link.symlink_to(f)
         print(f"    SWAN hotstart WARM from the DA's own previous cycle: "
-              f"LV4_swan_rst_{t_prev:%Y%m%d%H%M}_{hrs:03d} "
+              f"{src[0].name.rsplit('-', 1)[0]}"
+              f"{'' if not synth else f' -> _{hrs:03d}'} "
               f"({t_prev:%Y-%m-%d %H}Z + {hrs} h = {t_da:%Y-%m-%d %H}Z)")
         return len(src)
 

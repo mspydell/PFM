@@ -1387,6 +1387,18 @@ def stage_lv4_fwd(ctx: Ctx) -> dict:
     _warn_on_roms_errors(log)
     arch = V.ensure_archived(out, C.ARCHIVE / "LV4_His")
     V.ensure_archived(log, C.ARCHIVE / "Log")
+
+    # Archive this cycle's SWAN restart -- the _024 set, which is the whole
+    # output here: with no check_and_move watcher the DA keeps only the last
+    # write, and that IS t = 24 h.  Separate DA/ and PFM/ trees because the two
+    # are different solutions on the same clock.  Pruned to 10 days (2.5 GB a
+    # cycle).
+    if str(C.PFM_PYDIR) not in sys.path:
+        sys.path.insert(0, str(C.PFM_PYDIR))
+    import util_functions as UF
+    UF.archive_lv4_swan_restarts(str(pkl), 'DA')
+    UF.prune_lv4_swan_restarts(days=10, which='DA')
+
     return {"LV4": {"scratch": out, "archive": arch}}
 
 

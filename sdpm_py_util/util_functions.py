@@ -1,5 +1,7 @@
 import os
 import glob
+import glob as _glob
+import re as _re
 import numpy as np
 import warnings
 import pickle
@@ -40,6 +42,138 @@ def copy_mv_nc_file(nc_type,lvl,pkl_fnm):
 
     fn_out_full = dir_out + fn_out
     shutil.move(fn_in_full, fn_out_full)
+
+# ---------------------------------------------------------------------------
+# LV4 SWAN restart archive.  PRUNED to 10 days, unlike the grib and LV1_atm
+# archives -- one 72-rank set is 2.5 GB, which is a different order entirely
+# from 14 MB of gribs.
+#
+# ONLY THE _024 SET.  That is the one the next cycle hotstarts from.  PFM's
+# check_and_move also keeps _000.._120, 21 snapshots per cycle, but nothing
+# reads the intermediates and archiving them all would cost ~785 GB for 10-15
+# days instead of ~25 GB.
+#
+#   <ARCHIVE>/DA/    written by the DA's LV4 forward run
+#   <ARCHIVE>/PFM/   written by PFM's own LV4 forecast
+#
+# Kept apart because they are different solutions for the same clock and would
+# otherwise collide: PFM's name for a 10/14 start is LV4_swan_rst_202610140000_024
+# and the DA's is LV4_DA_swan_rst_202610140000_024, but only because the DA was
+# renamed -- before that they were identical strings.
+# ---------------------------------------------------------------------------
+LV4_SWAN_RST_ARCHIVE = '/dataSIO/PFM_Simulations/Archive/LV4_swan_restarts'
+
+# <anything>_<12-digit stamp>_<3-digit lead>.dat-<3-digit rank>
+# Parsed by REGEX, not fixed offsets: the prefix is LV4_swan_rst_ for PFM and
+# LV4_DA_swan_rst_ for the DA, so any offset-based parse breaks on one of them.
+_LV4_SWAN_RST_RE = _re.compile(r'_(\d{12})_(\d{3})\.dat-(\d{3})$')
+
+
+def _lv4_swan_rst_dir(PFM, which):
+    root = str(PFM.get('lv4_swan_rst_archive_dir', LV4_SWAN_RST_ARCHIVE))
+    return os.path.join(root, which)
+
+
+def _lv4_swan_024_name(PFM):
+    """This run's _024 basename, whichever naming its writer used."""
+    nm = PFM['lv4_swan_rst_name']
+    if nm.endswith('_024.dat'):
+        return nm                      # the DA writes the offset in directly
+    if nm.endswith('.dat'):
+        return nm[:-4] + '_024.dat'    # PFM's check_and_move adds it
+    return nm + '_024.dat'
+
+
+def archive_lv4_swan_restarts(pkl_fnm, which):
+    """Copy this run's _024 SWAN restart set into the archive.  which: DA|PFM.
+
+    Write-once per file.  Every failure is reported and swallowed: archiving a
+    restart is never a reason to fail a forecast that has already run.
+
+    Returns the number of parts newly copied.
+    """
+    import shutil as _sh
+
+    if which not in ('DA', 'PFM'):
+        print('archive_lv4_swan_restarts: which must be DA or PFM, got '
+              + repr(which))
+        return 0
+    try:
+        PFM = initfuns.get_model_info(pkl_fnm)
+        src_dir = PFM['restart_swanfiles_dir_out']
+        base = _lv4_swan_024_name(PFM)
+        src = sorted(_glob.glob(os.path.join(src_dir, base + '-*')))
+        if not src:
+            print('archive_lv4_swan_restarts: no ' + base + '-* in ' + src_dir +
+                  ' to archive')
+            return 0
+        dir_out = _lv4_swan_rst_dir(PFM, which)
+        os.makedirs(dir_out, exist_ok=True)
+        new = have = 0
+        for f in src:
+            dst = os.path.join(dir_out, os.path.basename(f))
+            if os.path.isfile(dst) and os.path.getsize(dst) == os.path.getsize(f):
+                have += 1
+                continue
+            tmp = dst + '.part'
+            _sh.copyfile(f, tmp)
+            os.replace(tmp, dst)
+            new += 1
+        mb = sum(os.path.getsize(f) for f in src) / 1e6
+        print('archive_lv4_swan_restarts[%s]: %s -> %s  (%d new, %d already '
+              'there, %.1f GB)' % (which, base, dir_out, new, have, mb / 1000.0))
+        return new
+    except Exception as e:                                   # noqa: BLE001
+        print('archive_lv4_swan_restarts: ' + type(e).__name__ + ': ' + str(e) +
+              ' -- not archived (the run is unaffected)')
+        return 0
+
+
+def prune_lv4_swan_restarts(days=10, which=None, pkl_fnm=None):
+    """Drop archived LV4 SWAN restarts whose STAMP is older than `days`.
+
+    Pruned on the stamp in the name, not on mtime: the stamp is the simulation
+    start the set belongs to, while mtime is merely when it happened to be
+    copied -- a backfill would otherwise look new and a re-copy would reset the
+    clock on something old.
+
+    Returns the number of files removed.
+    """
+    import datetime as _dt
+
+    try:
+        root = LV4_SWAN_RST_ARCHIVE
+        if pkl_fnm is not None:
+            root = str(initfuns.get_model_info(pkl_fnm).get(
+                'lv4_swan_rst_archive_dir', root))
+        sides = (which,) if which else ('DA', 'PFM')
+        cut = _dt.datetime.now() - _dt.timedelta(days=float(days))
+        n = 0
+        for side in sides:
+            d = os.path.join(root, side)
+            if not os.path.isdir(d):
+                continue
+            for f in sorted(_glob.glob(os.path.join(d, '*.dat-*'))):
+                m = _LV4_SWAN_RST_RE.search(os.path.basename(f))
+                if m is None:
+                    continue           # not ours to delete; see the regex note
+                try:
+                    t = _dt.datetime.strptime(m.group(1), '%Y%m%d%H%M')
+                except ValueError:
+                    continue
+                if t < cut:
+                    try:
+                        os.remove(f)
+                        n += 1
+                    except OSError:
+                        pass
+        if n:
+            print('prune_lv4_swan_restarts: removed %d file(s) with a stamp '
+                  'older than %s days' % (n, days))
+        return n
+    except Exception as e:                                   # noqa: BLE001
+        print('prune_lv4_swan_restarts: ' + type(e).__name__ + ': ' + str(e))
+        return 0
 
 _LV1_BC_META_KEYS = ('vinfo', 'ocean_time_ref')
 
