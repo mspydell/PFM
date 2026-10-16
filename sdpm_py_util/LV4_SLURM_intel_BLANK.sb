@@ -37,6 +37,6 @@ export MV2_HOMOGENEOUS_CLUSTER=1
 export MV2_SMP_USE_CMA=0
 MYAPP=$lv4_executable$
 
-srun --mpi=pmi2 -v  $MYAPP $lv4_infile_local$  > $lv4_logfile_local$
+srun --mpi=pmi2 --kill-on-bad-exit=1 -v  $MYAPP $lv4_infile_local$  > $lv4_logfile_local$
 
 

@@ -39,7 +39,7 @@ export MV2_SMP_USE_CMA=0
 
 MYAPP=$lv1_executable$
 
-srun --mpi=pmi2 -v $MYAPP  $lv1_infile_local$  > $lv1_logfile_local$
+srun --mpi=pmi2 --kill-on-bad-exit=1 -v $MYAPP  $lv1_infile_local$  > $lv1_logfile_local$
 
 sleep 60
 seff $SLURM_JOB_ID
