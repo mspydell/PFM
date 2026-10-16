@@ -1043,6 +1043,140 @@ def archive_ecmwf_raw(yyyymmddhh0, t0_str, pkl_fnm):
         return 0
 
 
+# ---------------------------------------------------------------------------
+# Layer 3: build a child level's atm forcing from LV1's atm netCDF.
+#
+# ONLY for when the raw gribs are gone.  From gribs, get_atm_data_on_roms_grid
+# builds every level directly off the native ECMWF grid, which is exact and is
+# what runs normally.  This path exists because LV1_atm is archived forever
+# while the gribs, in principle, might not be.
+#
+# The round trip is forced by LV1_atm's own convention: its Uwind/Vwind are
+# already rotated into LV1 xi/eta ("surface wind component in the roms xi
+# direction"), so they cannot be interpolated onto another grid as-is.  We
+# un-rotate to earth (east,north) on LV1, interpolate, then re-rotate into the
+# child's xi/eta.  The forward rotation in get_atm_data_on_roms_grid is
+#     ur = cos(a)*Ue + sin(a)*Vn
+#     vr = cos(a)*Vn - sin(a)*Ue
+# so the inverse, used here, is
+#     Ue = cos(a)*ur - sin(a)*vr
+#     Vn = sin(a)*ur + cos(a)*vr
+#
+# NEAR-LOSSLESS IN PRACTICE, which is the thing worth knowing: the real
+# resolution of this field is ECMWF's 0.1 deg (~11 km), already coarser than
+# LV1's 4 km, so LV1_atm is itself an upsampling and going LV1 -> child adds an
+# interpolation step without discarding real information.  LV1 contains all
+# three child domains, so there is no extrapolation either.
+#
+# LV1 is CURVILINEAR, so RegularGridInterpolator -- correct for the regular
+# ECMWF grid upstream -- cannot be used.  A Delaunay triangulation of LV1's rho
+# points is built ONCE and reused for every field and every time step; rebuilding
+# it per slice would dominate the cost.
+# ---------------------------------------------------------------------------
+def atm_child_from_lv1_atm(lv, pkl_fnm):
+    """Write lv{N}'s atm pickle from LV1's atm netCDF.  lv is '2', '3' or '4'.
+
+    Leaves the per-level pickle exactly where get_atm_data_on_roms_grid would,
+    so the caller runs atm_roms_dict_to_netcdf next, unchanged.
+    """
+    import numpy as _np
+    import netCDF4 as _nc
+    from scipy.spatial import Delaunay as _Delaunay
+    from scipy.interpolate import LinearNDInterpolator as _LinND
+    from scipy.interpolate import NearestNDInterpolator as _NearND
+
+    lv = str(lv)
+    if lv not in ('2', '3', '4'):
+        raise ValueError("atm_child_from_lv1_atm is for levels 2,3,4 -- got " + lv)
+
+    PFM = initfuns.get_model_info(pkl_fnm)
+    src = PFM['lv1_forc_dir'] + '/' + PFM['lv1_atm_file']
+    if not os.path.isfile(src):
+        raise FileNotFoundError('atm_child_from_lv1_atm needs ' + src)
+
+    G1 = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
+    G2 = grdfuns.roms_grid_to_dict(PFM['lv' + lv + '_grid_file'])
+    fname_out = (PFM['lv' + lv + '_forc_dir'] + '/' +
+                 PFM['atm_tmp_LV' + lv + '_pckl_file'])
+
+    scalars = ['lwrad', 'lwrad_down', 'swrad', 'rain', 'Tair', 'Pair', 'Qair']
+    times   = ['ocean_time', 'tair_time', 'pair_time', 'qair_time',
+               'wind_time', 'rain_time', 'srf_time', 'lrf_time']
+
+    atm2 = dict()
+    atm2['vinfo'] = dict()
+    with _nc.Dataset(src) as d:
+        # vinfo comes back off the file's own attributes.  Upstream it is carried
+        # in the ATM dict, which we do not have here -- but the writer put the
+        # same metadata into the netCDF, so this is the identical content.
+        for v in d.variables:
+            atm2['vinfo'][v] = {k: d[v].getncattr(k) for k in d[v].ncattrs()}
+        for t in times:
+            if t in d.variables:
+                atm2[t] = _np.asarray(d[t][:], dtype=float)
+        have = [a for a in scalars if a in d.variables]
+        src_fields = {a: _np.ma.filled(_np.asarray(d[a][:], dtype=float), _np.nan)
+                      for a in have}
+        U1 = _np.ma.filled(_np.asarray(d['Uwind'][:], dtype=float), _np.nan)
+        V1 = _np.ma.filled(_np.asarray(d['Vwind'][:], dtype=float), _np.nan)
+
+    atm2['lat'] = G2['lat_rho']
+    atm2['lon'] = G2['lon_rho']
+    atm2['ocean_time_ref'] = PFM['modtime0']
+
+    # --- un-rotate LV1 winds to earth (east,north) --------------------------
+    a1 = _np.asarray(G1['angle'], dtype=float)
+    c1, s1 = _np.cos(a1), _np.sin(a1)
+    Ue = c1[None, :, :] * U1 - s1[None, :, :] * V1
+    Vn = s1[None, :, :] * U1 + c1[None, :, :] * V1
+
+    # --- one triangulation of LV1's rho points, reused throughout -----------
+    pts = _np.column_stack((_np.asarray(G1['lat_rho'], dtype=float).ravel(),
+                            _np.asarray(G1['lon_rho'], dtype=float).ravel()))
+    print('atm_child_from_lv1_atm: triangulating ' + str(pts.shape[0]) +
+          ' LV1 rho points for LV' + lv + ' ...')
+    tri = _Delaunay(pts)
+    tgt = (_np.asarray(G2['lat_rho'], dtype=float),
+           _np.asarray(G2['lon_rho'], dtype=float))
+    nlt, nln = tgt[0].shape
+
+    def _interp_series(arr3d, label):
+        nt = arr3d.shape[0]
+        out = _np.zeros((nt, nlt, nln))
+        for b in range(nt):
+            vals = arr3d[b, :, :].ravel()
+            f = _LinND(tri, vals)
+            z = f(tgt[0], tgt[1])
+            if _np.any(~_np.isfinite(z)):
+                # only possible on the hull edge; children sit inside LV1 so this
+                # should be empty.  Fill rather than ship NaN into ROMS.
+                g = _NearND(pts, vals)
+                bad = ~_np.isfinite(z)
+                z[bad] = g(tgt[0][bad], tgt[1][bad])
+                print('  ' + label + ' t=' + str(b) + ': filled ' +
+                      str(int(bad.sum())) + ' point(s) outside the LV1 hull')
+            out[b, :, :] = z
+        return out
+
+    for a in have:
+        print('  interpolating ' + a + ' LV1 -> LV' + lv + ' ...')
+        atm2[a] = _interp_series(src_fields[a], a)
+    print('  interpolating Uwind/Vwind (as east,north) LV1 -> LV' + lv + ' ...')
+    Ue2 = _interp_series(Ue, 'Uwind')
+    Vn2 = _interp_series(Vn, 'Vwind')
+
+    # --- re-rotate into the child's xi,eta ----------------------------------
+    a2 = _np.asarray(G2['angle'], dtype=float)
+    c2, s2 = _np.cos(a2), _np.sin(a2)
+    atm2['Uwind'] = c2[None, :, :] * Ue2 + s2[None, :, :] * Vn2
+    atm2['Vwind'] = c2[None, :, :] * Vn2 - s2[None, :, :] * Ue2
+
+    with open(fname_out, 'wb') as fp:
+        pickle.dump(atm2, fp, protocol=pickle.HIGHEST_PROTOCOL)
+    print('atm_child_from_lv1_atm: wrote ' + fname_out)
+    return fname_out
+
+
 def got_ecmwf_files(yyyymmddhh0,t0_str,pkl_fnm):
     # get the list of file names
     from_cdip = False
