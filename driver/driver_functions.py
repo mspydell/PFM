@@ -1261,11 +1261,24 @@ def run_fore_LV1(pkl_fnm):
     dt_bc.append(t02-t04)
 
     # now for the atm part...
+    #
+    # ARCHIVE FIRST.  An LV1 atm file archived by an earlier run IS the forcing
+    # for this window, already on the LV1 grid with the winds rotated, so the
+    # whole ECMWF chain can be skipped.  Only ever true for a RERUN of a past
+    # start: a new forecast's atm has not been archived yet (archive_lv1_atm
+    # runs below, after it is built), so operationally this is False and nothing
+    # changes.  See utilfuns.lv1_atm_from_archive.
+    #
+    # Note the raw grib cache is the PREFERRED recovery path and sits one level
+    # deeper, inside get_atm_data_as_dict -- from gribs every level is rebuilt
+    # exactly as it is today.  This skip is for when the gribs are gone too.
+    skip_atm = utilfuns.lv1_atm_from_archive(pkl_fnm)
+
     print('we are now getting the atm data and saving as a dict...')
     t01 = datetime.now()
     cmd_list = ['python','-W','ignore','atm_functions.py','get_atm_data_as_dict',pkl_fnm]
     os.chdir('../sdpm_py_util')
-    ret5 = subprocess.run(cmd_list)   
+    ret5 = _SkippedStep() if skip_atm else subprocess.run(cmd_list)   
     print('return code: ' + str(ret5.returncode) + ' (0=good)')  
     os.chdir('../sdpm_py_util')
     print('...done.')
@@ -1295,7 +1308,7 @@ def run_fore_LV1(pkl_fnm):
     t01 = datetime.now()
     cmd_list = ['python','-W','ignore','atm_functions.py','get_atm_data_on_roms_grid',str(level),pkl_fnm]
     os.chdir('../sdpm_py_util')
-    ret5 = subprocess.run(cmd_list)   
+    ret5 = _SkippedStep() if skip_atm else subprocess.run(cmd_list)   
     print('return code: ' + str(ret5.returncode) + ' (0=good)')  
     os.chdir('../sdpm_py_util')
     print('...done.')
@@ -1315,10 +1328,15 @@ def run_fore_LV1(pkl_fnm):
     t01 = datetime.now()
     cmd_list = ['python','-W','ignore','atm_functions.py','atm_roms_dict_to_netcdf',str(level),pkl_fnm]
     os.chdir('../sdpm_py_util')
-    ret5 = subprocess.run(cmd_list)   
+    ret5 = _SkippedStep() if skip_atm else subprocess.run(cmd_list)   
     print('return code: ' + str(ret5.returncode) + ' (0=good)')  
     os.chdir('../sdpm_py_util')
     print('...done.') 
+    # Archive it.  Never purged: this is the only lasting record of the forcing
+    # a given forecast actually ran with, and nothing upstream keeps the gribs
+    # it came from for more than a few days.
+    if not skip_atm:
+        utilfuns.archive_lv1_atm(pkl_fnm)
     # put in a function to plot the atm.nc file if we want to
     t02 = datetime.now()
     print('this took:')

@@ -14,6 +14,7 @@ import init_funs_forecast as initfuns
 import subprocess
 import cfgrib
 import os
+import shutil
 import time
 import tempfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -77,14 +78,54 @@ def get_atm_data_as_dict(pkl_fnm):
             cnt = 0
             while got_files >= 1 and cnt<4:   
                 yyyymmddhh0 = tfore0.strftime("%Y%m%d%H")
-                print('getting the ecmwf data for the ' + yyyymmddhh0 + ' forecast...')
-                # download the ecmwf data...
-                cmd_list = ['python','-W','ignore','atm_functions.py','get_ecmwf_forecast_grbs_v2',yyyymmddhh0,tstart_str,pkl_fnm]
-                os.chdir('../sdpm_py_util')
-                ret5 = subprocess.run(cmd_list)   
-                print('return code: ' + str(ret5.returncode) + ' (0=good)')  
-                print('did we get the ecmwf data?')
+                # CHECK LOCAL DISK FIRST, THEN DOWNLOAD.
+                #
+                # got_files is seeded to 1, so this loop used to run the download
+                # unconditionally and only ask got_ecmwf_files() afterwards --
+                # which means a window already complete on disk was re-fetched
+                # every time.  That is not merely wasteful: when the server no
+                # longer serves the init, download_all_with_retry sees the 427-byte
+                # HTML error page, calls it "Not a GRIB file", and CLEANS UP THE
+                # LOCAL FILE it was refreshing.  So a failed refresh DESTROYS good
+                # data.
+                #
+                # That is what happened on 2026-10-16.  The 10/13 00Z init was
+                # complete on disk (preflight: "101 steps on disk, covers the
+                # window at leads 0..24 h").  The rerun of the 10/14 cycle
+                # re-downloaded it, ECMWF had aged it out of dissemination 3 days
+                # earlier, and all 25 hourly steps of the window were deleted --
+                # unrecoverably, since Archive/ecmwf_raw is empty.  It took the
+                # 10/15 window with it.
+                #
+                # Operationally inert: a genuinely new init is not on disk, so
+                # got_ecmwf_files() returns >= 1 and the download runs exactly as
+                # before.  The only behaviour that changes is that files we
+                # already have are left alone.
                 got_files = got_ecmwf_files(yyyymmddhh0,tstart_str,pkl_fnm)
+                if got_files != 0:
+                    # ARCHIVE BEFORE SERVER.  Upstream keeps nothing: pipeline
+                    # holds the current cycle, ecmwf ftp ~2-3 days, CDIP nothing
+                    # since July.  See ecmwf_from_archive.
+                    n_arch = ecmwf_from_archive(yyyymmddhh0,tstart_str,pkl_fnm)
+                    if n_arch == 0:
+                        got_files = got_ecmwf_files(yyyymmddhh0,tstart_str,pkl_fnm)
+                if got_files == 0:
+                    print('the ecmwf data for the ' + yyyymmddhh0 + ' forecast is '
+                          'already complete on disk; NOT re-downloading it')
+                else:
+                    print('getting the ecmwf data for the ' + yyyymmddhh0 + ' forecast...')
+                    print('  (' + str(got_files) + ' file(s) missing or empty locally)')
+                    # download the ecmwf data...
+                    cmd_list = ['python','-W','ignore','atm_functions.py','get_ecmwf_forecast_grbs_v2',yyyymmddhh0,tstart_str,pkl_fnm]
+                    os.chdir('../sdpm_py_util')
+                    ret5 = subprocess.run(cmd_list)   
+                    print('return code: ' + str(ret5.returncode) + ' (0=good)')  
+                    print('did we get the ecmwf data?')
+                    got_files = got_ecmwf_files(yyyymmddhh0,tstart_str,pkl_fnm)
+                    if got_files == 0:
+                        # downloaded clean -- put it in the archive so this date
+                        # stays rerunnable after the server drops it
+                        archive_ecmwf_raw(yyyymmddhh0,tstart_str,pkl_fnm)
                 if got_files == 0:
                     print('we got the files from the ecmwf forecast ',yyyymmddhh0)
                     print('to do the PFM forecast starting on ', tstart_str)
@@ -889,6 +930,253 @@ def check_file_exists_and_is_not_empty(file_path):
     else:
         return 1
     
+# ---------------------------------------------------------------------------
+# Raw ECMWF grib cache.
+#
+# NOBODY UPSTREAM KEEPS THIS DATA.  Measured 2026-10-16:
+#   pipeline.ucsd.edu  /transfer holds only the current cycle
+#   ftp://diss.ecmwf.int/   ~2-3 days
+#   CDIP syntool THREDDS ECMWF_TMP/FALK   nothing since 2026/07, and the code
+#                                         path for it is disabled (from_cdip)
+# So once a cycle ages out it is gone, and a rerun of that date is impossible.
+# On 2026-10-16 the 10/13 and 10/14 windows were lost exactly this way.
+#
+# One init is ~53 MB, so a year is ~19 GB -- less than a single operational LV4
+# history file.  Nothing is pruned: the footprint does not justify the risk of
+# deleting the only copy.
+#
+# Layout is one directory per init, because every lookup is by init:
+#   <ECMWF_RAW_ARCHIVE>/<yyyymmddhh>/T1D...
+# Local filenames are reused verbatim (LOCAL_PREFIX), so the archive is a
+# drop-in source for the same names got_ecmwf_files() and
+# ecmwf_grib_2_dict_all_v2() already expect.
+# ---------------------------------------------------------------------------
+ECMWF_RAW_ARCHIVE = '/dataSIO/PFM_Simulations/Archive/ecmwf_raw'
+
+
+def ecmwf_archive_dir(yyyymmddhh0, pkl_fnm=None):
+    """The archive directory for one init.  Override with PFM['ecmwf_raw_archive']."""
+    root = ECMWF_RAW_ARCHIVE
+    if pkl_fnm is not None:
+        try:
+            root = initfuns.get_model_info(pkl_fnm).get('ecmwf_raw_archive', root)
+        except Exception:                                    # noqa: BLE001
+            pass
+    return os.path.join(str(root), yyyymmddhh0)
+
+
+def ecmwf_from_archive(yyyymmddhh0, t0_str, pkl_fnm):
+    """Fill the local grib dir from the archive.  Returns files still missing.
+
+    Checked BEFORE any network call, so a rerun of a past date never touches a
+    server -- which is the point: the server no longer has it, and reaching for
+    it is what destroyed the 10/13 window (a failed refresh deletes the local
+    file it was refreshing).
+
+    Hard-links when it can, because the archive and /scratch are different
+    filesystems only sometimes; falls back to a copy.
+    """
+    try:
+        _, _, fns_out, _ = get_ecmwf_grib_files_lists_vecmwf(
+            yyyymmddhh0, t0_str, pkl_fnm, source='local')
+    except Exception as e:                                   # noqa: BLE001
+        print('ecmwf_from_archive: cannot build the file list (' +
+              type(e).__name__ + ': ' + str(e) + '); skipping the archive')
+        return -1
+
+    adir = ecmwf_archive_dir(yyyymmddhh0, pkl_fnm)
+    if not os.path.isdir(adir):
+        return sum(1 for f in fns_out
+                   if not check_file_exists_and_is_not_empty(f) == 0)
+
+    got = n_miss = 0
+    for f in fns_out:
+        if check_file_exists_and_is_not_empty(f) == 0:
+            continue                      # already on scratch
+        src = os.path.join(adir, os.path.basename(f))
+        if not (os.path.isfile(src) and os.path.getsize(src) > 0):
+            n_miss += 1
+            continue
+        try:
+            os.makedirs(os.path.dirname(f), exist_ok=True)
+            try:
+                os.link(src, f)
+            except OSError:
+                shutil.copyfile(src, f)
+            got += 1
+        except Exception as e:                               # noqa: BLE001
+            print('ecmwf_from_archive: ' + os.path.basename(f) + ': ' +
+                  type(e).__name__ + ': ' + str(e))
+            n_miss += 1
+    if got:
+        print('ecmwf_from_archive: restored ' + str(got) + ' grib file(s) for '
+              + yyyymmddhh0 + ' from ' + adir)
+    return n_miss
+
+
+def archive_ecmwf_raw(yyyymmddhh0, t0_str, pkl_fnm):
+    """Copy this init's gribs into the archive.  Write-once; never fails a run."""
+    try:
+        _, _, fns_out, _ = get_ecmwf_grib_files_lists_vecmwf(
+            yyyymmddhh0, t0_str, pkl_fnm, source='local')
+        adir = ecmwf_archive_dir(yyyymmddhh0, pkl_fnm)
+        os.makedirs(adir, exist_ok=True)
+        new = have = 0
+        for f in fns_out:
+            if check_file_exists_and_is_not_empty(f) != 0:
+                continue                  # not on disk; nothing to archive
+            dst = os.path.join(adir, os.path.basename(f))
+            if os.path.isfile(dst) and os.path.getsize(dst) > 0:
+                have += 1
+                continue
+            tmp = dst + '.part'
+            shutil.copyfile(f, tmp)
+            os.replace(tmp, dst)
+            new += 1
+        if new or have:
+            print('archive_ecmwf_raw: ' + yyyymmddhh0 + ' -> ' + adir +
+                  '  (' + str(new) + ' new, ' + str(have) + ' already there)')
+        return new
+    except Exception as e:                                   # noqa: BLE001
+        print('archive_ecmwf_raw: ' + type(e).__name__ + ': ' + str(e) +
+              ' -- not archived (the run is unaffected)')
+        return 0
+
+
+# ---------------------------------------------------------------------------
+# Layer 3: build a child level's atm forcing from LV1's atm netCDF.
+#
+# ONLY for when the raw gribs are gone.  From gribs, get_atm_data_on_roms_grid
+# builds every level directly off the native ECMWF grid, which is exact and is
+# what runs normally.  This path exists because LV1_atm is archived forever
+# while the gribs, in principle, might not be.
+#
+# The round trip is forced by LV1_atm's own convention: its Uwind/Vwind are
+# already rotated into LV1 xi/eta ("surface wind component in the roms xi
+# direction"), so they cannot be interpolated onto another grid as-is.  We
+# un-rotate to earth (east,north) on LV1, interpolate, then re-rotate into the
+# child's xi/eta.  The forward rotation in get_atm_data_on_roms_grid is
+#     ur = cos(a)*Ue + sin(a)*Vn
+#     vr = cos(a)*Vn - sin(a)*Ue
+# so the inverse, used here, is
+#     Ue = cos(a)*ur - sin(a)*vr
+#     Vn = sin(a)*ur + cos(a)*vr
+#
+# NEAR-LOSSLESS IN PRACTICE, which is the thing worth knowing: the real
+# resolution of this field is ECMWF's 0.1 deg (~11 km), already coarser than
+# LV1's 4 km, so LV1_atm is itself an upsampling and going LV1 -> child adds an
+# interpolation step without discarding real information.  LV1 contains all
+# three child domains, so there is no extrapolation either.
+#
+# LV1 is CURVILINEAR, so RegularGridInterpolator -- correct for the regular
+# ECMWF grid upstream -- cannot be used.  A Delaunay triangulation of LV1's rho
+# points is built ONCE and reused for every field and every time step; rebuilding
+# it per slice would dominate the cost.
+# ---------------------------------------------------------------------------
+def atm_child_from_lv1_atm(lv, pkl_fnm):
+    """Write lv{N}'s atm pickle from LV1's atm netCDF.  lv is '2', '3' or '4'.
+
+    Leaves the per-level pickle exactly where get_atm_data_on_roms_grid would,
+    so the caller runs atm_roms_dict_to_netcdf next, unchanged.
+    """
+    import numpy as _np
+    import netCDF4 as _nc
+    from scipy.spatial import Delaunay as _Delaunay
+    from scipy.interpolate import LinearNDInterpolator as _LinND
+    from scipy.interpolate import NearestNDInterpolator as _NearND
+
+    lv = str(lv)
+    if lv not in ('2', '3', '4'):
+        raise ValueError("atm_child_from_lv1_atm is for levels 2,3,4 -- got " + lv)
+
+    PFM = initfuns.get_model_info(pkl_fnm)
+    src = PFM['lv1_forc_dir'] + '/' + PFM['lv1_atm_file']
+    if not os.path.isfile(src):
+        raise FileNotFoundError('atm_child_from_lv1_atm needs ' + src)
+
+    G1 = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
+    G2 = grdfuns.roms_grid_to_dict(PFM['lv' + lv + '_grid_file'])
+    fname_out = (PFM['lv' + lv + '_forc_dir'] + '/' +
+                 PFM['atm_tmp_LV' + lv + '_pckl_file'])
+
+    scalars = ['lwrad', 'lwrad_down', 'swrad', 'rain', 'Tair', 'Pair', 'Qair']
+    times   = ['ocean_time', 'tair_time', 'pair_time', 'qair_time',
+               'wind_time', 'rain_time', 'srf_time', 'lrf_time']
+
+    atm2 = dict()
+    atm2['vinfo'] = dict()
+    with _nc.Dataset(src) as d:
+        # vinfo comes back off the file's own attributes.  Upstream it is carried
+        # in the ATM dict, which we do not have here -- but the writer put the
+        # same metadata into the netCDF, so this is the identical content.
+        for v in d.variables:
+            atm2['vinfo'][v] = {k: d[v].getncattr(k) for k in d[v].ncattrs()}
+        for t in times:
+            if t in d.variables:
+                atm2[t] = _np.asarray(d[t][:], dtype=float)
+        have = [a for a in scalars if a in d.variables]
+        src_fields = {a: _np.ma.filled(_np.asarray(d[a][:], dtype=float), _np.nan)
+                      for a in have}
+        U1 = _np.ma.filled(_np.asarray(d['Uwind'][:], dtype=float), _np.nan)
+        V1 = _np.ma.filled(_np.asarray(d['Vwind'][:], dtype=float), _np.nan)
+
+    atm2['lat'] = G2['lat_rho']
+    atm2['lon'] = G2['lon_rho']
+    atm2['ocean_time_ref'] = PFM['modtime0']
+
+    # --- un-rotate LV1 winds to earth (east,north) --------------------------
+    a1 = _np.asarray(G1['angle'], dtype=float)
+    c1, s1 = _np.cos(a1), _np.sin(a1)
+    Ue = c1[None, :, :] * U1 - s1[None, :, :] * V1
+    Vn = s1[None, :, :] * U1 + c1[None, :, :] * V1
+
+    # --- one triangulation of LV1's rho points, reused throughout -----------
+    pts = _np.column_stack((_np.asarray(G1['lat_rho'], dtype=float).ravel(),
+                            _np.asarray(G1['lon_rho'], dtype=float).ravel()))
+    print('atm_child_from_lv1_atm: triangulating ' + str(pts.shape[0]) +
+          ' LV1 rho points for LV' + lv + ' ...')
+    tri = _Delaunay(pts)
+    tgt = (_np.asarray(G2['lat_rho'], dtype=float),
+           _np.asarray(G2['lon_rho'], dtype=float))
+    nlt, nln = tgt[0].shape
+
+    def _interp_series(arr3d, label):
+        nt = arr3d.shape[0]
+        out = _np.zeros((nt, nlt, nln))
+        for b in range(nt):
+            vals = arr3d[b, :, :].ravel()
+            f = _LinND(tri, vals)
+            z = f(tgt[0], tgt[1])
+            if _np.any(~_np.isfinite(z)):
+                # only possible on the hull edge; children sit inside LV1 so this
+                # should be empty.  Fill rather than ship NaN into ROMS.
+                g = _NearND(pts, vals)
+                bad = ~_np.isfinite(z)
+                z[bad] = g(tgt[0][bad], tgt[1][bad])
+                print('  ' + label + ' t=' + str(b) + ': filled ' +
+                      str(int(bad.sum())) + ' point(s) outside the LV1 hull')
+            out[b, :, :] = z
+        return out
+
+    for a in have:
+        print('  interpolating ' + a + ' LV1 -> LV' + lv + ' ...')
+        atm2[a] = _interp_series(src_fields[a], a)
+    print('  interpolating Uwind/Vwind (as east,north) LV1 -> LV' + lv + ' ...')
+    Ue2 = _interp_series(Ue, 'Uwind')
+    Vn2 = _interp_series(Vn, 'Vwind')
+
+    # --- re-rotate into the child's xi,eta ----------------------------------
+    a2 = _np.asarray(G2['angle'], dtype=float)
+    c2, s2 = _np.cos(a2), _np.sin(a2)
+    atm2['Uwind'] = c2[None, :, :] * Ue2 + s2[None, :, :] * Vn2
+    atm2['Vwind'] = c2[None, :, :] * Vn2 - s2[None, :, :] * Ue2
+
+    with open(fname_out, 'wb') as fp:
+        pickle.dump(atm2, fp, protocol=pickle.HIGHEST_PROTOCOL)
+    print('atm_child_from_lv1_atm: wrote ' + fname_out)
+    return fname_out
+
+
 def got_ecmwf_files(yyyymmddhh0,t0_str,pkl_fnm):
     # get the list of file names
     from_cdip = False
