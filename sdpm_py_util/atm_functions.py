@@ -14,6 +14,7 @@ import init_funs_forecast as initfuns
 import subprocess
 import cfgrib
 import os
+import shutil
 import time
 import tempfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -101,6 +102,13 @@ def get_atm_data_as_dict(pkl_fnm):
                 # before.  The only behaviour that changes is that files we
                 # already have are left alone.
                 got_files = got_ecmwf_files(yyyymmddhh0,tstart_str,pkl_fnm)
+                if got_files != 0:
+                    # ARCHIVE BEFORE SERVER.  Upstream keeps nothing: pipeline
+                    # holds the current cycle, ecmwf ftp ~2-3 days, CDIP nothing
+                    # since July.  See ecmwf_from_archive.
+                    n_arch = ecmwf_from_archive(yyyymmddhh0,tstart_str,pkl_fnm)
+                    if n_arch == 0:
+                        got_files = got_ecmwf_files(yyyymmddhh0,tstart_str,pkl_fnm)
                 if got_files == 0:
                     print('the ecmwf data for the ' + yyyymmddhh0 + ' forecast is '
                           'already complete on disk; NOT re-downloading it')
@@ -114,6 +122,10 @@ def get_atm_data_as_dict(pkl_fnm):
                     print('return code: ' + str(ret5.returncode) + ' (0=good)')  
                     print('did we get the ecmwf data?')
                     got_files = got_ecmwf_files(yyyymmddhh0,tstart_str,pkl_fnm)
+                    if got_files == 0:
+                        # downloaded clean -- put it in the archive so this date
+                        # stays rerunnable after the server drops it
+                        archive_ecmwf_raw(yyyymmddhh0,tstart_str,pkl_fnm)
                 if got_files == 0:
                     print('we got the files from the ecmwf forecast ',yyyymmddhh0)
                     print('to do the PFM forecast starting on ', tstart_str)
@@ -918,6 +930,119 @@ def check_file_exists_and_is_not_empty(file_path):
     else:
         return 1
     
+# ---------------------------------------------------------------------------
+# Raw ECMWF grib cache.
+#
+# NOBODY UPSTREAM KEEPS THIS DATA.  Measured 2026-10-16:
+#   pipeline.ucsd.edu  /transfer holds only the current cycle
+#   ftp://diss.ecmwf.int/   ~2-3 days
+#   CDIP syntool THREDDS ECMWF_TMP/FALK   nothing since 2026/07, and the code
+#                                         path for it is disabled (from_cdip)
+# So once a cycle ages out it is gone, and a rerun of that date is impossible.
+# On 2026-10-16 the 10/13 and 10/14 windows were lost exactly this way.
+#
+# One init is ~53 MB, so a year is ~19 GB -- less than a single operational LV4
+# history file.  Nothing is pruned: the footprint does not justify the risk of
+# deleting the only copy.
+#
+# Layout is one directory per init, because every lookup is by init:
+#   <ECMWF_RAW_ARCHIVE>/<yyyymmddhh>/T1D...
+# Local filenames are reused verbatim (LOCAL_PREFIX), so the archive is a
+# drop-in source for the same names got_ecmwf_files() and
+# ecmwf_grib_2_dict_all_v2() already expect.
+# ---------------------------------------------------------------------------
+ECMWF_RAW_ARCHIVE = '/dataSIO/PFM_Simulations/Archive/ecmwf_raw'
+
+
+def ecmwf_archive_dir(yyyymmddhh0, pkl_fnm=None):
+    """The archive directory for one init.  Override with PFM['ecmwf_raw_archive']."""
+    root = ECMWF_RAW_ARCHIVE
+    if pkl_fnm is not None:
+        try:
+            root = initfuns.get_model_info(pkl_fnm).get('ecmwf_raw_archive', root)
+        except Exception:                                    # noqa: BLE001
+            pass
+    return os.path.join(str(root), yyyymmddhh0)
+
+
+def ecmwf_from_archive(yyyymmddhh0, t0_str, pkl_fnm):
+    """Fill the local grib dir from the archive.  Returns files still missing.
+
+    Checked BEFORE any network call, so a rerun of a past date never touches a
+    server -- which is the point: the server no longer has it, and reaching for
+    it is what destroyed the 10/13 window (a failed refresh deletes the local
+    file it was refreshing).
+
+    Hard-links when it can, because the archive and /scratch are different
+    filesystems only sometimes; falls back to a copy.
+    """
+    try:
+        _, _, fns_out, _ = get_ecmwf_grib_files_lists_vecmwf(
+            yyyymmddhh0, t0_str, pkl_fnm, source='local')
+    except Exception as e:                                   # noqa: BLE001
+        print('ecmwf_from_archive: cannot build the file list (' +
+              type(e).__name__ + ': ' + str(e) + '); skipping the archive')
+        return -1
+
+    adir = ecmwf_archive_dir(yyyymmddhh0, pkl_fnm)
+    if not os.path.isdir(adir):
+        return sum(1 for f in fns_out
+                   if not check_file_exists_and_is_not_empty(f) == 0)
+
+    got = n_miss = 0
+    for f in fns_out:
+        if check_file_exists_and_is_not_empty(f) == 0:
+            continue                      # already on scratch
+        src = os.path.join(adir, os.path.basename(f))
+        if not (os.path.isfile(src) and os.path.getsize(src) > 0):
+            n_miss += 1
+            continue
+        try:
+            os.makedirs(os.path.dirname(f), exist_ok=True)
+            try:
+                os.link(src, f)
+            except OSError:
+                shutil.copyfile(src, f)
+            got += 1
+        except Exception as e:                               # noqa: BLE001
+            print('ecmwf_from_archive: ' + os.path.basename(f) + ': ' +
+                  type(e).__name__ + ': ' + str(e))
+            n_miss += 1
+    if got:
+        print('ecmwf_from_archive: restored ' + str(got) + ' grib file(s) for '
+              + yyyymmddhh0 + ' from ' + adir)
+    return n_miss
+
+
+def archive_ecmwf_raw(yyyymmddhh0, t0_str, pkl_fnm):
+    """Copy this init's gribs into the archive.  Write-once; never fails a run."""
+    try:
+        _, _, fns_out, _ = get_ecmwf_grib_files_lists_vecmwf(
+            yyyymmddhh0, t0_str, pkl_fnm, source='local')
+        adir = ecmwf_archive_dir(yyyymmddhh0, pkl_fnm)
+        os.makedirs(adir, exist_ok=True)
+        new = have = 0
+        for f in fns_out:
+            if check_file_exists_and_is_not_empty(f) != 0:
+                continue                  # not on disk; nothing to archive
+            dst = os.path.join(adir, os.path.basename(f))
+            if os.path.isfile(dst) and os.path.getsize(dst) > 0:
+                have += 1
+                continue
+            tmp = dst + '.part'
+            shutil.copyfile(f, tmp)
+            os.replace(tmp, dst)
+            new += 1
+        if new or have:
+            print('archive_ecmwf_raw: ' + yyyymmddhh0 + ' -> ' + adir +
+                  '  (' + str(new) + ' new, ' + str(have) + ' already there)')
+        return new
+    except Exception as e:                                   # noqa: BLE001
+        print('archive_ecmwf_raw: ' + type(e).__name__ + ': ' + str(e) +
+              ' -- not archived (the run is unaffected)')
+        return 0
+
+
 def got_ecmwf_files(yyyymmddhh0,t0_str,pkl_fnm):
     # get the list of file names
     from_cdip = False
