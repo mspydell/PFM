@@ -310,20 +310,24 @@ def stage_lv1_atm(ctx: Ctx) -> dict:
     # data -- pipeline keeps the current cycle, ecmwf ftp ~2-3 days, CDIP nothing
     # since July 2026.  On 2026-10-16 this stage failed for exactly that reason
     # and took the 10/14 cycle down with it.
-    # imported here, not at module scope: util_functions lives in PFM's
-    # sdpm_py_util, which is not on sys.path until da_config has resolved it,
-    # and its own imports expect that directory to be importable.
+    # ALWAYS FROM GRIBS.  get_atm_data_as_dict resolves them itself: local
+    # scratch, then the raw grib archive, then the server.  That archive is what
+    # makes a past window rerunnable at all -- upstream keeps nothing (pipeline
+    # the current cycle, ecmwf ftp ~2-3 days, CDIP nothing since 2026/07), which
+    # is why this stage failed on 2026-10-16 and took the 10/14 cycle with it.
+    #
+    # Do NOT short-circuit with an archived LV1_atm.  _child_atm relies on this
+    # step having written lv1_forc_dir/atm_tmp_pckl_file.pkl, so skipping it
+    # leaves LV2/3/4 on the previous cycle's pickle.  The DA would catch that in
+    # _assert_covers_window, but PFM would not, and the fix belongs in one place.
+    B.run_pfm("atm_functions.py", "get_atm_data_as_dict", pkl, timeout=3600)
+    B.run_pfm("atm_functions.py", "get_atm_data_on_roms_grid", "1", pkl)
+    B.run_pfm("atm_functions.py", "atm_roms_dict_to_netcdf", "1", pkl)
+
     if str(C.PFM_PYDIR) not in sys.path:
         sys.path.insert(0, str(C.PFM_PYDIR))
     import util_functions as UF
-
-    if UF.lv1_atm_from_archive(str(pkl)):
-        print("    LV1 atm taken from the archive; skipping the ECMWF chain")
-    else:
-        B.run_pfm("atm_functions.py", "get_atm_data_as_dict", pkl, timeout=3600)
-        B.run_pfm("atm_functions.py", "get_atm_data_on_roms_grid", "1", pkl)
-        B.run_pfm("atm_functions.py", "atm_roms_dict_to_netcdf", "1", pkl)
-        UF.archive_lv1_atm(str(pkl))
+    UF.archive_lv1_atm(str(pkl))
 
     # PFM names the file from the dict; we asked for the DA name, so this is
     # where that is confirmed rather than assumed.
