@@ -255,18 +255,38 @@ def check_hycom(t_da: DT.datetime, t_fore: DT.datetime, pkl: Path) -> Item:
 
 
 def _hycom_file_ok(f: Path) -> bool:
-    """Present AND big enough.
+    """Present AND actually usable, per hycom_grabber's verifier.
 
-    The size floors are PFM's own (check_and_redownload_ncfiles): 0.4 MB for ssh,
-    1.5 MB for the 3D variables.  Checking size as well as existence matters
-    because a truncated ncks download leaves a small, valid-looking file -- which
-    is the failure PFM's own re-download loop was written for.
+    This used to be a size floor -- 0.4 MB for ssh, 1.5 MB for the 3D
+    variables, copied from PFM's old check_and_redownload_ncfiles.  That test
+    cannot see the failure that actually matters.  Since 2026-10-07 hycom
+    intermittently serves files with scale_factor and _FillValue stripped: the
+    dimensions are right, every value is finite, ncks exits 0, and the numbers
+    are raw int16 counts, so -0.681 m of sea level arrives as -681.  A stripped
+    3z file is 1.617 MB and clears the 1.5 MB floor comfortably.  Scanning the
+    cache on 2026-10-15 found 46 such files; the floor caught the 22 ssh ones
+    (0.053 MB) and missed all 24 of the 3D ones.
+
+    So defer to hycom_grabber.verify_file, which checks the attributes, the
+    level count, how much of the field is non-fill, and whether the values are
+    physical after scaling.  One definition of "good hycom file" for PFM, the
+    grabber and DA, rather than three that disagree.
     """
     f = Path(f)
     if not f.is_file():
         return False
-    floor_mb = 0.4 if "_ssh_" in f.name else 1.5
-    return os.path.getsize(f) / (1024 * 1024) >= floor_mb
+    try:
+        # da_preflight does not otherwise import from sdpm_py_util, so put it
+        # on the path here the way da_pfm_bridge does rather than at module
+        # scope -- this stays a leaf module that imports only da_config.
+        import sys
+        if str(C.PFM_PYDIR) not in sys.path:
+            sys.path.insert(0, str(C.PFM_PYDIR))
+        from hycom_grabber import verify_file, OK
+    except ImportError:          # grabber not importable -> say so, do not
+        return False             # quietly fall back to a test we know is blind
+    state, _why = verify_file(str(f))
+    return state == OK
 
 
 # ---------------------------------------------------------------------------

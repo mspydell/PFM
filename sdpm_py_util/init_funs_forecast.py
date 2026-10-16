@@ -930,6 +930,16 @@ def delete_zero_size_files(directory_path):
         return
 
     for filename in os.listdir(directory_path):
+        # Leave dotfiles alone. This function exists to clear failed .nc
+        # downloads, and a hidden file in these directories is metadata, not
+        # junk: hycom_grabber keeps its lock and its saved catalog listing in
+        # the hycom directory. On 2026-10-15 this deleted .grabber.lock while
+        # a grabber held it -- flock lives on the inode, so the holder kept
+        # its lock while the next process created a fresh file and got a
+        # second one, which is two grabbers and 20 connections against
+        # hycom's limit of 10.
+        if filename.startswith('.'):
+            continue
         file_path = os.path.join(directory_path, filename)
         if os.path.isfile(file_path):  # Check if it's a file (not a directory)
             try:

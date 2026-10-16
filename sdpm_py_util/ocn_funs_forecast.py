@@ -475,13 +475,37 @@ def get_longest_forecast(pkl_fnm):
     return ftime, tmx_tot
 
 
-def get_hycom_foretime_v2(t1str,t2str,pkl_fnm):
 
+# When the hycom cache is kept by the out-of-band grabber (cron ->
+# driver/run_hycom_grabber.sh), the forecast must not also download and must
+# not prune. Two owners of one directory means the forecast can delete a cycle
+# the grabber is filling, and both can ask hycom for the same files at once --
+# 20 connections from this address against a documented limit of 10, which the
+# hycom forum says is how an IP gets throttled.
+#
+# Set PFM['hycom_use_cache'] False to go back to the forecast doing it itself.
+HYCOM_USE_CACHE_DEFAULT = True
+
+
+def refresh_hycom_cache(pkl_fnm, prune=True):
+    """Download whatever is missing, and optionally delete superseded cycles.
+
+    Lifted verbatim out of get_hycom_foretime_v2 so it can be skipped when the
+    grabber owns the cache. Nothing it computes is used by the selection that
+    followed it -- that re-reads the directory from scratch -- so skipping it
+    changes only whether files move.
+
+    prune=False exists because the fallback path calls this while the grabber
+    is also running. Downloading twice is wasteful but harmless; deleting is
+    not. Called with prune=True by accident during testing, this removed the
+    2026-10-11 and 2026-10-12 cycles from a cache the grabber had just spent
+    an hour filling -- which is precisely the two-owners conflict the cache
+    switch exists to prevent.
+    """
     PFM = initfuns.get_model_info(pkl_fnm)
-
-    hycom_dir = PFM['hycom_data_dir'] # this has the trailing /
-    
+    hycom_dir = PFM['hycom_data_dir']
     t0s = stored_hycom_dates(pkl_fnm)
+    miss_dict = {}
 
     if t0s:
         print('we currently have hycom forecasts starting from:')
@@ -548,6 +572,10 @@ def get_hycom_foretime_v2(t1str,t2str,pkl_fnm):
         get_hycom_data_1hr_v2(t0str,pkl_fnm) # new url
         t0 = t0 + timedelta(days=1)
 
+    if not prune:
+        print('not pruning: the grabber owns retention for this directory.')
+        return
+
     print('now how many total files are we now missing?')
     t0s = stored_hycom_dates(pkl_fnm)
     nms = []
@@ -579,6 +607,51 @@ def get_hycom_foretime_v2(t1str,t2str,pkl_fnm):
         print('...done')
     else:
         print('the oldest forecast is the only full forecast!')
+
+
+def get_hycom_foretime_v2(t1str,t2str,pkl_fnm):
+
+    PFM = initfuns.get_model_info(pkl_fnm)
+
+    hycom_dir = PFM['hycom_data_dir'] # this has the trailing /
+    
+    t0s = stored_hycom_dates(pkl_fnm)
+
+    # the grabber keeps this directory correct and full; see
+    # HYCOM_USE_CACHE_DEFAULT above.
+    if PFM.get('hycom_use_cache', HYCOM_USE_CACHE_DEFAULT):
+        n_have = len(glob.glob(hycom_dir + 'hy_*.nc'))
+        print('using the hycom cache kept by hycom_grabber (' + str(n_have) +
+              ' files); not downloading and not pruning here.')
+        print('  if that cache looks stale, check the cron and '
+              'log/hycom_grabber_YYYYMMDD.log')
+        # Trusting the cache is fine; trusting it blindly is not. If no cached
+        # cycle covers this forecast the selection below would quietly shorten
+        # the run, or abort under 3 days -- a stopped cron would show up as a
+        # mysteriously short forecast rather than as a missing cron. So check
+        # coverage here, and if nothing covers it, download exactly as before.
+        # This is the one case where both owners touch the directory, and it
+        # is the right trade: a doubled-up download beats a silently truncated
+        # forecast, and the grabber's lock means the overlap is bounded.
+        tc1 = datetime.strptime(t1str, "%Y%m%d%H%M")
+        tc2 = datetime.strptime(t2str, "%Y%m%d%H%M")
+        covered = False
+        for dts in t0s:
+            ymd = dts[0:4] + dts[5:7] + dts[8:10]
+            _n0, nmiss, _d = check_hycom_data(ymd, [tc1, tc2], pkl_fnm)
+            if nmiss == 0:
+                covered = True
+                break
+        if not covered:
+            print('*** no cached hycom cycle covers ' + str(tc1) + ' .. ' +
+                  str(tc2) + '. The grabber may not be running -- check the '
+                  'cron. Downloading here instead so this forecast still '
+                  'runs. ***')
+            refresh_hycom_cache(pkl_fnm, prune=False)
+            t0s = stored_hycom_dates(pkl_fnm)
+    else:
+        refresh_hycom_cache(pkl_fnm)
+
    
     print('which hycom forecast has the times we need for the PFM simulation?')
 

@@ -931,6 +931,56 @@ def run_fore_LV1(pkl_fnm):
               'place -- skipping the HYCOM download, the regridding, the IC/BC '
               'build and the ocean plots. ***')
 
+    # Bring the cache up to date before choosing a cycle.
+    #
+    # The hourly cron normally leaves nothing to do here -- a minute or two --
+    # but PFM starts at 01:00 and must not depend on the cron having worked.
+    # If it has been down for a day the forecast catches up for itself rather
+    # than quietly running on stale hycom or shortening itself, which is how a
+    # broken cron would otherwise present.
+    #
+    # The cron fires at :00 and so does PFM, so these two collide head-on
+    # rather than at some unpredictable offset. That is deliberate: whichever
+    # takes the lock first does the work and the other aborts immediately,
+    # and since both runs do exactly the same thing it does not matter which
+    # wins. No special case for PFM, and no crontab exception for this hour.
+    #
+    # --wait exists (see hycom_grabber.py) and would make this one block
+    # until the cron run finished instead of aborting. Left at 0 on purpose.
+    # Set PFM['hycom_grabber_wait_min'] to e.g. 50 to turn it on, which is
+    # worth doing only if the cron losing the race turns out to matter: the
+    # case it covers is a cron that has been down long enough that the cache
+    # cannot cover the forecast, where PFM would abort here, find the gap in
+    # get_hycom_foretime_v2 and download while the cron run is still going.
+    if not skip_ocn and PFM.get('hycom_use_cache', True):
+        gb = PFM.get('hycom_grabber_budget_min', 45)
+        print('bringing the hycom cache up to date before picking a cycle '
+              '(hycom_grabber, budget ' + str(gb) + ' min)...')
+        os.chdir('../sdpm_py_util')
+        cmd_list = ['python','-u','-W','ignore','hycom_grabber.py','fill',
+                    '--budget', str(gb), '--pkl', pkl_fnm,
+                    # Only what THIS forecast needs. Without it the grabber
+                    # runs in cron mode and tops up all five retained cycles:
+                    # on 2026-10-15 the cycle PFM needed was already complete
+                    # and it still queued 641 files of backfill for two older
+                    # ones, holding the forecast 45 min for data it had no use
+                    # for. The cron keeps the rest of the cache current.
+                    '--for-window', t1.strftime('%Y%m%d%H%M'),
+                                    t2.strftime('%Y%m%d%H%M'),
+                    '--wait', str(PFM.get('hycom_grabber_wait_min', 0)),
+                    '--log', os.path.join(
+                        os.path.dirname(os.path.dirname(
+                            os.path.abspath(__file__))),
+                        'log', 'hycom_grabber_YYYYMMDD.log'),
+                    '--also-stdout']
+        retg = subprocess.run(cmd_list)
+        os.chdir('../driver')
+        if retg.returncode != 0:
+            print('hycom_grabber exited ' + str(retg.returncode) +
+                  ' -- continuing. The coverage check in '
+                  'get_hycom_foretime_v2 decides whether we actually have '
+                  'enough, and will download if we do not.')
+
     print('getting the hycom forecast time...')
     print('this will clean, download new hycom files, then find the forecast date covering the PFM times.')
     t01 = datetime.now()

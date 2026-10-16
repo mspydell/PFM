@@ -44,6 +44,25 @@ def copy_mv_nc_file(nc_type,lvl,pkl_fnm):
 _LV1_BC_META_KEYS = ('vinfo', 'ocean_time_ref')
 
 
+def _share_with_group(path):
+    """Make an archived file writable by the rest of feddersen-lab.
+
+    The archive directory is already 2775, so anyone in the group can create
+    files there -- but the files themselves land 644 under the usual 022
+    umask, so whoever did NOT write one cannot overwrite it. In practice that
+    meant a forecast run by one of us could archive a boundary file that the
+    other could not then replace. Fixing the umask would work too, but it has
+    to be right in cron, in sbatch and in every shell anyone runs this from;
+    setting the mode on the file we just wrote is one line and cannot drift.
+
+    Swallows failures: this is a convenience, never a reason to fail a run.
+    """
+    try:
+        os.chmod(path, os.stat(path).st_mode | 0o660)
+    except OSError as e:
+        print('_share_with_group: could not chmod ' + path + ': ' + str(e))
+
+
 def _lv1_bc_meta_name(stamp):
     return 'LV1_BCmeta_' + stamp + '.pkl'
 
@@ -91,6 +110,7 @@ def archive_lv1_bc_meta(pkl_fnm, stamp):
         with open(tmp, 'wb') as fout:
             _pk.dump(meta, fout, protocol=_pk.HIGHEST_PROTOCOL)
         os.replace(tmp, dst)
+        _share_with_group(dst)
         print('archive_lv1_bc_meta: archived ' + os.path.basename(dst) +
               ' (%d bytes)' % os.path.getsize(dst))
         return dst
@@ -351,6 +371,7 @@ def archive_lv1_bc(pkl_fnm):
         tmp = dst + '.part'
         _sh.copyfile(src, tmp)
         os.replace(tmp, dst)
+        _share_with_group(dst)
 
         exp = PFM['fetch_time'].strftime('%Y%m%d%H')
         note = '' if stamp == exp else ('   NOTE: fetch_time says ' + exp +
