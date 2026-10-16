@@ -1979,6 +1979,14 @@ def run_fore_LV4(pkl_fnm):
     dt_roms = []
     dt_roms.append(t2-t1)
 
+    # Archive the _024 SWAN restart -- the one the next cycle hotstarts from.
+    # Only that one: check_and_move also leaves _000.._120, 21 sets per cycle,
+    # and nothing reads the intermediates, so archiving them all would cost
+    # ~785 GB for 10 days instead of ~25.  Pruned to 10 days, because 2.5 GB a
+    # cycle is a different order from the grib and LV1_atm archives.
+    utilfuns.archive_lv4_swan_restarts(pkl_fnm, 'PFM')
+    utilfuns.prune_lv4_swan_restarts(days=10, which='PFM')
+
  
     dt_plotting = []
     t1=datetime.now()
