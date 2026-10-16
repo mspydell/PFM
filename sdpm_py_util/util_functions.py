@@ -459,7 +459,11 @@ def archive_lv1_atm(pkl_fnm):
                   ' has no usable time axis; not archiving')
             return None
         stamp = span[0].strftime('%Y%m%d%H')
-        dir_out = _lv1_atm_archive_dir(PFM)
+        # YYYY/MM subdirectories.  One file per forecast is ~365 a year at
+        # 182-803 MB each, so a flat directory becomes both slow to list and
+        # unpleasant to browse within a couple of years.
+        dir_out = os.path.join(_lv1_atm_archive_dir(PFM),
+                               span[0].strftime('%Y'), span[0].strftime('%m'))
         dst = os.path.join(dir_out, 'LV1_atm_' + stamp + '.nc')
         want = os.path.getsize(src)
         if os.path.isfile(dst):
@@ -519,9 +523,13 @@ def lv1_atm_from_archive(pkl_fnm, lookback_days=5):
         with _nc.Dataset(PFM['lv1_grid_file']) as g:
             want_shape = g['lat_rho'].shape
 
-        cands = [os.path.join(dir_in, 'LV1_atm_' +
-                              (t1 - _dt.timedelta(days=k)).strftime('%Y%m%d%H') + '.nc')
-                 for k in range(0, lookback_days + 1)]
+        cands = []
+        for k in range(0, lookback_days + 1):
+            tk = t1 - _dt.timedelta(days=k)
+            nm = 'LV1_atm_' + tk.strftime('%Y%m%d%H') + '.nc'
+            cands.append(os.path.join(dir_in, tk.strftime('%Y'),
+                                      tk.strftime('%m'), nm))
+            cands.append(os.path.join(dir_in, nm))   # pre-YYYY/MM layout
         slack = _dt.timedelta(minutes=1)
         for src in cands:
             if not os.path.isfile(src):
