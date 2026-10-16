@@ -77,14 +77,43 @@ def get_atm_data_as_dict(pkl_fnm):
             cnt = 0
             while got_files >= 1 and cnt<4:   
                 yyyymmddhh0 = tfore0.strftime("%Y%m%d%H")
-                print('getting the ecmwf data for the ' + yyyymmddhh0 + ' forecast...')
-                # download the ecmwf data...
-                cmd_list = ['python','-W','ignore','atm_functions.py','get_ecmwf_forecast_grbs_v2',yyyymmddhh0,tstart_str,pkl_fnm]
-                os.chdir('../sdpm_py_util')
-                ret5 = subprocess.run(cmd_list)   
-                print('return code: ' + str(ret5.returncode) + ' (0=good)')  
-                print('did we get the ecmwf data?')
+                # CHECK LOCAL DISK FIRST, THEN DOWNLOAD.
+                #
+                # got_files is seeded to 1, so this loop used to run the download
+                # unconditionally and only ask got_ecmwf_files() afterwards --
+                # which means a window already complete on disk was re-fetched
+                # every time.  That is not merely wasteful: when the server no
+                # longer serves the init, download_all_with_retry sees the 427-byte
+                # HTML error page, calls it "Not a GRIB file", and CLEANS UP THE
+                # LOCAL FILE it was refreshing.  So a failed refresh DESTROYS good
+                # data.
+                #
+                # That is what happened on 2026-10-16.  The 10/13 00Z init was
+                # complete on disk (preflight: "101 steps on disk, covers the
+                # window at leads 0..24 h").  The rerun of the 10/14 cycle
+                # re-downloaded it, ECMWF had aged it out of dissemination 3 days
+                # earlier, and all 25 hourly steps of the window were deleted --
+                # unrecoverably, since Archive/ecmwf_raw is empty.  It took the
+                # 10/15 window with it.
+                #
+                # Operationally inert: a genuinely new init is not on disk, so
+                # got_ecmwf_files() returns >= 1 and the download runs exactly as
+                # before.  The only behaviour that changes is that files we
+                # already have are left alone.
                 got_files = got_ecmwf_files(yyyymmddhh0,tstart_str,pkl_fnm)
+                if got_files == 0:
+                    print('the ecmwf data for the ' + yyyymmddhh0 + ' forecast is '
+                          'already complete on disk; NOT re-downloading it')
+                else:
+                    print('getting the ecmwf data for the ' + yyyymmddhh0 + ' forecast...')
+                    print('  (' + str(got_files) + ' file(s) missing or empty locally)')
+                    # download the ecmwf data...
+                    cmd_list = ['python','-W','ignore','atm_functions.py','get_ecmwf_forecast_grbs_v2',yyyymmddhh0,tstart_str,pkl_fnm]
+                    os.chdir('../sdpm_py_util')
+                    ret5 = subprocess.run(cmd_list)   
+                    print('return code: ' + str(ret5.returncode) + ' (0=good)')  
+                    print('did we get the ecmwf data?')
+                    got_files = got_ecmwf_files(yyyymmddhh0,tstart_str,pkl_fnm)
                 if got_files == 0:
                     print('we got the files from the ecmwf forecast ',yyyymmddhh0)
                     print('to do the PFM forecast starting on ', tstart_str)
