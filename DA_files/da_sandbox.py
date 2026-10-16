@@ -303,6 +303,28 @@ def stage_static_run_inputs(PFM: dict, *, verbose: bool = True) -> int:
         src = Path(str(dst).replace(SANDBOX_SCRATCH, "/scratch/PFM_Simulations"))
         d = Path(dst)
         d.mkdir(parents=True, exist_ok=True)
+
+        # Clear the PREVIOUS run's SWAN Errfiles.  SWAN writes one per rank only
+        # when it is dying, so their mere presence reads as "this run failed" --
+        # and they are not truncated or removed by the next run, so a successful
+        # run inherits the last failure's 72 files and looks broken.  That cost
+        # real time twice on 2026-10-14/15: the LV4 forecast of 10/13 completed
+        # clean with zero Errfiles of its own, while 72 from the 10/14 failure
+        # sat beside it, and the only way to tell was comparing mtimes.
+        #
+        # Errfiles only.  PRINT01-* is SWAN's actual log and is rewritten every
+        # run, so deleting it would lose the previous run's diagnostics for no
+        # gain -- and unlike an Errfile its existence means nothing either way.
+        stale = sorted(d.glob("Errfile*"))
+        for f in stale:
+            try:
+                f.unlink()
+            except OSError:
+                pass
+        if stale and verbose:
+            print("    %s: cleared %d stale SWAN Errfile(s) from a previous run"
+                  % (lv, len(stale)))
+
         if not src.is_dir():
             if verbose:
                 print("    %s: no operational Run dir at %s to copy inputs from"
