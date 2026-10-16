@@ -299,9 +299,31 @@ def stage_lv1_atm(ctx: Ctx) -> dict:
     # record: up to 5.9 m/s in Uwind, 3.3 C in Tair, 212 W/m2 in swrad.  Large
     # enough that confusing them would matter, and large enough that it is NOT
     # the test of whether this adapter works.)
-    B.run_pfm("atm_functions.py", "get_atm_data_as_dict", pkl, timeout=3600)
-    B.run_pfm("atm_functions.py", "get_atm_data_on_roms_grid", "1", pkl)
-    B.run_pfm("atm_functions.py", "atm_roms_dict_to_netcdf", "1", pkl)
+    # ARCHIVE FIRST.  An LV1 atm file archived by an earlier run is already the
+    # forcing for this window, on the LV1 grid with the winds rotated, so the
+    # whole chain below can be skipped.  This is the LAST-RESORT recovery path:
+    # the raw grib cache sits one level deeper inside get_atm_data_as_dict and is
+    # preferred, because from gribs this stage rebuilds exactly as it always has.
+    #
+    # It matters here more than in PFM.  The DA only ever runs on a PAST window,
+    # so it is precisely the caller for which upstream has already dropped the
+    # data -- pipeline keeps the current cycle, ecmwf ftp ~2-3 days, CDIP nothing
+    # since July 2026.  On 2026-10-16 this stage failed for exactly that reason
+    # and took the 10/14 cycle down with it.
+    # imported here, not at module scope: util_functions lives in PFM's
+    # sdpm_py_util, which is not on sys.path until da_config has resolved it,
+    # and its own imports expect that directory to be importable.
+    if str(C.PFM_PYDIR) not in sys.path:
+        sys.path.insert(0, str(C.PFM_PYDIR))
+    import util_functions as UF
+
+    if UF.lv1_atm_from_archive(str(pkl)):
+        print("    LV1 atm taken from the archive; skipping the ECMWF chain")
+    else:
+        B.run_pfm("atm_functions.py", "get_atm_data_as_dict", pkl, timeout=3600)
+        B.run_pfm("atm_functions.py", "get_atm_data_on_roms_grid", "1", pkl)
+        B.run_pfm("atm_functions.py", "atm_roms_dict_to_netcdf", "1", pkl)
+        UF.archive_lv1_atm(str(pkl))
 
     # PFM names the file from the dict; we asked for the DA name, so this is
     # where that is confirmed rather than assumed.
