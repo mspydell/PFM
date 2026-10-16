@@ -109,7 +109,12 @@ PER_FILE_TRIES = 5     # stripping is random per request: ~40% when measured,
 CATALOG_URL = ('https://tds.hycom.org/thredds/catalog/datasets/ESPC-D-V02/'
                'data/forecasts/catalog.xml')
 CATALOG_CACHE = '.catalog.txt'   # inside the hycom dir
+# Set when a run had to fall back to the saved listing, so the skip logic
+# knows not to trust "not published yet" without asking the server directly.
+CATALOG_IS_STALE = set()
 CATALOG_MAX_AGE_MIN = 20         # refetch if older; cycles appear hourly at most
+CATALOG_TRIES = 3                # the failures are bursty; a retry usually wins
+CATALOG_RETRY_SEC = 5
 
 # HYCOM takes the service down twice a day for maintenance, 02:00-03:00 and
 # 12:00-13:00 US Eastern. Eastern, not UTC: the offset shifts with daylight
@@ -213,6 +218,7 @@ def fetch_catalog(hydir, max_age_min=CATALOG_MAX_AGE_MIN, log=print):
     everything -- degraded, but never worse than having no catalog at all.
     """
     cache = os.path.join(hydir, CATALOG_CACHE)
+    CATALOG_IS_STALE.discard(1)
 
     def cached(why):
         """Fall back to the copy on disk at any age.
@@ -225,14 +231,18 @@ def fetch_catalog(hydir, max_age_min=CATALOG_MAX_AGE_MIN, log=print):
         """
         if not os.path.isfile(cache):
             log('CATALOG %s, and no cached copy -- proceeding without it' % why)
+            CATALOG_IS_STALE.add(1)
             return set()
         age = (time.time() - os.path.getmtime(cache)) / 60.0
         with open(cache) as f:
             names = {ln.strip() for ln in f if ln.strip()}
         log('CATALOG %s -- using the saved listing (%d names, %.0f min old). '
             'This is hycom\'s index of what it offers, not our data; no '
-            'verified file is refetched because of it.'
+            'verified file is refetched because of it. A cycle published '
+            'since then would be invisible here, so unpublished cycles get '
+            'probed directly below.'
             % (why, len(names), age))
+        CATALOG_IS_STALE.add(1)
         return names
 
     if os.path.isfile(cache):
@@ -243,15 +253,28 @@ def fetch_catalog(hydir, max_age_min=CATALOG_MAX_AGE_MIN, log=print):
             log('CATALOG %d names (saved listing, %.0f min old)'
                 % (len(names), age))
             return names
-    # 90 s, not 180: a 2 min budget once went entirely on one catalog attempt
-    # that timed out anyway. the fallback below costs nothing.
-    try:
-        r = subprocess.run(['curl', '-s', '--max-time', '90', CATALOG_URL],
-                           capture_output=True, text=True, timeout=120)
-    except subprocess.TimeoutExpired:
-        return cached('fetch timed out')
+    # 45 s and three tries, rather than one long one. The failures are
+    # bursty, not a steady rate: six consecutive fetches measured 1.6-4.8 s
+    # while the hourly cron was failing roughly every other run, so a retry
+    # moments later usually lands. One 90 s attempt both wasted more budget
+    # and gave up more readily.
+    r = None
+    for attempt in range(CATALOG_TRIES):
+        try:
+            r = subprocess.run(['curl', '-s', '--max-time', '45', CATALOG_URL],
+                               capture_output=True, text=True, timeout=75)
+        except subprocess.TimeoutExpired:
+            r = None
+        if r is not None and r.returncode == 0 and r.stdout:
+            break
+        if attempt + 1 < CATALOG_TRIES:
+            log('CATALOG attempt %d of %d did not return; retrying'
+                % (attempt + 1, CATALOG_TRIES))
+            time.sleep(CATALOG_RETRY_SEC)
+    if r is None:
+        return cached('fetch timed out %dx' % CATALOG_TRIES)
     if r.returncode != 0 or not r.stdout:
-        return cached('fetch failed (rc=%d)' % r.returncode)
+        return cached('fetch failed %dx (rc=%d)' % (CATALOG_TRIES, r.returncode))
     names = set(re.findall(r'name="(US058GCOM[^"]*\.nc)"', r.stdout))
     if not names:
         return cached('parsed 0 names')
@@ -691,6 +714,15 @@ def fill(hydir, box, workers=DEFAULT_WORKERS, budget_min=DEFAULT_BUDGET_MIN,
         offered = [f for f in need if server_name(f) in catalog]
         absent = len(need) - len(offered)
         if absent and not cycle_in_catalog(cyc, catalog):
+            # A stale listing cannot report a cycle published since it was
+            # saved, and skipping a cycle that IS up is the one way this
+            # fallback could cost a forecast. One .dds probe settles it in
+            # about 0.2 s, so ask rather than assume.
+            if CATALOG_IS_STALE and cycle_published(cyc, log=log):
+                log('PROBE   cycle %s IS on the server after all -- the saved '
+                    'listing predates it; fetching it' % cyc)
+                want += need
+                continue
             log('SKIP    cycle %s not on the server yet (%d files deferred)'
                 % (cyc, len(need)))
             continue
