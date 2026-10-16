@@ -63,7 +63,22 @@ LV1_HIS_DIRS = [PFM_ARCHIVE_LV1_HIS := Path(
 # ECMWF and HYCOM.  Order is PRECEDENCE: the retrospective NCEI cache first, so
 # reprocessed data beats the near-real-time feed for an hour both hold.
 HFR_CACHE_RETRO = Path("/dataSIO/DA_Simulations/input_files/hfr_cache")
-HFR_CACHE_NRT = SCRATCH / "Obs" / "hfr_nrt"
+# On /dataSIO, next to the retrospective store, because that is where HFR data
+# lives -- and because /scratch is purged while this is the only copy of the
+# near-real-time feed.  NDBC serves only the recent past, so an hour that ages
+# out and was never cached cannot be recovered, exactly like the ECMWF gribs.
+# The footprint does not argue against it: 6 km hourly is ~25.5 KB a file, so a
+# year is ~229 MB (2 km would be ~370 MB).
+#
+# A SUBDIRECTORY of the retro cache, not flat inside it.  The search is a FLAT
+# glob -- c.glob(f"*-{HFR_RES}-*_s{stamp}_*.nc") in da_preflight and the
+# --hfr-cache list in make_obs_from_hfr -- so a subdir is invisible to a search
+# of the parent, which is what keeps HFR_CACHES's precedence meaningful:
+# retrospective first, so reprocessed data beats the near-real-time feed for any
+# hour both hold.  Flat in the same directory, both would match one glob and
+# sorted()[0] would pick "nrt" over "uwls" alphabetically -- silently inverting
+# that precedence.
+HFR_CACHE_NRT = Path("/dataSIO/DA_Simulations/input_files/hfr_cache/nrt")
 HFR_CACHES = [HFR_CACHE_RETRO, HFR_CACHE_NRT]
 # 25 hourly surveys span the window; make_obs_from_hfr tolerates gaps (the NCEI
 # catalog has permanent ones) so a cycle is not failed for a few missing hours.
