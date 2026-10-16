@@ -8,7 +8,12 @@
 # takes a lock so a slow catch-up run is never doubled up on.
 #
 # Install with:  crontab -e
-#   0 * * * * /home/mspydell/models/PFM_root/PFM/driver/run_hycom_grabber.sh
+#   0 * * * * /path/to/your/PFM/driver/run_hycom_grabber.sh
+#
+# NOTE: one of these per machine is enough. The cache it keeps
+# (/scratch/PFM_Simulations/hycom_data) is shared, so a second person running
+# this cron on the same host adds nothing and doubles the connections to
+# hycom. mspydell runs it; everyone else just benefits from the cache.
 #
 # Top of the hour on purpose: the 45 min budget then puts the end at :45, so
 # a block in the log always starts at :00 and stops by :45.
@@ -19,8 +24,17 @@
 #     be a great way to break it.
 #   - no .env sourcing. HYCOM over OPeNDAP needs no credentials.
 
-PFM_ROOT=/home/mspydell/models/PFM_root/PFM
-CONDA_SH=/home/mspydell/anaconda3/etc/profile.d/conda.sh
+# Derived from this script's own location, not hardcoded: the repo is shared,
+# and a pinned /home/<me>/... path means whoever else pulls it silently runs
+# my clone with my conda instead of their own.
+PFM_ROOT=$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)
+CONDA_SH=""
+for c in "$HOME/anaconda3/etc/profile.d/conda.sh" \
+         "$HOME/miniconda3/etc/profile.d/conda.sh" \
+         "$HOME/mambaforge/etc/profile.d/conda.sh" \
+         /opt/anaconda3/etc/profile.d/conda.sh; do
+    [ -r "$c" ] && { CONDA_SH="$c"; break; }
+done
 PROXY_SH=/etc/profile.d/proxy.sh
 ENV_NAME=PHM-env
 LOGDIR=${PFM_ROOT}/log
@@ -59,7 +73,7 @@ else
 fi
 export ftp_proxy="${ftp_proxy:-$http_proxy}"
 
-[ -r "${CONDA_SH}" ] || fail "no conda hook at ${CONDA_SH}"
+[ -n "${CONDA_SH}" ] && [ -r "${CONDA_SH}" ] || fail "no conda hook found (tried \$HOME/anaconda3, miniconda3, mambaforge, /opt/anaconda3)"
 source "${CONDA_SH}"
 conda activate "${ENV_NAME}" || fail "could not activate ${ENV_NAME}"
 
