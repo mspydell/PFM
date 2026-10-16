@@ -84,6 +84,11 @@ LEAD_HOURS_SSH = list(range(0, 193, 1))
 LEAD_HOURS_3Z = list(range(0, 193, 3))
 
 KEEP_DAYS = 5          # retain the five most recent cycles, prune the rest
+MIRROR_KEEP_DAYS = 10  # the mirror keeps longer than the cache: it is the
+                       # fallback, and a cache bug that deletes something
+                       # should not be unrecoverable. 10 cycles is ~5 GB,
+                       # which /dataSIO will not notice, and hycom can always
+                       # be re-downloaded if we somehow need more than that.
 DEFAULT_WORKERS = 10   # hycom's documented ceiling is 10 per IP
 DEFAULT_BUDGET_MIN = 45
 PROGRESS_EVERY_MIN = 5 # a 45 min run should say something in between
@@ -443,6 +448,10 @@ def mirror(hydir, archdir, keep, log=print):
         meta = parse_name(path)
         if meta and meta[1] in keep:
             src[os.path.basename(path)] = os.path.getsize(path)
+    # The mirror keeps its own, longer window. Following the cache's
+    # deletions exactly would have made it useless as a fallback -- the run
+    # that wrongly pruned a cycle would delete the copy in the same breath.
+    mirror_keep = set(recent_cycles(MIRROR_KEEP_DAYS))
 
     copied = removed = 0
     for name, size in sorted(src.items()):
@@ -468,17 +477,21 @@ def mirror(hydir, archdir, keep, log=print):
             except OSError:
                 pass
 
-    # the mirror follows the cache, retention included
+    # drop only what has aged out of the mirror's own window, not what the
+    # cache happens to have dropped
     for path in glob.glob(os.path.join(archdir, 'hy_*.nc')):
-        if os.path.basename(path) not in src:
+        meta = parse_name(path)
+        if meta is None or meta[1] not in mirror_keep:
             try:
                 os.remove(path)
                 removed += 1
             except OSError:
                 pass
 
-    log('MIRROR  %s: %d copied, %d removed, %d files total, %.1fmin'
-        % (archdir, copied, removed, len(src), (time.time() - t0) / 60.0))
+    held = len(glob.glob(os.path.join(archdir, 'hy_*.nc')))
+    log('MIRROR  %s: %d copied, %d aged out, %d files held (%d day window), '
+        '%.1fmin' % (archdir, copied, removed, held, MIRROR_KEEP_DAYS,
+                     (time.time() - t0) / 60.0))
 
 
 def fetch_one(name, hydir, box, tries=PER_FILE_TRIES, scratch=None, log=print):
@@ -555,9 +568,28 @@ def cycle_published(cycle, log=print):
         return False
 
 
-def prune(hydir, keep, log=print):
-    """Drop whole cycles outside the keep list. Retention lives here so the
-    grabber and PFM cannot fight over it -- one owner only."""
+def prune(hydir, keep, rows=None, log=print):
+    """Drop whole cycles outside the keep list, except the last one that works.
+
+    Retention lives here so the grabber and PFM cannot fight over it -- one
+    owner only. But "the five most recent cycles" is the right rule only while
+    hycom is publishing. When it stalls, the window keeps sliding and would
+    eventually delete the only cycle anything can run from: on 2026-10-15,
+    with 10-14 published broken and 10-15 and 10-16 never appearing, the
+    17:00 PDT Saturday run would have pruned 2026-10-13T12 and left a cache
+    with nothing usable in it. Age is not the same as uselessness, so the
+    newest cycle that can actually drive a forecast is never pruned. The pin
+    moves forward on its own the moment hycom publishes something good.
+    """
+    protected = set()
+    if rows:
+        usable = sorted(c for c in {r['cycle'] for r in rows}
+                        if cycle_reach(rows, c)[0] is not None)
+        if usable and usable[-1] not in keep:
+            protected.add(usable[-1])
+            log('PIN     cycle %s is outside the %d day window but is the '
+                'newest usable one -- keeping it until a better one exists'
+                % (usable[-1], KEEP_DAYS))
     seen = {}
     for path in glob.glob(os.path.join(hydir, 'hy_*.nc')):
         meta = parse_name(path)
@@ -565,7 +597,7 @@ def prune(hydir, keep, log=print):
             seen.setdefault(meta[1], []).append(path)
     removed = 0
     for cyc in sorted(seen):
-        if cyc in keep:
+        if cyc in keep or cyc in protected:
             continue
         for path in seen[cyc]:
             try:
@@ -598,10 +630,12 @@ def fill(hydir, box, workers=DEFAULT_WORKERS, budget_min=DEFAULT_BUDGET_MIN,
     log('=' * 68)
     log('START   keep=%s workers=%d budget=%dmin' % (','.join(keep), workers,
                                                      budget_min))
-    prune(hydir, keep, log=log)
-
-    # verify what is on disk, delete anything that fails
+    # scan first: prune needs to know which cycles are usable before it can
+    # decide what is safe to delete.
     rows = scan(hydir)
+    if prune(hydir, keep, rows=rows, log=log):
+        rows = [r for r in rows
+                if os.path.isfile(os.path.join(hydir, r['file']))]
     bad = [r for r in rows if r['state'] != OK]
     for r in bad:
         try:
