@@ -122,11 +122,18 @@ def get_atm_data_as_dict(pkl_fnm):
                     print('return code: ' + str(ret5.returncode) + ' (0=good)')  
                     print('did we get the ecmwf data?')
                     got_files = got_ecmwf_files(yyyymmddhh0,tstart_str,pkl_fnm)
-                    if got_files == 0:
-                        # downloaded clean -- put it in the archive so this date
-                        # stays rerunnable after the server drops it
-                        archive_ecmwf_raw(yyyymmddhh0,tstart_str,pkl_fnm)
                 if got_files == 0:
+                    # ARCHIVE HERE, not inside the download branch.  The window
+                    # can be complete three ways -- already on scratch, restored
+                    # from the archive, or just downloaded -- and only the third
+                    # was being archived.  So the case that most needs the
+                    # archive, a rerun of a past date whose gribs happen to be
+                    # on scratch, was silently skipping it: after the 2026-10-17
+                    # cycle ran off the on-disk 10/16 init, ecmwf_raw still held
+                    # only 2026101500.  Archiving a set that came FROM the
+                    # archive is a no-op (write-once), so this is safe on all
+                    # three paths.
+                    archive_ecmwf_raw(yyyymmddhh0,tstart_str,pkl_fnm)
                     print('we got the files from the ecmwf forecast ',yyyymmddhh0)
                     print('to do the PFM forecast starting on ', tstart_str)
 
