@@ -603,7 +603,12 @@ def stage_swan_hotstart(t_da: DT.datetime, dest: Path | None = None,
     # WARM: the DA's own previous cycle
     for k in range(1, lookback_days + 1):
         t_prev = t_da - DT.timedelta(days=k)
-        stamp = t_prev.strftime("%Y%m%d%H%M")
+        # NOT `stamp`: that name belongs to t_da and the COLD fallback below
+        # reads it.  Shadowing it here left the cold path globbing the LAST
+        # t_prev tried -- t_da - 3 days -- so for t_da 2026-10-16 it linked the
+        # 10/13 init, 72 real files that PFM's stamp+lead lookup then correctly
+        # refused, and lv4_fwd died with "no SWAN hotstart found".
+        pstamp = t_prev.strftime("%Y%m%d%H%M")
         hrs = int(round((t_da - t_prev).total_seconds() / 3600.0))
 
         # THREE name forms, newest first.  Since the DA started writing the
@@ -614,11 +619,11 @@ def stage_swan_hotstart(t_da: DT.datetime, dest: Path | None = None,
         # un-marked LV4_swan_rst_ from 10/06..10/11.  Both can go once those
         # cycles age out of use.
         src = sorted(C.SWAN_RST_DA_OUT.glob(
-            f"LV4_DA_swan_rst_{stamp}_{hrs:03d}.dat-*"))
+            f"LV4_DA_swan_rst_{pstamp}_{hrs:03d}.dat-*"))
         synth = False
         if not src:
-            for pat in (f"LV4_DA_swan_rst_{stamp}.dat-*",
-                        f"LV4_swan_rst_{stamp}.dat-*"):
+            for pat in (f"LV4_DA_swan_rst_{pstamp}.dat-*",
+                        f"LV4_swan_rst_{pstamp}.dat-*"):
                 src = sorted(C.SWAN_RST_DA_OUT.glob(pat))
                 if src:
                     synth = True
@@ -628,7 +633,7 @@ def stage_swan_hotstart(t_da: DT.datetime, dest: Path | None = None,
 
         for f in src:
             rank = f.name.rsplit("-", 1)[-1]
-            name = (f"LV4_swan_rst_{stamp}_{hrs:03d}.dat-{rank}" if synth
+            name = (f"LV4_swan_rst_{pstamp}_{hrs:03d}.dat-{rank}" if synth
                     else f.name)
             link = dest / name
             if link.is_symlink() or link.exists():
