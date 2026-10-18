@@ -15,6 +15,7 @@ import xarray as xr
 import netCDF4 as nc
 
 import init_funs_forecast as initfuns
+import util_functions as utilfuns
 import grid_functions as grdfuns
 
 from scipy.interpolate import RegularGridInterpolator, LinearNDInterpolator
@@ -249,13 +250,17 @@ def get_cdip_data(pkl_fnm):
         for fname in files_to_copy:
             fn_end = os.path.basename(fname)
             fn_2 = dir2 + fn_end
-            try:
-                shutil.copy(fname, fn_2)
-                #print(f"File '{source_file}' copied successfully to '{destination_directory}'")
-            except FileNotFoundError:
+            # shutil.copy copies the MODE as well as the data, and applying a
+            # mode to a file owned by the other user is EPERM even when the
+            # file is perfectly writable -- the data had already been written.
+            # That produced ~90 "Operation not permitted" lines per run, all
+            # of them on copies that had in fact succeeded. utilfuns writes a
+            # temp file and renames it instead, which touches no metadata and
+            # needs only the directory.
+            if not os.path.isfile(fname):
                 print(f"Error: Source file '{fname}' not found.")
-            except Exception as e:
-                print(f"An error occurred: {e}")
+            else:
+                utilfuns.copy_into_archive(fname, fn_2, label='cdip')
 
 def cdip_ncs_to_dict(refresh,pkl_fnm):
     
