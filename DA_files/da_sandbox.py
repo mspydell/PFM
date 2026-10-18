@@ -101,6 +101,73 @@ def offenders(PFM: dict, *, sandbox: tuple[str, ...] = ()) -> dict:
     return bad
 
 
+# Output-name tag for a testing run.
+#
+# PATH ISOLATION IS NOT ENOUGH, which 2026-10-17 proved.  The sandbox path was
+# correct and offenders() reported zero leaks, but link_restarts_into_sandbox had
+# symlinked the OPERATIONAL restart for this t_fore into the sandbox under its own
+# name -- and RSTNAME is that same name in that same directory.  ROMS opened it
+# for writing and wrote STRAIGHT THROUGH the symlink into the operational file,
+# replacing a 20-record 15.5 GB forecast restart with a 4-record 3.1 GB one.  The
+# next operational cycle then initialised from it: the time was right (record 4 is
+# t_fore + 24 h) so nothing failed, and all four levels silently started from
+# DA-derived test fields.
+#
+# A name tag cannot fail that way.  A testing run writes LV1_ocean_rst_<...>_testing.nc,
+# which no operational file is ever called, so no symlink can match it and no
+# operational reader can pick it up.  Isolation stops depending on every path
+# being right and starts being structural.
+#
+# APPENDED, not inserted.  PFM parses stamps out of these names at FIXED OFFSETS
+# -- tail[14:24] in get_restart_file_and_index, tail[13:23] in
+# get_swan_restart_file_name -- so '..._testing.nc' keeps every offset valid and
+# a testing run can still find its own restarts, while 'LV1_testing_ocean_rst_'
+# would shift the stamp and break them.
+TESTING_TAG = "testing"
+
+
+def tag_testing_output_names(PFM: dict, tag: str = TESTING_TAG,
+                             verbose: bool = True) -> int:
+    """Append `_<tag>` to this run's OUTPUT file names.  Returns how many changed.
+
+    Only the names a run WRITES: histories, ROMS restarts and the SWAN restart.
+    Inputs are left alone -- a testing run reads operational and DA files by their
+    real names, which is the point.
+
+    Safe to call at pickle-build time for the forecast path: nothing rebuilds
+    these keys afterwards (add_file_names_2MI is only reached from the hindcast
+    driver and the DA bridge).  If that ever changes, this has to move after it,
+    the way the DA's own rename had to.
+    """
+    suffix = "_" + tag
+    n = 0
+    for lv in ("1", "2", "3", "4"):
+        for key, dirkey in ((f"lv{lv}_his_name", f"lv{lv}_his_dir"),
+                            (f"lv{lv}_rst_name", "restart_ncfiles_dir_out")):
+            nm = PFM.get(key)
+            if not isinstance(nm, str) or not nm or suffix + "." in nm:
+                continue
+            stem, dot, ext = nm.rpartition(".")
+            PFM[key] = (stem + suffix + dot + ext) if dot else nm + suffix
+            n += 1
+            d = PFM.get(dirkey)
+            if isinstance(d, str) and d:
+                PFM[key + "_full"] = str(Path(d) / PFM[key])
+    nm = PFM.get("lv4_swan_rst_name")
+    if isinstance(nm, str) and nm and suffix + "." not in nm:
+        stem, dot, ext = nm.rpartition(".")
+        PFM["lv4_swan_rst_name"] = (stem + suffix + dot + ext) if dot else nm + suffix
+        n += 1
+        d = PFM.get("restart_swanfiles_dir_out")
+        if isinstance(d, str) and d:
+            PFM["lv4_swan_rst_name_full"] = str(Path(d) / PFM["lv4_swan_rst_name"])
+    PFM["run_tag"] = tag          # read by may_use_output in init_funs_forecast
+    if verbose:
+        print(f"    tagged {n} output name(s) with '{tag}': "
+              f"{PFM.get('lv1_rst_name')}, {PFM.get('lv4_swan_rst_name')}")
+    return n
+
+
 def apply_testing_paths(PFM: dict, *, scratch: str = SANDBOX_SCRATCH,
                         archive: str = SANDBOX_ARCHIVE,
                         verbose: bool = True) -> int:

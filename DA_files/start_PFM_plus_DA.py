@@ -185,6 +185,12 @@ def main(argv=None) -> int:
     if a.testing:
         print("  redirecting into the testing sandbox")
         n = SB.apply_testing_paths(MI, verbose=False)
+        # Tag the OUTPUT names, not just the paths.  A sandboxed path is not
+        # isolation on its own: on 2026-10-17 RSTNAME pointed at a sandbox path
+        # that was a SYMLINK to the operational restart of the same name, and
+        # ROMS wrote through it into the operational file.  A tagged name cannot
+        # collide with an operational one, so no symlink can match it.
+        SB.tag_testing_output_names(MI)
         made = SB.ensure_sandbox_dirs(MI)
         print(f"    {n} path(s) redirected, {made} directory/ies created")
         # The ocean starts from the DA ICs, but SWAN is initialised separately

@@ -304,6 +304,48 @@ def move_restart_ncs(pkl_fnm):
                 fnew = PFM['restart_file_dir'] + '/' + tail
                 shutil.move(f,fnew)
 
+def output_tag(tail):
+    """'testing', 'DA' or None -- which run produced a file, from its NAME alone.
+
+    PFM_DA marks what it writes with DA (LV4_DA_ocean_rst_, LV4_DA_swan_rst_) and
+    a sandboxed PFM_testing run appends _testing (see
+    da_sandbox.tag_testing_output_names).  An operational file carries neither.
+    """
+    if '_testing' in tail:
+        return 'testing'
+    if '_DA_' in tail or tail.startswith('LV4_DA') or '_DA.' in tail:
+        return 'DA'
+    return None
+
+
+def may_use_output(tail, own_tag):
+    """May a run tagged `own_tag` read/delete the file named `tail`?
+
+    operational (own_tag None) -> only untagged files
+    testing                    -> untagged, its own, and DA
+    DA                         -> untagged and DA
+
+    THIS IS THE ISOLATION GUARANTEE, and it is here because paths were not
+    enough.  On 2026-10-17 a testing run's RSTNAME pointed at a correctly
+    sandboxed path that happened to be a SYMLINK to the operational restart of
+    the same name; ROMS wrote through it, and the next operational cycle
+    initialised from a 4-record test file in place of its own 20-record one.
+    Nothing in the path checks could see that, because every path was right.
+
+    Names make it structural: a tagged file cannot be mistaken for an
+    operational one, and operational actively refuses it even if one appears in
+    its own directory.
+    """
+    t = output_tag(tail)
+    if t is None:
+        return True
+    if own_tag == 'testing':
+        return t in ('testing', 'DA')
+    if own_tag == 'DA':
+        return t == 'DA'
+    return False          # operational: never a tagged file
+
+
 def stamp_in_name(tail, i1, i2):
     """The YYYYMMDDHH a PFM restart name carries at [i1:i2], or None.
 
@@ -348,6 +390,8 @@ def remove_old_restart_ncs(pkl_fnm):
             tf = stamp_in_name(tail, 14, 24)
             if tf is None:
                 continue          # not ours; see stamp_in_name
+            if not may_use_output(tail, PFM.get('run_tag')):
+                continue          # another run's output
             if tf<told:
                 print('removing old restart file:' + rf)
 
@@ -388,6 +432,8 @@ def get_swan_restart_file_name(pkl_fnm):
             tnc = stamp_in_name(tail, 13, 23)
             if tnc is None:
                 continue          # not a PFM-named SWAN restart; see stamp_in_name
+            if not may_use_output(tail, PFM.get('run_tag')):
+                continue
             keep.append(rf)
             dtfor.append(t_fore - tnc)
     else:
@@ -565,6 +611,11 @@ def get_restart_file_and_index(lvl,pkl_fnm):
         tnc = stamp_in_name(tail, 14, 24)
         if tnc is None:
             continue              # not a PFM-named restart; see stamp_in_name
+        if not may_use_output(tail, PFM.get('run_tag')):
+            print('  skipping ' + tail + ' (written by a ' +
+                  str(output_tag(tail)) + ' run; this run is ' +
+                  str(PFM.get('run_tag')) + ')')
+            continue
         keep.append(rf)
         dts.append(t_fore - tnc)
 
@@ -716,6 +767,8 @@ def remove_old_swan_rst(pkl_fnm):
             tf = stamp_in_name(tail, 13, 23)
             if tf is None:
                 continue          # not ours; see stamp_in_name
+            if not may_use_output(tail, PFM.get('run_tag')):
+                continue          # another run's output
             if tf<told:
                 print('removing old swan restart file:' + rf)
 
@@ -748,6 +801,8 @@ def get_old_restart_files_list(ftype,older_than_days,pkl_fnm):
             tstmp = stamp_in_name(tail, i1, i2)
             if tstmp is None:
                 continue          # not ours to delete; see stamp_in_name
+            if not may_use_output(tail, PFM.get('run_tag')):
+                continue          # another run's output; never ours to delete
             if tstmp < dt_test:
                 file_list.append(rf) # this is the list of files
 
@@ -791,6 +846,8 @@ def remove_swan_restarts_eq_foretime(pkl_fnm):
             tstmp = stamp_in_name(tail, i1, i2)
             if tstmp is None:
                 continue          # not ours to delete; see stamp_in_name
+            if not may_use_output(tail, PFM.get('run_tag')):
+                continue          # another run's output; never ours to delete
             dt_test = np.abs ( np.round( (t_fore - tstmp).total_seconds() ) )
             if dt_test < 3600:
                 os.remove(rf)

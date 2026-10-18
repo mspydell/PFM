@@ -288,6 +288,7 @@ def build_minfo(t_fore: DT.datetime, t_da: DT.datetime, *,
     # This is also the name stage_swan_hotstart used to SYNTHESIZE as a symlink
     # to satisfy PFM's stamp+lead lookup.  Writing it directly removes that
     # bridge: the next cycle can link the file as it stands.
+    MI2["run_tag"] = "DA"         # read by may_use_output in init_funs_forecast
     MI2["lv4_swan_rst_name"] = f"LV4_DA_swan_rst_{_s1}_024.dat"
     MI2["lv4_rst_name"] = f"LV4_DA_ocean_rst_{_s1}_{_s2}.nc"
     MI2["lv4_swan_rst_name_full"] = str(
