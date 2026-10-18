@@ -197,6 +197,59 @@ def _share_with_group(path):
         print('_share_with_group: could not chmod ' + path + ': ' + str(e))
 
 
+def copy_into_archive(src, dst, label=''):
+    """Copy src onto dst in a shared archive, whoever owns what is already there.
+
+    Two distinct failures were costing us every archive copy on a rerun, and
+    neither is fixed by chmod:
+
+      EACCES (13) -- the destination exists, is owned by the other user and is
+      mode 644, so opening it for writing is refused.  'cp' and shutil.copy
+      both die here.  This is how the corrected 2026-10-18 LV4 web file never
+      reached /dataSIO: the web kept serving the previous night's run.
+
+      EPERM (1) -- the destination IS writable, the data copies fine, and then
+      shutil.copy/copy2 tries to apply the source's mode or mtime to a file
+      owned by someone else and the kernel refuses.  That is the ~90
+      "Operation not permitted" lines on the cdip files, every one of which
+      had already been written successfully.
+
+    Writing a temp file in the destination directory and renaming it over the
+    target avoids both: rename needs write permission on the DIRECTORY, not on
+    the file being replaced, and it never touches the old file's metadata.  It
+    is also atomic, so a reader never sees a half-copied archive file.
+
+    Then make the result group-writable so the next person does not hit the
+    same wall -- the umask here is 022, so a fresh file lands 644 and the
+    problem comes straight back.
+
+    dst may be a full path or a destination directory, like shutil.copy.
+
+    Failures are reported and swallowed: archiving must never take a run down.
+    Returns True if the file is in place.
+    """
+    try:
+        if os.path.isdir(dst):          # called with a destination DIRECTORY
+            dst = os.path.join(dst, os.path.basename(src))
+        dst_dir = os.path.dirname(os.path.abspath(dst))
+        os.makedirs(dst_dir, exist_ok=True)
+        tmp = os.path.join(dst_dir, '.' + os.path.basename(dst) + '.part')
+        shutil.copyfile(src, tmp)       # data only: no mode, no mtime, no EPERM
+        os.replace(tmp, dst)            # needs the DIRECTORY, not the old file
+        _share_with_group(dst)
+        return True
+    except OSError as e:
+        print('copy_into_archive: ' + (label + ': ' if label else '') +
+              src + ' -> ' + dst + ' FAILED (' + type(e).__name__ + ': ' +
+              str(e) + ') -- continuing, archiving never fails a run')
+        try:
+            if 'tmp' in dir() and os.path.exists(tmp):
+                os.remove(tmp)
+        except OSError:
+            pass
+        return False
+
+
 def _lv1_bc_meta_name(stamp):
     return 'LV1_BCmeta_' + stamp + '.pkl'
 
@@ -715,8 +768,9 @@ def copy_mv_nc_file_v2(nc_type,lvl,pkl_fnm):
         fn_out = 'river_' + lvl_upper + '_' + fcdate + '.nc'
 
     fn_out_full = dir_out + fn_out
-    cmd_lst = ['cp',fn_in_full,fn_out_full]
-    ret = subprocess.Popen(cmd_lst)
+    # was: subprocess.Popen(['cp', ...]) -- which both ignored its own exit
+    # code and could not overwrite an archive file owned by the other user.
+    copy_into_archive(fn_in_full, fn_out_full, label=nc_type + ' ' + lvl_upper)
 
 
 def delete_files_by_extension(directory_path, extension):
@@ -777,11 +831,11 @@ def end_of_sim_housekeeping(pkl_fnm):
     for dir in [PFM['lv1_plot_dir'],PFM['lv2_plot_dir'],PFM['lv3_plot_dir'],PFM['lv4_plot_dir']]:
         files = get_files_matching_pattern(dir, pattern)
         for file in files:
-            shutil.copy(file,PFM['dataSIO_plot_dir'])            
+            copy_into_archive(file, PFM['dataSIO_plot_dir'], label='plot')
     # now for dye plots
     files = get_files_matching_pattern(PFM['lv4_plot_dir'], "dye*png")
     for file in files:
-        shutil.copy(file,PFM['dataSIO_plot_dir'])            
+        copy_into_archive(file, PFM['dataSIO_plot_dir'], label='dye plot')
     # now for history files
     pattern = "*.nc"
     list1 = [PFM['lv1_his_dir'],PFM['lv2_his_dir'],PFM['lv3_his_dir']]
@@ -789,12 +843,12 @@ def end_of_sim_housekeeping(pkl_fnm):
     for dir1, dir2 in zip(list1,list2):
         files = get_files_matching_pattern(dir1, pattern)
         for file in files:
-            shutil.copy(file,dir2)            
+            copy_into_archive(file, dir2, label='history')
     # now for lv4 history file
     pattern = "LV4*.nc"
     files = get_files_matching_pattern(PFM['lv4_his_dir'], pattern)
     for file in files:
-        shutil.copy(file,PFM['lv4_archive_his_dir'])            
+        copy_into_archive(file, PFM['lv4_archive_his_dir'], label='LV4 history')
     # copy the log files...
     pattern = "*.log"
     for dir in [PFM['lv1_run_dir'],PFM['lv2_run_dir'],PFM['lv3_run_dir'],PFM['lv4_run_dir']]:
@@ -1016,12 +1070,12 @@ def make_web_nc_file(pkl_fnm):
             web_full_v2   = archive_web_dir + base_name 
             print('going to copy ', web_full_orig, ' to')
             print(web_full_v1, ' and ', web_full_v2)
-            cmd_lst1 = ['cp',web_full_orig,web_full_v1]
-            retv1 = subprocess.run(cmd_lst1)  # FF changed 7-July-26
-            print('done copying to /for_web/.') # FF changed 7-July-26
-            cmd_lst2 = ['cp',web_full_orig,web_full_v2]
-            retv2 = subprocess.run(cmd_lst2)  # FF changed 7-July-26
-            print('done copying to /web/')  # FF changed 7-July-26
+            ok1 = copy_into_archive(web_full_orig, web_full_v1, label='web latest')
+            print('done copying to /for_web/.' if ok1 else
+                  'FAILED copying to /for_web/ -- the website still has the old file')
+            ok2 = copy_into_archive(web_full_orig, web_full_v2, label='web stamped')
+            print('done copying to /web/' if ok2 else
+                  'FAILED copying to /web/ -- the archive still has the old file')
 
         else:
             web_dir_2 = web_dir[0:-1]
