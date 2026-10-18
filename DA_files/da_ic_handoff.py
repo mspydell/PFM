@@ -225,6 +225,10 @@ def apply_da_ics(PFM: dict, t_fore, found: DetectResult | None = None,
         # them without touching PFM.  It also keeps the driver's
         # "if nrrec < 0: RESTARTING WILL NOT WORK" check honest.
         PFM[f"lv{n}_nrrec"] = 0
+        # NRREC 0 is exactly the condition that makes a stock ANA_PASSIVE build
+        # discard the IC's dye, so LV4 must also switch executables here.
+        if lv == "LV4":
+            _use_noanapassive_exe(PFM)
         applied.append(lv)
         print(f"    {lv}: DA IC {dst.name} (use_restart=0, NRREC=0)")
     for lv in levels:
@@ -233,6 +237,59 @@ def apply_da_ics(PFM: dict, t_fore, found: DetectResult | None = None,
     if "LV4" in applied:
         apply_da_swan_hotstart(PFM, t_fore)
     return applied
+
+
+def _use_noanapassive_exe(PFM: dict) -> None:
+    """Switch LV4 to the build that reads dye from an IC file.
+
+    The stock coawstM_INTEL is compiled with ANA_PASSIVE defined.  In
+    checkvars.F that makes the inert-tracer read conditional:
+
+        # if defined T_PASSIVE
+        #  if defined ANA_PASSIVE
+                IF (nrrec(ng).ne.0) THEN          <-- only on a restart
+                  DO itrc=1,NPT
+                    get_var(idTvar(inert(itrc)))=.TRUE.
+
+    apply_da_ics sets use_restart=0 and NRREC=0 three lines above this call, so
+    with that executable get_var stays false for dye_01/dye_02, ROMS never reads
+    them, and ana_passive.h sets both to exactly 0.0_r8.  There is no warning:
+    GET_STATE_NF90 simply lists one variable fewer.
+
+    That is not hypothetical.  The 2026-10-17 PFM_testing LV4 ran from a DA IC
+    holding good dye -- 76.5% and 48.6% of wet cells non-zero -- and started
+    from identically zero, spending 24 h re-growing it from the rivers.  Worse,
+    its restart was then picked up by that night's operational forecast, which
+    therefore began with 28.7%/15.2% instead of 73.2%/44.4%.
+
+    coawstM_noanapassive is the same source with ANA_PASSIVE undefined, so the
+    #else branch runs and dye is read from whatever file initialises the run.
+
+    Verified rather than trusted: a missing or wrong binary here is silent and
+    costs a whole cycle's dye, which is exactly the failure being fixed.
+    """
+    exe_dir = Path(PFM["executable_dir"])
+    exe = exe_dir / C.ROMS_EXE_LV4
+    if not exe.is_file():
+        raise FileNotFoundError(
+            f"LV4 needs {C.ROMS_EXE_LV4} (ANA_PASSIVE undefined) because its "
+            f"IC comes from a file rather than a restart, but {exe} does not "
+            f"exist. Copy it from /scratch/matt/DA_Simulations/LV4/Run/ or "
+            f"/scratch/PFM_Simulations/DA_Sim/LV4/Run/.")
+    try:
+        blob = exe.read_bytes()
+    except OSError as e:                                     # noqa: BLE001
+        raise RuntimeError(f"cannot read {exe}: {e}") from e
+    if b"ANA_PASSIVE" in blob:
+        raise RuntimeError(
+            f"{exe} still has ANA_PASSIVE compiled in, so it would silently "
+            f"zero dye_01/dye_02 at NRREC=0. Use a build without it.")
+    if b"T_PASSIVE" not in blob:
+        raise RuntimeError(
+            f"{exe} has no T_PASSIVE, so it carries no dye at all.")
+    PFM["lv4_executable"] = C.ROMS_EXE_LV4
+    print(f"    LV4: executable -> {C.ROMS_EXE_LV4} "
+          f"(ANA_PASSIVE undefined, so the IC's dye is read)")
 
 
 def apply_da_swan_hotstart(PFM: dict, t_fore, lookback_days: int = 3) -> str | None:
