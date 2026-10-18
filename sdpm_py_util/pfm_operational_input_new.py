@@ -328,8 +328,8 @@ def create_model_info_dict():
 #    tt['L4','forecast_days'] = PFM['forecast_days']
 
 # This is a good choice when river flow is very high
-    tt['L4','dtsec'] = 1.5
-    tt['L4','ndtfast'] = 6
+    tt['L4','dtsec'] = 2
+    tt['L4','ndtfast'] = 8
     tt['L4','forecast_days'] = PFM['forecast_days']
 
 # This is the most stable  choice
