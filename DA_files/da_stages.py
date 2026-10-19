@@ -324,11 +324,6 @@ def stage_lv1_atm(ctx: Ctx) -> dict:
     B.run_pfm("atm_functions.py", "get_atm_data_on_roms_grid", "1", pkl)
     B.run_pfm("atm_functions.py", "atm_roms_dict_to_netcdf", "1", pkl)
 
-    if str(C.PFM_PYDIR) not in sys.path:
-        sys.path.insert(0, str(C.PFM_PYDIR))
-    import util_functions as UF
-    UF.archive_lv1_atm(str(pkl), allow_tagged=True)
-
     # PFM names the file from the dict; we asked for the DA name, so this is
     # where that is confirmed rather than assumed.
     if not out.exists():

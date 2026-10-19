@@ -1284,9 +1284,12 @@ def run_fore_LV1(pkl_fnm):
     # writes it, so skipping it leaves LV2/3/4 interpolating the PREVIOUS run's
     # pickle -- perfectly valid forcing for the wrong day, which is the
     # 2026-08-31 failure.  An earlier version of this did exactly that.
-    # utilfuns.lv1_atm_from_archive and atm_functions.atm_child_from_lv1_atm
-    # remain as a MANUAL recovery path for the day the gribs are genuinely
-    # unavailable; they are deliberately not wired in here.
+    # Recovery, when a grib is not on the server any more, is
+    # atm_functions.ecmwf_from_archive restoring it from
+    # Archive/ecmwf_raw -- which this step already consults before any
+    # download, so there is nothing to wire in.  (There used to be a derived
+    # LV1_atm archive here as a second fallback; it was removed on 2026-10-19,
+    # see archive_lv1_atm's removal.)
     print('we are now getting the atm data and saving as a dict...')
     t01 = datetime.now()
     cmd_list = ['python','-W','ignore','atm_functions.py','get_atm_data_as_dict',pkl_fnm]
@@ -1345,10 +1348,6 @@ def run_fore_LV1(pkl_fnm):
     print('return code: ' + str(ret5.returncode) + ' (0=good)')  
     os.chdir('../sdpm_py_util')
     print('...done.') 
-    # Archive it.  Never purged: this is the only lasting record of the forcing
-    # a given forecast actually ran with, and nothing upstream keeps the gribs
-    # it came from for more than a few days.
-    utilfuns.archive_lv1_atm(pkl_fnm)
     # put in a function to plot the atm.nc file if we want to
     t02 = datetime.now()
     print('this took:')
