@@ -85,7 +85,9 @@ def _lv4_swan_024_name(PFM):
 
 
 def archive_lv4_swan_restarts(pkl_fnm, which):
-    """Copy this run's _024 SWAN restart set into the archive.  which: DA|PFM.
+    """Copy this run's _024 SWAN restart set into the archive.
+
+    which selects the subdir: 'DA', 'PFM', or a sandboxed run's run_tag.
 
     Write-once per file.  Every failure is reported and swallowed: archiving a
     restart is never a reason to fail a forecast that has already run.
@@ -94,9 +96,11 @@ def archive_lv4_swan_restarts(pkl_fnm, which):
     """
     import shutil as _sh
 
-    if which not in ('DA', 'PFM'):
-        print('archive_lv4_swan_restarts: which must be DA or PFM, got '
-              + repr(which))
+    # 'DA' and 'PFM' are the two real sides; a sandboxed run passes its own
+    # run_tag ('testing') so its restarts get their own subdir instead of
+    # landing in the PFM side's.  Anything else is a caller bug.
+    if not (isinstance(which, str) and _re.fullmatch(r'[A-Za-z0-9_]{1,16}', which)):
+        print('archive_lv4_swan_restarts: bad "which", got ' + repr(which))
         return 0
     try:
         PFM = initfuns.get_model_info(pkl_fnm)
@@ -485,6 +489,16 @@ def archive_lv1_bc(pkl_fnm):
 
     try:
         PFM = initfuns.get_model_info(pkl_fnm)
+        # A tagged run (PFM_testing, DA) must not write the operational BC
+        # archive.  It is write-once, so a 1-day test BC filed under tonight's
+        # stamp would permanently occupy the slot the real 5-day BC belongs in.
+        # reuse_archived_lv1_bc checks coverage, so this is provenance, not a
+        # wrong boundary -- but provenance is the whole point of the archive.
+        _tag = PFM.get('run_tag')
+        if _tag:
+            print('archive_lv1_bc: run_tag=' + repr(_tag) + ' -- NOT writing the '
+                  'operational LV1_BC archive')
+            return None
         src = os.path.join(PFM['lv1_forc_dir'], PFM['lv1_bc_file'])
         if not os.path.isfile(src):
             print('archive_lv1_bc: no ' + src + ' to archive')
@@ -617,7 +631,7 @@ def _lv1_atm_span(path, t0):
         return None
 
 
-def archive_lv1_atm(pkl_fnm):
+def archive_lv1_atm(pkl_fnm, allow_tagged=False):
     """Archive LV1's atm forcing as LV1_atm_<YYYYMMDDHH>.nc, stamped from its DATA.
 
     The stamp is the first wind_time read out of the file, not PFM['fetch_time'].
@@ -636,6 +650,16 @@ def archive_lv1_atm(pkl_fnm):
 
     try:
         PFM = initfuns.get_model_info(pkl_fnm)
+        # Same reasoning as archive_lv1_bc: write-once means a sandboxed run
+        # can permanently occupy a stamp the operational forecast has not
+        # reached yet.  The DA passes allow_tagged -- its stamp is t_da, a day
+        # behind, so operational has normally archived it already and this is a
+        # no-op; when it is not, the DA's forcing is the same ECMWF data.
+        _tag = PFM.get('run_tag')
+        if _tag and not allow_tagged:
+            print('archive_lv1_atm: run_tag=' + repr(_tag) + ' -- NOT writing the '
+                  'operational LV1_atm archive')
+            return None
         src = os.path.join(PFM['lv1_forc_dir'], PFM['lv1_atm_file'])
         if not os.path.isfile(src):
             print('archive_lv1_atm: no ' + src + ' to archive')
