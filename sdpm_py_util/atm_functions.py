@@ -1566,8 +1566,17 @@ def get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm,source=None,day
     marker = atm_cycle_marker(dir_out, yyyymmddhh0)
 
     if source is None:
+        # The RUN's window, never the archive window.  pick_atm_source accepts
+        # a cycle only when EVERY file it owes is already on the server, so
+        # asking it for 5 days when the run needs 4.5 would reject a pipeline
+        # cycle that is complete for the run but still uploading its last
+        # leads -- falling back 6 h to staler forcing, or all the way to the
+        # ftp, purely to satisfy the archive.  The archive must never degrade
+        # the forecast: source choice follows the run, and only the file list
+        # below widens.  A tail we then cannot fetch is skipped by
+        # archive_ecmwf_raw and topped up by a later run.
         source, eff_cycle, eff_dir = pick_atm_source(
-            yyyymmddhh0, t0_str, _fdays)
+            yyyymmddhh0, t0_str, PFM['forecast_days'])
         try:
             with open(marker, 'w') as fp:
                 fp.write(eff_cycle)
