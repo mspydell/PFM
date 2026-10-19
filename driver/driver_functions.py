@@ -783,6 +783,18 @@ def run_hind_LV4(t1str,pkl_fnm):
         dt_ic.append(t05-t01)
         MI = initfuns.get_model_info(pkl_fnm)
         print('\nGoing to use the file ' + MI['lv4_ini_file'] + ' to restart the simulation')
+        # restart_setup leaves lv4_nrrec UNSET when it found no usable restart,
+        # so an unguarded MI['lv4_nrrec'] turns "there is no restart to fall
+        # back to" into a bare KeyError far from the cause.  That is what
+        # 2026-10-18 hit: the DA handoff gave LV4 no IC, the fall-through
+        # restart was a dangling symlink, and the run died on a print.
+        if 'lv4_nrrec' not in MI:
+            raise RuntimeError(
+                'LV4 has no initial condition: the DA handoff provided none and '
+                'restart_setup (rc=' + str(ret4.returncode) + ') found no usable '
+                'restart in ' + str(MI.get('restart_ncfiles_dir_in')) + '.  Provide '
+                'a LV4 restart covering this forecast start, or rerun the DA so '
+                'LV4 gets a handoff IC.')
         print('with time index ' + str(MI['lv4_nrrec']))
         print('\n')
         if MI['lv4_nrrec'] < 0:
@@ -1884,6 +1896,18 @@ def run_fore_LV4(pkl_fnm):
         dt_ic.append(t05-t01)
         MI = initfuns.get_model_info(pkl_fnm)
         print('\nGoing to use the file ' + MI['lv4_ini_file'] + ' to restart the simulation')
+        # restart_setup leaves lv4_nrrec UNSET when it found no usable restart,
+        # so an unguarded MI['lv4_nrrec'] turns "there is no restart to fall
+        # back to" into a bare KeyError far from the cause.  That is what
+        # 2026-10-18 hit: the DA handoff gave LV4 no IC, the fall-through
+        # restart was a dangling symlink, and the run died on a print.
+        if 'lv4_nrrec' not in MI:
+            raise RuntimeError(
+                'LV4 has no initial condition: the DA handoff provided none and '
+                'restart_setup (rc=' + str(ret4.returncode) + ') found no usable '
+                'restart in ' + str(MI.get('restart_ncfiles_dir_in')) + '.  Provide '
+                'a LV4 restart covering this forecast start, or rerun the DA so '
+                'LV4 gets a handoff IC.')
         print('with time index ' + str(MI['lv4_nrrec']))
         print('\n')
         if MI['lv4_nrrec'] < 0:
@@ -1984,8 +2008,18 @@ def run_fore_LV4(pkl_fnm):
     # and nothing reads the intermediates, so archiving them all would cost
     # ~785 GB for 10 days instead of ~25.  Pruned to 10 days, because 2.5 GB a
     # cycle is a different order from the grib and LV1_atm archives.
-    utilfuns.archive_lv4_swan_restarts(pkl_fnm, 'PFM')
-    utilfuns.prune_lv4_swan_restarts(days=10, which='PFM')
+    # 'PFM' only for a real forecast.  A sandboxed run carries run_tag, and
+    # passing the literal put its _testing restarts in the PFM archive tree --
+    # harmless to a forecast (nothing reads that archive) but misleading to a
+    # human and counted against the PFM side's 10-day prune.
+    # Read the pkl rather than a local: this function names its model-info
+    # dict MI, and 'PFM' (the name used elsewhere in this file) is not bound
+    # here -- which is exactly how 2026-10-18 got a NameError AFTER a clean
+    # 30-minute LV4 run, skipping the archive step.
+    _mi_side = initfuns.get_model_info(pkl_fnm)
+    _side = 'PFM' if not _mi_side.get('run_tag') else str(_mi_side['run_tag'])
+    utilfuns.archive_lv4_swan_restarts(pkl_fnm, _side)
+    utilfuns.prune_lv4_swan_restarts(days=10, which=_side)
 
  
     dt_plotting = []
@@ -2225,6 +2259,18 @@ def run_fore_lv4_fillin(pkl_fnm):
         print('this took:')
         MI = initfuns.get_model_info(pkl_fnm)
         print('\nGoing to use the file ' + MI['lv4_ini_file'] + ' to restart the simulation')
+        # restart_setup leaves lv4_nrrec UNSET when it found no usable restart,
+        # so an unguarded MI['lv4_nrrec'] turns "there is no restart to fall
+        # back to" into a bare KeyError far from the cause.  That is what
+        # 2026-10-18 hit: the DA handoff gave LV4 no IC, the fall-through
+        # restart was a dangling symlink, and the run died on a print.
+        if 'lv4_nrrec' not in MI:
+            raise RuntimeError(
+                'LV4 has no initial condition: the DA handoff provided none and '
+                'restart_setup (rc=' + str(ret4.returncode) + ') found no usable '
+                'restart in ' + str(MI.get('restart_ncfiles_dir_in')) + '.  Provide '
+                'a LV4 restart covering this forecast start, or rerun the DA so '
+                'LV4 gets a handoff IC.')
         print('with time index ' + str(MI['lv4_nrrec']))
         print('\n')
         if MI['lv4_nrrec'] < 0:

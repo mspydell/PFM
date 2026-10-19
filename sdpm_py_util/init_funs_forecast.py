@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import pickle
 import numpy as np
@@ -378,6 +379,36 @@ def lead_hours_in_name(tail, i1, i2):
         return None
 
 
+_SWAN_RST_NAME_RE = re.compile(r'_(\d{12})_(\d{3})\.dat(?:-\d{3})?$')
+
+
+def swan_rst_stamp_and_lead(tail):
+    """(stamp, lead_hours) for a SWAN restart name, or (None, None).
+
+    Matched by REGEX, not fixed offsets, because the prefix is not fixed: the
+    DA writes LV4_DA_swan_rst_<stamp>_<lead>.dat-NNN and the operational side
+    writes LV4_swan_rst_<stamp>_<lead>.dat-NNN.  The 'DA_' shifts the stamp
+    three characters, so tail[13:23] of a DA name is 'st_2026101' -- which
+    stamp_in_name correctly returns None for, and which silently made the DA
+    blind to its OWN hotstart on 2026-10-18: all 72 parts were linked, the
+    selector found no candidate, INIT was written ZERO and lv4_fwd aborted.
+
+    Skipping an unparseable name is right for the functions that DELETE (a name
+    this code cannot parse is not a restart it owns), which is why they keep
+    the fixed offsets.  It is wrong here: this is the SELECTOR, and the
+    DA-named file is exactly the one it has to be able to choose.  Parseability
+    and permission are separate concerns -- may_use_output still decides who is
+    allowed to use what.
+    """
+    m = _SWAN_RST_NAME_RE.search(tail)
+    if m is None:
+        return None, None
+    try:
+        return datetime.strptime(m.group(1)[:10], '%Y%m%d%H'), int(m.group(2))
+    except Exception:                                        # noqa: BLE001
+        return None, None
+
+
 def remove_old_restart_ncs(pkl_fnm):
     PFM = get_model_info(pkl_fnm)
     #PFM['restart_files_dir'] = '/scratch/PFM_Simulations/restart_data'
@@ -429,9 +460,9 @@ def get_swan_restart_file_name(pkl_fnm):
     if len(rst_files) > 0:
         for rf in rst_files:
             head, tail = os.path.split(rf)
-            tnc = stamp_in_name(tail, 13, 23)
+            tnc, _lead = swan_rst_stamp_and_lead(tail)
             if tnc is None:
-                continue          # not a PFM-named SWAN restart; see stamp_in_name
+                continue          # not a SWAN restart name; see the helper
             if not may_use_output(tail, PFM.get('run_tag')):
                 continue
             keep.append(rf)
@@ -448,8 +479,7 @@ def get_swan_restart_file_name(pkl_fnm):
     cnt = 0
     while cnt < len(isort):
         head,tail = os.path.split( rst_files[isort[cnt]] )
-        tnc = stamp_in_name(tail, 13, 23)
-        hr = lead_hours_in_name(tail, 26, 29)
+        tnc, hr = swan_rst_stamp_and_lead(tail)
         if tnc is None or hr is None:
             cnt = cnt+1
             continue
