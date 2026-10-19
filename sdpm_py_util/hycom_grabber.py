@@ -606,13 +606,32 @@ def prune(hydir, keep, rows=None, log=print):
     """
     protected = set()
     if rows:
-        usable = sorted(c for c in {r['cycle'] for r in rows}
-                        if cycle_reach(rows, c)[0] is not None)
-        if usable and usable[-1] not in keep:
-            protected.add(usable[-1])
-            log('PIN     cycle %s is outside the %d day window but is the '
-                'newest usable one -- keeping it until a better one exists'
-                % (usable[-1], KEEP_DAYS))
+        # Pin by REACH, not by age.  "Newest usable" was the wrong rule and it
+        # cost a forecast: at 2026-10-19T00:00Z this pruned 2026-10-14T12 --
+        # complete, reaching 10-22T12 -- because 10-15, 10-16 and 10-17 had
+        # arrived and were technically usable, so 10-14 was not the newest.
+        # But those three were still filling and reached only 10-21T03 at best,
+        # so seven hours later the 00Z forecast found 2.12 days, refused to run
+        # under its 3 day floor, and produced nothing.  With 10-14 still on disk
+        # it would have had 3.5 days and run.
+        #
+        # What a forecast cares about is how far a cycle reaches, and the
+        # newest cycle reaches least while it is still being fetched.  So keep
+        # whichever usable cycle reaches furthest, regardless of its age; it
+        # ages out by itself as soon as a newer cycle overtakes it.
+        reaches = {}
+        for c in {r['cycle'] for r in rows}:
+            rch = cycle_reach(rows, c)[0]
+            if rch is not None:
+                reaches[c] = rch
+        if reaches:
+            furthest = max(reaches, key=lambda c: (reaches[c], c))
+            if furthest not in keep:
+                protected.add(furthest)
+                log('PIN     cycle %s is outside the %d day window but reaches '
+                    '%s, further than anything in it -- keeping it'
+                    % (furthest, KEEP_DAYS,
+                       reaches[furthest].strftime('%Y-%m-%dT%H')))
     seen = {}
     for path in glob.glob(os.path.join(hydir, 'hy_*.nc')):
         meta = parse_name(path)
