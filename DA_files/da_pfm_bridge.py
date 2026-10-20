@@ -888,7 +888,12 @@ def run_pfm(script: str, func: str, *args: str, timeout: int = 3600,
     all.  PFM's own driver prints that return code as "(0 or 1 = good)".  Pass
     ok_rc=(0, 1) for that call rather than relaxing the default.
     """
-    cmd = [C.PY, "-W", "ignore", script, func, *[str(a) for a in args]]
+    # -u for the same reason as the run_PFM_DA spawn: these inherit the
+    # driver's stdout, and several run for minutes (the atm chain, the BC
+    # build), so without it their output lands in one burst when they exit
+    # and the log shows nothing meanwhile.  Matches PFM's own style,
+    # which invokes its helpers as ["python","-u","-W","ignore",...].
+    cmd = [C.PY, "-u", "-W", "ignore", script, func, *[str(a) for a in args]]
     r = subprocess.run(cmd, cwd=str(C.PFM_PYDIR), text=True, timeout=timeout,
                        env=pfm_env())
     if r.returncode not in ok_rc:

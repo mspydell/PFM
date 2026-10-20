@@ -166,7 +166,12 @@ def main(argv=None) -> int:
             MI = _build_pkl(TEST_PKL if a.testing else OPER_PKL, None)
             a.t_fore = MI["sim_time_1"].strftime("%Y%m%d%H")
             print(f"    -> {a.t_fore}")
-        rc = _run([C.PY, HERE / "run_PFM_DA.py", a.t_fore], cwd=HERE)
+        # -u, or the pre-step's own prints are block-buffered when this
+        # script's stdout is a file: on 2026-10-19 the log sat at the CDIP
+        # step while lv4_fwd's slurm job had already been running for five
+        # minutes, which reads as a hang.  The forecast driver below has
+        # always had -u; this call was the one that did not.
+        rc = _run([C.PY, "-u", HERE / "run_PFM_DA.py", a.t_fore], cwd=HERE)
         if rc != 0:
             print(f"  DA pre-step returned {rc}.  Continuing: the forecast falls "
                   f"through to whatever ICs it can find.")
