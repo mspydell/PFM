@@ -363,6 +363,38 @@ def stage_lv1_bc(ctx: Ctx) -> dict:
     if ctx.dry_run:
         return {"would_run": f"ocn_funs_forecast.py x5 with {pkl.name}"}
 
+    # ARCHIVE FIRST.  Archive/LV1_BC_files holds the boundary the operational
+    # forecast actually ran with, stamped by its own start, and a 5-day
+    # operational file covers this 1-day window -- reuse_archived_lv1_bc checks
+    # that on the time axis rather than on the name.  Taking it skips the HYCOM
+    # read entirely, which matters most when tds.hycom.org is degraded (the
+    # 2026-10-14 storage fault), and it means the DA sees the SAME ocean
+    # boundary the forecast saw instead of whatever HYCOM serves today.
+    #
+    # It writes to lv1_forc_dir/lv1_bc_file, which build_minfo has already set
+    # to LV1_DA_BC_<yda>.nc, so the output lands exactly where this stage wants
+    # it, and it calls stage_lv1_bc_meta for the vinfo/ocean_time_ref companion
+    # that LV2's BC build reads.  Disable with PFM['lv1_bc_reuse'] = False.
+    import sys as _sys
+    if str(C.PFM_PYDIR) not in _sys.path:
+        _sys.path.insert(0, str(C.PFM_PYDIR))
+    import util_functions as _UF
+    if _UF.reuse_archived_lv1_bc(str(pkl)):
+        chk = V.nc_ok(out, need_vars=need, min_bytes=5 << 20,
+                      finite_vars=("temp_south", "temp_west", "zeta_south"),
+                      water_range={"temp_south": (-3.0, 40.0),
+                                   "temp_north": (-3.0, 40.0),
+                                   "temp_west": (-3.0, 40.0),
+                                   "zeta_south": (-5.0, 5.0)})
+        if chk:
+            _assert_covers_window(out, ctx, "zeta_time")
+            _assert_potential_temperature(out)
+            arch = V.ensure_archived(out, C.ARCHIVE / "Log" / "forcing")
+            print("    BC from the LV1_BC archive -- no HYCOM read needed")
+            return {"lv1_bc": {"scratch": out, "archive": arch}}
+        print("    archived BC failed validation (" + str(chk.why) +
+              ") -- building from HYCOM instead")
+
     # HYCOM comes off disk, never from the network.  The forecast has already
     # fetched this window, so hycom_init_for_window proves every file PFM will
     # ask for is present and picks the init -- rather than calling a fetch.
