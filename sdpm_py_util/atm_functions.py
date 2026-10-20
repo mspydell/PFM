@@ -107,6 +107,9 @@ def get_atm_data_as_dict(pkl_fnm):
                     # holds the current cycle, ecmwf ftp ~2-3 days, CDIP nothing
                     # since July.  See ecmwf_from_archive.
                     n_arch = ecmwf_from_archive(yyyymmddhh0,tstart_str,pkl_fnm)
+                    # n_arch is the count STILL MISSING after the restore, so
+                    # 0 means the archive covered the whole window and the
+                    # re-check will clear got_files and skip the download.
                     if n_arch == 0:
                         got_files = got_ecmwf_files(yyyymmddhh0,tstart_str,pkl_fnm)
                 if got_files == 0:
@@ -953,6 +956,25 @@ def check_file_exists_and_is_not_empty(file_path):
 # deleting the only copy.
 #
 # Layout is one directory per init, because every lookup is by init:
+# Every archived init holds a FULL 5-day window, whatever the run that filled
+# it needed.  A 1-day run (DA, PFM_testing) used to found an init directory
+# with only its own 25 steps, and because archive_ecmwf_raw is write-once per
+# file that entry stayed short -- 2026101800 has 25 files where every other
+# init has 101, because the 10/18 testing leg got there first and the gribs
+# aged off the server before any 5-day run could top it up.
+#
+# This is deliberately NOT the run's forecast_days.  Forcing 5 days everywhere
+# would make got_ecmwf_files demand 101 files for a 1-day cycle, so a DA rerun
+# of an old date whose gribs are gone would fail the gate, fail the download,
+# exhaust the walk-back and refuse a cycle it can run today.  So: the RUN is
+# gated on its own window, while the download and the archive use this one.
+ECMWF_ARCHIVE_DAYS = 5.0
+
+
+def _ecmwf_archive_days(PFM):
+    return float(PFM.get('ecmwf_archive_days', ECMWF_ARCHIVE_DAYS))
+
+
 #   <ECMWF_RAW_ARCHIVE>/<yyyymmddhh>/T1D...
 # Local filenames are reused verbatim (LOCAL_PREFIX), so the archive is a
 # drop-in source for the same names got_ecmwf_files() and
@@ -973,7 +995,11 @@ def ecmwf_archive_dir(yyyymmddhh0, pkl_fnm=None):
 
 
 def ecmwf_from_archive(yyyymmddhh0, t0_str, pkl_fnm):
-    """Fill the local grib dir from the archive.  Returns files still missing.
+    """Fill the local grib dir from the archive.
+
+    Returns the number of files THIS RUN still needs and did not get -- 0 means
+    the run can proceed with no network at all.  Copies the full archive window
+    regardless (see below).
 
     Checked BEFORE any network call, so a rerun of a past date never touches a
     server -- which is the point: the server no longer has it, and reaching for
@@ -983,26 +1009,41 @@ def ecmwf_from_archive(yyyymmddhh0, t0_str, pkl_fnm):
     Hard-links when it can, because the archive and /scratch are different
     filesystems only sometimes; falls back to a copy.
     """
+    # TWO windows, deliberately.  We COPY the full archive window, so a 1-day
+    # run tops scratch up to 5 days and a later longer run of the same date
+    # needs no download.  We REPORT against this run's own window, because the
+    # caller treats 0 as "the run can proceed without the network": counting
+    # the 5-day window here would make a 1-day cycle on a partially archived
+    # init (2026101800 has 25 of 101 files) report 76 missing, skip the
+    # re-check, and attempt a download that fails once the gribs age off the
+    # server -- refusing a cycle it can perfectly well run.
     try:
-        _, _, fns_out, _ = get_ecmwf_grib_files_lists_vecmwf(
+        PFM = initfuns.get_model_info(pkl_fnm)
+        _, _, fns_copy, _ = get_ecmwf_grib_files_lists_vecmwf(
+            yyyymmddhh0, t0_str, pkl_fnm, source='local',
+            days=_ecmwf_archive_days(PFM))
+        _, _, fns_need, _ = get_ecmwf_grib_files_lists_vecmwf(
             yyyymmddhh0, t0_str, pkl_fnm, source='local')
     except Exception as e:                                   # noqa: BLE001
         print('ecmwf_from_archive: cannot build the file list (' +
               type(e).__name__ + ': ' + str(e) + '); skipping the archive')
         return -1
 
+    need = set(fns_need)
+
     adir = ecmwf_archive_dir(yyyymmddhh0, pkl_fnm)
     if not os.path.isdir(adir):
-        return sum(1 for f in fns_out
+        return sum(1 for f in fns_need
                    if not check_file_exists_and_is_not_empty(f) == 0)
 
     got = n_miss = 0
-    for f in fns_out:
+    for f in fns_copy:
         if check_file_exists_and_is_not_empty(f) == 0:
             continue                      # already on scratch
         src = os.path.join(adir, os.path.basename(f))
         if not (os.path.isfile(src) and os.path.getsize(src) > 0):
-            n_miss += 1
+            if f in need:
+                n_miss += 1
             continue
         try:
             os.makedirs(os.path.dirname(f), exist_ok=True)
@@ -1014,7 +1055,8 @@ def ecmwf_from_archive(yyyymmddhh0, t0_str, pkl_fnm):
         except Exception as e:                               # noqa: BLE001
             print('ecmwf_from_archive: ' + os.path.basename(f) + ': ' +
                   type(e).__name__ + ': ' + str(e))
-            n_miss += 1
+            if f in need:
+                n_miss += 1
     if got:
         print('ecmwf_from_archive: restored ' + str(got) + ' grib file(s) for '
               + yyyymmddhh0 + ' from ' + adir)
@@ -1024,8 +1066,14 @@ def ecmwf_from_archive(yyyymmddhh0, t0_str, pkl_fnm):
 def archive_ecmwf_raw(yyyymmddhh0, t0_str, pkl_fnm):
     """Copy this init's gribs into the archive.  Write-once; never fails a run."""
     try:
+        # The FULL window, so a short run tops an entry up to 5 days instead
+        # of founding a 25-file one.  Files not on disk are skipped below, so a
+        # run that only ever had 1 day still archives cleanly -- just partially,
+        # and the next 5-day run of that date completes it (write-once is
+        # additive).
         _, _, fns_out, _ = get_ecmwf_grib_files_lists_vecmwf(
-            yyyymmddhh0, t0_str, pkl_fnm, source='local')
+            yyyymmddhh0, t0_str, pkl_fnm, source='local',
+            days=_ecmwf_archive_days(initfuns.get_model_info(pkl_fnm)))
         adir = ecmwf_archive_dir(yyyymmddhh0, pkl_fnm)
         os.makedirs(adir, exist_ok=True)
         new = have = 0
@@ -1080,108 +1128,6 @@ def archive_ecmwf_raw(yyyymmddhh0, t0_str, pkl_fnm):
 # points is built ONCE and reused for every field and every time step; rebuilding
 # it per slice would dominate the cost.
 # ---------------------------------------------------------------------------
-def atm_child_from_lv1_atm(lv, pkl_fnm):
-    """Write lv{N}'s atm pickle from LV1's atm netCDF.  lv is '2', '3' or '4'.
-
-    Leaves the per-level pickle exactly where get_atm_data_on_roms_grid would,
-    so the caller runs atm_roms_dict_to_netcdf next, unchanged.
-    """
-    import numpy as _np
-    import netCDF4 as _nc
-    from scipy.spatial import Delaunay as _Delaunay
-    from scipy.interpolate import LinearNDInterpolator as _LinND
-    from scipy.interpolate import NearestNDInterpolator as _NearND
-
-    lv = str(lv)
-    if lv not in ('2', '3', '4'):
-        raise ValueError("atm_child_from_lv1_atm is for levels 2,3,4 -- got " + lv)
-
-    PFM = initfuns.get_model_info(pkl_fnm)
-    src = PFM['lv1_forc_dir'] + '/' + PFM['lv1_atm_file']
-    if not os.path.isfile(src):
-        raise FileNotFoundError('atm_child_from_lv1_atm needs ' + src)
-
-    G1 = grdfuns.roms_grid_to_dict(PFM['lv1_grid_file'])
-    G2 = grdfuns.roms_grid_to_dict(PFM['lv' + lv + '_grid_file'])
-    fname_out = (PFM['lv' + lv + '_forc_dir'] + '/' +
-                 PFM['atm_tmp_LV' + lv + '_pckl_file'])
-
-    scalars = ['lwrad', 'lwrad_down', 'swrad', 'rain', 'Tair', 'Pair', 'Qair']
-    times   = ['ocean_time', 'tair_time', 'pair_time', 'qair_time',
-               'wind_time', 'rain_time', 'srf_time', 'lrf_time']
-
-    atm2 = dict()
-    atm2['vinfo'] = dict()
-    with _nc.Dataset(src) as d:
-        # vinfo comes back off the file's own attributes.  Upstream it is carried
-        # in the ATM dict, which we do not have here -- but the writer put the
-        # same metadata into the netCDF, so this is the identical content.
-        for v in d.variables:
-            atm2['vinfo'][v] = {k: d[v].getncattr(k) for k in d[v].ncattrs()}
-        for t in times:
-            if t in d.variables:
-                atm2[t] = _np.asarray(d[t][:], dtype=float)
-        have = [a for a in scalars if a in d.variables]
-        src_fields = {a: _np.ma.filled(_np.asarray(d[a][:], dtype=float), _np.nan)
-                      for a in have}
-        U1 = _np.ma.filled(_np.asarray(d['Uwind'][:], dtype=float), _np.nan)
-        V1 = _np.ma.filled(_np.asarray(d['Vwind'][:], dtype=float), _np.nan)
-
-    atm2['lat'] = G2['lat_rho']
-    atm2['lon'] = G2['lon_rho']
-    atm2['ocean_time_ref'] = PFM['modtime0']
-
-    # --- un-rotate LV1 winds to earth (east,north) --------------------------
-    a1 = _np.asarray(G1['angle'], dtype=float)
-    c1, s1 = _np.cos(a1), _np.sin(a1)
-    Ue = c1[None, :, :] * U1 - s1[None, :, :] * V1
-    Vn = s1[None, :, :] * U1 + c1[None, :, :] * V1
-
-    # --- one triangulation of LV1's rho points, reused throughout -----------
-    pts = _np.column_stack((_np.asarray(G1['lat_rho'], dtype=float).ravel(),
-                            _np.asarray(G1['lon_rho'], dtype=float).ravel()))
-    print('atm_child_from_lv1_atm: triangulating ' + str(pts.shape[0]) +
-          ' LV1 rho points for LV' + lv + ' ...')
-    tri = _Delaunay(pts)
-    tgt = (_np.asarray(G2['lat_rho'], dtype=float),
-           _np.asarray(G2['lon_rho'], dtype=float))
-    nlt, nln = tgt[0].shape
-
-    def _interp_series(arr3d, label):
-        nt = arr3d.shape[0]
-        out = _np.zeros((nt, nlt, nln))
-        for b in range(nt):
-            vals = arr3d[b, :, :].ravel()
-            f = _LinND(tri, vals)
-            z = f(tgt[0], tgt[1])
-            if _np.any(~_np.isfinite(z)):
-                # only possible on the hull edge; children sit inside LV1 so this
-                # should be empty.  Fill rather than ship NaN into ROMS.
-                g = _NearND(pts, vals)
-                bad = ~_np.isfinite(z)
-                z[bad] = g(tgt[0][bad], tgt[1][bad])
-                print('  ' + label + ' t=' + str(b) + ': filled ' +
-                      str(int(bad.sum())) + ' point(s) outside the LV1 hull')
-            out[b, :, :] = z
-        return out
-
-    for a in have:
-        print('  interpolating ' + a + ' LV1 -> LV' + lv + ' ...')
-        atm2[a] = _interp_series(src_fields[a], a)
-    print('  interpolating Uwind/Vwind (as east,north) LV1 -> LV' + lv + ' ...')
-    Ue2 = _interp_series(Ue, 'Uwind')
-    Vn2 = _interp_series(Vn, 'Vwind')
-
-    # --- re-rotate into the child's xi,eta ----------------------------------
-    a2 = _np.asarray(G2['angle'], dtype=float)
-    c2, s2 = _np.cos(a2), _np.sin(a2)
-    atm2['Uwind'] = c2[None, :, :] * Ue2 + s2[None, :, :] * Vn2
-    atm2['Vwind'] = c2[None, :, :] * Vn2 - s2[None, :, :] * Ue2
-
-    with open(fname_out, 'wb') as fp:
-        pickle.dump(atm2, fp, protocol=pickle.HIGHEST_PROTOCOL)
-    print('atm_child_from_lv1_atm: wrote ' + fname_out)
-    return fname_out
 
 
 def got_ecmwf_files(yyyymmddhh0,t0_str,pkl_fnm):
@@ -1588,7 +1534,7 @@ def get_ecmwf_base_url(yyyymmddhh0, probe_fname):
           + cands[-1][1])
     return cands[-1][1]
 
-def get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm,source=None):
+def get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm,source=None,days=None):
     # this gets the ecmwf grib files from the ecmwf server for the forecast starting at yyyymmddhh
     yyyy0 = yyyymmddhh0[0:4]
     mm0 = yyyymmddhh0[4:6]
@@ -1613,10 +1559,22 @@ def get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm,source=None):
     # stay pinned to the requested cycle so the source='local' callers, which
     # run in separate processes and never probe, still agree on every filename.
     PFM = initfuns.get_model_info(pkl_fnm)
+    # days=None means "this run's window" (the completeness gate and the grib
+    # reader want that); the download and archive paths pass the archive window.
+    _fdays = PFM['forecast_days'] if days is None else float(days)
     dir_out = PFM['ecmwf_dir']
     marker = atm_cycle_marker(dir_out, yyyymmddhh0)
 
     if source is None:
+        # The RUN's window, never the archive window.  pick_atm_source accepts
+        # a cycle only when EVERY file it owes is already on the server, so
+        # asking it for 5 days when the run needs 4.5 would reject a pipeline
+        # cycle that is complete for the run but still uploading its last
+        # leads -- falling back 6 h to staler forcing, or all the way to the
+        # ftp, purely to satisfy the archive.  The archive must never degrade
+        # the forecast: source choice follows the run, and only the file list
+        # below widens.  A tail we then cannot fetch is skipped by
+        # archive_ecmwf_raw and topped up by a later run.
         source, eff_cycle, eff_dir = pick_atm_source(
             yyyymmddhh0, t0_str, PFM['forecast_days'])
         try:
@@ -1686,7 +1644,7 @@ def get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm,source=None):
 
     # hr_f is measured from the cycle init, so a -6 h cycle shifts the 1 h/3 h
     # transition and still covers the full run.
-    for hr_f, t_f in forecast_steps(t_fore, t_0, PFM['forecast_days']):
+    for hr_f, t_f in forecast_steps(t_fore, t_0, _fdays):
         mm = '01' if t_f == t_fore else '00'
         # we add the year of the forecast start time for a complete name.
         yyyymmddhh = yyyy0 + t_f.strftime("%m%d%H")
@@ -1823,7 +1781,13 @@ def get_ecmwf_forecast_grbs_v2(yyyymmddhh0,t0_str,pkl_fnm):
         _, _, _, cmd_list = get_ecmwf_grib_files_lists_v2(yyyymmddhh0,t0_str,pkl_fnm)
     else:
         print('getting ecmwf file list...')
-        _, _, _, cmd_list = get_ecmwf_grib_files_lists_vecmwf(yyyymmddhh0,t0_str,pkl_fnm)
+        # Download the FULL archive window even when this run is shorter, so
+        # the init we archive is never short.  days=5 is a strict superset of
+        # days=1 (identical first 25 steps), so the local names a later
+        # source='local' call rebuilds still agree.
+        _, _, _, cmd_list = get_ecmwf_grib_files_lists_vecmwf(
+            yyyymmddhh0,t0_str,pkl_fnm,
+            days=_ecmwf_archive_days(initfuns.get_model_info(pkl_fnm)))
 
     # scp reads the password from SSHPASS; set it once here so every worker
     # thread's subprocess inherits it (never passed on a command line).
