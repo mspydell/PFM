@@ -291,7 +291,7 @@ def initialize_simulation(pkl_fnm):
 
 def move_restart_ncs(pkl_fnm):
     PFM = get_model_info(pkl_fnm)
-    PFM['restart_file_dir'] = '/scratch/PFM_Simulations/restart_data'
+    PFM['restart_file_dir'] = '/scratch/PFM_Simulations/restart_data'   ## check if this could be a bug
     rst_dirs = [PFM['lv1_forc_dir'],PFM['lv2_forc_dir'],PFM['lv3_forc_dir'],PFM['lv4_forc_dir']]
     for pp in rst_dirs:
         ddd = pp + '/*rst*.nc'
