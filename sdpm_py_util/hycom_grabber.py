@@ -253,16 +253,30 @@ def fetch_catalog(hydir, max_age_min=CATALOG_MAX_AGE_MIN, log=print):
             log('CATALOG %d names (saved listing, %.0f min old)'
                 % (len(names), age))
             return names
-    # 45 s and three tries, rather than one long one. The failures are
-    # bursty, not a steady rate: six consecutive fetches measured 1.6-4.8 s
-    # while the hourly cron was failing roughly every other run, so a retry
-    # moments later usually lands. One 90 s attempt both wasted more budget
-    # and gave up more readily.
+    # Three tries, because the failures used to be bursty rather than a steady
+    # rate: six consecutive fetches measured 1.6-4.8 s while the hourly cron was
+    # failing roughly every other run, so a retry moments later usually landed.
+    #
+    # The per-attempt limit was 45 s on that evidence, and on 2026-10-20 that
+    # became the wrong number: the catalog went to 2.9 MB served at ~18 kB/s,
+    # so a complete fetch measured 156.7 s (HTTP 200, not an outage -- just
+    # slow).  Every attempt therefore timed out, 12 for 12 that day with
+    # rc=28, and three tries could not help because none of them could finish.
+    # The listing went 5 h stale, and while it is stale the skip logic only
+    # probes cycles the listing does not mention at all, so files added to a
+    # cycle it already lists partially stay invisible.
+    #
+    # 240 s leaves headroom over the measured 157 s.  Worst case is now
+    # 3 x 240 s = 12 min against a 45 min budget, which is affordable; the
+    # alternative, giving up in 45 s, buys nothing because the data is simply
+    # not retrievable that fast.  NOTE the two limits must move together --
+    # curl's --max-time and subprocess's timeout -- or the outer one kills the
+    # attempt first and raising curl's alone changes nothing.
     r = None
     for attempt in range(CATALOG_TRIES):
         try:
-            r = subprocess.run(['curl', '-s', '--max-time', '45', CATALOG_URL],
-                               capture_output=True, text=True, timeout=75)
+            r = subprocess.run(['curl', '-s', '--max-time', '240', CATALOG_URL],
+                               capture_output=True, text=True, timeout=270)
         except subprocess.TimeoutExpired:
             r = None
         if r is not None and r.returncode == 0 and r.stdout:
