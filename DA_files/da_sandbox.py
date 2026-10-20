@@ -408,3 +408,75 @@ def stage_static_run_inputs(PFM: dict, *, verbose: bool = True) -> int:
     if verbose and n == 0:
         print("    static Run inputs: already present")
     return n
+
+
+def archive_testing_histories(PFM, verbose=True) -> int:
+    """Copy this run's LV1-LV4 history files into the sandboxed archive.
+
+    Needed because nothing else does it.  PFM's own copier,
+    util_functions.end_of_sim_housekeeping, is dead code on every branch:
+    driver_run_forecast_LV1234 hardcodes use_FF = 1 and takes the shell-script
+    path instead, so the python archiver never runs.  Operational is covered by
+    that shell script, which is why Archive/LV1_His has 700+ files; the testing
+    leg has no equivalent, so until now its histories lived only on /scratch
+    and were lost to the next purge.
+
+    Safe by construction rather than by luck.  lv{n}_archive_his_dir is
+    '/dataSIO/PFM_Simulations/Archive/LV{n}_His/' in the pickle, and
+    apply_testing_paths rewrites it by PREFIX -- it matches on
+    '/dataSIO/PFM_Simulations/Archive', not on the key name -- so it arrives
+    here already pointing at Archive/DA/PFM_testing/LV{n}_His/.  Checked again
+    below, because the cost of being wrong is writing into the operational
+    history archive that the DA cold-start path (find_lv1_history) searches.
+
+    Copies only the four files this run produced, by name out of the pickle,
+    never a glob: a glob over lv{n}_his_dir would also sweep up any older
+    history still sitting on scratch.  copy_into_archive does the work -- it
+    renames through a temp file in the destination directory, so it survives a
+    target owned by the other user, and it swallows its own errors.
+
+    Returns the number of files in place.  Never raises: archiving must not
+    take down a run that has already produced its output.
+
+    This module is import-light on purpose (pathlib only), so util_functions is
+    imported lazily and sdpm_py_util is located relative to this file rather
+    than through da_config.
+    """
+    import sys as _sys
+    pfm_py = Path(__file__).resolve().parent.parent / "sdpm_py_util"
+    if str(pfm_py) not in _sys.path:
+        _sys.path.insert(0, str(pfm_py))
+    import util_functions as UF
+
+    n_ok = 0
+    for lv in (1, 2, 3, 4):
+        src_dir = PFM.get("lv%d_his_dir" % lv)
+        name = PFM.get("lv%d_his_name" % lv)
+        dst_dir = PFM.get("lv%d_archive_his_dir" % lv)
+        if not (src_dir and name and dst_dir):
+            if verbose:
+                print("    LV%d history: pickle keys missing; not archived" % lv)
+            continue
+        if SANDBOX_ARCHIVE not in str(dst_dir):
+            print("    LV%d history: REFUSING to archive -- %s is not under %s"
+                  % (lv, dst_dir, SANDBOX_ARCHIVE))
+            continue
+        src = Path(str(src_dir)) / str(name)
+        if not src.is_file():
+            if verbose:
+                print("    LV%d history: no %s to archive" % (lv, src.name))
+            continue
+        dst = Path(str(dst_dir)) / str(name)
+        try:
+            if dst.is_file() and dst.stat().st_size == src.stat().st_size:
+                if verbose:
+                    print("    LV%d history: already archived (%s)" % (lv, dst.name))
+                n_ok += 1
+                continue
+            dst.parent.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            print("    LV%d history: cannot use %s: %s" % (lv, dst.parent, e))
+            continue
+        if UF.copy_into_archive(str(src), str(dst), label="LV%d history" % lv):
+            n_ok += 1
+    return n_ok

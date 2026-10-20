@@ -244,7 +244,20 @@ def main(argv=None) -> int:
         print("  DRY RUN -- would now launch:")
         print("    $ " + " ".join(str(c) for c in cmd) + f"   (cwd {DRIVER_DIR})")
         return 0
-    return _run(cmd, cwd=DRIVER_DIR)
+    rc = _run(cmd, cwd=DRIVER_DIR)
+
+    # Archive the histories.  PFM's own copier (end_of_sim_housekeeping) never
+    # runs -- driver_run_forecast_LV1234 hardcodes use_FF = 1 and uses the
+    # shell script instead, which covers operational but has no testing
+    # equivalent -- so without this the testing histories only ever existed on
+    # /scratch until the next purge.  After the forecast, so a level that
+    # failed simply has nothing to copy.
+    if a.testing:
+        n = SB.archive_testing_histories(MI)
+        print(f"  archived {n}/4 testing history file(s) to "
+              f"{SB.SANDBOX_ARCHIVE}/LV*_His/")
+
+    return rc
 
 
 if __name__ == "__main__":
