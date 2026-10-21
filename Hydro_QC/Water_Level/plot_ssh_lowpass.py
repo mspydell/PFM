@@ -68,7 +68,7 @@ def lowpass(s):
 
 
 def plot_lowpass_window(station, start, end, out, period):
-    """Tides-removed figure for UTC dates start..end (both inclusive); out(name) gives the PNG path."""
+    """Tides-removed figure for Pacific dates start..end (both inclusive); out(name) gives the PNG path."""
     idx = hours(start, end)
     full = pd.date_range(idx[0] - pd.Timedelta(days=PAD_DAYS), idx[-1], freq="h")  # filter run-in
     obs, model = load_series(station, full)
@@ -85,8 +85,8 @@ def run_range(station, default_start="2026-01-01"):
     """Command-line entry point of plot_<station>_range.py: the hourly figure (plot_ssh.py) and the
     tides-removed figure for any dates, into plots/<station>_ssh[_lowpass]_<start>_<end>.png."""
     p = argparse.ArgumentParser(description=f"PFM vs observed SSH at {STATIONS[station]['title']} for any start/end dates")
-    p.add_argument("--start", help=f"Start date YYYY-MM-DD (UTC, default {default_start}); not with --duration")
-    p.add_argument("--end", default="today", help="End date YYYY-MM-DD or 'today', inclusive (UTC, default today)")
+    p.add_argument("--start", help=f"Start date YYYY-MM-DD (Pacific, default {default_start}); not with --duration")
+    p.add_argument("--end", default="today", help="End date YYYY-MM-DD or 'today', inclusive (Pacific, default today)")
     p.add_argument("--duration", type=int, help="Number of days to plot, ending on --end (both days included)")
     p.add_argument("--update", action="store_true", help="Download new obs and extract new model days first")
     args = p.parse_args()

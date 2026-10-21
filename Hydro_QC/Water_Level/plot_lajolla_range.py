@@ -2,7 +2,7 @@
 """PFM vs observed sea surface height at La Jolla (NOAA 9410230, LV3) for any start/end dates (not for the website).
 
 Writes plots/LaJolla_ssh_<start>_<end>.png (hourly, as on the website) and
-plots/LaJolla_ssh_lowpass_<start>_<end>.png (tides removed, PL64). Dates are UTC days, both included.
+plots/LaJolla_ssh_lowpass_<start>_<end>.png (tides removed, PL64). Dates are Pacific days, both included.
 Uses the cached data; add --update to download new observations and extract new model days first.
 The plotting code is in plot_ssh.py and plot_ssh_lowpass.py.
 
@@ -13,7 +13,7 @@ The plotting code is in plot_ssh.py and plot_ssh_lowpass.py.
 """
 from plot_ssh_lowpass import run_range
 
-# default start (UTC date); --start, or --duration with --end, override it
+# default start (Pacific date); --start, or --duration with --end, override it
 START = "2026-01-01"
 
 if __name__ == "__main__":

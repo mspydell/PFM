@@ -50,8 +50,8 @@ import pandas as pd
 from scipy.io import netcdf_file
 
 BASE = "https://mooring.ucsd.edu"
-OUT_DIR = os.path.dirname(os.path.abspath(__file__))
-CACHE_DIR = os.path.join(OUT_DIR, "cache", "obs")
+# shared cache on /dataSIO, seen from swell and backwash; the HYDRO_QC_DATA environment variable overrides the root
+CACHE_DIR = os.path.join(os.environ.get("HYDRO_QC_DATA", "/dataSIO/Hydro_QC"), "Moorings", "cache", "obs")
 
 # site -> (index URL holding the deployment folders, deployment prefix, lat, lon)
 SITES = {
