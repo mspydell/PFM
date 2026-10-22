@@ -5,7 +5,8 @@ Used by plot_<station>_3weeks.py (QC website; run_3weeks below) and plot_<statio
 Figure <station>_ssh, laid out like Plot_SSH.m (PFM_Master_Code_For_Plots.m, PFM branch):
   panel 1  hourly observed (inverse-barometer corrected, MSL datum) and model zeta
   panel 2  Delta SSH = observed - model (y axis fixed at -0.5 to 0.5 m)
-Times UTC. The tides-removed version (not for the website) is in plot_ssh_lowpass.py.
+Times on the plots and the date windows are Pacific (PDT/PST, America/Los_Angeles); data and caches
+stay UTC and are converted for plotting. The tides-removed version (not for the website) is in plot_ssh_lowpass.py.
 """
 import argparse
 import glob
@@ -26,6 +27,8 @@ from stations import STATIONS
 OUT_DIR = os.path.dirname(os.path.abspath(__file__))
 OBS_COLOR, MODEL_COLOR, DIFF_COLOR = "#2a78d6", "#eb6834", "0.25"
 DIFF_YLIM = (-0.5, 0.5)  # m, Delta SSH panels
+TZ = "America/Los_Angeles"
+matplotlib.rcParams["timezone"] = TZ  # date axes in Pacific time (the data stay tz-aware UTC)
 
 
 def labels(station):
@@ -35,8 +38,15 @@ def labels(station):
 
 
 def hours(start, end):
-    """Hourly UTC index covering the dates start..end (both inclusive)."""
-    return pd.date_range(pd.Timestamp(start, tz="UTC"), pd.Timestamp(end, tz="UTC") + pd.Timedelta(hours=23), freq="h")
+    """Hourly UTC index covering the Pacific dates start..end (both inclusive)."""
+    first = pd.Timestamp(start).tz_localize(TZ)
+    last = (pd.Timestamp(end) + pd.Timedelta(days=1)).tz_localize(TZ) - pd.Timedelta(hours=1)
+    return pd.date_range(first.tz_convert("UTC"), last.tz_convert("UTC"), freq="h")
+
+
+def today():
+    """Today's Pacific date (naive)."""
+    return pd.Timestamp.now(tz=TZ).tz_localize(None).normalize()
 
 
 def load_series(station, idx):
@@ -48,8 +58,8 @@ def load_series(station, idx):
 
 
 def date_window(p, args, default_start):
-    """(start, end) dates from --start/--end/--duration; --end may be 'today' (UTC)."""
-    end = pd.Timestamp.now(tz="UTC").tz_localize(None).normalize() if args.end == "today" else pd.Timestamp(args.end)
+    """(start, end) dates from --start/--end/--duration; --end may be 'today' (Pacific dates)."""
+    end = today() if args.end == "today" else pd.Timestamp(args.end)
     if args.duration is not None:
         if args.start:
             p.error("use --start or --duration, not both")
@@ -60,6 +70,22 @@ def date_window(p, args, default_start):
     if end < start:
         p.error("--end must be on or after --start")
     return start, end
+
+
+def date_ticks(ax, span):
+    """A labelled tick each (Pacific) day up to 45 days: day numbers, the month name where it starts;
+    longer windows weekly or monthly labels, with a small tick each day up to 60 days."""
+    if span <= 45:
+        loc = mdates.DayLocator()
+        ax.xaxis.set_major_locator(loc)
+        ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(loc, show_offset=False))
+        return
+    loc, fmt = ((mdates.MonthLocator(), "%b\n%Y") if span > 200 else (mdates.MonthLocator(), "%b %Y") if span > 60
+                else (mdates.WeekdayLocator(byweekday=mdates.MO), "%b %d"))
+    ax.xaxis.set_major_locator(loc)
+    ax.xaxis.set_major_formatter(mdates.DateFormatter(fmt))
+    if span <= 60:
+        ax.xaxis.set_minor_locator(mdates.DayLocator())
 
 
 def two_panel(idx, obs, model, title, out_path, obs_label, model_label, shade=None, split=None):
@@ -102,19 +128,9 @@ def two_panel(idx, obs, model, title, out_path, obs_label, model_label, shade=No
         handles.append(Line2D([], [], color=MODEL_COLOR, lw=0.8, ls="--", label="PFM forecast, next days (dashed)"))
     axes[0].legend(handles=handles, loc="upper left", fontsize=8, frameon=False, ncol=3)
 
-    span = ((split if split is not None else idx[-1]) - idx[0]).days   # tick spacing from the past window
-    if span > 200:
-        loc, fmt = mdates.MonthLocator(), "%b\n%Y"
-    elif span > 60:
-        loc, fmt = mdates.MonthLocator(), "%b %Y"
-    elif span > 21:
-        loc, fmt = mdates.WeekdayLocator(byweekday=mdates.MO), "%b %d"
-    else:
-        loc, fmt = mdates.DayLocator(interval=max(1, span // 10)), "%b %d"
-    axes[-1].xaxis.set_major_locator(loc)
-    axes[-1].xaxis.set_major_formatter(mdates.DateFormatter(fmt))
+    date_ticks(axes[-1], (idx[-1] - idx[0]).days)
     axes[-1].set_xlim(idx[0], idx[-1])
-    axes[-1].set_xlabel("Date (UTC)")
+    axes[-1].set_xlabel("Date (Pacific time, PDT/PST)")
     fig.suptitle(title, fontsize=13)
     fig.tight_layout()
     fig.savefig(out_path, dpi=130)
@@ -123,13 +139,13 @@ def two_panel(idx, obs, model, title, out_path, obs_label, model_label, shade=No
 
 
 def plot_window(station, start, end, out, period):
-    """Hourly SSH figure for UTC dates start..end (both inclusive, YYYY-MM-DD); out(name) gives the PNG path.
+    """Hourly SSH figure for Pacific dates start..end (both inclusive, YYYY-MM-DD); out(name) gives the PNG path.
     The model runs on past the window to the end of the latest forecast issued by then (its next ~5 days),
     dashed after now (or after the window's end, for an older window); observations stop there too."""
     idx = hours(start, end)
     obs, model = load_series(station, idx)
     title = f"{STATIONS[station]['title']} sea surface height: PFM vs tide gauge (hourly), {period}"
-    fc = latest_forecast(station, end)
+    fc = latest_forecast(station, idx[-1].tz_localize(None).normalize())   # UTC date of the last hour
     split = None
     if fc is not None and fc.index[-1] > idx[-1]:
         split = min(pd.Timestamp.now(tz="UTC").floor("h"), idx[-1] + pd.Timedelta(hours=1))
@@ -139,25 +155,27 @@ def plot_window(station, start, end, out, period):
         model[model.index > split] = np.nan
         model = model.fillna(fc[fc.index >= split].reindex(idx))
         obs = obs.reindex(idx)
-        title += f" + forecast to {idx[-1]:%Y-%m-%d %H:%M}"
+        title += f" + forecast to {idx[-1].tz_convert(TZ):%Y-%m-%d %H:%M %Z}"
     two_panel(idx, obs, model, title, out(f"{station}_ssh"), *labels(station), split=split)
 
 
 def update_data(station, end):
-    """Refresh the NOAA observations and extract any new model days up to end (UTC date)."""
+    """Refresh the NOAA observations and extract any new model days up to the Pacific date end
+    (its evening is the next UTC day, so one UTC day further)."""
+    end = f"{pd.Timestamp(end) + pd.Timedelta(days=1):%Y-%m-%d}"
     update_obs(station, end)
     extract(station, end=end)
 
 
 def run_3weeks(station, days=21, label="3weeks"):
     """Command-line entry point of plot_<station>_3weeks.py: refresh the data, then draw the past 3 weeks
-    up to the end of today (UTC) into plots_web/<station>_ssh_<YYYYMMDD>_3weeks.png and delete the
+    up to the end of today (Pacific) into plots_web/<station>_ssh_<YYYYMMDD>_3weeks.png and delete the
     station's older *_3weeks.png (unless --date is given)."""
     p = argparse.ArgumentParser(description=f"QC-website plot: PFM vs observed SSH at {STATIONS[station]['title']}, past 3 weeks")
-    p.add_argument("--date", help="Last day to plot, YYYY-MM-DD UTC (default: today)")
+    p.add_argument("--date", help="Last day to plot, YYYY-MM-DD Pacific (default: today)")
     p.add_argument("--no-update", action="store_true", help="Skip downloading obs and extracting model")
     args = p.parse_args()
-    end = pd.Timestamp(args.date) if args.date else pd.Timestamp.now(tz="UTC").tz_localize(None).normalize()
+    end = pd.Timestamp(args.date) if args.date else today()
     start = end - pd.Timedelta(days=days - 1)
     if not args.no_update:
         update_data(station, f"{end:%Y-%m-%d}")

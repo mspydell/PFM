@@ -38,7 +38,8 @@ from Dye_Volume import file_volume, forecast_files, gap_plan  # noqa: E402
 HERE = os.path.dirname(os.path.abspath(__file__))
 WEB_DIR = os.path.join(HERE, "plots_web")
 PLOT_DIR = os.path.join(HERE, "plots")
-CACHE = os.path.join(HERE, "volume_cache.csv")
+# shared cache on /dataSIO, seen from swell and backwash; the HYDRO_QC_DATA environment variable overrides the root
+CACHE = os.path.join(os.environ.get("HYDRO_QC_DATA", "/dataSIO/Hydro_QC"), "Dye_Volume", "cache", "volume_cache.csv")
 DAYS, LABEL = 21, "3weeks"
 TZ = "America/Los_Angeles"
 WORKERS = 16
@@ -95,6 +96,7 @@ def volumes(start, end):
                     new.append([os.path.basename(path), keys[path], k, a, b])
         new = pd.DataFrame(new, columns=cache.columns)
         cache = pd.concat([cache, new], ignore_index=True) if len(cache) else new
+        os.makedirs(os.path.dirname(CACHE), exist_ok=True)
         cache.sort_values(["file", "record"]).to_csv(CACHE, index=False)
     ptb, tjre = pd.Series(np.nan, index=times), pd.Series(np.nan, index=times)
     for path, recs in plan.items():
@@ -137,7 +139,7 @@ def plot(start, end, path):
                  f"{(end - pd.Timedelta(seconds=1)):%Y-%m-%d}", pad=30)
     ax.set_xlabel("Date (Pacific time, PDT/PST)")
     ax.legend(loc="lower right", bbox_to_anchor=(1, 1), ncol=3, fontsize=9)
-    loc = mdates.AutoDateLocator()
+    loc = mdates.DayLocator() if days <= 45 else mdates.AutoDateLocator()   # a labelled tick each day
     ax.xaxis.set_major_locator(loc)
     ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(loc))
     ax.xaxis.set_minor_locator(mdates.DayLocator() if days <= 60 else mdates.MonthLocator())

@@ -22,7 +22,7 @@ The model lines run on past the window to the end of the latest forecast issued 
 ~5 days; files hold 111-123 hours), dashed after now (or after the window's end, for an older window),
 with a dotted line at that split.
 
-Cache (cache/, next to this script): cache/obs/<data set>_<YYYYMM>.csv holds the raw IBWC samples per
+Cache (/dataSIO/Hydro_QC/FlowRate/cache/, shared by swell and backwash): cache/obs/<data set>_<YYYYMM>.csv holds the raw IBWC samples per
 UTC month (the current and previous month are downloaded again on every run, older months only once);
 cache/model/river_LV4_<YYYYMMDDHH>.csv holds the hourly model flows of each forcing file (recomputed
 if the forcing file changes). Delete a file to rebuild it.
@@ -57,8 +57,10 @@ from netCDF4 import Dataset
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 WEB_DIR = os.path.join(HERE, "plots_web")
-OBS_DIR = os.path.join(HERE, "cache", "obs")      # raw IBWC samples, one CSV per data set and UTC month
-MODEL_DIR = os.path.join(HERE, "cache", "model")  # hourly flows of each river forcing file
+# shared cache on /dataSIO, seen from swell and backwash; the HYDRO_QC_DATA environment variable overrides the root
+CACHE_DIR = os.path.join(os.environ.get("HYDRO_QC_DATA", "/dataSIO/Hydro_QC"), "FlowRate", "cache")
+OBS_DIR = os.path.join(CACHE_DIR, "obs")      # raw IBWC samples, one CSV per data set and UTC month
+MODEL_DIR = os.path.join(CACHE_DIR, "model")  # hourly flows of each river forcing file
 RIVER_DIR = "/dataSIO/PFM_Simulations/Archive/Forcing"
 IBWC_URL = "https://waterdata.ibwc.gov/AQWebportal/Export/DataSet"
 PB_DATASET = "Discharge.Telemetry-ADS-mgd@11-PUNTA-BANDERA"
@@ -263,7 +265,7 @@ def plot(start, end, path):
     for a in (ax, ax2):
         a.axvline(split, color=INK2, lw=0.8, ls=":")                 # now: forecast to the right
     ax2.set_xlabel("Date (Pacific time, PDT/PST)")
-    loc = mdates.AutoDateLocator()
+    loc = mdates.DayLocator() if days <= 45 else mdates.AutoDateLocator()   # a labelled tick each day
     ax2.xaxis.set_major_locator(loc)
     ax2.xaxis.set_major_formatter(mdates.ConciseDateFormatter(loc))
     ax2.xaxis.set_minor_locator(mdates.DayLocator() if days <= 60 else mdates.MonthLocator())

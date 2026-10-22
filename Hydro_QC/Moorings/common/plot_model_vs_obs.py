@@ -46,8 +46,12 @@ import pandas as pd
 from download_obs import SBOO_SIDELOBE, load_adcp, load_ts
 from extract_model import SITES as MODEL_SITES, level_of
 
-OUT_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_DIR = os.path.join(OUT_DIR, "cache", "model")
+from extract_model import MODEL_DIR   # shared cache on /dataSIO/Hydro_QC/Moorings/cache/model
+
+# plots and their date windows are in Pacific time (PDT/PST); data and caches stay UTC. Matplotlib takes
+# tz-aware times (and naive ones as UTC) and draws the date axes in this zone.
+TZ = "America/Los_Angeles"
+matplotlib.rcParams["timezone"] = TZ
 
 NAME = {"SBOO": "SBOO", "IB-C": "IB-C", "PLOO": "PLOO (Point Loma)", "DelMar": "Del Mar"}
 # "top N m" panels; must match the "top" ranges in extract_model.SITES. Del Mar's first ADCP bin is 5.42 m,
@@ -319,6 +323,22 @@ def ib_legend(fig, axes, keys=IB_SITES, y=0.972, kinds=("model", "observed")):
                bbox_to_anchor=(0.5, y))
 
 
+def date_ticks(ax, span):
+    """A labelled tick each (Pacific) day up to 45 days: day numbers, the month name where it starts;
+    longer windows weekly or monthly labels, with a small tick each day up to 60 days."""
+    if span <= 45:
+        loc = mdates.DayLocator()
+        ax.xaxis.set_major_locator(loc)
+        ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(loc, show_offset=False))
+        return
+    loc, fmt = ((mdates.MonthLocator(), "%b\n%Y") if span > 200 else (mdates.MonthLocator(), "%b %Y") if span > 60
+                else (mdates.WeekdayLocator(byweekday=mdates.MO), "%b %d"))
+    ax.xaxis.set_major_locator(loc)
+    ax.xaxis.set_major_formatter(mdates.DateFormatter(fmt))
+    if span <= 60:
+        ax.xaxis.set_minor_locator(mdates.DayLocator())
+
+
 def finish(fig, axes, idx, title, out_path, top=1.0, ygroups=None, forecast=True):
     """ygroups: lists of panel indices that share one y range (default: all panels). forecast=False: no
     model-forecast shading (observation-only figures)."""
@@ -326,21 +346,11 @@ def finish(fig, axes, idx, title, out_path, top=1.0, ygroups=None, forecast=True
         lims = [axes[i].get_ylim() for i in g]
         for i in g:
             axes[i].set_ylim(min(l[0] for l in lims), max(l[1] for l in lims))
-    span = (idx[-1] - idx[0]).days
-    if span > 200:
-        loc, fmt = mdates.MonthLocator(), "%b\n%Y"
-    elif span > 60:
-        loc, fmt = mdates.MonthLocator(), "%b %Y"
-    elif span > 21:
-        loc, fmt = mdates.WeekdayLocator(byweekday=mdates.MO), "%b %d"
-    else:
-        loc, fmt = mdates.DayLocator(interval=max(1, span // 10)), "%b %d"
-    axes[-1].xaxis.set_major_locator(loc)
-    axes[-1].xaxis.set_major_formatter(mdates.DateFormatter(fmt))
+    date_ticks(axes[-1], (idx[-1] - idx[0]).days)
     for ax in axes if forecast else []:
         shade_forecast(ax, idx[-1])
     axes[-1].set_xlim(idx[0], idx[-1])
-    axes[-1].set_xlabel("Date (UTC)")
+    axes[-1].set_xlabel("Date (Pacific time, PDT/PST)")
     fig.suptitle(title, fontsize=13)
     fig.tight_layout(rect=(0, 0, 1, top))
     fig.savefig(out_path, dpi=130)
@@ -351,11 +361,18 @@ def finish(fig, axes, idx, title, out_path, top=1.0, ygroups=None, forecast=True
 GROUPS = {"SBOO": ["SBOO"], "IB": IB_SITES, "PLOO": ["PLOO"], "DelMar": ["DelMar"]}
 
 
+def pacific_window(start, end):
+    """(first, last) hour of the Pacific dates start..end (both inclusive), as tz-aware UTC."""
+    first = pd.Timestamp(start).tz_localize(TZ)
+    last = (pd.Timestamp(end) + pd.Timedelta(days=1)).tz_localize(TZ) - pd.Timedelta(hours=1)
+    return first.tz_convert("UTC"), last.tz_convert("UTC")
+
+
 def setup_window(start, end, sites):
-    """Hourly index for UTC dates start..end, extended by the model forecast when the window reaches it;
+    """Hourly index for Pacific dates start..end, extended by the model forecast when the window reaches it;
     sets _fc. Returns (idx, model {site: DataFrame}, resolution text)."""
     global _fc
-    last = pd.Timestamp(end, tz="UTC") + pd.Timedelta(hours=23)
+    first, last = pacific_window(start, end)
     model = {s: load_model(s) for s in sites}
     # model forecast (days 2-5 of the latest history file): shown when the window reaches the end of day 1
     # (also when day 1 ends exactly at the window's end), running on past the window to the forecast's end
@@ -367,7 +384,7 @@ def setup_window(start, end, sites):
         last = max(last, fc_end)
     else:
         model = {s: load_model(s, forecast=False) for s in sites}
-    idx = pd.date_range(pd.Timestamp(start, tz="UTC"), last, freq="h")
+    idx = pd.date_range(first, last, freq="h")
     return idx, model, "hourly"
 
 
@@ -463,12 +480,13 @@ def sensor_depths(s, ts):
 
 
 def plot_window(start, end, out, period, group):
-    """The figures of one group (SBOO, IB, PLOO or DelMar) for UTC dates start..end (both inclusive).
+    """The figures of one group (SBOO, IB, PLOO or DelMar) for Pacific dates start..end (both inclusive).
 
     out(name) gives the PNG path for figure `name`; period is the text used in the titles.
     """
     sites = GROUPS[group]
     idx, model, res = setup_window(start, end, sites)
+    start, end = (f"{t:%Y-%m-%d}" for t in pacific_window(start, end))   # UTC dates, for loading the obs
     ts = {s: load_ts(s, start, end) for s in sites}
 
     if group == "SBOO":
@@ -742,14 +760,9 @@ def ts_contours(site, idx, ts, depths, title, out_path, variables=TS_CONTOUR):
             ax.set_facecolor("0.93")                         # gaps (no data) show as light grey
         fig.colorbar(cf, ax=list(pans.values()), label=unit, pad=0.01, fraction=0.025,
                      format="%.1f" if var == "temp" else "%.2f")
-    span = (idx[-1] - idx[0]).days
-    loc = (mdates.MonthLocator() if span > 60 else mdates.WeekdayLocator(byweekday=mdates.MO) if span > 21
-           else mdates.DayLocator(interval=max(1, span // 10)))
-    axes[-1].xaxis.set_major_locator(loc)
-    axes[-1].xaxis.set_major_formatter(mdates.DateFormatter("%b\n%Y" if span > 200 else "%b %d" if span <= 60
-                                                            else "%b %Y"))
+    date_ticks(axes[-1], (idx[-1] - idx[0]).days)
     axes[-1].set_xlim(idx[0], idx[-1])
-    axes[-1].set_xlabel("Date (UTC)")
+    axes[-1].set_xlabel("Date (Pacific time, PDT/PST)")
     fig.suptitle(title + "\nGrey: no data. Dotted lines: sensor depths.", fontsize=13)
     fig.savefig(out_path, dpi=130)
     plt.close(fig)
@@ -757,8 +770,10 @@ def ts_contours(site, idx, ts, depths, title, out_path, variables=TS_CONTOUR):
 
 
 def update_data(end, group):
-    """Refresh the group's observations from SIO, and extract any new model days up to end (UTC date) for
-    every site on the same model level (one pass over the history files serves them all)."""
+    """Refresh the group's observations from SIO, and extract any new model days up to end for
+    every site on the same model level (one pass over the history files serves them all). end is a Pacific
+    date; its evening is the next UTC day, so the model is extracted one UTC day further."""
+    end = f"{pd.Timestamp(end) + pd.Timedelta(days=1):%Y-%m-%d}"
     import download_obs
     import extract_model
     for s in GROUPS[group]:

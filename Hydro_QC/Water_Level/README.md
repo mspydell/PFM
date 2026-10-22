@@ -1,6 +1,6 @@
 # PFM vs observed sea surface height: San Diego Bay and La Jolla
 
-Compares the PFM day-1 forecast sea surface height (`zeta`) with the NOAA tide gauges at San Diego Bay and La Jolla. All times are UTC.
+Compares the PFM day-1 forecast sea surface height (`zeta`) with the NOAA tide gauges at San Diego Bay and La Jolla. Times on the plots, and the dates of the plot windows, are Pacific (PDT/PST, America/Los_Angeles); the data and caches stay UTC.
 
 | Station key | Gauge | PFM grid | Model grid point |
 |---|---|---|---|
@@ -18,8 +18,8 @@ This is a Python version of MATLAB location IDs 1 (SD Bay) and 11 (La Jolla) in 
 | `plot_sdbay_3weeks.py`, `plot_lajolla_3weeks.py` | Plot of the past 3 weeks for that station, saved to `plots_web/`. Updates the data first. | yes |
 | `plot_ssh.py` | Shared code for the hourly figure and the 3-week run. | yes |
 | `stations.py` | Station settings: NOAA ID, position, grid. | yes |
-| `download_obs.py` | Downloads water level, air pressure and tide predictions from the NOAA CO-OPS API into `cache/obs/<station>/`. | yes |
-| `extract_model.py` | Extracts `zeta` at each gauge from `/dataSIO/PFM_Simulations/Archive/<LV>_His` into `cache/model/`. | yes |
+| `download_obs.py` | Downloads water level, air pressure and tide predictions from the NOAA CO-OPS API into `/dataSIO/Hydro_QC/Water_Level/cache/obs/<station>/`. | yes |
+| `extract_model.py` | Extracts `zeta` at each gauge from `/dataSIO/PFM_Simulations/Archive/<LV>_His` into `/dataSIO/Hydro_QC/Water_Level/cache/model/`. | yes |
 | `plot_sdbay_range.py`, `plot_lajolla_range.py` | Hourly and tides-removed figures for any dates, saved to `plots/`. | no |
 | `plot_ssh_lowpass.py` | Shared code: the PL64 low-pass filter, the tides-removed figure and the date-range run. | no |
 | `plot_sdbay_noaa_tide.py`, `plot_lajolla_noaa_tide.py` | NOAA measured vs predicted water level and their difference; no model. | no |
@@ -109,6 +109,8 @@ The residual is the sea level the tide prediction leaves out:
 **Difference from the MATLAB:** `correction_WaterLevel_InverseBarometer.m` only reads the NDBC pressure files for 2024 and 2025. From January 2026 its pressure stays at the last 2025 value. At San Diego Bay that puts the corrected level off by up to about 14 cm (the real pressure ranged 1008–1028 hPa in Jan–Feb 2026, while the MATLAB used 1014.8 hPa). The Python uses the real pressure. For 2024–2025 it matches the saved MATLAB output.
 
 ## Data
+
+The data cache is on the shared disk, `/dataSIO/Hydro_QC/Water_Level/cache/`, so runs on swell and backwash use and update the same files (group `feddersen-lab`, group-writable). Set the environment variable `HYDRO_QC_DATA` to use another root (the cache is then `$HYDRO_QC_DATA/Water_Level/cache/`). Plots stay next to the scripts.
 
 - **Model:** `cache/model/SDBay_LV4_day1_zeta.csv` and `cache/model/LaJolla_LV3_day1_zeta.csv`. Later runs only read new days. A full rebuild (delete the file) reads every history file since 5 Dec 2024 and takes about 6–8 minutes per station. To start from a later date on a new machine, run `python extract_model.py --start YYYY-MM-DD` once first.
 - **Observations:** `cache/obs/<station>/<product>_<YYYYMM>.csv`, one file per month for `water_level`, `air_pressure` and `predictions`. Each run downloads missing months plus the current and previous month again, so preliminary data are replaced by verified data within about a month.

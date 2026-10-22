@@ -70,7 +70,7 @@ The first long range downloads the IBWC data (about a minute per year of data); 
 
 ## Cache
 
-Both scripts keep their data in `cache/`, next to the scripts, so a run only downloads or reads what is new:
+The data cache is on the shared disk, `/dataSIO/Hydro_QC/FlowRate/cache/`, so runs on swell and backwash use and update the same files (group `feddersen-lab`, group-writable). Set the environment variable `HYDRO_QC_DATA` to use another root (the cache is then `$HYDRO_QC_DATA/FlowRate/cache/`). Plots stay next to the scripts. A run only downloads or reads what is new:
 
 | Folder | Contents | Refreshed |
 |---|---|---|

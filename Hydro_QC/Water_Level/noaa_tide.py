@@ -20,7 +20,7 @@ import numpy as np
 import pandas as pd
 
 from download_obs import load_noaa, update
-from plot_ssh import DIFF_YLIM, OUT_DIR, date_window, hours
+from plot_ssh import DIFF_YLIM, OUT_DIR, date_ticks, date_window, hours
 from plot_ssh_lowpass import NW, PAD_DAYS, lowpass
 from stations import STATIONS
 
@@ -33,7 +33,7 @@ def plot_station(station, start, end):
     st = STATIONS[station]
     idx = hours(start, end)
     full = pd.date_range(idx[0] - pd.Timedelta(days=PAD_DAYS), idx[-1], freq="h")  # filter run-in
-    df = load_noaa(station, f"{full[0]:%Y-%m-%d}", f"{end:%Y-%m-%d}").reindex(full)
+    df = load_noaa(station, f"{full[0]:%Y-%m-%d}", f"{full[-1]:%Y-%m-%d}").reindex(full)   # UTC dates
     df.loc[df.index > pd.Timestamp.now(tz="UTC"), "predicted"] = np.nan  # predictions exist for the future
     resid = df["measured"] - df["predicted"]
     resid_lp = lowpass(resid)
@@ -69,8 +69,9 @@ def plot_station(station, start, end):
         ax.axhline(0, color="0.6", lw=0.8)
         ax.grid(axis="y", color="0.9")
         ax.legend(loc="upper left", fontsize=8, frameon=False, ncol=3)
+    date_ticks(axes[-1], (idx[-1] - idx[0]).days)
     axes[-1].set_xlim(idx[0], idx[-1])
-    axes[-1].set_xlabel("Date (UTC)")
+    axes[-1].set_xlabel("Date (Pacific time, PDT/PST)")
     fig.suptitle(f"{st['title']}: NOAA measured vs predicted water level, {start:%Y-%m-%d} to {end:%Y-%m-%d}",
                  fontsize=13)
     fig.tight_layout()
@@ -84,12 +85,12 @@ def plot_station(station, start, end):
 def run(station):
     """Command-line entry point of plot_<station>_noaa_tide.py."""
     p = argparse.ArgumentParser(description=f"NOAA measured vs predicted water level at {STATIONS[station]['title']}")
-    p.add_argument("--start", help=f"Start date YYYY-MM-DD (UTC, default {START}); not with --duration")
-    p.add_argument("--end", default="today", help="End date YYYY-MM-DD or 'today', inclusive (UTC, default today)")
+    p.add_argument("--start", help=f"Start date YYYY-MM-DD (Pacific, default {START}); not with --duration")
+    p.add_argument("--end", default="today", help="End date YYYY-MM-DD or 'today', inclusive (Pacific, default today)")
     p.add_argument("--duration", type=int, help="Number of days to plot, ending on --end (both days included)")
     p.add_argument("--update", action="store_true", help="Download new NOAA data first")
     args = p.parse_args()
     start, end = date_window(p, args, START)
     if args.update:
-        update(station, f"{end:%Y-%m-%d}")
+        update(station, f"{end + pd.Timedelta(days=1):%Y-%m-%d}")   # the Pacific evening is the next UTC day
     plot_station(station, start, end)

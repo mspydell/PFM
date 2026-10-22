@@ -36,6 +36,9 @@ eval "$(conda shell.bash hook)"
 # Activate the desired environment
 conda activate PHM-env
 
+# the caches in /dataSIO/Hydro_QC are shared with backwash: keep new files group-writable
+umask 002
+
 ########
 
 dateZ=$(date '+%Y%m%d')
