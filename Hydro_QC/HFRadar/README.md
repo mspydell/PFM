@@ -41,15 +41,15 @@ python plot_model_vs_hfr_range.py --start 2026-10-10 --level LV3 --update-moorin
 
 | Item | What is plotted |
 |---|---|
-| Model (black) | Day 1 of the PFM run for the panel's UTC date. If that run isn't written yet, day 2 of the previous run, marked in the panel title. Instantaneous at the hour. |
+| Model (grey) | The newest PFM run started at or before the panel's time that reaches it within 48 h: normally day 1 of that UTC date's 00 UTC run; some days only have a 06 or 12 UTC run; if the day's run isn't written yet (or was cut short), day 2 of an earlier run, marked in the panel title. Instantaneous at the hour. |
 | Model depth | u, v averaged over the top 2 m below the moving free surface (each s-layer weighted by how much of it lies in 0-2 m), rotated to east/north. |
 | Model grid | Linearly interpolated onto a regular ~100 m lon/lat grid lined up with the HF radar grid (1/60 of the 6 km spacing). Arrows every 3 km on LV3 and every 2 km on LV4, so every 6 km node is an HF radar cell centre. Cells touching land are left blank. |
-| HF radar (red) | NDBC 6 km near-real-time product, hourly, as published. Read from the shared cache that `make_obs_qc_figures.py` fills (`/dataSIO/DA_Simulations/input_files/hfr_nrt`); hours missing there are read from NDBC. |
+| HF radar (red) | 6 km, hourly, as published. From the shared near-real-time cache that `make_obs_qc_figures.py` fills (`/dataSIO/DA_Simulations/input_files/hfr_nrt`, from Aug 2026); else the monthly archive in `/dataSIO/HFRadar_files` (Nov 2024 - 18 Mar 2026); else live from NDBC (it keeps about the last 3 months). Nothing covers 18 Mar - 20 Jul 2026: those panels show the model only. |
 | Moorings (colours) | Observed ADCP top layer, hourly: SBOO on LV4; SBOO, PLOO and Del Mar on LV3. From the `../Moorings` cache. |
-| Model at the moorings (thick black) | Averaged over the same depths as the ADCP top layer (SBOO 2.8-5.8 m, PLOO 2.9-5.9 m, Del Mar 4.4-10.4 m), from the same run and hour as the panel. |
+| Model at the moorings (black) | Averaged over the same depths as the ADCP top layer (SBOO 2.8-5.8 m, PLOO 2.9-5.9 m, Del Mar 4.4-10.4 m), from the same run and hour as the panel. |
 | Panel title | At HF radar cells where both exist: number of cells, mean speed model / HF radar, RMS vector difference. |
 
-All arrows share one scale per figure; the reference arrow is 0.25 m/s. Observed mooring arrows are drawn partly transparent so the model arrow beneath stays visible.
+All arrows share one scale per figure (the 95th percentile speed is drawn 1.35 model arrow spacings long) and have a small open head; the reference arrow is 0.25 m/s. Model arrows are thin and grey (darker on LV4), HF radar arrows bright red and thicker, observed mooring arrows partly transparent so the model arrow beneath stays visible. Isobaths: 10, 20 and 50 m. Colours and line widths are set at the top of `plot_model_vs_hfr.py`.
 
 ## Caches
 
@@ -60,5 +60,8 @@ In `/dataSIO/Hydro_QC/HFRadar/cache/`, shared by swell and backwash (group-writa
 | `weights_<LV>_<key>.npz` | Interpolation weights, model grid to the ~100 m grid; rebuilt by itself if the grid file, radar grid or spacing changes |
 | `model_<LV>_<run>_rec<NNN>_top2m_every<N>_<key>.npz` | Model arrows of one panel |
 | `mooring_<LV>_<run>_<site>.npz` | Model at a mooring, days 1-2, where the Moorings cache doesn't have it |
+| `hfr6km_<archive file>_<key>.npz` | An HF radar archive `.mat` file cut to the LV3 box, made once |
+
+`<run>` is YYYYMMDD for a 00 UTC run, YYYYMMDDHH for one started later.
 
 A first run takes a few minutes; a run with everything cached takes about 15 s.
