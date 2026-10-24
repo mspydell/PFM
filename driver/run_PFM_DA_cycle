@@ -1,0 +1,236 @@
+#!/bin/bash
+# Run the FORECAST half of a PFM_plus_DA cycle: the 1-day PFM run started from
+# the ICs that run_DA_cycle produced overnight.  It runs nothing itself unless
+# that DA cycle finished cleanly.
+#
+# Install with:  crontab -e
+#   0 7 * * * /path/to/your/PFM/driver/run_PFM_DA_cycle --latest --test
+#
+# WHICH CYCLE --latest MEANS
+#   Exactly the same rule as run_DA_cycle: t_fore = the most recent 00Z, in
+#   UTC.  At 07:00 PDT on 10-24 that is 2026102400 -- the same stamp the 20:00
+#   PDT DA run resolved the evening before, so the forecast automatically picks
+#   up that night's analysis with no date arithmetic shared between them.
+#
+# WHY THE GATE IS HERE AND NOT IN THE LAUNCHER
+#   start_PFM_plus_DA.py does not stop when the DA fails.  It prints
+#       "DA pre-step returned N.  Continuing: the forecast falls through to
+#        whatever ICs it can find."
+#   In the combined run that is reasonable.  Split across two cron jobs it is
+#   not: "whatever ICs it can find" means YESTERDAY'S, and the result looks
+#   like a normal forecast.  So this script proves the DA succeeded before
+#   launching anything -- manifest verdict ok, and all four handoff ICs present
+#   and stamped for THIS t_fore.  The stamp is in the file name
+#   (LV*_DA_IC_for_<t_fore>.nc), which is what makes a stale IC impossible to
+#   mistake for a fresh one.
+#
+#   The gate doubles as the overlap guard.  If the DA is still running at 07:00
+#   -- 2026-10-21 took 8.8 h on queue wait -- the verdict reads "pending", this
+#   skips, and nothing competes for nodes.
+
+set -o pipefail
+
+PFM_ROOT=$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)
+CONDA_SH=""
+for c in "$HOME/anaconda3/etc/profile.d/conda.sh" \
+         "$HOME/miniconda3/etc/profile.d/conda.sh" \
+         "$HOME/mambaforge/etc/profile.d/conda.sh" \
+         /opt/anaconda3/etc/profile.d/conda.sh; do
+    [ -r "$c" ] && { CONDA_SH="$c"; break; }
+done
+PROXY_SH=/etc/profile.d/proxy.sh
+ENV_NAME=PHM-env
+LOGDIR=${PFM_ROOT}/log
+STATUSLOG=${LOGDIR}/cycle_status.log
+LOCKFILE=/tmp/run_PFM_DA_cycle.lock
+
+LENGTH=${LENGTH:-1}          # forecast days; 1 is the test we have been running
+
+STAMP=""
+TESTING=0
+DRYRUN=0
+
+usage () {
+    sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'
+    cat <<USAGE
+
+usage: run_PFM_DA_cycle (--latest | --date YYYYMMDDHH) --test [--dry-run]
+
+  --latest      t_fore = the most recent 00Z UTC (what cron uses)
+  --date STAMP  run a specific t_fore
+  --test        REQUIRED.  Runs in the testing sandbox.  See the refusal below.
+  --dry-run     resolve the stamp, check the gate, launch nothing
+USAGE
+}
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --latest)  STAMP=$(date -u '+%Y%m%d')00 ;;
+        --date)    shift; STAMP="$1" ;;
+        --test)    TESTING=1 ;;
+        --dry-run) DRYRUN=1 ;;
+        -h|--help) usage; exit 0 ;;
+        *)         echo "unknown argument: $1" >&2; usage >&2; exit 64 ;;
+    esac
+    shift
+done
+
+[ -n "${STAMP}" ] || { echo "need --latest or --date YYYYMMDDHH" >&2; exit 64; }
+case "${STAMP}" in
+    [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]) ;;
+    *) echo "bad stamp '${STAMP}': want YYYYMMDDHH" >&2; exit 64 ;;
+esac
+
+# --test is mandatory, on purpose.
+#
+# Everything protective in start_PFM_plus_DA.py is under `if a.testing`:
+# apply_testing_paths, tag_testing_output_names, assert_not_operational, and
+# the history archiving.  Without it this is not "the same run, longer" -- it
+# is a production forecast writing operational file names, with none of the
+# isolation built after the 2026-10-17 contamination, racing the operational
+# cron for the same restart names.  That has to be a deliberate cutover with
+# the cron collision settled first, not something a dropped flag can cause.
+if [ "${TESTING}" != "1" ]; then
+    echo "REFUSING: --test is required." >&2
+    echo "Running without it writes operational paths under operational names" >&2
+    echo "with no sandbox and no assert_not_operational, and collides with the" >&2
+    echo "operational cron.  Cutting over to production is a deliberate change" >&2
+    echo "to this script, not a missing flag." >&2
+    exit 64
+fi
+
+mkdir -p "${LOGDIR}"
+LOGFILE=${LOGDIR}/PFM_DA_cycle_${STAMP}.log
+
+status () { printf '%s  %-10s  %s\n' "$(date -u '+%Y-%m-%dT%H:%MZ')" "${STAMP}" "PFM: $*" \
+            >> "${STATUSLOG}"; }
+fail   () { echo "$(date -u '+%Y-%m-%dT%H:%MZ')  FATAL $*"; status "FATAL  $*"; exit 1; }
+
+exec >> "${LOGFILE}" 2>&1
+
+echo
+echo "===================================================================="
+echo "$(date -u '+%Y-%m-%dT%H:%MZ')  ($(date '+%H:%M %Z'))  PFM forecast ${STAMP}"
+echo "===================================================================="
+
+exec 9>"${LOCKFILE}" || fail "cannot open ${LOCKFILE}"
+if ! flock -n 9; then
+    echo "  another run_PFM_DA_cycle holds ${LOCKFILE}; skipping this firing"
+    status "skipped (already running)"
+    exit 0
+fi
+
+ls "${PFM_ROOT}"/DA_files/*.py >/dev/null 2>&1 \
+    || fail "no DA_files/*.py in ${PFM_ROOT} -- is the repo on a branch without the DA code?"
+BRANCH=$(cd "${PFM_ROOT}" && git rev-parse --abbrev-ref HEAD 2>/dev/null)
+echo "  repo      ${PFM_ROOT} (branch ${BRANCH:-unknown})"
+
+if [ -r "${PROXY_SH}" ]; then
+    source "${PROXY_SH}"
+else
+    export http_proxy=http://132.239.2.228:3128/
+    export https_proxy=http://132.239.2.228:3128/
+fi
+export ftp_proxy="${ftp_proxy:-$http_proxy}"
+
+[ -n "${CONDA_SH}" ] && [ -r "${CONDA_SH}" ] || fail "no conda hook found"
+source "${CONDA_SH}"
+conda activate "${ENV_NAME}" || fail "could not activate ${ENV_NAME}"
+
+PY=$(command -v python)
+case "${PY}" in
+    */envs/${ENV_NAME}/bin/python) ;;
+    *) fail "python is ${PY}, expected the ${ENV_NAME} one" ;;
+esac
+"${PY}" -c 'import netCDF4' 2>/dev/null || fail "${PY} cannot import netCDF4"
+
+# The forecast DOES download (LV1's atm step needs WGET_ECMWF_*), but
+# start_PFM_plus_DA.py loads PFM/.env itself and fails in seconds if it is
+# missing, so there is nothing to do here but let it.
+[ -r "${PFM_ROOT}/.env" ] || echo "  WARNING: no ${PFM_ROOT}/.env; the forecast will stop at its credential check"
+
+cd "${PFM_ROOT}/DA_files" || fail "no ${PFM_ROOT}/DA_files"
+
+# --- the gate ---------------------------------------------------------------
+echo
+echo "  --- did last night's DA finish? ---"
+GATE=$("${PY}" - "${STAMP}" <<'PYEOF' 2>&1
+import json, sys, datetime as DT
+from pathlib import Path
+sys.path.insert(0, str(Path.cwd()))
+import da_config as C
+import da_validate as V
+
+stamp = sys.argv[1]
+t_fore = DT.datetime.strptime(stamp, "%Y%m%d%H")
+
+man = C.SCRATCH / "Log" / f"{stamp}.manifest.json"
+if not man.is_file():
+    print(f"NO  no manifest at {man} -- the DA never ran for this t_fore")
+    raise SystemExit
+m = json.load(open(man))
+verdict = m.get("verdict", "?")
+print(f"    manifest verdict: {verdict}")
+if verdict != "ok":
+    bad = [k for k, v in m.get("stages", {}).items()
+           if v.get("status") not in ("ok", "skipped")]
+    print(f"NO  verdict is {verdict}"
+          + (f"; stages not ok: {', '.join(bad)}" if bad else
+             " (still running, or it stopped before finalising)"))
+    raise SystemExit
+
+# The verdict alone is not enough: prove the four ICs this forecast will eat
+# exist, are for THIS t_fore, and open.  expect_time is what makes a stale IC
+# from a previous cycle impossible to pass off as a fresh one.
+need = ("zeta", "u", "v", "temp", "salt")
+missing = []
+for lv in ("LV1", "LV2", "LV3", "LV4"):
+    ic = C.SCRATCH / "IC_out" / f"{lv}_DA_IC_for_{stamp}.nc"
+    nv = need + (("dye_01", "dye_02") if lv == "LV4" else ())
+    chk = V.nc_ok(ic, need_vars=nv, expect_time=t_fore, min_bytes=20 << 20)
+    print(f"    {lv} IC: {'ok' if chk else 'BAD -- ' + str(chk.why)}")
+    if not chk:
+        missing.append(lv)
+if missing:
+    print(f"NO  handoff IC not usable for {', '.join(missing)}")
+    raise SystemExit
+print("YES all four handoff ICs present and stamped for this t_fore")
+PYEOF
+)
+echo "${GATE}"
+
+if ! echo "${GATE}" | grep -q '^YES'; then
+    REASON=$(echo "${GATE}" | grep -m1 '^NO' | sed 's/^NO  *//')
+    echo "  NOT RUNNING THE FORECAST: ${REASON:-gate failed}"
+    status "skipped -- ${REASON:-gate failed}"
+    exit 3
+fi
+
+if [ "${DRYRUN}" = "1" ]; then
+    echo "  --dry-run: gate passed, stopping before the forecast"
+    status "dry-run ok (gate passed)"
+    exit 0
+fi
+
+# --- the forecast -----------------------------------------------------------
+echo
+echo "  --- PFM forecast, ${LENGTH} day(s), testing sandbox ---"
+t0=$(date '+%s')
+"${PY}" -u start_PFM_plus_DA.py "${STAMP}" testing PFM_only --length "${LENGTH}"
+RC=$?
+t1=$(date '+%s')
+MINS=$(awk -v a="${t0}" -v b="${t1}" 'BEGIN{printf "%.1f", (b-a)/60}')
+
+# Did the four testing histories actually land?  The forecast can return 0 with
+# a level having quietly produced nothing; the archived files are the evidence.
+ARCH=/dataSIO/PFM_Simulations/Archive/DA/PFM_testing
+n=0
+for lv in LV1 LV2 LV3 LV4; do
+    f="${ARCH}/${lv}_His/${lv}_ocean_his_${STAMP}00_testing.nc"
+    if [ -s "${f}" ]; then n=$((n+1)); else echo "  missing ${f}"; fi
+done
+echo "  archived ${n}/4 testing histories for ${STAMP}"
+
+status "$(printf 'rc=%s  %6s min  histories %d/4' "${RC}" "${MINS}" "${n}")"
+[ "${RC}" = "0" ] || echo "  start_PFM_plus_DA.py returned ${RC}"
+exit "${RC}"

@@ -1,0 +1,238 @@
+#!/bin/bash
+# Run the DA half of a PFM_plus_DA cycle: LV1 4D-Var, increments, then the
+# LV2/LV3/LV4 children.  No forecast -- that is run_PFM_DA_cycle's job, the
+# next morning, off the ICs this leaves behind.
+#
+# Install with:  crontab -e
+#   0 20 * * * /path/to/your/PFM/driver/run_DA_cycle --latest
+#
+# WHICH CYCLE --latest MEANS
+#   t_fore = the most recent 00Z, in UTC; the DA window is the 24 h before it.
+#   Run at 20:00 PDT on 10-23, UTC is already 10-24 03:00, so t_fore is
+#   2026102400 and the window is 10-23 00Z .. 10-24 00Z -- yesterday evening's
+#   data, assimilated tonight.  The next morning's run_PFM_DA_cycle resolves
+#   the SAME stamp from 07:00 PDT (14:00 UTC), so the two halves pair up with
+#   no date arithmetic to get wrong.  Flooring in UTC also makes this survive
+#   the DST change: 20:00 PST is 04:00 UTC and still floors to the same day.
+#
+# THE 01:00 DEADLINE
+#   The operational forecast takes the cluster at 01:00 local.  A DA cycle is
+#   ~4.2 h, so a 20:00 start lands ~00:15 with well under an hour to spare.
+#   That is thin enough that this script does two things about it: it refuses
+#   to start when there is not enough time left, and it hands run_PFM_DA.py a
+#   --deadline-h that ends before 01:00.  The deadline is real -- _sbatch_wait
+#   in da_stages.py scancels the job when it expires (line 114), so a cycle
+#   that overruns gets off the nodes instead of competing with production.
+#
+# Deliberately NOT going through start_PFM_plus_DA.py, which is how the cycles
+# up to 2026-10-23 were launched.  That wrapper has no --deadline-h to pass
+# through, and the deadline is the whole point here.  What it would otherwise
+# add is load_pfm_env(), and by its own docstring the DA does not need it:
+# "PFM_DA never needs this -- it reads ECMWF and HYCOM off disk by design and
+# does not fetch.  The FORECAST does."  The proxy below it DOES need, because
+# the HFR fetch downloads.
+
+set -o pipefail
+
+PFM_ROOT=$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)
+CONDA_SH=""
+for c in "$HOME/anaconda3/etc/profile.d/conda.sh" \
+         "$HOME/miniconda3/etc/profile.d/conda.sh" \
+         "$HOME/mambaforge/etc/profile.d/conda.sh" \
+         /opt/anaconda3/etc/profile.d/conda.sh; do
+    [ -r "$c" ] && { CONDA_SH="$c"; break; }
+done
+PROXY_SH=/etc/profile.d/proxy.sh
+ENV_NAME=PHM-env
+LOGDIR=${PFM_ROOT}/log
+STATUSLOG=${LOGDIR}/cycle_status.log
+LOCKFILE=/tmp/run_DA_cycle.lock
+
+# --- knobs ------------------------------------------------------------------
+# When the operational forecast starts taking nodes, and how long before it we
+# want to be finished.  MIN_RUN_H is the worst clean cycle we have measured
+# (4.36 h over 13 cycles, 10/07..10/23) rounded up: below that, starting is
+# just a way to get scancelled at the deadline having burned the nodes.
+OPER_START_LOCAL=${OPER_START_LOCAL:-01:00}
+GUARD_MIN=${GUARD_MIN:-15}
+MIN_RUN_H=${MIN_RUN_H:-4.4}
+
+STAMP=""
+DRYRUN=0
+FORCE=0
+
+usage () {
+    sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'
+    cat <<USAGE
+
+usage: run_DA_cycle (--latest | --date YYYYMMDDHH) [--dry-run] [--force]
+
+  --latest      t_fore = the most recent 00Z UTC (what cron uses)
+  --date STAMP  run a specific t_fore, for catching up a missed night
+  --dry-run     resolve the stamp, run the input preflight, launch nothing
+  --force       start even when there is less than ${MIN_RUN_H} h before the
+                operational; the deadline still applies
+USAGE
+}
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --latest)  STAMP=$(date -u '+%Y%m%d')00 ;;
+        --date)    shift; STAMP="$1" ;;
+        --dry-run) DRYRUN=1 ;;
+        --force)   FORCE=1 ;;
+        -h|--help) usage; exit 0 ;;
+        *)         echo "unknown argument: $1" >&2; usage >&2; exit 64 ;;
+    esac
+    shift
+done
+
+[ -n "${STAMP}" ] || { echo "need --latest or --date YYYYMMDDHH" >&2; exit 64; }
+case "${STAMP}" in
+    [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]) ;;
+    *) echo "bad stamp '${STAMP}': want YYYYMMDDHH" >&2; exit 64 ;;
+esac
+
+mkdir -p "${LOGDIR}"
+LOGFILE=${LOGDIR}/DA_cycle_${STAMP}.log
+
+# One line per night, for the morning check: tail -5 on this file.
+status () { printf '%s  %-10s  %s\n' "$(date -u '+%Y-%m-%dT%H:%MZ')" "${STAMP}" "$*" \
+            >> "${STATUSLOG}"; }
+fail   () { echo "$(date -u '+%Y-%m-%dT%H:%MZ')  FATAL $*"; status "FATAL  $*"; exit 1; }
+
+# Everything from here goes to the cycle log, including whatever conda and
+# python print on their own -- otherwise cron mails it, and a job that mails on
+# every run is a job whose mail nobody reads.
+exec >> "${LOGFILE}" 2>&1
+
+echo
+echo "===================================================================="
+echo "$(date -u '+%Y-%m-%dT%H:%MZ')  ($(date '+%H:%M %Z'))  DA cycle ${STAMP}"
+echo "===================================================================="
+
+# Only one of these at a time.  A cycle that is still going when the next cron
+# fires must not be doubled up: two 4D-Vars writing the same scratch files is
+# exactly how 2026-10-23 went wrong.
+exec 9>"${LOCKFILE}" || fail "cannot open ${LOCKFILE}"
+if ! flock -n 9; then
+    echo "  another run_DA_cycle holds ${LOCKFILE}; skipping this firing"
+    status "skipped (already running)"
+    exit 0
+fi
+
+# The DA code lives only on adding_DA.  Check for the .py FILES, not the
+# directory: a stale DA_files/__pycache__ survives a checkout of main, so the
+# directory can look present while every module is gone.
+ls "${PFM_ROOT}"/DA_files/*.py >/dev/null 2>&1 \
+    || fail "no DA_files/*.py in ${PFM_ROOT} -- is the repo on a branch without the DA code?"
+BRANCH=$(cd "${PFM_ROOT}" && git rev-parse --abbrev-ref HEAD 2>/dev/null)
+echo "  repo      ${PFM_ROOT} (branch ${BRANCH:-unknown})"
+
+# --- how much time is there before the operational? -------------------------
+now_s=$(date '+%s')
+op_s=$(date -d "today ${OPER_START_LOCAL}" '+%s') || fail "bad OPER_START_LOCAL '${OPER_START_LOCAL}'"
+[ "${op_s}" -le "${now_s}" ] && op_s=$(date -d "tomorrow ${OPER_START_LOCAL}" '+%s')
+avail_h=$(awk -v a="${op_s}" -v n="${now_s}" -v g="${GUARD_MIN}" \
+              'BEGIN{printf "%.2f", (a - n - g*60)/3600}')
+echo "  operational starts ${OPER_START_LOCAL} local; with a ${GUARD_MIN} min guard"
+echo "  that leaves ${avail_h} h for a cycle that normally takes 4.22 h"
+
+if awk -v a="${avail_h}" -v m="${MIN_RUN_H}" 'BEGIN{exit !(a < m)}'; then
+    if [ "${FORCE}" = "1" ]; then
+        echo "  below ${MIN_RUN_H} h, but --force given: starting anyway"
+    else
+        echo "  REFUSING: less than ${MIN_RUN_H} h before the operational."
+        echo "  Start earlier, or pass --force to accept being cancelled at the deadline."
+        status "refused (only ${avail_h} h before ${OPER_START_LOCAL})"
+        exit 3
+    fi
+fi
+
+# cron gets a bare environment, so conda has to be set up by hand.  PATH is NOT
+# touched before this point: if the caller already has the env active, "conda
+# activate" is a no-op, and anything prepended to PATH beforehand would stay in
+# front and win over the env.
+if [ -r "${PROXY_SH}" ]; then
+    source "${PROXY_SH}"
+else
+    export http_proxy=http://132.239.2.228:3128/
+    export https_proxy=http://132.239.2.228:3128/
+fi
+export ftp_proxy="${ftp_proxy:-$http_proxy}"
+
+[ -n "${CONDA_SH}" ] && [ -r "${CONDA_SH}" ] || fail "no conda hook found"
+source "${CONDA_SH}"
+conda activate "${ENV_NAME}" || fail "could not activate ${ENV_NAME}"
+
+# Verify rather than trust: activate can succeed while leaving the wrong
+# interpreter in front.
+PY=$(command -v python)
+case "${PY}" in
+    */envs/${ENV_NAME}/bin/python) ;;
+    *) fail "python is ${PY}, expected the ${ENV_NAME} one" ;;
+esac
+"${PY}" -c 'import netCDF4' 2>/dev/null || fail "${PY} cannot import netCDF4"
+
+cd "${PFM_ROOT}/DA_files" || fail "no ${PFM_ROOT}/DA_files"
+
+# --- preflight --------------------------------------------------------------
+# Read-only and takes seconds.  Worth doing first: it is the difference between
+# learning at 20:00 that the LV1 IC never arrived and learning it at 00:15.
+echo
+echo "  --- input preflight ---"
+CHECK=$("${PY}" -u run_PFM_DA.py "${STAMP}" --check 2>&1)
+CHECK_RC=$?
+echo "${CHECK}"
+HFR=$(echo "${CHECK}" | grep -oE '[0-9]+/[0-9]+ hourly surveys|all [0-9]+ hourly surveys' | head -1)
+HFR=${HFR:-hfr ?}
+
+if [ "${CHECK_RC}" = "2" ]; then
+    echo "  BLOCKED: an input no download can fix.  Not starting."
+    status "blocked at preflight (${HFR})"
+    exit 2
+fi
+
+if [ "${DRYRUN}" = "1" ]; then
+    echo "  --dry-run: stopping before the cycle"
+    status "dry-run ok (${HFR}, ${avail_h} h available)"
+    exit 0
+fi
+
+# --- the cycle --------------------------------------------------------------
+echo
+echo "  --- DA cycle (deadline ${avail_h} h, ends $(date -d "@$((op_s - GUARD_MIN*60))" '+%H:%M %Z')) ---"
+t0=$(date '+%s')
+"${PY}" -u run_PFM_DA.py "${STAMP}" --deadline-h "${avail_h}"
+RC=$?
+t1=$(date '+%s')
+MINS=$(awk -v a="${t0}" -v b="${t1}" 'BEGIN{printf "%.1f", (b-a)/60}')
+
+echo
+echo "  --- manifest ---"
+"${PY}" -u run_PFM_DA.py "${STAMP}" --status 2>&1
+
+VERDICT=$("${PY}" - "${STAMP}" <<'PYEOF' 2>/dev/null
+import json, sys
+from pathlib import Path
+sys.path.insert(0, str(Path.cwd()))
+import da_config as C
+p = C.SCRATCH / "Log" / f"{sys.argv[1]}.manifest.json"
+try:
+    m = json.load(open(p))
+except Exception:
+    print("no-manifest"); raise SystemExit
+st = m.get("stages", {})
+tot = sum((v.get("wall_s") or 0.0) for v in st.values()) / 60
+bad = [k for k, v in st.items() if v.get("status") not in ("ok", "skipped")]
+print(f'{m.get("verdict","?")} {tot:.1f} {",".join(bad) if bad else "-"}')
+PYEOF
+)
+set -- ${VERDICT:-? ? ?}
+echo "  verdict=$1  stages=${2}min  bad=${3}"
+status "$(printf 'verdict %-8s %6s min  %s  rc=%s%s' \
+          "$1" "${MINS}" "${HFR}" "${RC}" \
+          "$([ "${3}" != "-" ] && [ -n "${3}" ] && echo "  BAD:${3}")")"
+
+[ "${RC}" = "0" ] || echo "  run_PFM_DA.py returned ${RC}"
+exit "${RC}"
