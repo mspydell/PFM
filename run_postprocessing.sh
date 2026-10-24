@@ -80,3 +80,8 @@ cd /home/ffeddersen/PFM_NEW/Hydro_QC/Dye_Volume
 # make SD BAy Chart
 cd /home/ffeddersen/PFM_NEW/Hydro_QC/Water_Level
 ./make_water_level.sh
+
+# make Mooring QC
+cd /home/ffeddersen/PFM_NEW/Hydro_QC/Moorings
+./make_moorings_qc.sh
+
