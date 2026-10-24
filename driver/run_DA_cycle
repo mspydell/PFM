@@ -126,8 +126,7 @@ fi
 # directory can look present while every module is gone.
 ls "${PFM_ROOT}"/DA_files/*.py >/dev/null 2>&1 \
     || fail "no DA_files/*.py in ${PFM_ROOT} -- is the repo on a branch without the DA code?"
-BRANCH=$(cd "${PFM_ROOT}" && git rev-parse --abbrev-ref HEAD 2>/dev/null)
-echo "  repo      ${PFM_ROOT} (branch ${BRANCH:-unknown})"
+echo "  repo      ${PFM_ROOT}"
 
 # --- how much time is there before the operational? -------------------------
 now_s=$(date '+%s')
@@ -173,6 +172,35 @@ case "${PY}" in
     *) fail "python is ${PY}, expected the ${ENV_NAME} one" ;;
 esac
 "${PY}" -c 'import netCDF4' 2>/dev/null || fail "${PY} cannot import netCDF4"
+
+# Slurm is NOT on cron's PATH.  A login shell picks it up from
+# /etc/profile.d/setpath_cm.sh, but cron reads neither that nor .bashrc, so
+# under cron PATH is just /usr/local/bin:/usr/bin and every stage that submits
+# a job dies on "FileNotFoundError: 'sbatch'".  Found exactly that way on the
+# first cron firing, 2026-10-23: preflight, lv1_ic, lv1_atm, lv1_bc and
+# lv1_obs all passed in 1.1 min and lv1_da fell over instantly.
+#
+# Prefer the system file so an admin moving slurm fixes this too; fall back to
+# the current symlink, which is what that file resolves to today.
+if [ -r /etc/profile.d/setpath_cm.sh ]; then
+    source /etc/profile.d/setpath_cm.sh
+fi
+command -v sbatch >/dev/null || export PATH="/cm/shared/apps/slurm/current/bin:${PATH}"
+
+# Verify all four, not just sbatch: _sbatch_wait polls with squeue and cancels
+# with scancel at the deadline, and the summary reads sacct.  A missing
+# scancel would be the worst of them -- the deadline would stop waiting
+# without stopping the job, which is how an orphan 4D-Var ran into the
+# operational window on 2026-10-23.
+for tool in sbatch squeue scancel sacct; do
+    command -v "${tool}" >/dev/null || fail "${tool} not on PATH (${PATH})"
+done
+
+# Only now, because git is on a /cm/shared path too and cron cannot see it
+# either -- reported before this point it always read "unknown".  Informational:
+# the guard that matters is the DA_files/*.py check above.
+BRANCH=$(git -C "${PFM_ROOT}" rev-parse --abbrev-ref HEAD 2>/dev/null)
+echo "  branch    ${BRANCH:-unknown (git not on PATH)}"
 
 cd "${PFM_ROOT}/DA_files" || fail "no ${PFM_ROOT}/DA_files"
 

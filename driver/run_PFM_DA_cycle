@@ -122,8 +122,7 @@ fi
 
 ls "${PFM_ROOT}"/DA_files/*.py >/dev/null 2>&1 \
     || fail "no DA_files/*.py in ${PFM_ROOT} -- is the repo on a branch without the DA code?"
-BRANCH=$(cd "${PFM_ROOT}" && git rev-parse --abbrev-ref HEAD 2>/dev/null)
-echo "  repo      ${PFM_ROOT} (branch ${BRANCH:-unknown})"
+echo "  repo      ${PFM_ROOT}"
 
 if [ -r "${PROXY_SH}" ]; then
     source "${PROXY_SH}"
@@ -148,6 +147,24 @@ esac
 # start_PFM_plus_DA.py loads PFM/.env itself and fails in seconds if it is
 # missing, so there is nothing to do here but let it.
 [ -r "${PFM_ROOT}/.env" ] || echo "  WARNING: no ${PFM_ROOT}/.env; the forecast will stop at its credential check"
+
+# Slurm is NOT on cron's PATH -- a login shell gets it from
+# /etc/profile.d/setpath_cm.sh, cron does not.  The forecast submits a job per
+# level, so without this it dies on "FileNotFoundError: 'sbatch'" the same way
+# the DA half did on its first cron firing, 2026-10-23.
+if [ -r /etc/profile.d/setpath_cm.sh ]; then
+    source /etc/profile.d/setpath_cm.sh
+fi
+command -v sbatch >/dev/null || export PATH="/cm/shared/apps/slurm/current/bin:${PATH}"
+for tool in sbatch squeue scancel sacct; do
+    command -v "${tool}" >/dev/null || fail "${tool} not on PATH (${PATH})"
+done
+
+# Only now, because git is on a /cm/shared path too and cron cannot see it
+# either -- reported before this point it always read "unknown".  Informational:
+# the guard that matters is the DA_files/*.py check above.
+BRANCH=$(git -C "${PFM_ROOT}" rev-parse --abbrev-ref HEAD 2>/dev/null)
+echo "  branch    ${BRANCH:-unknown (git not on PATH)}"
 
 cd "${PFM_ROOT}/DA_files" || fail "no ${PFM_ROOT}/DA_files"
 
