@@ -35,14 +35,6 @@
 set -o pipefail
 
 PFM_ROOT=$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)
-CONDA_SH=""
-for c in "$HOME/anaconda3/etc/profile.d/conda.sh" \
-         "$HOME/miniconda3/etc/profile.d/conda.sh" \
-         "$HOME/mambaforge/etc/profile.d/conda.sh" \
-         /opt/anaconda3/etc/profile.d/conda.sh; do
-    [ -r "$c" ] && { CONDA_SH="$c"; break; }
-done
-PROXY_SH=/etc/profile.d/proxy.sh
 ENV_NAME=PHM-env
 LOGDIR=${PFM_ROOT}/log
 STATUSLOG=${LOGDIR}/cycle_status.log
@@ -148,24 +140,31 @@ if awk -v a="${avail_h}" -v m="${MIN_RUN_H}" 'BEGIN{exit !(a < m)}'; then
     fi
 fi
 
-# cron gets a bare environment, so conda has to be set up by hand.  PATH is NOT
-# touched before this point: if the caller already has the env active, "conda
-# activate" is a no-op, and anything prepended to PATH beforehand would stay in
-# front and win over the env.
-if [ -r "${PROXY_SH}" ]; then
-    source "${PROXY_SH}"
-else
-    export http_proxy=http://132.239.2.228:3128/
-    export https_proxy=http://132.239.2.228:3128/
-fi
-export ftp_proxy="${ftp_proxy:-$http_proxy}"
+# cron gets a bare environment: no PATH beyond /usr/local/bin:/usr/bin, no
+# proxy, no conda, no slurm.  Rather than rebuild all that by hand, take it
+# from the one place that already has it right -- exactly what the operational
+# launcher (driver/run_PFM_LV1234.sh) does on its second line.
+#
+# Rebuilding it by hand is what broke the first two cron firings.  `module load
+# slurm` in .bashrc sets BOTH the PATH and SLURM_CONF; the hand-rolled version
+# set PATH on 2026-10-23 and still missed SLURM_CONF on 2026-10-24, so sbatch
+# was found and then died with "Could not establish a configuration source".
+# One source of truth is worth more here than portability to another machine:
+# this script already hardcodes this crontab, these paths and this cluster's
+# 01:00 operational slot.
+#
+# Safe non-interactively -- .bashrc has no "return if not interactive" guard,
+# and sourcing it in a bare env yields sbatch, SLURM_CONF, http_proxy, conda
+# and git.
+[ -r "$HOME/.bashrc" ] || fail "no $HOME/.bashrc -- this script takes its whole environment from it"
+source "$HOME/.bashrc" >/dev/null 2>&1
 
-[ -n "${CONDA_SH}" ] && [ -r "${CONDA_SH}" ] || fail "no conda hook found"
-source "${CONDA_SH}"
+eval "$(conda shell.bash hook)" 2>/dev/null || fail "conda shell hook failed"
 conda activate "${ENV_NAME}" || fail "could not activate ${ENV_NAME}"
 
-# Verify rather than trust: activate can succeed while leaving the wrong
-# interpreter in front.
+# Verify rather than trust.  These are checks on an environment .bashrc set
+# up, not a second attempt to build one: if it ever changes, this says so at
+# startup instead of lv1_da failing a minute in.
 PY=$(command -v python)
 case "${PY}" in
     */envs/${ENV_NAME}/bin/python) ;;
@@ -173,53 +172,20 @@ case "${PY}" in
 esac
 "${PY}" -c 'import netCDF4' 2>/dev/null || fail "${PY} cannot import netCDF4"
 
-# Slurm reaches an interactive shell through `module load slurm` in .bashrc,
-# which cron never reads.  That module sets TWO things, and both cron firings
-# that failed were missing one of them:
-#
-#   2026-10-23  PATH     -> "FileNotFoundError: 'sbatch'"
-#   2026-10-24  SLURM_CONF -> sbatch found, but no config source:
-#                  resolve_ctls_from_dns_srv: res_nsearch error: Unknown host
-#                  fatal: Could not establish a configuration source
-#
-# Without SLURM_CONF the client falls back to configless DNS SRV discovery,
-# and this cluster does not answer that.  Use the module if it is there, so an
-# admin moving slurm fixes this for us; otherwise set both by hand.  The conf
-# path is globbed rather than hardcoded: the directory under var/etc is the
-# cluster name and would change with it.
-if [ -r /etc/profile.d/modules.sh ]; then
-    source /etc/profile.d/modules.sh 2>/dev/null
-    module load slurm 2>/dev/null
-fi
-command -v sbatch >/dev/null || export PATH="/cm/shared/apps/slurm/current/bin:${PATH}"
-if [ -z "${SLURM_CONF:-}" ]; then
-    for c in /cm/shared/apps/slurm/var/etc/*/slurm.conf; do
-        [ -r "${c}" ] && { export SLURM_CONF="${c}"; break; }
-    done
-fi
-
-# Verify all four, not just sbatch: _sbatch_wait polls with squeue and cancels
-# with scancel at the deadline, and the summary reads sacct.  A missing
-# scancel would be the worst of them -- the deadline would stop waiting
-# without stopping the job, which is how an orphan 4D-Var ran into the
-# operational window on 2026-10-23.
 for tool in sbatch squeue scancel sacct; do
     command -v "${tool}" >/dev/null || fail "${tool} not on PATH (${PATH})"
 done
 
-# On PATH is not the same as working.  Ask the controller something harmless:
-# that is what distinguishes a usable client from the 2026-10-24 failure, and
-# it costs a second here instead of a minute of obs processing first.
+# On PATH is not the same as working: that distinction is the whole of the
+# 2026-10-24 failure.  Ask the controller something harmless.
 squeue -h -u "$(id -un)" >/dev/null 2>&1 \
-    || fail "slurm client cannot reach the controller (SLURM_CONF=${SLURM_CONF:-unset}); \
-sbatch would fall back to DNS SRV discovery, which this cluster does not answer"
+    || fail "slurm client cannot reach the controller (SLURM_CONF=${SLURM_CONF:-unset})"
+
+BRANCH=$(git -C "${PFM_ROOT}" rev-parse --abbrev-ref HEAD 2>/dev/null)
+echo "  branch    ${BRANCH:-unknown}"
+echo "  python    ${PY}"
 echo "  slurm     $(command -v sbatch), SLURM_CONF=${SLURM_CONF:-unset}"
 
-# Only now, because git is on a /cm/shared path too and cron cannot see it
-# either -- reported before this point it always read "unknown".  Informational:
-# the guard that matters is the DA_files/*.py check above.
-BRANCH=$(git -C "${PFM_ROOT}" rev-parse --abbrev-ref HEAD 2>/dev/null)
-echo "  branch    ${BRANCH:-unknown (git not on PATH)}"
 
 cd "${PFM_ROOT}/DA_files" || fail "no ${PFM_ROOT}/DA_files"
 
