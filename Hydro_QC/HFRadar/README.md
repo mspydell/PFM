@@ -12,16 +12,16 @@ The HF radar-only QC figures (radar maps and coverage) are made by `qc_obs_py_fi
 ## Running
 
 ```bash
-python plot_model_vs_hfr.py                     # LV3 and LV4, last panel = today 00:00 Pacific
-python plot_model_vs_hfr.py --date 2026-10-18   # last panel = 18 Oct 00:00 Pacific
+python plot_model_vs_hfr.py                     # LV3 and LV4, rows: day before yesterday, yesterday, today
+python plot_model_vs_hfr.py --date 2026-10-18   # rows 16, 17 and 18 Oct (last panel 19 Oct 00:00)
 python plot_model_vs_hfr.py --level LV4
 python plot_model_vs_hfr.py --update-moorings   # download new mooring obs first
 python plot_model_vs_hfr.py --level LV4 --arrow-km 0.5   # test arrow spacing, saved as *_arrows<N>m.png
 ```
 
-Writes `plots_web/Model_vs_HFR6km_<LV>_<YYYYMMDD>.png`. A normal run (without `--date`) deletes that level's older figures, so `plots_web/` only holds the newest; with `--date` older ones are kept. It must run on a machine that can read `/dataSIO`, and needs `../Moorings/common` (the mooring obs and model code).
+Writes `plots_web/Model_vs_HFR6km_<LV>_<YYYYMMDD>.png`, named by the last row's date. A normal run (without `--date`) deletes that level's older figures, so `plots_web/` only holds the newest; with `--date` older ones are kept. It must run on a machine that can read `/dataSIO`, and needs `../Moorings/common` (the mooring obs and model code).
 
-Made for the QC website run at about 06:00 Pacific. By then the HF radar reaches about 03:00, so the last panel is 00:00 today.
+Made for the QC website run at about 06:00 Pacific. By then the HF radar reaches about 03:00, so today's row is mostly the model forecast, marked "no HFR yet" in the panel titles.
 
 ## Date-range plots: plot_model_vs_hfr_range.py
 
@@ -33,11 +33,11 @@ python plot_model_vs_hfr_range.py --start 2026-10-10 --level LV3 --update-moorin
 
 - Dates are Pacific days, both included. `--end` takes a date or `today` (the default); `--duration N` can't be combined with `--start`.
 - One page per 3 days from `--start` on: `plots/Model_vs_HFR6km_<LV>_<first day>_<last day>.png`. The last page always has 3 rows, so it can run up to 2 days past `--end`.
-- A page is the same figure as the website one ending at the next day's 00:00 (for example, the 18-20 Oct page is the 21 Oct website figure).
+- A page is the same figure as the website one for its last day (for example, the 18-20 Oct page is the 20 Oct website figure).
 
 ## Figure
 
-3 rows x 4 columns, every 6 h in Pacific time: each row is one day at 06:00, 12:00, 18:00 and the next day's 00:00. The 21 Oct figure covers 18 Oct 06:00 to 21 Oct 00:00.
+3 rows x 4 columns, every 6 h in Pacific time: each row is one day at 06:00, 12:00, 18:00 and the next day's 00:00. The 21 Oct figure covers 19 Oct 06:00 to 22 Oct 00:00: the day before yesterday, yesterday and today.
 
 | Item | What is plotted |
 |---|---|

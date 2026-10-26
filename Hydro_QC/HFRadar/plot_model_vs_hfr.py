@@ -2,9 +2,9 @@
 """Model surface currents (PFM LV3 or LV4, top 2 m) vs HF radar 6 km, every 6 hours.
 
 One figure per model level, 3 rows x 4 columns, every 6 h in local time (America/Los_Angeles,
-PDT/PST): each row is one local day at 06:00, 12:00, 18:00 and the next day's 00:00, and the last
-panel is 00:00 local of the end day (default today). Made for the QC website run at ~06:00 local,
-when HFR reaches ~03:00 local, so every panel can have HFR.
+PDT/PST): each row is one local day at 06:00, 12:00, 18:00 and the next day's 00:00. The rows are
+the day before yesterday, yesterday and today (--date sets "today"). Made for the QC website run at
+~06:00 local: HFR then reaches ~03:00 local, so today's row is mostly model forecast ("no HFR yet").
 Model for each panel: day 1 of the PFM run for the panel's UTC date; if that run is not written yet
 (it usually lands ~04:40 local, some days after noon), day 2 of the previous run, marked in the title.
 
@@ -42,8 +42,8 @@ Caches, in /dataSIO/Hydro_QC/HFRadar/cache (HYDRO_QC_DATA overrides the root):
 Stats in each panel title, at HFR 6 km cell centres where both exist: n cells, mean speed
 (model / HFR) and RMS vector difference.
 
-  python plot_model_vs_hfr.py                     # LV3 and LV4, last panel = today 00:00 local
-  python plot_model_vs_hfr.py --date 2026-10-18   # last panel = 18 Oct 00:00 local
+  python plot_model_vs_hfr.py                     # LV3 and LV4, rows: day before yesterday .. today
+  python plot_model_vs_hfr.py --date 2026-10-18   # rows 16, 17 and 18 Oct (last panel 19 Oct 00:00)
   python plot_model_vs_hfr.py --level LV4
   python plot_model_vs_hfr.py --update-moorings   # refresh the mooring obs first
 """
@@ -561,7 +561,7 @@ def qscale_for(C, s95):
     return s95 * C["width_km"] / (ARROW_LEN * C["ref"] * C["F"].dx_m / 1e3)
 
 
-def draw_panel(ax, p, C, qscale, fontsize=9.5):
+def draw_panel(ax, p, C, qscale, fontsize=11):
     """Bathymetry, land, model, HFR and mooring arrows of one panel, with its title."""
     lv, G, xlim, ylim = C["lv"], C["G"], C["xlim"], C["ylim"]
     ax.contour(G["lon_rho"], G["lat_rho"], C["h_water"], levels=BATHY[lv], colors="0.7", linewidths=0.4, zorder=1)
@@ -595,10 +595,12 @@ def draw_panel(ax, p, C, qscale, fontsize=9.5):
 
 
 def speed_key(ax, qscale, C):
+    """Reference arrow in the top-right corner, ending 5 % in from the right edge."""
     (x0, x1), (y0, y1) = C["xlim"], C["ylim"]
-    open_arrows(ax, C, [x0 + 0.08 * (x1 - x0)], [y0 + 0.95 * (y1 - y0)], [QKEY], [0], qscale, colors="k",
+    start = 0.95 - QKEY / qscale                     # arrow length as a fraction of the axes width
+    open_arrows(ax, C, [x0 + start * (x1 - x0)], [y0 + 0.95 * (y1 - y0)], [QKEY], [0], qscale, colors="k",
                 linewidths=1.2, zorder=8)
-    ax.text(0.08, 0.91, f"{QKEY:g} m/s", transform=ax.transAxes, va="top", fontsize=9, zorder=8)
+    ax.text(0.95, 0.91, f"{QKEY:g} m/s", transform=ax.transAxes, ha="right", va="top", fontsize=10.5, zorder=8)
 
 
 def legend_handles(C):
@@ -632,17 +634,18 @@ def plot_level(lv, end_day, every=None, out_dir=OUT_DIR, name=None):
         draw_panel(ax, p, C, qscale)
     speed_key(axes[0, 0], qscale, C)
     for r in range(3):
-        axes[r, 0].set_ylabel("latitude")
+        axes[r, 0].set_ylabel("latitude", fontsize=12)
     for c in range(4):
-        axes[-1, c].set_xlabel("longitude")
+        axes[-1, c].set_xlabel("longitude", fontsize=12)
     for ax in axes.ravel():
         ax.xaxis.set_major_locator(plt.MaxNLocator(4))
-    fig.legend(handles=legend_handles(C), loc="lower center", ncol=3, frameon=False, fontsize=10,
-               title="Circle with no arrow = no mooring data that hour", title_fontsize=9)
+        ax.tick_params(labelsize=11)
+    fig.legend(handles=legend_handles(C), loc="lower center", ncol=3, frameon=False, fontsize=12,
+               title="Circle with no arrow = no mooring data that hour", title_fontsize=11)
     fig.suptitle(f"Surface currents: PFM {lv} vs HF radar 6 km and moorings, every 6 h, local time, "
                  f"{P[0]['tl']:%d %b %H:%M} to {P[-1]['tl']:%d %b %H:%M %Z}\nModel: day 1 of the run for each "
                  f"panel's UTC date (day 2 of the previous run if marked).  Titles: HFR cells with both, "
-                 f"mean speed model/HFR, RMS vector difference", fontsize=12)
+                 f"mean speed model/HFR, RMS vector difference", fontsize=14)
     fig.tight_layout(rect=(0, 0.06, 1, 0.95), h_pad=2.5)
     os.makedirs(out_dir, exist_ok=True)
     tag = "" if every == ARROW_EVERY[lv] else f"_arrows{every * F.dx_m:.0f}m"     # test spacings
@@ -662,7 +665,7 @@ def update_moorings(levels):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    p.add_argument("--date", help="local date whose 00:00 is the last panel, YYYY-MM-DD (default: today, local)")
+    p.add_argument("--date", help="local date of the last row, YYYY-MM-DD (default: today, local)")
     p.add_argument("--level", choices=LEVELS, nargs="+", default=list(LEVELS))
     p.add_argument("--arrow-km", type=float, help="model arrow spacing, km (test; default ~3 km LV3, ~2 km LV4); "
                    "rounded to a divisor of the 6 km HFR spacing")
@@ -670,15 +673,16 @@ def main():
     a = p.parse_args()
     if a.update_moorings:
         update_moorings(a.level)
-    end_day = (DT.datetime.strptime(a.date, "%Y-%m-%d").date() if a.date
-               else DT.datetime.now(LOCAL_TZ).date())
+    day = (DT.datetime.strptime(a.date, "%Y-%m-%d").date() if a.date
+           else DT.datetime.now(LOCAL_TZ).date())
+    end_day = day + DT.timedelta(days=1)              # the last panel is the next day's 00:00
     every = None
     if a.arrow_km:   # nearest number of fine points that divides FINE, so HFR centres stay on arrow points
         every = min((n for n in range(1, FINE + 1) if FINE % n == 0), key=lambda n: abs(n * 6 / FINE - a.arrow_km))
     for lv in a.level:
-        plot_level(lv, end_day, every)
+        plot_level(lv, end_day, every, name=f"Model_vs_HFR6km_{lv}_{day:%Y%m%d}")   # named by the last row
         if not a.date and not a.arrow_km:   # daily run: keep only the newest figure for the website
-            keep = f"Model_vs_HFR6km_{lv}_{end_day:%Y%m%d}.png"
+            keep = f"Model_vs_HFR6km_{lv}_{day:%Y%m%d}.png"
             for old in glob.glob(os.path.join(OUT_DIR, f"Model_vs_HFR6km_{lv}_{'[0-9]' * 8}.png")):
                 if os.path.basename(old) != keep:
                     os.remove(old)
