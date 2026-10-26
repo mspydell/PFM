@@ -219,13 +219,39 @@ def main(argv=None) -> int:
               f"{MI['sim_time_2']:%Y-%m-%d %H}Z")
 
     # ---- 5. the DA initial conditions --------------------------------------
+    # ALL OR NOTHING.  Either every requested level starts from the analysis or
+    # none of them does.  detect_da_ics already computes exactly that predicate:
+    # status == "ok" means every requested level has an IC that is present,
+    # opens, and carries THIS t_fore.  "partial" would start some levels from
+    # the analysis and the rest from a restart, putting two different ocean
+    # states inside one nest, so it is treated as "none".
+    #
+    # There is deliberately no separate "stale IC" case.  The IC name carries
+    # the stamp (LV*_DA_IC_for_<t_fore>.nc) AND _check validates the file's own
+    # ocean_time against t_fore, so a wrong-day file cannot be valid -- it is
+    # just one more way of being absent, and takes the same fallback.
+    ic_source, ic_why = "restart", "no_DA requested"
     if a.use_da_ics:
         levels = tuple(a.level) if a.level else ICH.LEVELS
         found = ICH.detect_da_ics(t_fore, levels=levels)
         print(found.text())
-        ICH.apply_da_ics(MI, t_fore, found, levels=levels)
+        if found.status == "ok":
+            ICH.apply_da_ics(MI, t_fore, found, levels=levels)
+            ic_source, ic_why = "DA", ",".join(levels)
+        else:
+            bad = [lv for lv in levels
+                   if not (found.levels.get(lv) and found.levels[lv].ok)]
+            ic_why = f"DA {found.status}: {', '.join(bad)}"
+            print(f"  DA ICs are {found.status.upper()} -- using NONE of them.")
+            print(f"  not usable: {', '.join(bad)}")
+            print("  every level falls back to the previous PFM state (restart),")
+            print("  and LV4's waves fall back with it.")
     else:
         print("  no_DA: every level keeps its restart settings")
+
+    # One greppable line, so the cron wrapper can report which ocean the
+    # forecast actually started from without re-deriving it.
+    print(f"  IC SOURCE: {ic_source} ({ic_why})")
 
     # ---- 6. save, re-check, launch -----------------------------------------
     if a.testing:
@@ -233,6 +259,32 @@ def main(argv=None) -> int:
     with open(pkl, "wb") as fh:
         pickle.dump(MI, fh, protocol=pickle.HIGHEST_PROTOCOL)
     print(f"  wrote {pkl}")
+
+    # ---- 6b. tier 3: no DA state AND no previous PFM state ------------------
+    # Falling back to restarts is only a fallback if a restart exists.  Check
+    # before launching anything, because run_fore_simulation starts each level
+    # as a subprocess and never inspects its return code -- a level that
+    # aborted would not stop the next one, so "no forecast" cannot be decided
+    # down there.  Read-only: restart_available deliberately does not snap
+    # ocean_time the way the driver's own lookup does.
+    if ic_source == "restart":
+        lvls = tuple(a.level) if a.level else ICH.LEVELS
+        missing = []
+        print("  checking there is a previous PFM state to fall back to...")
+        for lv in lvls:
+            ok, why = ICH.restart_available(lv, str(pkl))
+            print(f"    {lv}  {'restart ' + why if ok else 'NO RESTART -- ' + why}")
+            if not ok:
+                missing.append(lv)
+        if missing:
+            print()
+            print("  " + "=" * 68)
+            print(f"  FATAL: no DA state for {t_fore:%Y-%m-%d %H}Z and no usable")
+            print(f"         previous PFM restart for {', '.join(missing)}.")
+            print(f"         {ic_why}")
+            print("         NOT launching a forecast -- there is nothing to start from.")
+            print("  " + "=" * 68)
+            return 3
 
     only4 = a.level == ["LV4"]
     drv = "driver_run_forecast_LV4_only.py" if only4 else "driver_run_forecast_LV1234.py"

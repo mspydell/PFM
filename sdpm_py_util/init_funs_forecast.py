@@ -966,9 +966,22 @@ def restart_setup(lvl,pkl_fnm):
             fn0 = PFM['lv4_swan_rst_name'][0:13]
             fnm_swan = get_swan_restart_file_name(pkl_fnm)
             if fnm_swan == None:
-                print('although a swan restart was requested, a restart file could not be found')
-                print('and swan will start swan with IC=ZERO and with the line ...')
+                # Loud on purpose.  Unlike the ocean, a missing wave restart
+                # does NOT stop the forecast -- SWAN starts from a flat sea
+                # and spins up over some hours.  That is a real degradation
+                # hiding inside a run that otherwise reports success, so it
+                # has to be greppable rather than one quiet line among
+                # thousands.  The ocean's equivalent IS fatal, and is caught
+                # before launch in start_PFM_plus_DA step 6b.
+                print('=' * 70)
+                print('WARNING LV4 SWAN: a restart was requested but NO SWAN '
+                      'RESTART FILE WAS FOUND.')
+                print('WARNING LV4 SWAN: the wave field starts from IC=ZERO -- '
+                      'this forecast inherits no')
+                print('WARNING LV4 SWAN: wave state and spins up from flat water.')
+                print('WARNING LV4 SWAN: the line used is ...')
                 print(PFM['swan_init_txt_full'])
+                print('=' * 70)
             else:    
                 swan_txt = 'HOTSTART ' + "'" + fnm_swan + "'"
                 PFM_edit['swan_init_txt_full'] = swan_txt

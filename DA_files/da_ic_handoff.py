@@ -33,11 +33,15 @@ every failure here is a reported reason, never an exception.
 from __future__ import annotations
 
 import datetime as DT
+import glob
+import os
 import shutil
 import subprocess
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
+
+import netCDF4 as nc
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -367,3 +371,56 @@ if __name__ == "__main__":
     r = detect_da_ics(a.t_fore, allow_build=not a.no_build)
     print(r.text())
     raise SystemExit(0 if r.status == "ok" else (1 if r.status == "partial" else 2))
+
+
+# ---------------------------------------------------------------------------
+# Tier 3: is there anything to fall back TO?
+# ---------------------------------------------------------------------------
+
+def restart_available(level: str, pkl_fnm: str, t_fore=None) -> tuple[bool, str]:
+    """Could this level restart from a previous PFM state at t_fore?
+
+    A READ-ONLY mirror of init_funs_forecast.get_restart_file_and_index: same
+    glob, same PFM-name filter, same run_tag filter, same record search --
+    but it never calls round_rst_to_hour, which opens the chosen restart r+
+    and snaps its ocean_time.  That write is fine when the driver is really
+    about to restart; it is not fine in a pre-flight that may decide no
+    forecast should run at all, and doing it twice doubles a step that has
+    already thrown transient HDF errors on BeeGFS.
+
+    Returns (ok, why).  Used to answer the one question the driver cannot:
+    "no DA state AND no restart" has to abort BEFORE anything launches,
+    because run_fore_simulation starts each level as a subprocess and never
+    checks its return code -- so a level that aborts does not stop the next.
+    """
+    import init_funs_forecast as _ifn      # noqa: PLC0415  (heavy import)
+
+    PFM = _ifn.get_model_info(pkl_fnm)
+    if t_fore is None:
+        t_fore = PFM['fetch_time'] if PFM['run_type'] == 'forecast' else PFM['sim_time_1']
+
+    d = PFM['restart_ncfiles_dir_in']
+    cands = []
+    for rf in sorted(glob.glob(f"{d}/{level}*.nc")):
+        tail = os.path.basename(rf)
+        if _ifn.stamp_in_name(tail, 14, 24) is None:
+            continue                       # not a PFM-named restart
+        if not _ifn.may_use_output(tail, PFM.get('run_tag')):
+            continue                       # written by a differently-tagged run
+        cands.append(rf)
+    if not cands:
+        return False, f"no PFM-named {level} restart in {d}"
+
+    for rf in cands:
+        try:
+            with nc.Dataset(rf) as ds:
+                tv = ds['ocean_time']
+                t = _ifn.convert_cftime_to_datetime(
+                    nc.num2date(tv[:], tv.units))
+                t2 = [_ifn.round_to_hour(x) for x in t]
+            if _ifn.find_restart_index(t2, t_fore) != -99:
+                return True, f"{os.path.basename(rf)}"
+        except Exception as e:                      # unreadable is not usable
+            print(f"    {os.path.basename(rf)}: {type(e).__name__}: {e}")
+    return False, (f"{len(cands)} {level} restart file(s) present but none "
+                   f"holds a record at {t_fore:%Y-%m-%d %H}Z")

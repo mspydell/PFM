@@ -41,6 +41,7 @@ LENGTH=${LENGTH:-1}          # forecast days; 1 is the test we have been running
 STAMP=""
 TESTING=0
 DRYRUN=0
+REQUIRE_DA=${REQUIRE_DA:-0}
 
 usage () {
     sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'
@@ -51,6 +52,8 @@ usage: run_PFM_DA_cycle (--latest | --date YYYYMMDDHH) --test [--dry-run]
   --latest      t_fore = the most recent 00Z UTC (what cron uses)
   --date STAMP  run a specific t_fore
   --test        REQUIRED.  Runs in the testing sandbox.  See the refusal below.
+  --require-da  refuse to run unless all four DA ICs are usable, instead of
+                falling back to the previous PFM state (for the test chain)
   --dry-run     resolve the stamp, check the gate, launch nothing
 USAGE
 }
@@ -59,7 +62,8 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --latest)  STAMP=$(date -u '+%Y%m%d')00 ;;
         --date)    shift; STAMP="$1" ;;
-        --test)    TESTING=1 ;;
+        --test)       TESTING=1 ;;
+        --require-da) REQUIRE_DA=1 ;;
         --dry-run) DRYRUN=1 ;;
         -h|--help) usage; exit 0 ;;
         *)         echo "unknown argument: $1" >&2; usage >&2; exit 64 ;;
@@ -100,6 +104,8 @@ fail   () { echo "$(date -u '+%Y-%m-%dT%H:%MZ')  FATAL $*"; status "FATAL  $*"; 
 
 exec >> "${LOGFILE}" 2>&1
 
+# first line of THIS run's block, so the IC-source grep cannot read an older one
+RUN_START=$(( $(wc -l < "${LOGFILE}" 2>/dev/null || echo 0) + 1 ))
 echo
 echo "===================================================================="
 echo "$(date -u '+%Y-%m-%dT%H:%MZ')  ($(date '+%H:%M %Z'))  PFM forecast ${STAMP}"
@@ -213,16 +219,40 @@ PYEOF
 )
 echo "${GATE}"
 
-if ! echo "${GATE}" | grep -q '^YES'; then
-    REASON=$(echo "${GATE}" | grep -m1 '^NO' | sed 's/^NO  *//')
-    echo "  NOT RUNNING THE FORECAST: ${REASON:-gate failed}"
-    status "skipped -- ${REASON:-gate failed}"
+DA_OK=0
+echo "${GATE}" | grep -q '^YES' && DA_OK=1
+GATE_WHY=$(echo "${GATE}" | grep -m1 '^NO' | sed 's/^NO  *//')
+
+# The gate REPORTS; it no longer blocks.  A forecast on the previous PFM state
+# beats no forecast, which is the whole point of PFM carrying restarts, and
+# start_PFM_plus_DA decides all-or-nothing for itself: all four DA ICs valid
+# for this t_fore, or none of them and every level falls back.
+#
+# There is nothing extra to guard against here.  A stale IC -- one left from
+# another window -- cannot be mistaken for a current one: the name carries the
+# stamp and the file's own ocean_time is checked against t_fore, so "stale" is
+# simply one way of being absent and takes the same fallback.
+#
+# The one case that still stops everything is no DA AND no restart, and that
+# is decided inside the launcher (step 6b, exit 3) because it has to be made
+# before any level starts -- run_fore_simulation launches each level as a
+# subprocess and never checks its return code.
+if [ "${DA_OK}" = "1" ]; then
+    echo "  DA ICs are complete for this t_fore: the forecast starts from the analysis."
+elif [ "${REQUIRE_DA}" = "1" ]; then
+    echo "  NOT RUNNING: --require-da given and the DA ICs are not usable."
+    echo "  ${GATE_WHY:-gate failed}"
+    status "skipped (--require-da) -- ${GATE_WHY:-gate failed}"
     exit 3
+else
+    echo "  DA ICs are NOT complete: ${GATE_WHY:-unknown}"
+    echo "  the forecast will fall back to the previous PFM state for every level."
+    echo "  (pass --require-da to refuse instead of falling back)"
 fi
 
 if [ "${DRYRUN}" = "1" ]; then
-    echo "  --dry-run: gate passed, stopping before the forecast"
-    status "dry-run ok (gate passed)"
+    echo "  --dry-run: stopping before the forecast"
+    status "dry-run ok (ICs would be $([ "${DA_OK}" = 1 ] && echo DA || echo restart))"
     exit 0
 fi
 
@@ -245,6 +275,16 @@ for lv in LV1 LV2 LV3 LV4; do
 done
 echo "  archived ${n}/4 testing histories for ${STAMP}"
 
-status "$(printf 'rc=%s  %6s min  histories %d/4' "${RC}" "${MINS}" "${n}")"
-[ "${RC}" = "0" ] || echo "  start_PFM_plus_DA.py returned ${RC}"
+# Which ocean did it actually start from?  start_PFM_plus_DA prints one
+# greppable line for exactly this.  Read from RUN_START so a reused log
+# cannot hand back an earlier run's answer.
+ICSRC=$(sed -n "${RUN_START},\$p" "${LOGFILE}" 2>/dev/null \
+        | grep -oE 'IC SOURCE: [A-Za-z]+ \([^)]*\)' | tail -1 | sed 's/IC SOURCE: //')
+status "$(printf 'rc=%s  %6s min  histories %d/4  ICs=%s' \
+          "${RC}" "${MINS}" "${n}" "${ICSRC:-unknown}")"
+if [ "${RC}" = "3" ]; then
+    echo "  ABORTED: no DA state and no usable previous PFM state -- nothing was run."
+elif [ "${RC}" != "0" ]; then
+    echo "  start_PFM_plus_DA.py returned ${RC}"
+fi
 exit "${RC}"
