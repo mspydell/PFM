@@ -98,6 +98,8 @@ fail   () { echo "$(date -u '+%Y-%m-%dT%H:%MZ')  FATAL $*"; status "FATAL  $*"; 
 # every run is a job whose mail nobody reads.
 exec >> "${LOGFILE}" 2>&1
 
+# first line number of THIS run's block, so hfr_used cannot read an older one
+RUN_START=$(( $(wc -l < "${LOGFILE}" 2>/dev/null || echo 0) + 1 ))
 echo
 echo "===================================================================="
 echo "$(date -u '+%Y-%m-%dT%H:%MZ')  ($(date '+%H:%M %Z'))  DA cycle ${STAMP}"
@@ -189,6 +191,25 @@ echo "  slurm     $(command -v sbatch), SLURM_CONF=${SLURM_CONF:-unset}"
 
 cd "${PFM_ROOT}/DA_files" || fail "no ${PFM_ROOT}/DA_files"
 
+# What the cycle ACTUALLY assimilated, not what was cached before it started.
+# lv1_obs prints, after fetching:
+#     HFR after fetch: all 25 hourly surveys cached, with data (fetch rc=0)
+#     59,262 obs from 25/25 surveys; |value| max 0.833 m/s; ...
+# The preflight count is pre-fetch and reads "1/25" on a normal night -- which
+# is what the nightly summary said on 2026-10-26 for a cycle that in fact used
+# 59,262 obs from 25 surveys.  Read from RUN_START so a reused log file cannot
+# hand back an earlier run's numbers.
+hfr_used () {
+    local n
+    n=$(sed -n "${RUN_START},\$p" "${LOGFILE}" 2>/dev/null \
+        | grep -oE '[0-9][0-9,]* obs from [0-9]+/[0-9]+ surveys' | tail -1)
+    if [ -n "${n}" ]; then
+        echo "${n}"
+    else
+        echo "${HFR_PRE} (pre-fetch; lv1_obs did not report)"
+    fi
+}
+
 # --- preflight --------------------------------------------------------------
 # Read-only and takes seconds.  Worth doing first: it is the difference between
 # learning at 20:00 that the LV1 IC never arrived and learning it at 00:15.
@@ -197,18 +218,21 @@ echo "  --- input preflight ---"
 CHECK=$("${PY}" -u run_PFM_DA.py "${STAMP}" --check 2>&1)
 CHECK_RC=$?
 echo "${CHECK}"
-HFR=$(echo "${CHECK}" | grep -oE '[0-9]+/[0-9]+ hourly surveys|all [0-9]+ hourly surveys' | head -1)
-HFR=${HFR:-hfr ?}
+# Preflight's count is BEFORE the fetch, so it is the right thing to report
+# only when the run never gets as far as fetching.  The number that belongs in
+# the nightly summary is the one lv1_obs prints afterwards -- see hfr_used().
+HFR_PRE=$(echo "${CHECK}" | grep -oE '[0-9]+/[0-9]+ hourly surveys|all [0-9]+ hourly surveys' | head -1)
+HFR_PRE=${HFR_PRE:-hfr ?}
 
 if [ "${CHECK_RC}" = "2" ]; then
     echo "  BLOCKED: an input no download can fix.  Not starting."
-    status "blocked at preflight (${HFR})"
+    status "blocked at preflight (${HFR_PRE})"
     exit 2
 fi
 
 if [ "${DRYRUN}" = "1" ]; then
     echo "  --dry-run: stopping before the cycle"
-    status "dry-run ok (${HFR}, ${avail_h} h available)"
+    status "dry-run ok (${HFR_PRE}, ${avail_h} h available)"
     exit 0
 fi
 
@@ -244,7 +268,7 @@ PYEOF
 set -- ${VERDICT:-? ? ?}
 echo "  verdict=$1  stages=${2}min  bad=${3}"
 status "$(printf 'verdict %-8s %6s min  %s  rc=%s%s' \
-          "$1" "${MINS}" "${HFR}" "${RC}" \
+          "$1" "${MINS}" "$(hfr_used)" "${RC}" \
           "$([ "${3}" != "-" ] && [ -n "${3}" ] && echo "  BAD:${3}")")"
 
 [ "${RC}" = "0" ] || echo "  run_PFM_DA.py returned ${RC}"
