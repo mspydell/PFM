@@ -66,7 +66,7 @@ from scipy.spatial import Delaunay  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 MOORINGS_COMMON = os.path.join(HERE, "..", "Moorings", "common")
-OUT_DIR = os.path.join(HERE, "figures")
+OUT_DIR = os.path.join(HERE, "plots_web")   # website figures, as in the other Hydro_QC folders
 # shared cache on /dataSIO (like the Moorings caches); HYDRO_QC_DATA overrides the root
 CACHE_DIR = os.path.join(os.environ.get("HYDRO_QC_DATA", "/dataSIO/Hydro_QC"), "HFRadar", "cache")
 
@@ -677,6 +677,12 @@ def main():
         every = min((n for n in range(1, FINE + 1) if FINE % n == 0), key=lambda n: abs(n * 6 / FINE - a.arrow_km))
     for lv in a.level:
         plot_level(lv, end_day, every)
+        if not a.date and not a.arrow_km:   # daily run: keep only the newest figure for the website
+            keep = f"Model_vs_HFR6km_{lv}_{end_day:%Y%m%d}.png"
+            for old in glob.glob(os.path.join(OUT_DIR, f"Model_vs_HFR6km_{lv}_{'[0-9]' * 8}.png")):
+                if os.path.basename(old) != keep:
+                    os.remove(old)
+                    print("removed", os.path.basename(old))
 
 
 if __name__ == "__main__":

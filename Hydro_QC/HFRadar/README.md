@@ -4,7 +4,7 @@ Compares PFM surface currents (LV3 and LV4) with the HF radar 6 km near-real-tim
 
 | File | What it does |
 |---|---|
-| `plot_model_vs_hfr.py` | QC-website figures: one for LV3, one for LV4, into `figures/`. Also holds the shared plotting code. |
+| `plot_model_vs_hfr.py` | QC-website figures: one for LV3, one for LV4, into `plots_web/`. Also holds the shared plotting code. |
 | `plot_model_vs_hfr_range.py` | The same figures for any start and end dates, one page per 3 days, into `plots/` (not for the website). |
 
 The HF radar-only QC figures (radar maps and coverage) are made by `qc_obs_py_files/make_obs_qc_figures.py`, not here.
@@ -19,7 +19,7 @@ python plot_model_vs_hfr.py --update-moorings   # download new mooring obs first
 python plot_model_vs_hfr.py --level LV4 --arrow-km 0.5   # test arrow spacing, saved as *_arrows<N>m.png
 ```
 
-Writes `figures/Model_vs_HFR6km_<LV>_<YYYYMMDD>.png`. Older dates are kept. It must run on a machine that can read `/dataSIO`, and needs `../Moorings/common` (the mooring obs and model code).
+Writes `plots_web/Model_vs_HFR6km_<LV>_<YYYYMMDD>.png`. A normal run (without `--date`) deletes that level's older figures, so `plots_web/` only holds the newest; with `--date` older ones are kept. It must run on a machine that can read `/dataSIO`, and needs `../Moorings/common` (the mooring obs and model code).
 
 Made for the QC website run at about 06:00 Pacific. By then the HF radar reaches about 03:00, so the last panel is 00:00 today.
 

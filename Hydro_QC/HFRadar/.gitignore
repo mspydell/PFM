@@ -1,4 +1,6 @@
-figures/
+plots_web/
 plots/
+videos/
+logs/
 __pycache__/
 *.log
