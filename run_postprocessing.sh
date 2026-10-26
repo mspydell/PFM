@@ -55,9 +55,9 @@ echo "Now copying to dataSIO and website"
 ./copy_forecast_to_dataSIO.sh
 
 # next make the HFR plots
-cd /home/ffeddersen/PFM_NEW
+cd /home/ffeddersen/PFM_NEW/Hydro_QC/HFRadar
 echo "Now making the HF Radar plots"
-./make_HFR_plots.sh
+./make_HFradar.sh
 
 # next make the ddPCR stuff
 cd /home/ffeddersen/PFM_NEW
