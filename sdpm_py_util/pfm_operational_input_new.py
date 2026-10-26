@@ -287,8 +287,18 @@ def create_model_info_dict():
 
     NN['L3','Lm']  = 249     # Lm in input file
     NN['L3','Mm']  = 411     # Mm in input file
+    # 12 x 18 = 216 ranks = 6 nodes, matching the DA's LV3_fwd.  This was
+    # 12 x 30 (360 ranks, 10 nodes), which is measurably NO faster: over 12
+    # 24-hour runs each, 2026-10-14..25, LV3_FORECAST on 10 nodes averaged
+    # 3:44 while the DA's LV3_fwd on 6 averaged 3:37.  The extra ranks go
+    # into halo exchange rather than work -- LV3 is 411(Mm) x 249(Lm), so
+    # 12 x 30 cuts the long axis into strips of 21 x 14 cells (aspect 1.52)
+    # while 12 x 18 gives 21 x 23 (aspect 0.91), nearly square and with less
+    # perimeter per unit area.  Same reasoning that put LV1's similarly
+    # shaped grid on 12 x 18 at 216 ranks.
+    # np and nnodes are derived below, so they follow automatically.
     NN['L3','ntilei'] = 12    # 6 number of tiles in I-direction
-    NN['L3','ntilej'] = 30    # 18 number of tiles in J-direction
+    NN['L3','ntilej'] = 18    # was 30; see above
     NN['L3','np'] = NN['L3','ntilei'] * NN['L3','ntilej'] # total number of processors
     NN['L3','nnodes'] = int( NN['L3','np'] / 36  )  # 3 number of nodes to be used.  not for .infile but for slurm!
 
