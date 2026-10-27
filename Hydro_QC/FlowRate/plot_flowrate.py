@@ -22,7 +22,7 @@ The model lines run on past the window to the end of the latest forecast issued 
 ~5 days; files hold 111-123 hours), dashed after now (or after the window's end, for an older window),
 with a dotted line at that split.
 
-Cache (/dataSIO/Hydro_QC/FlowRate/cache/, shared by swell and backwash): cache/obs/<data set>_<YYYYMM>.csv holds the raw IBWC samples per
+Cache (/dataSIO/PFM_Simulations/cache/FlowRate/, shared by swell and backwash): cache/obs/<data set>_<YYYYMM>.csv holds the raw IBWC samples per
 UTC month (the current and previous month are downloaded again on every run, older months only once);
 cache/model/river_LV4_<YYYYMMDDHH>.csv holds the hourly model flows of each forcing file (recomputed
 if the forcing file changes). Delete a file to rebuild it.
@@ -58,7 +58,7 @@ from netCDF4 import Dataset
 HERE = os.path.dirname(os.path.abspath(__file__))
 WEB_DIR = os.path.join(HERE, "plots_web")
 # shared cache on /dataSIO, seen from swell and backwash; the HYDRO_QC_DATA environment variable overrides the root
-CACHE_DIR = os.path.join(os.environ.get("HYDRO_QC_DATA", "/dataSIO/Hydro_QC"), "FlowRate", "cache")
+CACHE_DIR = os.path.join(os.environ.get("HYDRO_QC_DATA", "/dataSIO/PFM_Simulations/cache"), "FlowRate")
 OBS_DIR = os.path.join(CACHE_DIR, "obs")      # raw IBWC samples, one CSV per data set and UTC month
 MODEL_DIR = os.path.join(CACHE_DIR, "model")  # hourly flows of each river forcing file
 RIVER_DIR = "/dataSIO/PFM_Simulations/Archive/Forcing"

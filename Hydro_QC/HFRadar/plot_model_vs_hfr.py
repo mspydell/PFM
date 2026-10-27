@@ -34,7 +34,7 @@ Moorings (blue): observed ADCP current of the top layer, hourly (samples within 
   <site>_<LV>_day1_hourly.csv) where it has the hour, else from the history file
   (extract_model.read_file / layer_mean).
 
-Caches, in /dataSIO/Hydro_QC/HFRadar/cache (HYDRO_QC_DATA overrides the root):
+Caches, in /dataSIO/PFM_Simulations/cache/HFRadar (HYDRO_QC_DATA overrides the root):
   weights_<LV>_<key>.npz    interpolation weights, model grid -> ~100 m grid, built once per grid
   model_<LV>_<run>_rec<NNN>_top2m_every<N>_<key>.npz  model arrows of one panel (a run never changes)
   mooring_<LV>_<run>_<site>.npz  model at a mooring, days 1-2, where the Moorings cache lacks it
@@ -68,7 +68,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 MOORINGS_COMMON = os.path.join(HERE, "..", "Moorings", "common")
 OUT_DIR = os.path.join(HERE, "plots_web")   # website figures, as in the other Hydro_QC folders
 # shared cache on /dataSIO (like the Moorings caches); HYDRO_QC_DATA overrides the root
-CACHE_DIR = os.path.join(os.environ.get("HYDRO_QC_DATA", "/dataSIO/Hydro_QC"), "HFRadar", "cache")
+CACHE_DIR = os.path.join(os.environ.get("HYDRO_QC_DATA", "/dataSIO/PFM_Simulations/cache"), "HFRadar")
 
 HIS_DIR = "/dataSIO/PFM_Simulations/Archive/{lv}_His"
 GRID = {"LV3": "/dataSIO/PFM_Simulations/Grid/GRID_SDTJRE_LV3_rx020.nc",

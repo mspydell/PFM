@@ -5,7 +5,7 @@ Python port of PFM_Master_Code_For_TimeSeriesExtraction.m (vars {'zeta'}) with
 LV1to4_model_data_serial_PHM_PFM_V2.m: nearest rho point to the gauge (knnsearch on lon/lat),
 the forecast-day window of each history file (hours 1-24 for day 1), times rounded to the hour,
 later files win for duplicate hours.
-Output: /dataSIO/Hydro_QC/Water_Level/cache/model/<station>_<level>_day<N>_zeta.csv (time UTC, zeta m). Reruns only read files
+Output: /dataSIO/PFM_Simulations/cache/Water_Level/model/<station>_<level>_day<N>_zeta.csv (time UTC, zeta m). Reruns only read files
 from the last saved day on.
 
   python extract_model.py                         # both stations, 2024-12-05 (first run) or last saved day to today
@@ -25,7 +25,7 @@ import pandas as pd
 from stations import STATIONS
 
 # shared cache on /dataSIO, seen from swell and backwash; the HYDRO_QC_DATA environment variable overrides the root
-MODEL_DIR = os.path.join(os.environ.get("HYDRO_QC_DATA", "/dataSIO/Hydro_QC"), "Water_Level", "cache", "model")
+MODEL_DIR = os.path.join(os.environ.get("HYDRO_QC_DATA", "/dataSIO/PFM_Simulations/cache"), "Water_Level", "model")
 BASE_DATA = "/dataSIO/PFM_Simulations/Archive"
 TIME0 = pd.Timestamp("1999-01-01", tz="UTC")  # ocean_time is seconds since this
 

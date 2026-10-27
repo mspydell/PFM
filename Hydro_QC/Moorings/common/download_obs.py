@@ -51,7 +51,7 @@ from scipy.io import netcdf_file
 
 BASE = "https://mooring.ucsd.edu"
 # shared cache on /dataSIO, seen from swell and backwash; the HYDRO_QC_DATA environment variable overrides the root
-CACHE_DIR = os.path.join(os.environ.get("HYDRO_QC_DATA", "/dataSIO/Hydro_QC"), "Moorings", "cache", "obs")
+CACHE_DIR = os.path.join(os.environ.get("HYDRO_QC_DATA", "/dataSIO/PFM_Simulations/cache"), "Moorings", "obs")
 
 # site -> (index URL holding the deployment folders, deployment prefix, lat, lon)
 SITES = {

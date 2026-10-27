@@ -39,7 +39,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 WEB_DIR = os.path.join(HERE, "plots_web")
 PLOT_DIR = os.path.join(HERE, "plots")
 # shared cache on /dataSIO, seen from swell and backwash; the HYDRO_QC_DATA environment variable overrides the root
-CACHE = os.path.join(os.environ.get("HYDRO_QC_DATA", "/dataSIO/Hydro_QC"), "Dye_Volume", "cache", "volume_cache.csv")
+CACHE = os.path.join(os.environ.get("HYDRO_QC_DATA", "/dataSIO/PFM_Simulations/cache"), "Dye_Volume", "volume_cache.csv")
 DAYS, LABEL = 21, "3weeks"
 TZ = "America/Los_Angeles"
 WORKERS = 16

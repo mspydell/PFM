@@ -6,7 +6,7 @@ Total raw-sewage (dye) volume in the LV4 domain: PTB (dye_01), TJRE (dye_02), an
 |---|---|
 | `plot_dye_volume.py` | QC-website plot of the past 3 weeks, saved to `plots_web/`. Also holds the shared plotting code. |
 | `plot_dye_volume_range.py` | The same plot for any start and end dates, saved to `plots/` (not for the website). |
-| `/dataSIO/Hydro_QC/Dye_Volume/cache/volume_cache.csv` | Hourly volumes already computed, one row per forecast file and record. Shared by swell and backwash (group-writable); `HYDRO_QC_DATA` overrides the `/dataSIO/Hydro_QC` root. |
+| `/dataSIO/PFM_Simulations/cache/Dye_Volume/volume_cache.csv` | Hourly volumes already computed, one row per forecast file and record. Shared by swell and backwash (group-writable); `HYDRO_QC_DATA` overrides the `/dataSIO/PFM_Simulations/cache` root. |
 
 ## What is plotted
 

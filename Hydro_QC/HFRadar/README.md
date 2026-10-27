@@ -53,7 +53,7 @@ All arrows share one scale per figure (the 95th percentile speed is drawn 1.35 m
 
 ## Caches
 
-In `/dataSIO/Hydro_QC/HFRadar/cache/`, shared by swell and backwash (group-writable; the environment variable `HYDRO_QC_DATA` overrides the `/dataSIO/Hydro_QC` root). A run never changes once written, so nothing in the cache goes out of date.
+In `/dataSIO/PFM_Simulations/cache/HFRadar/`, shared by swell and backwash (group-writable; the environment variable `HYDRO_QC_DATA` overrides the `/dataSIO/PFM_Simulations/cache` root). A run never changes once written, so nothing in the cache goes out of date.
 
 | File | Contents |
 |---|---|

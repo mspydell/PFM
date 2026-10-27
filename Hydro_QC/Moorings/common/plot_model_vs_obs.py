@@ -46,7 +46,7 @@ import pandas as pd
 from download_obs import SBOO_SIDELOBE, load_adcp, load_ts
 from extract_model import SITES as MODEL_SITES, level_of
 
-from extract_model import MODEL_DIR   # shared cache on /dataSIO/Hydro_QC/Moorings/cache/model
+from extract_model import MODEL_DIR   # shared cache on /dataSIO/PFM_Simulations/cache/Moorings/model
 
 # plots and their date windows are in Pacific time (PDT/PST); data and caches stay UTC. Matplotlib takes
 # tz-aware times (and naive ones as UTC) and draws the date axes in this zone.

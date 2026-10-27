@@ -16,7 +16,7 @@ Each mooring folder holds only its own two scripts and its plots:
 | `plot_<name>_3weeks.py` | Plots of the past 3 weeks for the QC website, saved to `plots_web/`. Updates the data first. |
 | `plot_<name>_range.py` | The same plots for any start/end dates, saved to `plots/`. Not for the website. |
 
-The data cache is on the shared disk, `/dataSIO/Hydro_QC/Moorings/cache/`, so runs on swell and backwash use and update the same files (group `feddersen-lab`, group-writable). Set the environment variable `HYDRO_QC_DATA` to use another root (the cache is then `$HYDRO_QC_DATA/Moorings/cache/`). Plots stay next to the scripts.
+The data cache is on the shared disk, `/dataSIO/PFM_Simulations/cache/Moorings/`, so runs on swell and backwash use and update the same files (group `feddersen-lab`, group-writable). Set the environment variable `HYDRO_QC_DATA` to use another root (the cache is then `$HYDRO_QC_DATA/Moorings/cache/`). Plots stay next to the scripts.
 
 The code they share is in `common/`:
 
@@ -24,8 +24,8 @@ The code they share is in `common/`:
 |---|---|
 | `common/runner.py` | Command-line options and output folders for the two scripts. |
 | `common/plot_model_vs_obs.py` | The figures. |
-| `common/extract_model.py` | Extracts model profiles from `/dataSIO/PFM_Simulations/Archive/LV4_His` (SBOO, IB) and `LV3_His` (PLOO, Del Mar) into `/dataSIO/Hydro_QC/Moorings/cache/model/`. Python port of `PFM_Master_Code_For_TimeSeriesExtraction.m`. |
-| `common/download_obs.py` | Downloads mooring data from https://mooring.ucsd.edu (Jeff Sevadjian, SIO) into `/dataSIO/Hydro_QC/Moorings/cache/obs/`. |
+| `common/extract_model.py` | Extracts model profiles from `/dataSIO/PFM_Simulations/Archive/LV4_His` (SBOO, IB) and `LV3_His` (PLOO, Del Mar) into `/dataSIO/PFM_Simulations/cache/Moorings/model/`. Python port of `PFM_Master_Code_For_TimeSeriesExtraction.m`. |
+| `common/download_obs.py` | Downloads mooring data from https://mooring.ucsd.edu (Jeff Sevadjian, SIO) into `/dataSIO/PFM_Simulations/cache/Moorings/obs/`. |
 | `common/export_model_timeseries.m` | Old MATLAB export, replaced by `extract_model.py`. |
 
 ## Running
@@ -159,7 +159,7 @@ All limits are computed from the data in the plotted window, so they change from
 
 ## Data
 
-All in `/dataSIO/Hydro_QC/Moorings/cache/`: model files in `model/`, observations in `obs/`.
+All in `/dataSIO/PFM_Simulations/cache/Moorings/`: model files in `model/`, observations in `obs/`.
 
 - **Model:** `extract_model.py` reads each history file once for all the moorings on that grid (LV4: about 35 s per file for SBOO and the four IB sites; LV3: about 5 s per file for PLOO and Del Mar, with 6 files in parallel) and saves `model/<site>_<LV>_day1_profiles.nc` and `<site>_<LV>_day1_hourly.csv`. Later runs only read new days. To rebuild from scratch, delete the `*_profiles.nc` files. Only files named `LV<n>_ocean_his_<YYYYMMDDHHMM>.nc` are read, so failed runs such as `LV4_ocean_his_202610110000_dt2_BLOWUP.nc` are skipped.
 - **Model forecast:** each update also reads days 2–5 of the latest history file into `model/<site>_<LV>_forecast_profiles.nc` and `_hourly.csv`, replaced on every run.

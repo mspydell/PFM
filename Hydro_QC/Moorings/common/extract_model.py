@@ -38,7 +38,7 @@ import numpy as np
 import pandas as pd
 
 # shared cache on /dataSIO, seen from swell and backwash; the HYDRO_QC_DATA environment variable overrides the root
-MODEL_DIR = os.path.join(os.environ.get("HYDRO_QC_DATA", "/dataSIO/Hydro_QC"), "Moorings", "cache", "model")
+MODEL_DIR = os.path.join(os.environ.get("HYDRO_QC_DATA", "/dataSIO/PFM_Simulations/cache"), "Moorings", "model")
 BASE_DATA = "/dataSIO/PFM_Simulations/Archive"
 GRIDS = {"LV1": "/dataSIO/PFM_Simulations/Grid/GRID_SDTJRE_LV1_rx020_hmask.nc",
          "LV2": "/dataSIO/PFM_Simulations/Grid/GRID_SDTJRE_LV2_rx020.nc",
