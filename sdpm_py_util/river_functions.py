@@ -3,6 +3,8 @@ import sys
 import csv
 import os
 import urllib.request
+import urllib.parse
+import glob
 from urllib.error import URLError, HTTPError
 
 from datetime import datetime, timedelta, timezone
@@ -1684,3 +1686,334 @@ def get_forecasted_Q_IBWC(pkl_fnm):
         plt.savefig(fn_out, dpi=300)
 
     return t_nwm, QQ
+
+
+# =============================================================================
+# Punta Bandera discharge from IBWC observations
+#
+# Two USIBWC telemetry gauges, pulled from the AQWebportal export endpoint:
+#
+#   SAB  Discharge.Telemetry-ADS-mgd@11-SAB-Pre      plant influent  -> Q_PB_tot
+#   PB   Discharge.Telemetry-ADS-mgd@11-PUNTA-BANDERA beach channel  -> Q_PB_WW
+#
+# Both requests pass UnitID=128, so the CSVs arrive in m3/s already, and
+# Timezone=0, so the stamps are UTC and compare directly with PFM['fetch_time'].
+#
+# Ported from mspydell/research/mexico_discharge/ipynb_files/explore_discharge.ipynb
+# (pb_trailing_means).  Differences from the notebook, all deliberate:
+#   - no plotting, and the Tijuana River gauge is not fetched (not needed here)
+#   - the cache lives on /dataSIO, shared, rather than under one person's home
+#   - a download failure falls back to the cached copy at ANY age rather than
+#     raising, because a gauge or portal outage must not fail a forecast
+#   - returns provenance alongside the numbers so the caller can say in the log
+#     exactly which window produced them
+# =============================================================================
+
+PB_BASE = 'https://waterdata.ibwc.gov/AQWebportal/Export/DataSet'
+
+_PB_COMMON = dict(Calendar='CALENDARYEAR', DateRange='EntirePeriodOfRecord',
+                  UnitID='128',                      # <-- forces m3/s
+                  Conversion='Instantaneous', IntervalPoints='PointsAsRecorded',
+                  Step='1', ExportFormat='csv', Compressed='true',
+                  RoundData='False', Timezone='0')   # <-- UTC
+
+PB_SOURCES = {
+    'SAB': dict(_PB_COMMON, DataSet='Discharge.Telemetry-ADS-mgd@11-SAB-Pre',
+                ApprovalLevels='False', Qualifiers='False',
+                GradeCodes='True', InterpolationTypes='True'),
+    'PB':  dict(_PB_COMMON, DataSet='Discharge.Telemetry-ADS-mgd@11-PUNTA-BANDERA',
+                ApprovalLevels='False', Qualifiers='False',
+                GradeCodes='False', InterpolationTypes='False'),
+}
+
+# Shared, not under a home directory: more than one person runs PFM, and the
+# Hydro_QC caches already live here.  2775 + g+w on the files, so either of us
+# can refresh it.
+PB_CACHE_DIR = '/dataSIO/PFM_Simulations/cache/PuntaBandera'
+
+PB_MAX_CACHE_AGE_H = 6.0    # re-download when the cached zip is older than this.
+                            # the notebook uses 24 h; a forecast wants fresher.
+PB_MAX_STALE_DAYS  = 0.5    # how far the record may end BEFORE the forecast start
+                            # and still be used.  Beyond this we use the static
+                            # input.py values instead.
+PB_ZERO_RUN        = 8      # samples (2 h at 15 min).  A SAB zero-run at least
+                            # this long is a telemetry dropout, not real zero flow.
+PB_MIN_COVERAGE    = 0.8    # below this the 1-day window is too thin to trust
+PB_MGD_PER_CMS     = 22.824465
+
+
+def _pb_cache_paths(key):
+    zpath = os.path.join(PB_CACHE_DIR, key + '.zip')
+    cdir  = os.path.join(PB_CACHE_DIR, key)
+    return zpath, cdir
+
+
+def _pb_share(path):
+    """Group-writable, so whoever refreshes the cache next is not blocked."""
+    try:
+        os.chmod(path, os.stat(path).st_mode | 0o660)
+    except OSError:
+        pass
+
+
+def _pb_fetch(key, force=False):
+    """Return the CSV path for one IBWC dataset, downloading only when stale.
+
+    Never raises on a network problem: if the portal is unreachable and we have
+    any cached copy at all, that copy is used and the age is reported.  The
+    caller decides whether the data is too old to use -- that is a data
+    question, not a transport one.
+    """
+    import zipfile
+
+    zpath, cdir = _pb_cache_paths(key)
+    # group-writable, not whatever umask 022 gives us: this cache is shared and
+    # the other person has to be able to refresh it.  makedirs' mode is masked
+    # by the umask, so set it explicitly afterwards.
+    for d in (PB_CACHE_DIR, cdir):
+        os.makedirs(d, exist_ok=True)
+        try:
+            os.chmod(d, os.stat(d).st_mode | 0o2770)
+        except OSError:
+            pass
+
+    have = os.path.isfile(zpath) and os.path.getsize(zpath) > 1000
+    age_h = ((time.time() - os.path.getmtime(zpath)) / 3600.0) if have else None
+    stale = (not have) or (age_h > PB_MAX_CACHE_AGE_H)
+
+    if force or stale:
+        url = PB_BASE + '?' + urllib.parse.urlencode(PB_SOURCES[key],
+                                                     quote_via=urllib.parse.quote)
+        try:
+            r = requests.get(url, timeout=180)
+            r.raise_for_status()
+            if len(r.content) < 1000:
+                raise ValueError('response was only %d bytes' % len(r.content))
+            # temp then rename: a half-written zip must never replace a good one
+            tmp = zpath + '.part'
+            with open(tmp, 'wb') as fh:
+                fh.write(r.content)
+            os.replace(tmp, zpath)
+            _pb_share(zpath)
+            print('   PB cache: %s downloaded, %.0f kB' % (key, len(r.content) / 1e3))
+        except Exception as e:                                   # noqa: BLE001
+            try:
+                if os.path.exists(zpath + '.part'):
+                    os.remove(zpath + '.part')
+            except OSError:
+                pass
+            if not have:
+                raise RuntimeError('PB cache: %s download failed (%s: %s) and '
+                                   'there is no cached copy to fall back on'
+                                   % (key, type(e).__name__, e))
+            print('   PB cache: %s download FAILED (%s: %s) -- using the cached '
+                  'copy, %.1f h old' % (key, type(e).__name__, e, age_h))
+    else:
+        print('   PB cache: %s cached, %.1f h old' % (key, age_h))
+
+    with zipfile.ZipFile(zpath) as z:
+        z.extractall(cdir)
+    csvs = sorted(glob.glob(os.path.join(cdir, '*.csv')))
+    if not csvs:
+        raise RuntimeError('PB cache: no CSV inside ' + zpath)
+    for c in csvs:
+        _pb_share(c)
+    return csvs[-1], os.path.getmtime(zpath)
+
+
+def _pb_read_ibwc(path):
+    """One IBWC export -> a pandas Series of m3/s indexed by UTC time."""
+    import pandas as pd
+    df = pd.read_csv(path, skiprows=1)
+    df = df.rename(columns={df.columns[0]: 'time', df.columns[1]: 'Q'})
+    df['time'] = pd.to_datetime(df['time'], errors='coerce')
+    df['Q']    = pd.to_numeric(df['Q'], errors='coerce')
+    # drops the trailing disclaimer row and the gap markers along with it
+    df = df.dropna(subset=['time', 'Q'])
+    s = df.set_index('time')['Q'].sort_index()
+    return s[~s.index.duplicated(keep='first')]
+
+
+def _pb_zero_run_lengths(s):
+    """For each sample, the length of the run of exact zeros it belongs to."""
+    import pandas as pd
+    z = (s.values <= 0)
+    grp = np.cumsum(np.concatenate(([1], np.diff(z.astype(int)) != 0)))
+    run = pd.Series(z, index=s.index).groupby(grp).transform('size')
+    return run.where(pd.Series(z, index=s.index), 0)
+
+
+def _pb_load_series(force=False):
+    """(sab, pb, meta).  SAB dropouts are NaN; PB zeros are kept as real flow.
+
+    The asymmetry is the notebook's and it is deliberate: a long run of exact
+    zeros on the plant influent gauge is the telemetry dropping out, while the
+    beach channel genuinely does go to zero when nothing is being diverted.
+    """
+    sab_csv, sab_mtime = _pb_fetch('SAB', force=force)
+    pb_csv,  pb_mtime  = _pb_fetch('PB',  force=force)
+
+    sab_raw = _pb_read_ibwc(sab_csv)
+    pb_raw  = _pb_read_ibwc(pb_csv)
+
+    sab = sab_raw.mask(_pb_zero_run_lengths(sab_raw) >= PB_ZERO_RUN)
+    pb  = pb_raw.copy()
+
+    meta = {'sab_mtime': sab_mtime, 'pb_mtime': pb_mtime,
+            'sab_last': sab_raw.index.max(), 'pb_last': pb_raw.index.max(),
+            'sab_dropout_frac': float((_pb_zero_run_lengths(sab_raw)
+                                       >= PB_ZERO_RUN).mean())}
+    return sab, pb, meta
+
+
+def pb_trailing_means(yyyymmddhh, min_coverage=None, force=False):
+    """Trailing 1-, 2- and 7-day mean Q_PB_tot and Q_PB_WW [m3/s] ending at t.
+
+    Returns (means, prov).  means is keyed ('Q_PB_tot'|'Q_PB_WW', 1|2|7).
+    prov carries everything needed to say in a log where the numbers came from.
+
+    The window is (t_end - N days, t_end].  t_end is the requested time, unless
+    the record stops before it -- then it is the last sample, which is the
+    "use the 1 day average before the available data" case.  How far that is
+    allowed to slip is the caller's policy, not this function's; prov reports
+    the gap and the caller decides.
+    """
+    import pandas as pd
+
+    # resolved here, not as a default argument: a default is bound when the
+    # function is defined, so PB_MIN_COVERAGE could be changed at runtime and
+    # have no effect -- which silently made a test of the 2-day branch pass
+    # without ever entering it.
+    if min_coverage is None:
+        min_coverage = PB_MIN_COVERAGE
+
+    t_req = pd.to_datetime(str(yyyymmddhh), format='%Y%m%d%H')
+    sab, pb, meta = _pb_load_series(force=force)
+    series = {'Q_PB_tot': sab, 'Q_PB_WW': pb}
+
+    last = min(meta['sab_last'], meta['pb_last'])
+    t_end = t_req if last >= t_req else last
+    stale_h = max(0.0, (t_req - t_end).total_seconds() / 3600.0)
+
+    means, cover = {}, {}
+    for name, s in series.items():
+        dt = s.index.to_series().diff().median()      # nominal interval, 15 min
+        for nd in (1, 2, 7):
+            w = s[(s.index > t_end - pd.Timedelta(days=nd)) & (s.index <= t_end)]
+            means[name, nd] = float(w.mean()) if w.notna().any() else float('nan')
+            cover[name, nd] = float(w.notna().sum() * dt / pd.Timedelta(days=nd))
+
+    prov = {'t_requested': t_req, 't_end': t_end, 'stale_hours': stale_h,
+            'last_sample_sab': meta['sab_last'], 'last_sample_pb': meta['pb_last'],
+            'coverage': cover, 'min_coverage': min_coverage,
+            'sab_mtime': meta['sab_mtime'], 'pb_mtime': meta['pb_mtime'],
+            'sab_dropout_frac': meta['sab_dropout_frac']}
+    return means, prov
+
+
+def _pb_fmt_q(q):
+    return '%7.4f m3/s (%5.2f MGD)' % (q, q * PB_MGD_PER_CMS)
+
+
+def set_dynamic_PB(PFM):
+    """Set PFM['Q_PB'] and PFM['dye_PB'] from the IBWC gauges.  In place.
+
+    Returns True if the observations were used, False if the static values in
+    the input .py were kept.  Never raises: every failure path keeps the static
+    values and says so, because a gauge outage is not a reason to lose a
+    forecast.
+
+    Sign: PFM['Q_PB'] is NEGATIVE.  ocn_funs_forecast does
+        D['river_transport'][:,5] = PFM['Q_PB'] + ...
+    and a negative transport is flow INTO the domain, so the positive gauge
+    reading is negated here.  Getting this wrong turns Punta Bandera into an
+    intake, which is why it is asserted below rather than trusted.
+
+    Policy, as agreed:
+      - record ends more than PB_MAX_STALE_DAYS before the forecast start
+            -> static values
+      - 1-day window thinner than min_coverage, 2-day window good
+            -> 2-day mean, said plainly in the log
+      - both too thin, or either mean NaN or unphysical
+            -> static values
+    """
+    q_static   = PFM.get('Q_PB')
+    dye_static = PFM.get('dye_PB')
+
+    def keep_static(why):
+        print('*** PUNTA BANDERA: keeping the static input.py values ***')
+        print('    reason   ' + why)
+        print('    Q_PB     ' + str(q_static) + '   dye_PB ' + str(dye_static))
+        return False
+
+    t = PFM.get('fetch_time')
+    if t is None:
+        return keep_static('no fetch_time in the model info')
+    yyyymmddhh = t.strftime('%Y%m%d%H')
+
+    print('*** PUNTA BANDERA, dynamic from IBWC observations ***')
+    try:
+        means, prov = pb_trailing_means(yyyymmddhh)
+    except Exception as e:                                       # noqa: BLE001
+        return keep_static('could not read the gauges (%s: %s)'
+                           % (type(e).__name__, e))
+
+    if prov['stale_hours'] > PB_MAX_STALE_DAYS * 24.0:
+        return keep_static('the record stops %.1f h before the forecast start '
+                           '%s, more than the %.1f h allowed'
+                           % (prov['stale_hours'], yyyymmddhh,
+                              PB_MAX_STALE_DAYS * 24.0))
+
+    # which trailing window: 1 day normally, 2 days when 1 is too thin
+    nd = 1
+    cov1 = min(prov['coverage']['Q_PB_tot', 1], prov['coverage']['Q_PB_WW', 1])
+    if cov1 < prov['min_coverage']:
+        cov2 = min(prov['coverage']['Q_PB_tot', 2], prov['coverage']['Q_PB_WW', 2])
+        if cov2 < prov['min_coverage']:
+            return keep_static('the 1-day window is only %.0f%% covered and the '
+                               '2-day only %.0f%%, both under %.0f%%'
+                               % (100 * cov1, 100 * cov2,
+                                  100 * prov['min_coverage']))
+        nd = 2
+        print('    NOTE  the 1-day window is only %.0f%% covered; using the '
+              '2-day mean instead' % (100 * cov1))
+
+    q_tot = means['Q_PB_tot', nd]
+    q_ww  = means['Q_PB_WW',  nd]
+    if not np.isfinite(q_tot) or not np.isfinite(q_ww):
+        return keep_static('the %d-day mean is NaN (tot=%s, ww=%s)'
+                           % (nd, q_tot, q_ww))
+    if q_tot <= 0.0:
+        return keep_static('the %d-day mean total flow is %.4f m3/s, not positive'
+                           % (nd, q_tot))
+
+    dye = q_ww / q_tot
+    if dye < 0.0 or dye > 1.0:
+        # the two gauges are independent, so PB can briefly read above SAB --
+        # a raw FRACTION above 1 is still impossible, so clamp and be loud.
+        print('    WARNING  Q_PB_WW/Q_PB_tot = %.4f, outside [0,1]; clamped. '
+              'The two gauges disagree -- worth a look.' % dye)
+        dye = float(min(max(dye, 0.0), 1.0))
+
+    import datetime as _dt
+    win0 = prov['t_end'] - _dt.timedelta(days=nd)
+    print('    window   %s .. %s UTC   (%d-day trailing mean)'
+          % (win0.strftime('%Y-%m-%d %H:%M'),
+             prov['t_end'].strftime('%Y-%m-%d %H:%M'), nd))
+    print('    Q_PB_tot ' + _pb_fmt_q(q_tot) + '   coverage %3.0f%%'
+          % (100 * prov['coverage']['Q_PB_tot', nd]))
+    print('    Q_PB_WW  ' + _pb_fmt_q(q_ww) + '   coverage %3.0f%%'
+          % (100 * prov['coverage']['Q_PB_WW', nd]))
+    print('    -> PFM[\'Q_PB\']   = %.4f m3/s   (negative = into the domain)'
+          % (-q_tot))
+    print('    -> PFM[\'dye_PB\'] = %.4f        (= Q_PB_WW / Q_PB_tot)' % dye)
+    print('    was static        Q_PB %s, dye_PB %s' % (q_static, dye_static))
+    print('    record ends %s UTC (%.1f h before the forecast start)'
+          % (prov['t_end'].strftime('%Y-%m-%d %H:%M'), prov['stale_hours']))
+    print('    cache SAB %s, PB %s'
+          % (_dt.datetime.fromtimestamp(prov['sab_mtime']).strftime('%Y-%m-%d %H:%M'),
+             _dt.datetime.fromtimestamp(prov['pb_mtime']).strftime('%Y-%m-%d %H:%M')))
+
+    PFM['Q_PB']   = -float(q_tot)
+    PFM['dye_PB'] = float(dye)
+    return True
