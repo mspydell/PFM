@@ -6231,6 +6231,18 @@ def mk_lv4_river_nc(pkl_fnm):
     # dye_01 = 0.175 / 0.965 = 0.1818. NOT IMPLEMENTED!!!! 
     #PFM['Q_PB'] = -2.0
     #PFM['dye_PB'] = 0.5
+    # Replace the fixed Q_PB and dye_PB with trailing means of the IBWC gauges
+    # at Punta Bandera, when the input .py asks for it.  This mutates the local
+    # PFM dict only -- the pickle is not rewritten -- so it affects this river
+    # file and nothing else.  Every failure path inside keeps the static values
+    # and says why, so a gauge outage cannot cost a forecast.
+    #
+    # NOTE this runs where the river file is BUILT.  run_fore_LV4 rebuilds it
+    # every forecast, but run_fore_lv4_fillin only builds it when it is missing,
+    # so an LV4-only rerun reuses the previous discharge.  Delete LV4_river.nc
+    # first if the PB values matter for a rerun.
+    if PFM.get('dynamic_PB_values', False):
+        rivfuns.set_dynamic_PB(PFM)
     D['river_transport'][:,5] = PFM['Q_PB'] + D['river_transport'][:,5] # this is PB. 5/2/25 value
     # based on FF email with Liden
 
