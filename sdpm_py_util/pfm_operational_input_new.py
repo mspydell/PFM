@@ -91,7 +91,7 @@ def create_model_info_dict():
     # values above stay as the fallback: they are used whenever the gauge record
     # stops more than 12 h before the forecast start, or the trailing window is
     # too sparse to average, or the portal cannot be reached at all.
-    PFM['dynamic_PB_values'] = False
+    PFM['dynamic_PB_values'] = True
     # this is where PFM saves atm forcing and river discharge to at end of PFM simulation
     PFM['archive_dir'] = '/dataSIO/PFM_Simulations/Archive/Forcing/'
     PFM['archive_web_dir'] = '/dataSIO/PFM_Simulations/Archive/web/'
