@@ -14,10 +14,17 @@ The first panel of PTB_TJRE_DyeFactor/figures/Dye_Factor_PTB.png, standalone:
 A second panel (log axis) shows the Tijuana River, as Hourly_Flow_rate_only_SDTJRE.png of
 Model_vs_Observation_river_flow.m (PFM_Master_Code_For_Plots.m, Obs_Lo 6):
   - observed IBWC flow (Discharge.Best Available@11013300, m^3/s), hourly the same way, and daily mean;
-  - model Q_tj: total discharge of the river sources carrying dye_02 (TJR, rivers 1-5 as data_river.m).
-Each model hour comes from the latest forecast covering it, so days without a forcing file are
-filled from the earlier forecasts (up to 5 days ahead); longer gaps keep the last forecast value,
-and hours before the first forcing file take its first value (as Dye_Loading.py).
+  - model Q_tj: total discharge of the TJR sources, rivers 1-5 as data_river.m (older forcing files tag
+    only 4 of them with dye_02, so they are taken by index).
+Each model hour comes from the latest forecast covering it. Days missing from the forcing archive up
+to July 2025 (2024-12-05..2025-02-19 and 35 days in Mar-Jul 2025) take that day's forecast from Matt's
+river files (riverQ_from_matt/LV4_riverQ_<YYYYMMDD>.nc): Q_tj = their TJRE discharge (the LV4 logs and
+the neighbouring forcing files show each TJ source at exactly 0.2 x TJRE); Q_ptb and Q_ptb,ww, not in
+them, are the forcing's hardcoded Punta Bandera values before 2025-04-01 (2.1906 m^3/s, dye 0.7).
+Matt's files from August 2025 do not match the forcing and are not used; missing days after that are
+filled from the earlier forecasts (up to 5 days ahead). Longer gaps keep the last value, and hours
+before the first file take its first value (as Dye_Loading.py).
+Nothing before 2024-12-05 (DATA_START, the first LV4 run with rivers) is plotted, read or cached.
 The model lines run on past the window to the end of the latest forecast issued by then (its next
 ~5 days; files hold 111-123 hours), dashed after now (or after the window's end, for an older window),
 with a dotted line at that split.
@@ -25,7 +32,8 @@ with a dotted line at that split.
 Cache (/dataSIO/PFM_Simulations/cache/FlowRate/, shared by swell and backwash): cache/obs/<data set>_<YYYYMM>.csv holds the raw IBWC samples per
 UTC month (the current and previous month are downloaded again on every run, older months only once);
 cache/model/river_LV4_<YYYYMMDDHH>.csv holds the hourly model flows of each forcing file (recomputed
-if the forcing file changes). Delete a file to rebuild it.
+if the forcing file changes); cache/model/river_LV4_<YYYYMMDD>.csv holds q_tj of each of Matt's files.
+Delete a file to rebuild it.
 
 Times on the plots are Pacific (PDT/PST, America/Los_Angeles), as on the dye vs ddPCR QC plots;
 the data are read in UTC and converted. Days, the plot window and the daily means are Pacific days.
@@ -53,7 +61,7 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 import numpy as np
 import pandas as pd
-from netCDF4 import Dataset
+from netCDF4 import Dataset, num2date
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 WEB_DIR = os.path.join(HERE, "plots_web")
@@ -62,6 +70,18 @@ CACHE_DIR = os.path.join(os.environ.get("HYDRO_QC_DATA", "/dataSIO/PFM_Simulatio
 OBS_DIR = os.path.join(CACHE_DIR, "obs")      # raw IBWC samples, one CSV per data set and UTC month
 MODEL_DIR = os.path.join(CACHE_DIR, "model")  # hourly flows of each river forcing file
 RIVER_DIR = "/dataSIO/PFM_Simulations/Archive/Forcing"
+# Matt's river discharge (Sweetwater, Otay, TJRE), LV4_riverQ_<YYYYMMDD>.nc: the forecast of the days
+# missing from RIVER_DIR (2024-12-05..2025-02-19, and 35 days in Mar-Jul 2025). Q_tj = TJRE (5 sources x 0.2 Q in
+# mk_lv4_river_nc): the LV4 logs and the neighbouring forcing files match it exactly up to July 2025;
+# from August 2025 the forcing is 0.01-0.5 x TJRE (other TJ input), so later files are not used.
+# Punta Bandera is not in them, so Q_ptb and Q_ptb,ww take get_pb_flow_and_dye's hardcoded values up
+# to its switch (2.1906 m^3/s, dye 0.7) and the forcing values after it.
+MATT_DIR = "/dataSIO/PFM_Simulations/Archive/riverQ_from_matt"
+MATT_END = pd.Timestamp("2025-08-01")
+PB_SWITCH, PB_Q1, PB_DYE1 = pd.Timestamp("2025-04-01"), 2.1906, 0.7
+# first day (Pacific) of LV4 runs with rivers (LV4_His starts 2024-12-05); nothing earlier is read or cached
+DATA_START = pd.Timestamp("2024-12-05")
+TJ_SOURCES = slice(0, 5)   # rivers 1-5 (data_river.m); older files tag only 4 of them with dye_02
 IBWC_URL = "https://waterdata.ibwc.gov/AQWebportal/Export/DataSet"
 PB_DATASET = "Discharge.Telemetry-ADS-mgd@11-PUNTA-BANDERA"
 SAB_DATASET = "Discharge.Telemetry-ADS-mgd@11-SAB-Pre"           # as IBWC_Flow.py
@@ -119,7 +139,7 @@ def observed(dataset, start, end, mgd=True):
         path = os.path.join(OBS_DIR, f"{name}_{m.strftime('%Y%m')}.csv")
         if not os.path.exists(path) or m >= now.to_period("M") - 1:
             try:
-                df = download(dataset, m.start_time, min(m.end_time.floor("s"), now), mgd)
+                df = download(dataset, max(m.start_time, to_utc(DATA_START)), min(m.end_time.floor("s"), now), mgd)
                 df.to_csv(path + ".part", index=False, date_format="%Y-%m-%d %H:%M:%S")
                 os.replace(path + ".part", path)
             except Exception as e:                       # keep the cached month if IBWC is down
@@ -147,11 +167,11 @@ def forcing_flows(t0, path):
         Q = np.abs(np.asarray(nc["river_transport"][:], float))          # time x river
         Vshape = np.asarray(nc["river_Vshape"][:], float)                # s_rho x river
         dye1 = np.asarray(nc["river_dye_01"][:], float)                  # time x s_rho x river
-        dye2 = np.asarray(nc["river_dye_02"][:], float)
         tday = np.asarray(nc["river_time"][:], float)
     frac = np.sum(Vshape[None] * dye1, axis=1)                          # time x river
     src = np.any(frac > 0, axis=0)                                      # PTB sources
-    tj = np.any(np.sum(Vshape[None] * dye2, axis=1) > 0, axis=0)        # TJR sources
+    tj = np.zeros(Q.shape[1], bool)
+    tj[TJ_SOURCES] = True                                               # TJR sources
     hrs = t0 + pd.to_timedelta(np.arange(124), "h")
     td = ((hrs - EPOCH) / pd.Timedelta(days=1)).to_numpy()
     keep = td <= tday[-1] + 1e-6                          # only the hours the file covers (111-123)
@@ -165,28 +185,68 @@ def forcing_flows(t0, path):
     return out
 
 
+def matt_flows(path):
+    """Hourly q_tj (TJRE discharge, m^3/s, index UTC) of one of Matt's river files, cached in
+    cache/model/river_LV4_<YYYYMMDD>.csv (8 digits, the forcing files' caches have 10); recomputed when
+    the file is newer than the cache."""
+    cache = os.path.join(MODEL_DIR, os.path.basename(path).replace("LV4_riverQ_", "river_LV4_").replace(".nc", ".csv"))
+    if os.path.exists(cache) and os.path.getmtime(cache) >= os.path.getmtime(path):
+        return pd.read_csv(cache, index_col="time", parse_dates=["time"])
+    with Dataset(path) as nc:
+        t = nc["time"]                                          # epoch differs between files
+        hrs = pd.DatetimeIndex([str(x) for x in num2date(t[:], t.units, only_use_cftime_datetimes=False)],
+                               name="time").round("h")
+        ids = list(nc["station_id"][:])
+        q = np.asarray(nc["discharge"][:, ids.index("TJRE")], float)
+    out = pd.DataFrame({"q_tj": q}, index=hrs)
+    os.makedirs(MODEL_DIR, exist_ok=True)
+    out.to_csv(cache + ".part")
+    os.replace(cache + ".part", cache)
+    return out
+
+
+def file_times(folder, pattern, regex, fmt):
+    """{issue time: path} of the files in folder matching pattern."""
+    files = {}
+    for p in sorted(glob.glob(os.path.join(folder, pattern))):
+        m = re.search(regex, os.path.basename(p))
+        if m:
+            files[pd.to_datetime(m.group(1), format=fmt)] = p
+    return files
+
+
 def model_flows(start, end):
     """Hourly model Q_ptb, Q_ptb,ww and Q_tj (m^3/s) from the river forcing, latest forecast per hour.
-    Q_tj is the total discharge of the dye_02 (TJR) sources, rivers 1-5 as in data_river.m."""
-    files = {}
-    for p in sorted(glob.glob(os.path.join(RIVER_DIR, "river_LV4_*.nc"))):
-        m = re.search(r"river_LV4_(\d{10})\.nc$", p)
-        if m:
-            files[pd.Timestamp(m.group(1)[:8] + "T" + m.group(1)[8:])] = p
+    Q_tj is the total discharge of the TJR sources, rivers 1-5 as in data_river.m.
+    Matt's river files (MATT_DIR, up to MATT_END) count as the forecast of their day, so they fill the
+    days missing from the forcing archive; a forcing file issued the same day wins (they agree)."""
+    files = file_times(RIVER_DIR, "river_LV4_*.nc", r"river_LV4_(\d{10})\.nc$", "%Y%m%d%H")
+    matt = file_times(MATT_DIR, "LV4_riverQ_*.nc", r"LV4_riverQ_(\d{8})\.nc$", "%Y%m%d")
     # forecasts that can cover the window (each runs 5 days ahead)
     use = [t for t in files if start - pd.Timedelta(days=6) <= t <= end]
-    # plus the latest earlier forecast (else the first one), to fill hours no forecast covers
+    # plus the latest earlier forecast, to fill hours no forecast covers
     earlier = [t for t in files if t < start - pd.Timedelta(days=6)]
-    use = ([max(earlier)] if earlier else []) + use or [min(files)]
+    use = [(t, 1) for t in ([max(earlier)] if earlier else []) + use]
+    use += [(t, 0) for t in matt if max(start - pd.Timedelta(days=6), DATA_START) <= t <= end and t < MATT_END]
     q, qww, qtj = {}, {}, {}
-    for t0 in sorted(use):                                    # later forecasts overwrite earlier ones
-        f = forcing_flows(t0, files[t0])
+    for t0, forcing in sorted(use):                           # later forecasts overwrite earlier ones
+        if forcing:
+            f = forcing_flows(t0, files[t0])
+            for h, a, b, c in zip(f.index, f["q_ptb"], f["q_ptb_ww"], f["q_tj"]):
+                q[h], qww[h], qtj[h] = a, b, c
+            continue
+        for h, c in matt_flows(matt[t0])["q_tj"].items():
+            qtj[h] = c
+            if h <= PB_SWITCH:
+                q[h], qww[h] = PB_Q1, PB_Q1 * PB_DYE1
+    if not qtj:                                               # nothing covers the window: first forecast
+        f = forcing_flows(min(files), files[min(files)])
         for h, a, b, c in zip(f.index, f["q_ptb"], f["q_ptb_ww"], f["q_tj"]):
             q[h], qww[h], qtj[h] = a, b, c
-    # hours no forecast covers (no forcing file for > 5 days, or before the first file) take the
-    # latest earlier value, else the first one, as Dye_Loading.py fills from the nearest forcing file.
+    # hours nothing covers (no file for > 5 days, or before the first file) take the latest earlier
+    # value, else the first one, as Dye_Loading.py fills from the nearest forcing file.
     # Past end the series runs on to the end of the latest forecast issued by end (its next ~5 days).
-    idx = pd.date_range(start, max(end, max(q)), freq="h")
+    idx = pd.date_range(start, max(end, max(q), max(qtj)), freq="h")
     out = []
     for s in (q, qww, qtj):
         s = pd.Series(s).sort_index()
@@ -206,7 +266,7 @@ def model_line(ax, s, split, **kw):
 
 def plot(start, end, path):
     """Plot from start to end, naive Pacific times."""
-    s_utc, e_utc = to_utc(start), to_utc(end)
+    s_utc, e_utc = to_utc(max(start, DATA_START)), to_utc(end)
     obs, sab = (to_pacific(x[(x.index >= s_utc) & (x.index <= e_utc)])
                 for x in (observed(d, s_utc, e_utc) for d in (PB_DATASET, SAB_DATASET)))
     tjr = observed(TJR_DATASET, s_utc, e_utc, mgd=False)

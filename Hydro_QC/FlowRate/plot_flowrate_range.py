@@ -16,7 +16,7 @@ import os
 
 import pandas as pd
 
-from plot_flowrate import HERE, TZ, plot
+from plot_flowrate import DATA_START, HERE, TZ, plot
 
 
 def main():
@@ -37,6 +37,9 @@ def main():
         start = pd.Timestamp(args.start)
     else:
         p.error("give --start or --duration")
+    if start < DATA_START:
+        print(f"no data before {DATA_START:%Y-%m-%d}, starting there")
+        start = DATA_START
     if last < start:
         p.error("--end is before --start")
     out = args.out or os.path.join(HERE, "plots", f"FlowRate_{start:%Y%m%d}_{last:%Y%m%d}.png")
