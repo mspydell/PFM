@@ -62,9 +62,14 @@ def update(station, end=None):
             path = os.path.join(d, f"{product}_{month.strftime('%Y%m')}.csv")
             if os.path.exists(path) and month.strftime("%Y%m") not in recent:
                 continue
-            text = _fetch_month(station, product, month.start_time)
-            if not text.startswith("Date Time"):
-                print(f"{station} {product} {month}: no data ({text.strip()[:80]})")
+            try:
+                text = _fetch_month(station, product, month.start_time)
+            except OSError as e:  # NOAA down or no network: keep what is cached
+                print(f"{station} {product} {month}: download failed ({e})")
+                continue
+            # with no data NOAA still sends the header, then "Error: No data was found..."
+            if not text.startswith("Date Time") or "Error:" in text:
+                print(f"{station} {product} {month}: no data ({text.strip()[:160]})")
                 continue
             with open(path + ".part", "w") as f:
                 f.write(text)
@@ -78,14 +83,17 @@ def _read_csvs(station, product):
         if name.startswith(product + "_") and name.endswith(".csv"):
             df = pd.read_csv(os.path.join(d, name), skipinitialspace=True)
             df.columns = [c.strip() for c in df.columns]
-            yield df
+            if "Date Time" not in df.columns:
+                continue
+            # drop NOAA "Error: ..." lines cached by older versions
+            yield df[~df["Date Time"].astype(str).str.startswith("Error")]
 
 
 def _read(station, product):
     frames = [pd.Series(pd.to_numeric(df[PRODUCTS[product][0]], errors="coerce").values,
                         index=pd.to_datetime(df["Date Time"], utc=True)) for df in _read_csvs(station, product)]
     if not frames:
-        return pd.Series(dtype=float)
+        return pd.Series(dtype=float, index=pd.DatetimeIndex([], tz="UTC"))
     s = pd.concat(frames)
     return s[~s.index.duplicated(keep="last")].sort_index()
 

@@ -94,7 +94,12 @@ def two_panel(idx, obs, model, title, out_path, obs_label, model_label, shade=No
     diff = obs - model
     fig, axes = plt.subplots(2, 1, figsize=(13, 7.5), sharex=True)
     ax = axes[0]
-    ax.plot(idx, obs, color=OBS_COLOR, lw=0.8, label=obs_label)
+    if obs.notna().any():
+        ax.plot(idx, obs, color=OBS_COLOR, lw=0.8, label=obs_label)
+    else:  # NOAA sent no data for this window: plot the model only
+        ax.set_title("no NOAA observations for this period", loc="right", fontsize=9, color="0.25")
+        axes[1].text(0.5, 0.5, "No NOAA observations for this period", transform=axes[1].transAxes,
+                     ha="center", va="center", fontsize=11, color="0.4")
     if split is None:
         ax.plot(idx, model, color=MODEL_COLOR, lw=0.8, label=model_label)
     else:
