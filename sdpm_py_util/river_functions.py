@@ -1733,9 +1733,17 @@ PB_CACHE_DIR = '/dataSIO/PFM_Simulations/cache/PuntaBandera'
 
 PB_MAX_CACHE_AGE_H = 6.0    # re-download when the cached zip is older than this.
                             # the notebook uses 24 h; a forecast wants fresher.
-PB_MAX_STALE_DAYS  = 0.5    # how far the record may end BEFORE the forecast start
+PB_MAX_STALE_DAYS  = 1.0    # how far the record may end BEFORE the forecast start
                             # and still be used.  Beyond this we use the static
-                            # input.py values instead.
+                            # input.py values instead.  Was 0.5, which the data
+                            # source cannot meet at 01:00: the IBWC portal runs
+                            # ~20.5 h behind wall clock (measured 2026-11-04, last
+                            # sample 02:30Z at 23:11Z).  The 01:00 PST forecast
+                            # fetches at 09:00Z for a 00Z start, so a 12 h limit
+                            # cleared the gate by only ~20 min and would fall back
+                            # to the static values on any night the portal slipped.
+                            # 24 h still rejects a genuinely dead gauge, and
+                            # PB_MIN_COVERAGE below is the real quality guard.
 PB_ZERO_RUN        = 8      # samples (2 h at 15 min).  A SAB zero-run at least
                             # this long is a telemetry dropout, not real zero flow.
 PB_MIN_COVERAGE    = 0.8    # below this the 1-day window is too thin to trust
