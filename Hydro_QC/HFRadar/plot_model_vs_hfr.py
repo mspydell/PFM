@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Model surface currents (PFM LV3 or LV4, top 2 m) vs HF radar 6 km, every 6 hours.
+"""Model surface currents (PFM LV3 or LV4, top 2 m) vs HF radar 6, 2 or 1 km, every 6 hours.
 
 One figure per model level, 3 rows x 4 columns, every 6 h in local time (America/Los_Angeles,
 PDT/PST): each row is one local day at 06:00, 12:00, 18:00 and the next day's 00:00. The rows are
@@ -18,31 +18,26 @@ Model currents
   LV3 is a regular ~207 m grid; LV4 is irregular, 8 m near the coast to ~86 m offshore.
   Interpolation cells that touch land are left blank (no extrapolation onto the coast).
 
-HFR 6 km
+HFR 6, 2 and 1 km (one figure each; the LV3 1 km figure is twice as large)
   hourly NDBC near-real-time product from the shared cache that make_obs_qc_figures.py
-  fills (/dataSIO/DA_Simulations/input_files/hfr_nrt); hours the cache lacks are read
-  live from NDBC.
+  fills (/dataSIO/DA_Simulations/input_files/hfr_nrt); hours the cache lacks are read from the
+  6 km .mat archive (6 km only) or live from NDBC. The 1, 2 and 6 km grids share nodes, so the
+  2 and 1 km figures draw model arrows at every radar cell (every 20 / 10 fine points).
 
 Moorings (blue): observed ADCP current of the top layer, hourly (samples within +-30 min of the
   hour), from the ../Moorings cache (plot_model_vs_obs.obs_currents): SBOO on LV4; SBOO, PLOO and
   Del Mar on LV3. Top layer = bins shallower than 5.5 m (SBOO), 6 m (PLOO), 10 m (Del Mar).
   --update-moorings downloads new mooring data from SIO first.
-  Model at the moorings (thick black): u, v at the nearest model u/v points, averaged over the same
-  top layer as the ADCP (extract_model.SITES "top": SBOO 2.83-5.83 m, PLOO 2.93-5.93 m, Del Mar
-  4.42-10.42 m below mean sea level, layer-thickness weighted) and rotated to east/north, read from
-  the same run and record as the panel: from the Moorings model cache (u_top/v_top of
-  <site>_<LV>_day1_hourly.csv) where it has the hour, else from the history file
-  (extract_model.read_file / layer_mean).
 
 Caches, in /dataSIO/PFM_Simulations/cache/HFRadar (HYDRO_QC_DATA overrides the root):
   weights_<LV>_<key>.npz    interpolation weights, model grid -> ~100 m grid, built once per grid
   model_<LV>_<run>_rec<NNN>_top2m_every<N>_<key>.npz  model arrows of one panel (a run never changes)
-  mooring_<LV>_<run>_<site>.npz  model at a mooring, days 1-2, where the Moorings cache lacks it
 
-Stats in each panel title, at HFR 6 km cell centres where both exist: n cells, mean speed
+Stats in each panel title, at HFR cell centres where both exist: n cells, mean speed
 (model / HFR) and RMS vector difference.
 
-  python plot_model_vs_hfr.py                     # LV3 and LV4, rows: day before yesterday .. today
+  python plot_model_vs_hfr.py                     # all figures, rows: day before yesterday .. today
+  python plot_model_vs_hfr.py --res 6             # only HFR 6 km (--res 6 2 1)
   python plot_model_vs_hfr.py --date 2026-10-18   # rows 16, 17 and 18 Oct (last panel 19 Oct 00:00)
   python plot_model_vs_hfr.py --level LV4
   python plot_model_vs_hfr.py --update-moorings   # refresh the mooring obs first
@@ -73,12 +68,16 @@ CACHE_DIR = os.path.join(os.environ.get("HYDRO_QC_DATA", "/dataSIO/PFM_Simulatio
 HIS_DIR = "/dataSIO/PFM_Simulations/Archive/{lv}_His"
 GRID = {"LV3": "/dataSIO/PFM_Simulations/Grid/GRID_SDTJRE_LV3_rx020.nc",
         "LV4": "/dataSIO/PFM_Simulations/Grid/GRID_SDTJRE_LV4_mss_oct2024.nc"}
-HFR_CACHE = "/dataSIO/DA_Simulations/input_files/hfr_nrt/hfr_nrt_ndbc_6km_{day:%Y%m%d}.nc"
-HFR_NDBC = "https://dods.ndbc.noaa.gov/thredds/dodsC/hfradar_uswc_6km"
-# older HFR 6 km (hourly, same grid, lon 0-360): monthly Nov 2024 - Dec 2025, then 1 Jan - 18 Mar 2026
+HFR_CACHE = "/dataSIO/DA_Simulations/input_files/hfr_nrt/hfr_nrt_ndbc_{res}km_{day:%Y%m%d}.nc"
+HFR_NDBC = "https://dods.ndbc.noaa.gov/thredds/dodsC/hfradar_uswc_{res}km"
+# older HFR 6 km (hourly, same grid, lon 0-360): monthly Nov 2024 - Dec 2025, then 1 Jan - 18 Mar 2026.
+# The 1 and 2 km archives there are daily means only, so those figures have no archive.
 HFR_ARCHIVE = ["/dataSIO/HFRadar_files/socal_hfr_6km_*/*_6km.mat", "/dataSIO/HFRadar_files/hfradar_uswc_6km_*.mat"]
+RES = (6, 2, 1)                   # HFR products (km), one figure each; 1, 2 and 6 km grids share nodes
+RES_LEVELS = {6: ("LV3", "LV4"), 2: ("LV3", "LV4"), 1: ("LV3", "LV4")}
+PANEL_IN = {("LV3", 1): 9.2}     # panel width (inches) where 4.6 makes the arrows too small: 1 km on all of LV3
 
-MOOR_ALPHA = 0.6                 # observed mooring arrows see-through: the model arrow shows beneath
+MOOR_ALPHA = 0.6                 # observed mooring arrows partly see-through
 QKEY = 0.25                      # reference (key) arrow, m/s
 LOCAL_TZ = ZoneInfo("America/Los_Angeles")   # panel times in local time (PDT / PST)
 LOCAL_HOURS = (6, 12, 18, 24)    # columns: 06:00, 12:00, 18:00 and the next day's 00:00 local
@@ -87,7 +86,8 @@ SURFACE_M = 2.0      # model grid arrows: mean over the top 2 m below the free s
 FINE = 60            # fine-grid points per HFR 6 km spacing (~100 m)
 MOORINGS = {"LV3": ("SBOO", "PLOO", "DelMar"), "LV4": ("SBOO",)}
 LEVELS = ("LV3", "LV4")
-ARROW_EVERY = {"LV3": 30, "LV4": 20}   # fine-grid points between model arrows (~3 km, ~2 km); divides FINE
+ARROW_EVERY = {"LV3": 30, "LV4": 20}   # 6 km figures: fine-grid points between model arrows (~3 km, ~2 km); divides FINE
+# 1 and 2 km figures: model arrows at every HFR node (FINE * res / 6 fine-grid points)
 BATHY = {"LV3": [10, 20, 50], "LV4": [10, 20, 50]}   # isobaths (m): near the coast, then the 50 m
 
 MODEL_COLOR = {"LV3": "0.45", "LV4": "0.3"}   # grey, thin: the HFR stands out on top (LV4 has fewer red arrows)
@@ -100,7 +100,6 @@ HEAD = 0.3               # open arrowhead: two strokes, this fraction of the arr
 # observed mooring arrows, one colour per mooring (none red or black: those are HFR and the model)
 MOOR_COLOR = {"SBOO": "#0072b2", "PLOO": "#009e73", "DelMar": "#8e44ad"}
 MOOR_NAME = {"SBOO": "SBOO", "PLOO": "PLOO", "DelMar": "Del Mar"}
-MOOR_MODEL_COLOR = "k"
 LAND_COLOR = "#cdb79e"
 COAST_COLOR = "#7a5d33"
 
@@ -196,6 +195,7 @@ class FineGrid:
         self.j = np.arange(j0, j1 + 1).astype(int)
         self.lon = lo0 + self.i * dlon
         self.lat = la0 + self.j * dlat
+        self.lo0, self.la0, self.dlon, self.dlat = lo0, la0, dlon, dlat
         self.dx_m = dlon * km_lon(G["lat_rho"].mean()) * 1e3
         self.dy_m = dlat * KM_LAT * 1e3
         LON, LAT = np.meshgrid(self.lon, self.lat)
@@ -220,13 +220,21 @@ class FineGrid:
             self.vert = tri.simplices[s].astype(np.int32)
             self.outside = s < 0
             save_npz(path, w=self.w, vert=self.vert, outside=self.outside)
-        # model arrows every `every` points, HFR cell centres every FINE points (both on HFR nodes);
-        # every divides FINE, so the centres are a subset of the arrow points (node_in_arrow)
+        # model arrows every `every` points, on HFR 6 km nodes
         self.every = every
         self.arrow = np.ix_(self.j % every == 0, self.i % every == 0)
-        ja, ia = self.j[self.j % every == 0], self.i[self.i % every == 0]
-        self.node_in_arrow = np.ix_(ja % FINE == 0, ia % FINE == 0)
-        self.node_ij = (self.j[self.j % FINE == 0] // FINE, self.i[self.i % FINE == 0] // FINE)
+
+    def nodes(self, hlon, hlat, step):
+        """HFR cell centres of a grid with spacing `step` fine points (60, 20, 10 for 6, 2, 1 km) whose
+        nodes lie on this grid: (node_in_arrow, node_ij), the centres among the arrow points and their
+        HFR indices. `every` divides step and the grid offset, so the centres are arrow points."""
+        oi = int(round((hlon[0] - self.lo0) / self.dlon))
+        oj = int(round((hlat[0] - self.la0) / self.dlat))
+        assert step % self.every == 0 and oi % self.every == 0 and oj % self.every == 0, (step, self.every, oi, oj)
+        ja, ia = self.j[self.j % self.every == 0], self.i[self.i % self.every == 0]
+        jn, in_ = self.j[(self.j - oj) % step == 0], self.i[(self.i - oi) % step == 0]
+        return (np.ix_((ja - oj) % step == 0, (ia - oi) % step == 0),
+                ((jn - oj) // step, (in_ - oi) // step))
 
     def interp(self, f):
         """Linear interpolation of a rho-point field; NaN where any triangle corner is NaN or outside."""
@@ -265,9 +273,9 @@ def model_panel(lv, G, F, f, rec, t):
 
 
 # ----------------------------------------------------------------------------- HFR
-def hfr_axes():
-    """lon, lat of the cached 6 km grid (LV3 box)."""
-    f = sorted(glob.glob(HFR_CACHE.replace("{day:%Y%m%d}", "*")))[-1]
+def hfr_axes(res=6):
+    """lon, lat of the cached `res` km grid (LV3 box)."""
+    f = sorted(glob.glob(HFR_CACHE.replace("{day:%Y%m%d}", "*").format(res=res)))[-1]
     with nc.Dataset(f) as d:
         return np.asarray(d["longitude"][:], float), np.asarray(d["latitude"][:], float)
 
@@ -275,10 +283,10 @@ def hfr_axes():
 _NDBC = {}
 
 
-def hfr_uv(t, lon, lat):
-    """HFR 6 km (u, v) [lat x lon] at hour t from the near-real-time cache, else the .mat archive, else
-    live from NDBC; None if none has it."""
-    f = HFR_CACHE.format(day=t)
+def hfr_uv(t, lon, lat, res=6):
+    """HFR `res` km (u, v) [lat x lon] at hour t from the near-real-time cache, else the .mat archive
+    (6 km only), else live from NDBC; None if none has it."""
+    f = HFR_CACHE.format(res=res, day=t)
     if os.path.exists(f):
         with nc.Dataset(f) as d:
             secs = np.asarray(d["time"][:], float)
@@ -286,29 +294,31 @@ def hfr_uv(t, lon, lat):
             if k.size:
                 return (np.ma.filled(d["water_u"][k[0]].astype(float), np.nan),
                         np.ma.filled(d["water_v"][k[0]].astype(float), np.nan))
-    A = hfr_archive(lon, lat)
-    if t in A:
-        z, k = A[t]
-        return z["u"][k].astype(float), z["v"][k].astype(float)
+    if res == 6:
+        A = hfr_archive(lon, lat)
+        if t in A:
+            z, k = A[t]
+            return z["u"][k].astype(float), z["v"][k].astype(float)
     if t < DT.datetime(2026, 7, 1):     # NDBC keeps only the last ~3 months
         return None
     try:
-        if "ds" not in _NDBC:
-            d = nc.Dataset(HFR_NDBC)
+        if res not in _NDBC:
+            d = nc.Dataset(HFR_NDBC.format(res=res))
             tv = d["time"]
-            _NDBC.update(ds=d, t=[x.replace(microsecond=0) for x in
-                                  nc.num2date(tv[:], tv.units, only_use_cftime_datetimes=False)],
-                         jj=np.searchsorted(np.asarray(d["lat"][:], float), lat[0] - 1e-4),
-                         ii=np.searchsorted(np.asarray(d["lon"][:], float), lon[0] - 1e-4))
-        if t not in _NDBC["t"]:
+            _NDBC[res] = dict(ds=d, t=[x.replace(microsecond=0) for x in
+                                       nc.num2date(tv[:], tv.units, only_use_cftime_datetimes=False)],
+                              jj=np.searchsorted(np.asarray(d["lat"][:], float), lat[0] - 1e-4),
+                              ii=np.searchsorted(np.asarray(d["lon"][:], float), lon[0] - 1e-4))
+        N = _NDBC[res]
+        if t not in N["t"]:
             return None
-        k = _NDBC["t"].index(t)
-        js, is_ = slice(_NDBC["jj"], _NDBC["jj"] + lat.size), slice(_NDBC["ii"], _NDBC["ii"] + lon.size)
-        d = _NDBC["ds"]
+        k = N["t"].index(t)
+        js, is_ = slice(N["jj"], N["jj"] + lat.size), slice(N["ii"], N["ii"] + lon.size)
+        d = N["ds"]
         return (np.ma.filled(d["u"][k, js, is_].astype(float), np.nan),
                 np.ma.filled(d["v"][k, js, is_].astype(float), np.nan))
     except Exception as e:
-        print(f"  HFR {t:%Y-%m-%d %H}Z: NDBC unavailable ({type(e).__name__})")
+        print(f"  HFR {res} km {t:%Y-%m-%d %H}Z: NDBC unavailable ({type(e).__name__})")
         return None
 
 
@@ -400,72 +410,6 @@ def mooring_currents(lv, PAN):
     return out
 
 
-def model_at_moorings(lv, PAN):
-    """{(history file, time): {site: (u_east, v_north)}}: model current at each mooring over the ADCP
-    top layer. Taken from the Moorings model cache (<site>_<lv>_day1_hourly.csv, u_top/v_top: the same
-    nearest points and layer mean) where it has the panel; read from the history file otherwise: sites
-    the Moorings code does not extract on this level (SBOO on LV3), day-2 fallback panels, and hours
-    newer than the cache."""
-    sys.path.insert(0, MOORINGS_COMMON)
-    import extract_model as EM
-    out, todo = {}, {}                                   # todo: history file -> sites still needed
-    for p in PAN:
-        if p["f"] is None:
-            continue
-        for s in MOORINGS[lv]:
-            uv = _moorings_csv(EM, s, lv).get(p["t"]) if p["fc_day"] == 1 and len(p["run"]) == 8 else None
-            if uv is not None and np.all(np.isfinite(uv)):
-                out.setdefault((p["f"], p["t"]), {})[s] = uv
-            else:
-                todo.setdefault(p["f"], set()).add(s)
-    for f, sites in sorted(todo.items()):
-        run = run_id(lv, f)
-        cached = {s: os.path.join(CACHE_DIR, f"mooring_{lv}_{run}_{s}.npz") for s in sites}
-        for s in sorted(sites):                          # our own cache of these (days 1-2 of the run)
-            if os.path.exists(cached[s]):
-                z = np.load(cached[s])
-                for k, ts in enumerate(z["t"]):
-                    tt = DT.datetime(1970, 1, 1) + DT.timedelta(seconds=int(ts))
-                    out.setdefault((f, tt), {}).setdefault(s, (float(z["u"][k]), float(z["v"][k])))
-                sites = sites - {s}
-        if not sites:
-            continue
-        sites = sorted(sites)
-        print(f"  model at {', '.join(sites)}: from {os.path.basename(f)} (not in the Moorings cache)")
-        pts = EM.nearest_points(lv, sites)
-        t, data = EM.read_file(f, pts, 1, 2)
-        static = EM.static_fields(f, pts)
-        for s in sites:
-            d, ang = data[s], pts[s]["angle"]
-            _, zw = EM.z_levels(static[s], d["zeta"])
-            ue = d["u"] * np.cos(ang) - d["v"] * np.sin(ang)
-            vn = d["u"] * np.sin(ang) + d["v"] * np.cos(ang)
-            ref = np.zeros(len(t)) if EM.SITES[s]["z_ref"] == "msl" else d["zeta"]
-            u = EM.layer_mean(ue, zw, ref, *EM.SITES[s]["top"])
-            v = EM.layer_mean(vn, zw, ref, *EM.SITES[s]["top"])
-            for k, tt in enumerate(t):
-                out.setdefault((f, tt.tz_convert(None).round("min").to_pydatetime()), {}).setdefault(s, (float(u[k]), float(v[k])))
-            secs = np.array([(tt.tz_convert(None).round("min") - DT.datetime(1970, 1, 1)).total_seconds() for tt in t], np.int64)
-            save_npz(cached[s], t=secs, u=np.asarray(u, np.float32), v=np.asarray(v, np.float32))
-    return out
-
-
-_CSV = {}
-
-
-def _moorings_csv(EM, site, lv):
-    """{naive UTC time: (u_top, v_top)} from the Moorings day-1 model cache, {} if it has no such file."""
-    if (site, lv) not in _CSV:
-        path = os.path.join(EM.MODEL_DIR, f"{site}_{lv}_day1_hourly.csv")
-        d = {}
-        if os.path.exists(path):
-            import pandas as pd
-            df = pd.read_csv(path, usecols=["time", "u_top", "v_top"], parse_dates=["time"])
-            d = {t.to_pydatetime(): (u, v) for t, u, v in zip(df["time"], df["u_top"], df["v_top"])}
-        _CSV[(site, lv)] = d
-    return _CSV[(site, lv)]
-
-
 def mooring_at(MO, t):
     """{site: (lon, lat, u, v)} at hour t; u, v NaN where the mooring has no data."""
     out = {}
@@ -497,11 +441,8 @@ def open_arrows(ax, C, x, y, u, v, qscale, **kw):
     ax.add_collection(LineCollection(np.concatenate(segs), capstyle="round", joinstyle="round", **kw))
 
 
-def draw_moorings(ax, moor, moor_model, qscale, C):
+def draw_moorings(ax, moor, qscale, C):
     for s, (lon, lat, u, v) in moor.items():
-        mu, mv = moor_model.get(s, (np.nan, np.nan))
-        if np.isfinite(mu) and np.isfinite(mv):
-            open_arrows(ax, C, [lon], [lat], [mu], [mv], qscale, colors=MOOR_MODEL_COLOR, linewidths=MOOR_LW, zorder=9)
         if np.isfinite(u) and np.isfinite(v):
             open_arrows(ax, C, [lon], [lat], [u], [v], qscale, colors=MOOR_COLOR[s], linewidths=MOOR_LW,
                         alpha=MOOR_ALPHA, zorder=10)
@@ -509,32 +450,39 @@ def draw_moorings(ax, moor, moor_model, qscale, C):
         ax.plot(lon, lat, "o", mfc="none", mec=MOOR_COLOR[s], mew=1.2, ms=4, zorder=8)
 
 
-def prepare(lv, PAN, every=None):
+def default_every(lv, res):
+    """Fine-grid points between model arrows: ARROW_EVERY for 6 km, every HFR node for 1 and 2 km."""
+    return ARROW_EVERY[lv] if res == 6 else FINE * res // 6
+
+
+def prepare(lv, PAN, every=None, res=6):
     """Grid, ~100 m interpolation and the data of each panel in PAN (dicts from panels()): model arrows,
-    HFR, moorings and the stats. Returns (C, P): C the shared plotting context, P the panels."""
+    HFR `res` km, moorings and the stats. Returns (C, P): C the shared plotting context, P the panels."""
     G = load_grid(lv)
-    hlon, hlat = hfr_axes()
-    every = every or ARROW_EVERY[lv]
-    F = FineGrid(G, hlon, hlat, every, lv)
-    print(f"{lv}: fine grid {F.shape[1]} x {F.shape[0]} at {F.dx_m:.0f} x {F.dy_m:.0f} m; "
+    hlon, hlat = hfr_axes(res)
+    every = every or default_every(lv, res)
+    F = FineGrid(G, *hfr_axes(6), every, lv)       # anchored on the 6 km grid: the weights are shared
+    print(f"{lv}, HFR {res} km: fine grid {F.shape[1]} x {F.shape[0]} at {F.dx_m:.0f} x {F.dy_m:.0f} m; "
           f"arrows every {every} points ({every * F.dx_m / 1e3:.1f} km)")
+    node_in_arrow, node_ij = F.nodes(hlon, hlat, FINE * res // 6)
     lon_a, lat_a = np.meshgrid(F.lon, F.lat)
-    jn, in_ = np.meshgrid(*F.node_ij, indexing="ij")
+    jn, in_ = np.meshgrid(*node_ij, indexing="ij")
     in_hfr = (jn >= 0) & (jn < hlat.size) & (in_ >= 0) & (in_ < hlon.size)
     xlim = (G["lon_rho"].min(), G["lon_rho"].max())
     ylim = (G["lat_rho"].min(), G["lat_rho"].max())
-    C = dict(lv=lv, G=G, F=F, every=every, xlim=xlim, ylim=ylim, HLON=np.meshgrid(hlon, hlat)[0],
+    C = dict(lv=lv, res=res, G=G, F=F, every=every, xlim=xlim, ylim=ylim, HLON=np.meshgrid(hlon, hlat)[0],
              HLAT=np.meshgrid(hlon, hlat)[1], lon_a=lon_a[F.arrow], lat_a=lat_a[F.arrow],
              land=np.where(G["wet"], np.nan, 1.0), h_water=np.where(G["wet"], G["h"], np.nan),
              width_km=(xlim[1] - xlim[0]) * km_lon(np.mean(ylim)),
-             ref=max(every, ARROW_EVERY[lv] / 2))   # dense test spacings: arrows at least half the default long
+             ref=max(every, default_every(lv, res) / 2))   # dense test spacings: arrows at least half the default long
+    # lines thinner where the arrows are denser than the 6 km figure's
+    C["thin"] = min(1, 1.25 * C["ref"] / ARROW_EVERY[lv])
 
     MO = mooring_currents(lv, PAN)
-    MM = model_at_moorings(lv, PAN)
     P = []
     for p in PAN:
         t, f = p["t"], p["f"]
-        p.update(moor=mooring_at(MO, t), moor_model=MM.get((f, t), {}))
+        p.update(moor=mooring_at(MO, t))
         if f is None:
             print(f"  {p['tl']:%Y-%m-%d %H:%M %Z}: no {lv} history file")
             P.append(p)
@@ -542,12 +490,12 @@ def prepare(lv, PAN, every=None):
         if p["fc_day"] == 2:
             print(f"  {p['tl']:%Y-%m-%d %H:%M %Z}: day 2 of the {p['run']} run")
         mu, mv = model_panel(lv, G, F, f, p["rec"], t)
-        h = hfr_uv(t, hlon, hlat) if t <= now_utc() else None
+        h = hfr_uv(t, hlon, hlat, res) if t <= now_utc() else None
         p.update(mu=mu, mv=mv, h=h)
         if h is not None:   # stats at HFR cell centres inside the model domain
             hu, hv = np.full(in_hfr.shape, np.nan), np.full(in_hfr.shape, np.nan)
             hu[in_hfr], hv[in_hfr] = h[0][jn[in_hfr], in_[in_hfr]], h[1][jn[in_hfr], in_[in_hfr]]
-            nu, nv = mu[F.node_in_arrow], mv[F.node_in_arrow]
+            nu, nv = mu[node_in_arrow], mv[node_in_arrow]
             ok = np.isfinite(hu) & np.isfinite(nu)
             if ok.any():
                 p["stats"] = (int(ok.sum()), np.hypot(nu, nv)[ok].mean(), np.hypot(hu, hv)[ok].mean(),
@@ -572,19 +520,20 @@ def draw_panel(ax, p, C, qscale, fontsize=11):
     ax.set_ylim(*ylim)
     ax.set_aspect(1 / np.cos(np.radians(np.mean(ylim))))
     title = f"{p['tl']:%a %d %b %H:%M %Z}" + (f"  (day 2 of {p['run']} run)" if p["fc_day"] == 2 else "")
-    draw_moorings(ax, p["moor"], p["moor_model"], qscale, C)
+    draw_moorings(ax, p["moor"], qscale, C)
     if p["run"] is None:
         ax.text(0.5, 0.5, f"no {lv} run", transform=ax.transAxes, ha="center", color="0.4")
         ax.set_title(title, fontsize=fontsize)
         return
     g = np.isfinite(p["mu"])
     open_arrows(ax, C, C["lon_a"][g], C["lat_a"][g], p["mu"][g], p["mv"][g], qscale, colors=MODEL_COLOR[lv],
-                linewidths=MODEL_LW * min(1, 1.25 * C["ref"] / ARROW_EVERY[lv]), zorder=5)   # thinner for denser test spacings
+                linewidths=MODEL_LW * C["thin"], zorder=5)
     if p.get("h") is not None:
         hu, hv = p["h"]
         HLON, HLAT = C["HLON"], C["HLAT"]
         gh = np.isfinite(hu) & (HLON >= xlim[0]) & (HLON <= xlim[1]) & (HLAT >= ylim[0]) & (HLAT <= ylim[1])
-        open_arrows(ax, C, HLON[gh], HLAT[gh], hu[gh], hv[gh], qscale, colors=HFR_COLOR, linewidths=HFR_LW[lv], zorder=6)
+        open_arrows(ax, C, HLON[gh], HLAT[gh], hu[gh], hv[gh], qscale, colors=HFR_COLOR,
+                    linewidths=HFR_LW[lv] * C["thin"], zorder=6)
     src = "no HFR yet" if p["t"] > now_utc() else "no HFR" if p.get("h") is None else ""
     if "stats" in p:
         n, sm, sh, rms = p["stats"]
@@ -594,62 +543,61 @@ def draw_panel(ax, p, C, qscale, fontsize=11):
     ax.set_title(title, fontsize=fontsize)
 
 
-def speed_key(ax, qscale, C):
+def speed_key(ax, qscale, C, fontsize=10.5):
     """Reference arrow in the top-right corner, ending 5 % in from the right edge."""
     (x0, x1), (y0, y1) = C["xlim"], C["ylim"]
     start = 0.95 - QKEY / qscale                     # arrow length as a fraction of the axes width
     open_arrows(ax, C, [x0 + start * (x1 - x0)], [y0 + 0.95 * (y1 - y0)], [QKEY], [0], qscale, colors="k",
                 linewidths=1.2, zorder=8)
-    ax.text(0.95, 0.91, f"{QKEY:g} m/s", transform=ax.transAxes, ha="right", va="top", fontsize=10.5, zorder=8)
+    ax.text(0.95, 0.91, f"{QKEY:g} m/s", transform=ax.transAxes, ha="right", va="top", fontsize=fontsize, zorder=8)
 
 
 def legend_handles(C):
     lv, every, F = C["lv"], C["every"], C["F"]
     handles = [plt.Line2D([], [], color=MODEL_COLOR[lv], lw=MODEL_LW + 0.4,
                           label=f"PFM {lv} top {SURFACE_M:g} m mean, interpolated to ~100 m, every "
-                                + (f"{every * F.dx_m / 1e3:.0f} km" if every * F.dx_m >= 1e3 else f"{every * F.dx_m:.0f} m")),
-               plt.Line2D([], [], color=HFR_COLOR, lw=HFR_LW[lv] + 0.4, label="HF radar 6 km"),
-               plt.Line2D([], [], color=MOOR_MODEL_COLOR, lw=MOOR_LW, label="PFM at each mooring, ADCP top layer")]
+                                + (f"{every * F.dx_m / 1e3:.0f} km" if every * F.dx_m >= 900 else f"{every * F.dx_m:.0f} m")),
+               plt.Line2D([], [], color=HFR_COLOR, lw=HFR_LW[lv] * C["thin"] + 0.4, label=f"HF radar {C['res']} km")]
     handles += [plt.Line2D([], [], color=MOOR_COLOR[s], lw=MOOR_LW, alpha=MOOR_ALPHA, marker="o", mfc="none",
                            label=f"{MOOR_NAME[s]} ADCP top layer (observed)") for s in MOORINGS[lv]]
     return handles
 
 
-def plot_level(lv, end_day, every=None, out_dir=OUT_DIR, name=None):
+def plot_level(lv, end_day, every=None, out_dir=OUT_DIR, name=None, res=6):
     """One figure, last panel end_day 00:00 local, into out_dir/<name>.png
-    (default name Model_vs_HFR6km_<LV>_<end_day>, plus _arrows<N>m for a test spacing)."""
-    C, P = prepare(lv, panels(lv, end_day), every)
+    (default name Model_vs_HFR<res>km_<LV>_<end_day>, plus _arrows<N>m for a test spacing)."""
+    C, P = prepare(lv, panels(lv, end_day), every, res)
     every, F, xlim, ylim = C["every"], C["F"], C["xlim"], C["ylim"]
     # one arrow scale per figure: the 95th percentile speed draws ARROW_LEN arrow spacings long
     sp = np.concatenate([np.hypot(p["mu"], p["mv"]).ravel() for p in P if p["run"]] +
                         [np.hypot(*p["h"]).ravel() for p in P if p.get("h") is not None] +
-                        [np.array([np.hypot(u, v) for _, _, u, v in p["moor"].values()]) for p in P] +
-                        [np.array([np.hypot(u, v) for u, v in p["moor_model"].values()] or [np.nan]) for p in P])
+                        [np.array([np.hypot(u, v) for _, _, u, v in p["moor"].values()]) for p in P])
     qscale = qscale_for(C, np.nanpercentile(sp, 95))
 
     aspect = (ylim[1] - ylim[0]) * KM_LAT / C["width_km"]
-    pw = 4.6
-    fig, axes = plt.subplots(3, 4, figsize=(4 * pw, 3 * pw * aspect + 1.6), sharex=True, sharey=True)
+    pw = PANEL_IN.get((lv, res), 4.6)
+    fs = pw / 4.6                                   # text grows with the panels
+    fig, axes = plt.subplots(3, 4, figsize=(4 * pw, 3 * pw * aspect + 1.6 * fs), sharex=True, sharey=True)
     for ax, p in zip(axes.ravel(), P):
-        draw_panel(ax, p, C, qscale)
-    speed_key(axes[0, 0], qscale, C)
+        draw_panel(ax, p, C, qscale, fontsize=11 * fs)
+    speed_key(axes[0, 0], qscale, C, fontsize=10.5 * fs)
     for r in range(3):
-        axes[r, 0].set_ylabel("latitude", fontsize=12)
+        axes[r, 0].set_ylabel("latitude", fontsize=12 * fs)
     for c in range(4):
-        axes[-1, c].set_xlabel("longitude", fontsize=12)
+        axes[-1, c].set_xlabel("longitude", fontsize=12 * fs)
     for ax in axes.ravel():
         ax.xaxis.set_major_locator(plt.MaxNLocator(4))
-        ax.tick_params(labelsize=11)
-    fig.legend(handles=legend_handles(C), loc="lower center", ncol=3, frameon=False, fontsize=12,
-               title="Circle with no arrow = no mooring data that hour", title_fontsize=11)
-    fig.suptitle(f"Surface currents: PFM {lv} vs HF radar 6 km and moorings, every 6 h, local time, "
+        ax.tick_params(labelsize=11 * fs)
+    fig.legend(handles=legend_handles(C), loc="lower center", ncol=3, frameon=False, fontsize=12 * fs,
+               title="Circle with no arrow = no mooring data that hour", title_fontsize=11 * fs)
+    fig.suptitle(f"Surface currents: PFM {lv} vs HF radar {res} km and moorings, every 6 h, local time, "
                  f"{P[0]['tl']:%d %b %H:%M} to {P[-1]['tl']:%d %b %H:%M %Z}\nModel: day 1 of the run for each "
                  f"panel's UTC date (day 2 of the previous run if marked).  Titles: HFR cells with both, "
-                 f"mean speed model/HFR, RMS vector difference", fontsize=14)
-    fig.tight_layout(rect=(0, 0.06, 1, 0.95), h_pad=2.5)
+                 f"mean speed model/HFR, RMS vector difference", fontsize=14 * fs)
+    fig.tight_layout(rect=(0, 0.06, 1, 0.95), h_pad=2.5 * fs)
     os.makedirs(out_dir, exist_ok=True)
-    tag = "" if every == ARROW_EVERY[lv] else f"_arrows{every * F.dx_m:.0f}m"     # test spacings
-    out = os.path.join(out_dir, (name or f"Model_vs_HFR6km_{lv}_{end_day:%Y%m%d}") + f"{tag}.png")
+    tag = "" if every == default_every(lv, res) else f"_arrows{every * F.dx_m:.0f}m"     # test spacings
+    out = os.path.join(out_dir, (name or f"Model_vs_HFR{res}km_{lv}_{end_day:%Y%m%d}") + f"{tag}.png")
     fig.savefig(out, dpi=200 if tag else 130)
     plt.close(fig)
     print("wrote", out)
@@ -667,8 +615,10 @@ def main():
     p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     p.add_argument("--date", help="local date of the last row, YYYY-MM-DD (default: today, local)")
     p.add_argument("--level", choices=LEVELS, nargs="+", default=list(LEVELS))
-    p.add_argument("--arrow-km", type=float, help="model arrow spacing, km (test; default ~3 km LV3, ~2 km LV4); "
-                   "rounded to a divisor of the 6 km HFR spacing")
+    p.add_argument("--res", type=int, choices=RES, nargs="+", default=list(RES),
+                   help="HFR products, km (default all: 6, 2 and 1)")
+    p.add_argument("--arrow-km", type=float, help="model arrow spacing, km (test; default ~3 km LV3, ~2 km LV4 "
+                   "for 6 km, the HFR spacing for 1 and 2 km); rounded to a divisor of the HFR spacing")
     p.add_argument("--update-moorings", action="store_true", help="download new mooring obs from SIO first")
     a = p.parse_args()
     if a.update_moorings:
@@ -676,17 +626,19 @@ def main():
     day = (DT.datetime.strptime(a.date, "%Y-%m-%d").date() if a.date
            else DT.datetime.now(LOCAL_TZ).date())
     end_day = day + DT.timedelta(days=1)              # the last panel is the next day's 00:00
-    every = None
-    if a.arrow_km:   # nearest number of fine points that divides FINE, so HFR centres stay on arrow points
-        every = min((n for n in range(1, FINE + 1) if FINE % n == 0), key=lambda n: abs(n * 6 / FINE - a.arrow_km))
-    for lv in a.level:
-        plot_level(lv, end_day, every, name=f"Model_vs_HFR6km_{lv}_{day:%Y%m%d}")   # named by the last row
-        if not a.date and not a.arrow_km:   # daily run: keep only the newest figure for the website
-            keep = f"Model_vs_HFR6km_{lv}_{day:%Y%m%d}.png"
-            for old in glob.glob(os.path.join(OUT_DIR, f"Model_vs_HFR6km_{lv}_{'[0-9]' * 8}.png")):
-                if os.path.basename(old) != keep:
-                    os.remove(old)
-                    print("removed", os.path.basename(old))
+    for res in a.res:
+        every = None
+        if a.arrow_km:   # nearest number of fine points that divides the HFR spacing: centres stay on arrow points
+            step = FINE * res // 6
+            every = min((n for n in range(1, step + 1) if step % n == 0), key=lambda n: abs(n * 6 / FINE - a.arrow_km))
+        for lv in (lv for lv in a.level if lv in RES_LEVELS[res]):
+            name = f"Model_vs_HFR{res}km_{lv}"
+            plot_level(lv, end_day, every, name=f"{name}_{day:%Y%m%d}", res=res)   # named by the last row
+            if not a.date and not a.arrow_km:   # daily run: keep only the newest figure for the website
+                for old in glob.glob(os.path.join(OUT_DIR, f"{name}_{'[0-9]' * 8}.png")):
+                    if os.path.basename(old) != f"{name}_{day:%Y%m%d}.png":
+                        os.remove(old)
+                        print("removed", os.path.basename(old))
 
 
 if __name__ == "__main__":
