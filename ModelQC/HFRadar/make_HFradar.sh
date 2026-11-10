@@ -42,12 +42,13 @@ umask 002
 ########
 
 dateZ=$(date '+%Y%m%d')
-fstdout=/home/ffeddersen/PFM_NEW/Hydro_QC/Water_Level/stdout.log
-fstdout=/home/ffeddersen/PFM_NEW/Hydro_QC/Water_Level/stderr.log
+fstdout=/home/ffeddersen/PFM_NEW/ModelQC/HFRadar/stdout.log
+fstdout=/home/ffeddersen/PFM_NEW/ModelQC/stderr.log
 
-python3 -u -W "ignore"  plot_sdbay_3weeks.py >> ${fstdout}  2> >(tee -a ${fstderr} >&2) 
+python3 -u -W "ignore"  plot_model_vs_hfr.py  >> ${fstdout}  2> >(tee -a ${fstderr} >&2) 
 
 
 #transfer image
-mv  plots_web/SDBay_ssh_*_3weeks.png     /projects/www-users/falk/PFM_Forecast/Plots/SDBay_ssh_3weeks.png
+mv  plots_web/Model_vs_HFR6km_LV3_*.png     /projects/www-users/falk/PFM_Forecast/Plots/Model_vs_HFR6km_LV3.png
+mv  plots_web/Model_vs_HFR6km_LV4_*.png     /projects/www-users/falk/PFM_Forecast/Plots/Model_vs_HFR6km_LV4.png
 

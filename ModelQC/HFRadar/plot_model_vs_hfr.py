@@ -61,7 +61,7 @@ from scipy.spatial import Delaunay  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 MOORINGS_COMMON = os.path.join(HERE, "..", "Moorings", "common")
-OUT_DIR = os.path.join(HERE, "plots_web")   # website figures, as in the other Hydro_QC folders
+OUT_DIR = os.path.join(HERE, "plots_web")   # website figures, as in the other ModelQC folders
 # shared cache on /dataSIO (like the Moorings caches); HYDRO_QC_DATA overrides the root
 CACHE_DIR = os.path.join(os.environ.get("HYDRO_QC_DATA", "/dataSIO/PFM_Simulations/cache"), "HFRadar")
 

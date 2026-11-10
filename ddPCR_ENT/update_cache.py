@@ -158,7 +158,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument('--only', choices=['ddpcr', 'dye'], help='update only this part')
     args = p.parse_args()
-    os.umask(0o002)  # shared with the group, like the other Hydro_QC caches
+    os.umask(0o002)  # shared with the group, like the other ModelQC caches
     os.makedirs(CACHE, exist_ok=True)
     for part, fn in (('ddpcr', update_ddpcr), ('dye', update_dye)):
         if args.only in (None, part):

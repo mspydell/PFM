@@ -42,10 +42,10 @@ umask 002
 ########
 
 dateZ=$(date '+%Y%m%d')
-fstdout=/home/ffeddersen/PFM_NEW/Hydro_QC/Moorings/stdout.log
-fstdout=/home/ffeddersen/PFM_NEW/Hydro_QC/Moorings/stderr.log
+fstdout=/home/ffeddersen/PFM_NEW/ModelQC/Moorings/stdout.log
+fstdout=/home/ffeddersen/PFM_NEW/ModelQC/Moorings/stderr.log
 
-cd /home/ffeddersen/PFM_NEW/Hydro_QC/Moorings/SBOO
+cd /home/ffeddersen/PFM_NEW/ModelQC/Moorings/SBOO
 echo "SBOO mooring"
 python3 -u -W "ignore"  plot_sboo_3weeks.py >> ${fstdout}  2> >(tee -a ${fstderr} >&2) 
 
@@ -53,7 +53,7 @@ mv  plots_web/SBOO_currents_*_3weeks.png    /projects/www-users/falk/PFM_Forecas
 mv  plots_web/SBOO_TS_contours_*_3weeks.png    /projects/www-users/falk/PFM_Forecast/Plots/SBOO_TS_contours_3weeks.png
 mv  plots_web/SBOO_density_N2_contours_*_3weeks.png    /projects/www-users/falk/PFM_Forecast/Plots/SBOO_density_N2_contours_3weeks.png
 
-cd /home/ffeddersen/PFM_NEW/Hydro_QC/Moorings/PLOO
+cd /home/ffeddersen/PFM_NEW/ModelQC/Moorings/PLOO
 echo "PLOO mooring"
 python3 -u -W "ignore"  plot_ploo_3weeks.py >> ${fstdout}  2> >(tee -a ${fstderr} >&2) 
 
@@ -61,7 +61,7 @@ mv  plots_web/PLOO_currents_*_3weeks.png    /projects/www-users/falk/PFM_Forecas
 mv  plots_web/PLOO_TS_contours_*_3weeks.png    /projects/www-users/falk/PFM_Forecast/Plots/PLOO_TS_contours_3weeks.png
 mv  plots_web/PLOO_density_N2_contours_*_3weeks.png    /projects/www-users/falk/PFM_Forecast/Plots/PLOO_density_N2_contours_3weeks.png
 
-cd /home/ffeddersen/PFM_NEW/Hydro_QC/Moorings/IB
+cd /home/ffeddersen/PFM_NEW/ModelQC/Moorings/IB
 echo "IB mooring"
 python3 -u -W "ignore" plot_ib_3weeks.py >> ${fstdout}  2> >(tee -a ${fstderr} >&2) 
 
@@ -69,7 +69,7 @@ mv  plots_web/IB-C_currents_*_3weeks.png    /projects/www-users/falk/PFM_Forecas
 mv  plots_web/IB_temperature_salinity_*_3weeks.png    /projects/www-users/falk/PFM_Forecast/Plots/IB_temperature_salinity_3weeks.png
 mv  plots_web/IB_density_*_3weeks.png    /projects/www-users/falk/PFM_Forecast/Plots/IB_density_3weeks.png
 
-cd /home/ffeddersen/PFM_NEW/Hydro_QC/Moorings/DelMar
+cd /home/ffeddersen/PFM_NEW/ModelQC/Moorings/DelMar
 echo "Del Mar mooring"
 python3 -u -W "ignore"  plot_delmar_3weeks.py >> ${fstdout}  2> >(tee -a ${fstderr} >&2) 
 

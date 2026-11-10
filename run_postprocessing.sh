@@ -55,7 +55,7 @@ echo "Now copying to dataSIO and website"
 ./copy_forecast_to_dataSIO.sh
 
 # next make the HFR plots
-cd /home/ffeddersen/PFM_NEW/Hydro_QC/HFRadar
+cd /home/ffeddersen/PFM_NEW/ModelQC/HFRadar
 echo "Now making the HF Radar plots"
 ./make_HFradar.sh
 
@@ -70,18 +70,18 @@ echo "Now making the ENT-dye  plots"
 ./make_ENT_Dye_Plots.sh
 
 # now make PTB flowrate and mv qc fig
-cd /home/ffeddersen/PFM_NEW/Hydro_QC/FlowRate
+cd /home/ffeddersen/PFM_NEW/ModelQC/FlowRate
 ./make_Flowrate_Plot.sh
 
 # make Dye Volume flowrate and mv qc fig
-cd /home/ffeddersen/PFM_NEW/Hydro_QC/Dye_Volume
+cd /home/ffeddersen/PFM_NEW/ModelQC/Dye_Volume
 ./make_dye_volume.sh
 
 # make SD BAy Chart
-cd /home/ffeddersen/PFM_NEW/Hydro_QC/Water_Level
+cd /home/ffeddersen/PFM_NEW/ModelQC/Water_Level
 ./make_water_level.sh
 
 # make Mooring QC
-cd /home/ffeddersen/PFM_NEW/Hydro_QC/Moorings
+cd /home/ffeddersen/PFM_NEW/ModelQC/Moorings
 ./make_moorings_qc.sh
 

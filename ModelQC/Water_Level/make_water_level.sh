@@ -42,12 +42,12 @@ umask 002
 ########
 
 dateZ=$(date '+%Y%m%d')
-fstdout=/home/ffeddersen/PFM_NEW/Hydro_QC/Dye_Volume/stdout.log
-fstdout=/home/ffeddersen/PFM_NEW/Hydro_QC/Dye_Volume/stderr.log
+fstdout=/home/ffeddersen/PFM_NEW/ModelQC/Water_Level/stdout.log
+fstdout=/home/ffeddersen/PFM_NEW/ModelQC/Water_Level/stderr.log
 
-python3 -u -W "ignore"  plot_dye_volume.py >> ${fstdout}  2> >(tee -a ${fstderr} >&2) 
-#rm -f /projects/www-users/falk/PFM_Forecast
+python3 -u -W "ignore"  plot_sdbay_3weeks.py >> ${fstdout}  2> >(tee -a ${fstderr} >&2) 
+
 
 #transfer image
-mv  plots_web/Dye_volume_*_3weeks.png     /projects/www-users/falk/PFM_Forecast/Plots/Dye_volume_3weeks.png
+mv  plots_web/SDBay_ssh_*_3weeks.png     /projects/www-users/falk/PFM_Forecast/Plots/SDBay_ssh_3weeks.png
 
