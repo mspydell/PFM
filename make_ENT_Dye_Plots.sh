@@ -57,3 +57,4 @@ cp plots/dye_ddpcr_*_2weeks.png      /projects/www-users/falk/PFM_Forecast/OLD_P
 
 python3 -u -W "ignore" plot_dye_ddpcr_range.py --end today --duration 40 --out plots/dye_ddpcr_40day.png
 cp plots/dye_ddpcr_40day.png  /projects/www-users/falk/PFM_Forecast/Plots 
+cp plots/dye_ddpcr_40day_scatter.png  /projects/www-users/falk/PFM_Forecast/Plots

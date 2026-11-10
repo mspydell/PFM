@@ -6,7 +6,9 @@ For each valid datetime (UTC):
   day5 = value from the run whose forecast hours 97-120 cover that time
 If two runs cover the same time (e.g. an 06Z run followed by a 00Z run), the newer run wins.
 
-Values already extracted from each nc file are cached, so daily runs only open new files.
+Every web file is read each time (about 10 s for all of them). The output goes to the shared cache folder
+$HYDRO_QC_DATA/Dye_ddPCRENT (default /dataSIO/PFM_Simulations/cache/Dye_ddPCRENT); only the newest
+output file is kept there.
 """
 import glob
 import os
@@ -17,10 +19,9 @@ import numpy as np
 import pandas as pd
 
 NC_DIR = "/dataSIO/PFM_Simulations/Archive/web"
-OUT_DIR = os.path.dirname(os.path.abspath(__file__))
+OUT_DIR = os.path.join(os.environ.get("HYDRO_QC_DATA", "/dataSIO/PFM_Simulations/cache"), "Dye_ddPCRENT")
 # output is named after the newest run it includes, e.g. sites_dye_tot_day1_day5_2026092900.csv
 OUT_PREFIX = os.path.join(OUT_DIR, "sites_dye_tot_day1_day5")
-CACHE = os.path.join(OUT_DIR, "cache_runs.csv")
 
 VAR = "sites_dye_tot"
 EPOCH = pd.Timestamp("1999-01-01")
@@ -59,27 +60,16 @@ def extract(path):
 
 
 def main():
-    if os.path.exists(CACHE):
-        cache = pd.read_csv(CACHE)
-        # midnight runs may have been saved as date-only strings; parse both forms
-        for col in ("run", "valid"):
-            cache[col] = pd.to_datetime(cache[col], format="mixed")
-    else:
-        cache = pd.DataFrame()
-    done = set(cache["file"]) if len(cache) else set()
-
-    new = []
+    os.umask(0o002)  # the cache is shared with the group
+    os.makedirs(OUT_DIR, exist_ok=True)
+    runs = []
     for f in sorted(glob.glob(os.path.join(NC_DIR, "web_data_*.nc"))):
-        if os.path.basename(f) in done:
-            continue
         try:
-            new.append(extract(f))
-            print("added", os.path.basename(f))
+            runs.append(extract(f))
         except Exception as e:  # e.g. file still being written
             print("skip", os.path.basename(f), e, file=sys.stderr)
-    if new:
-        cache = pd.concat([cache] + new, ignore_index=True)
-        cache.to_csv(CACHE, index=False, date_format="%Y-%m-%d %H:%M:%S")
+    cache = pd.concat(runs, ignore_index=True)
+    print(f"read {len(runs)} web files")
 
     sites = list(SITES)
     cache = cache.sort_values("run")
@@ -99,6 +89,9 @@ def main():
     res.to_csv(tmp, date_format="%Y-%m-%d %H:%M", float_format="%.6e")
     os.replace(tmp, out_csv)
     print("wrote", out_csv, res.shape)
+    for old in glob.glob(f"{OUT_PREFIX}_??????????.csv"):  # keep only the newest
+        if old != out_csv:
+            os.remove(old)
 
 
 if __name__ == "__main__":
