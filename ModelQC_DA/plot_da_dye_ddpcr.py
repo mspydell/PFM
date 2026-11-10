@@ -146,7 +146,7 @@ def plot_scatter(obs):
         ax.axvline(ENT_THR, color='red', lw=0.8, ls=':')
         ax.set_xscale('log')
         ax.set_yscale('log')
-        ax.set_xlim(10, 1e6)
+        ax.set_xlim(ENT_LO, ENT_HI)   # same ddPCR range as the time-series right axis (tied to the dye axis)
         ax.set_ylim(DYE_LO, DYE_HI)
         ax.grid(alpha=0.3)
         ax.set_title('All three stations' if st == 'all' else STATIONS[st], fontsize=11)
