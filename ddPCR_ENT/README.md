@@ -39,6 +39,7 @@ python update_cache.py                            # update ddPCR and shoreline d
 - Dates are Pacific days, and both the start and end day are included.
 - A normal `plot_dye_ddpcr.py` run deletes the older plot of the same period, so `plots/` holds only the newest one.
 - The range script uses the cached data unless you add `--update`.
+- With `--end today` the range script also shows the 5 forecast days after today (as the daily plot), e.g. the website's 40-day plot.
 
 ## Plot
 

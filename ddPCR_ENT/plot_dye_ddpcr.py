@@ -239,7 +239,10 @@ def plot_window(t0, t1, out_path, title, locator=None, tick_fmt=None):
     h2, l2 = axr.get_legend_handles_labels()
     fig.legend(h1 + h2, l1 + l2, loc="upper center", bbox_to_anchor=(0.5, 0.965), fontsize=8, ncol=4, frameon=False)
 
-    axes[-1].set_xlim(t0, t1)
+    # end the axis at the midnight after the last dye value (the forecast can stop before t1)
+    has = dye.dropna(how="all").index
+    xmax = min(t1, has.max().tz_convert(TZ).ceil("D")) if len(has) else t1
+    axes[-1].set_xlim(t0, max(xmax, min(t1, now)))
     axes[-1].xaxis.set_major_locator(locator)
     axes[-1].xaxis.set_major_formatter(mdates.DateFormatter(tick_fmt, tz=TZ))
     axes[-1].set_xlabel("Date (Pacific time, PDT/PST)")

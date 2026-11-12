@@ -6,6 +6,7 @@ Edit START/END below and run, or override on the command line:
   python plot_dye_ddpcr_range.py --start 2026-06-01 --end 2026-08-31
   python plot_dye_ddpcr_range.py --end today --duration 14     # the last 14 days, today included
 --end takes a date or 'today'; --duration N plots the N days ending on --end (not with --start).
+With --end today the plot also shows the next 5 days of forecast, as the daily plot does.
 Output: plots/dye_ddpcr_<start>_<end>.png (or --out PATH), and the dye vs ddPCR scatter of the same window
 next to it, <name>_scatter.png.
 Dye and ddPCR come from the shared cache (see plot_dye_ddpcr.py). Run make_forecast_csv.py first for
@@ -16,7 +17,7 @@ import os
 
 import pandas as pd
 
-from plot_dye_ddpcr import PLOT_DIR, TZ, plot_scatter, plot_window
+from plot_dye_ddpcr import FUTURE_DAYS, PLOT_DIR, TZ, plot_scatter, plot_window
 from update_cache import update_ddpcr
 
 # default window (Pacific dates, both inclusive); --start/--end override these
@@ -50,10 +51,14 @@ def main():
     if end < start:
         p.error("--end must be on or after --start")
     t1 = end + pd.Timedelta(days=1)  # include the whole end day
+    # --end today: also the forecast days, as in the daily plot (the scatter uses past samples only)
+    ahead = f", and the {FUTURE_DAYS}-day forecast" if args.end == "today" else ""
+    if ahead:
+        t1 += pd.Timedelta(days=FUTURE_DAYS)
 
     out_path = args.out or os.path.join(PLOT_DIR, f"dye_ddpcr_{start:%Y%m%d}_{end:%Y%m%d}.png")
     os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
-    title = f"PFM dye forecast vs ddPCR Enterococcus — {start:%Y-%m-%d} to {end:%Y-%m-%d}"
+    title = f"PFM dye forecast vs ddPCR Enterococcus — {start:%Y-%m-%d} to {end:%Y-%m-%d}{ahead}"
     plot_window(start, t1, out_path, title)
     plot_scatter(start, t1, os.path.splitext(out_path)[0] + "_scatter.png",
                  f"PFM dye forecast vs ddPCR Enterococcus, scatter — {start:%Y-%m-%d} to {end:%Y-%m-%d}")
