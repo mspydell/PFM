@@ -7,6 +7,8 @@ from datetime import datetime
 sys.path.append('../sdpm_py_util')
 import plotting_functions as pltfuns
 import init_funs_forecast as initfuns
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import ent_alpha
 #import grid_functions as grdfuns
 
 
@@ -34,6 +36,52 @@ def full_his_to_essential(his_fname,grd_fname,pkl_fnm):
 
     #print(np.shape(shore['Lat']))
 
+    # ---- Ent-calibrated dye: shoreline_Ent_dye = alpha(shoreline) * shoreline_dye_tot.
+    # alpha is the 30-day trailing geometric mean of Ent/dye_tot at the ddPCR stations
+    # (ent_alpha.py). Any failure falls back to the constant alpha and must never stop
+    # the web file being written.
+    sh_lat = np.squeeze(np.asarray(shore['Lat'], float))
+    sh_lon = np.squeeze(np.asarray(shore['Lon'], float))
+    nshore = len(sh_lat)
+    alpha_status = 'constant'
+    alpha_note = ''
+    alpha_shore = np.full(nshore, ent_alpha.ALPHA0)
+    alpha_info = None
+    try:
+        cdir = ent_alpha.cache_dir(PFM)
+        os.makedirs(cdir, exist_ok=True)
+        ent_alpha.seed_dye_cache(cdir)
+        try:
+            ent_alpha.update_dye_cache(cdir, times, shore['Dye_tot'], sh_lat, sh_lon)
+        except Exception as e:
+            print('ent_alpha: dye cache not updated:', e)
+        alpha_shore, alpha_info = ent_alpha.compute(times[0], sh_lat, sh_lon, cdir)
+        alpha_status = alpha_info['status']
+    except Exception as e:
+        alpha_note = 'error: ' + str(e)[:200]
+        print('ent_alpha failed, using constant alpha:', e)
+
+    ent_shore = alpha_shore[None, :] * np.asarray(shore['Dye_tot'], float)
+    l10_ent_shore = np.log10(ent_shore)
+    risk_alpha = ent_alpha.risk_from_ent(ent_shore)
+    # the website sites are shoreline points (get_history_essential); find their indices
+    ipts = np.array([int(np.argmin((sh_lat - la) ** 2 + (sh_lon - lo) ** 2))
+                     for la, lo in zip(np.ravel(sites['Lat']), np.ravel(sites['Lon']))])
+    ent_sites = ent_shore[:, ipts]
+
+    st_names = list(ent_alpha.STATIONS)
+    if alpha_info is not None:
+        st_alpha = np.array([alpha_info['alpha'][s][0] for s in st_names], float)
+        st_n = np.array([alpha_info['alpha'][s][1] for s in st_names], int)
+        st_row = np.array([alpha_info['rows'][s] for s in st_names], int)
+    else:
+        st_alpha = np.full(len(st_names), np.nan)
+        st_n = np.zeros(len(st_names), int)
+        st_row = np.array([ent_alpha.station_rows(sh_lat, sh_lon)[s] for s in st_names], int)
+    st_lat = np.array([ent_alpha.STATIONS[s][0] for s in st_names])
+    st_lon = np.array([ent_alpha.STATIONS[s][1] for s in st_names])
+    th_e = ent_alpha.THRESH_ENT
+
     ds = xr.Dataset(
         data_vars = dict(
             shoreline_dye_tot = (["ntime","nshore"],shore['Dye_tot'],{'long_name':'total dye concentration at shoreline, dye_01+dye_02','units':'waste water concetration','time':'time','coordinates':'shoreline'}),
@@ -44,6 +92,19 @@ def full_his_to_essential(his_fname,grd_fname,pkl_fnm):
             shoreline_l10_dye_tot = (["ntime","nshore"],shore['l10_Dye_tot'],{'long_name':'log10 total dye concentration at shoreline, log10(dye_01+dye_02)','units':'waste water concetration','time':'time','coordinates':'shoreline'}),
             map_l10_dye_tot = (["ntime","nlat","nlon"],dye['l10_Dye_tot'],{'long_name':'log10 total dye concentration from history file, log10(dye_01+dye_02)','units':'waste water concetration','time':'time','coordinates':'lat,lon'}),
             sites_l10_dye_tot = (["ntime","nsites"],sites['l10_Dye_tot'],{'long_name':'log10 total dye concentration at specific sites, log10(dye_01+dye_02)','units':'none','time':'time','coordinates':'site locations'}),
+            shoreline_Ent_dye = (["ntime","nshore"],ent_shore,{'long_name':'Ent-calibrated dye at shoreline, shoreline_alpha * shoreline_dye_tot','units':'copies/100 mL','time':'time','coordinates':'shoreline'}),
+            shoreline_l10_Ent_dye = (["ntime","nshore"],l10_ent_shore,{'long_name':'log10 Ent-calibrated dye at shoreline, log10(shoreline_Ent_dye)','units':'log10 copies/100 mL','time':'time','coordinates':'shoreline'}),
+            shoreline_risk_alpha = (["ntime","nshore"],risk_alpha,{'long_name':'risk at shoreline from shoreline_Ent_dye, 0=low,1=medium,2=high, thresholds thresh_holds_Ent','units':'none','time':'time','coordinates':'shoreline'}),
+            sites_Ent_dye = (["ntime","nsites"],ent_sites,{'long_name':'Ent-calibrated dye at specific sites, from shoreline_Ent_dye','units':'copies/100 mL','time':'time','coordinates':'site locations'}),
+            sites_l10_Ent_dye = (["ntime","nsites"],np.log10(ent_sites),{'long_name':'log10 Ent-calibrated dye at specific sites, log10(sites_Ent_dye)','units':'log10 copies/100 mL','time':'time','coordinates':'site locations'}),
+            sites_risk_alpha = (["ntime","nsites"],risk_alpha[:, ipts],{'long_name':'risk at specific sites from sites_Ent_dye, 0=low,1=medium,2=high, thresholds thresh_holds_Ent','units':'none','time':'time','coordinates':'site locations'}),
+            shoreline_alpha = (["nshore"],alpha_shore,{'long_name':'Ent/dye calibration alpha along the shoreline: 30-day trailing geometric mean of Ent/dye_tot at the ddPCR stations, log10-linear between stations, constant beyond the end stations','units':'copies/100 mL per unit dye concentration','coordinates':'shoreline'}),
+            alpha_stations = (["nalpha"],st_alpha,{'long_name':'alpha fitted at each ddPCR station (NaN: too few pairs, not used)','units':'copies/100 mL per unit dye concentration'}),
+            alpha_stations_npairs = (["nalpha"],st_n,{'long_name':'number of Ent/dye pairs in the 30-day window at each ddPCR station','units':'none'}),
+            alpha_stations_shore_index = (["nalpha"],st_row,{'long_name':'shoreline index (nshore, 0-based) of each ddPCR station','units':'none'}),
+            alpha_stations_lat = (["nalpha"],st_lat,{'long_name':'ddPCR station latitude','units':'degrees'}),
+            alpha_stations_lon = (["nalpha"],st_lon,{'long_name':'ddPCR station longitude','units':'degrees'}),
+            thresh_holds_Ent = (["nthresh"],th_e,{'long_name':'the 2 threshold values that separate low, medium, and high risk for the Ent-calibrated dye','units':'copies/100 mL'}),
         ),
         coords=dict(
             map_lat = (["nlat","nlon"],dye['Lat'],{'long_name':'latitudes on map','units':'degrees'}),
@@ -59,6 +120,10 @@ def full_his_to_essential(his_fname,grd_fname,pkl_fnm):
             'time info':'time is in days since Jan 1 1999 UTC.',
             'risk info':'0 is low risk, log10 dye_tot < ' + str(shore['Thresh_holds'][0]) + ', 1 is medium, ' + str(shore['Thresh_holds'][0]) + '<log10 dye_tot <'+ str(shore['Thresh_holds'][1]) + ', high, log10 dye_tot >' + str(shore['Thresh_holds'][1]),
             'site info':'the site locations are ' + site_locations,
+            'risk_alpha info':'shoreline_risk_alpha and sites_risk_alpha: 0 is low risk, Ent_dye < ' + str(th_e[0]) + ', 1 is medium, ' + str(th_e[0]) + ' < Ent_dye < ' + str(th_e[1]) + ', 2 is high, Ent_dye >= ' + str(th_e[1]) + ' copies/100 mL',
+            'alpha_stations': ', '.join(st_names),
+            'alpha_status': alpha_status + ((' ' + alpha_note) if alpha_note else ''),
+            'alpha_info': 'alpha_status ok: fitted this run; last_good: no station had ' + str(ent_alpha.MIN_PAIRS) + ' pairs, alpha from the last good run within 7 days; constant: alpha = ' + '%.4g' % ent_alpha.ALPHA0 + ' everywhere (1413 copies/100 mL <-> dye_tot 1e-5). Window ' + str(ent_alpha.WINDOW_DAYS) + ' days before the run, Ent paired with mean dye within +-' + str(ent_alpha.PAIR_HOURS) + ' h.',
             },
         )
 
