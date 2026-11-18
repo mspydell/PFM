@@ -26,7 +26,7 @@ python make_county_csv.py --all                   # 2025-01-01 to today; replace
 
 The output goes into this folder as `<beach>_dye_forecast_<first>_<last>.csv`. It is ignored by git.
 
-Cron (Monday 06:00):
+The weekly run happens from cron on swell every Monday at 06:00:
 
 ```
 0 6 * * 1 /path/to/PFM/DataForSDCounty/run_weekly.sh >> /path/to/PFM/DataForSDCounty/run_weekly.log 2>&1
