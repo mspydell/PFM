@@ -6,7 +6,7 @@ Weekly CSVs for the San Diego County. Each one has the forecast total dye plus t
 
 | File | What it does |
 |---|---|
-| `make_county_csv.py` | Writes one CSV per beach. Each row is one forecast date and prediction day (Day 1–5). Columns `dye_0600`..`dye_0900` are in local Pacific time, followed by `ddPCR_ENT` and `ddPCR_time`. |
+| `make_county_csv.py` | Writes one CSV per beach. Each row is one forecast date and prediction day (Day 1–5). Columns `dye_0600`..`dye_0900` and `Ent_dye_0600`..`Ent_dye_0900` are in local Pacific time, followed by `ddPCR_ENT` and `ddPCR_time`. |
 | `run_weekly.sh` | Cron wrapper. It waits up to 90 min for today's 00Z web file, then writes the weekly files and the full history (`--all`). |
 | `extract_mat_dye.py` | One-off script that writes `mat_dye_hourly.csv` from the MATLAB shoreline-dye .mat file. It needs scipy. |
 | `mat_dye_hourly.csv` | Fills dye that is missing from the web files: before 2025-04-12, and Avenida Lunar before 2025-06-23. |
@@ -14,6 +14,7 @@ Weekly CSVs for the San Diego County. Each one has the forecast total dye plus t
 ## Data sources
 
 - **Dye:** `sites_dye_tot` in `/dataSIO/PFM_Simulations/Archive/web/web_data_YYYYMMDDHH.nc`. The 00Z run is used, else 06Z, else 12Z. This is the same source as the QC website.
+- **Ent_dye:** `sites_Ent_dye` in the same file. It is the dye multiplied by that run's Ent/dye calibration alpha (30-day fit to ddPCR), in copies/100 mL rounded to whole numbers. The web files have it from 2026-11-14 onward. It is blank for earlier forecasts.
 - **ddPCR:** the shared cache `/dataSIO/PFM_Simulations/cache/Dye_ddPCRENT`, which is refreshed through `../ddPCR_ENT/update_cache.py`.
 
 ## Usage

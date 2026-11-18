@@ -7,13 +7,17 @@ from mat_dye_hourly.csv (extract_mat_dye.py, the MATLAB Shoreline_Dye_5days outp
 09 local Pacific time (PDT/PST): Day N is the local date forecast_date + N - 1. Days with no run are
 skipped; runs that stop at hour 108 leave Day 5 blank.
 
+Ent_dye: sites_Ent_dye in the same file, the dye times the run's Ent/dye calibration alpha (copies/100 mL,
+rounded to whole numbers), at the same hours. The web files have it from 2026-11-14 on; blank before.
+
 ddPCR Enterococcus (copies/100 ml) and sample time (local) at each beach from the shared cache
 /dataSIO/PFM_Simulations/cache/Dye_ddPCRENT/ddpcr_ent_recent.csv (State BeachWatch history, the County
 portal's past ~2 months on top), refreshed first with ddPCR_ENT/update_cache.py. Put on
 the row whose date is the sample date (the County samples about once a day, 06:30-08:30); the first sample
 of the day. Blank where not sampled (yet).
 
-Output: one file per beach, one row per forecast / prediction day, columns dye_0600 .. dye_0900:
+Output: one file per beach, one row per forecast / prediction day, columns dye_0600 .. dye_0900,
+Ent_dye_0600 .. Ent_dye_0900, ddPCR_ENT, ddPCR_time:
   <beach>_dye_forecast_<first>_<last>.csv   the week
   <beach>_dye_forecast_20250101_<last>.csv  with --all: every forecast from 2025-01-01 to today (replaces
                                             the previous one)
@@ -38,6 +42,7 @@ WEB = '/dataSIO/PFM_Simulations/Archive/web/web_data_{:%Y%m%d}{}.nc'
 RUNS = ['00', '06', '12']
 MAT_CSV = os.path.join(HERE, 'mat_dye_hourly.csv')
 VAR = 'sites_dye_tot'
+ENT_VAR = 'sites_Ent_dye'   # Ent-calibrated dye (copies/100 mL), in the web files from 2026-11-14 on
 EPOCH = pd.Timestamp('1999-01-01')
 TZ = 'America/Los_Angeles'
 ALL_FIRST = pd.Timestamp('2025-01-01')
@@ -71,8 +76,9 @@ def load_ddpcr(start, end):
 
 
 def forecast(fdate, mat):
-    """{beach: (UTC hours, dye)} of the day's first run, from the MATLAB extract where the website lacks
-    the site; None if there is none."""
+    """{beach: (UTC hours, dye, Ent_dye)} of the day's first run, from the MATLAB extract where the website
+    lacks the site; Ent_dye is NaN where the file has no sites_Ent_dye (before 2026-11-14) and for the
+    MATLAB extract. None if there is no run."""
     out = {}
     for run in RUNS:
         path = WEB.format(fdate, run)
@@ -80,18 +86,21 @@ def forecast(fdate, mat):
             with nc.Dataset(path) as d:
                 t = pd.DatetimeIndex(EPOCH + pd.to_timedelta(np.ma.filled(d['time'][:].astype(float), np.nan), 'D'))
                 data = np.ma.filled(d[VAR][:].astype(float), np.nan)
+                ent = (np.ma.filled(d[ENT_VAR][:].astype(float), np.nan) if ENT_VAR in d.variables
+                       else np.full_like(data, np.nan))
                 lat, lon = np.asarray(d['sites_lat'][:]), np.asarray(d['sites_lon'][:])
             for name, (la, lo) in BEACHES.items():
                 i = np.flatnonzero((np.abs(lat - la) < TOL) & (np.abs(lon - lo) < TOL))
                 if len(i):
-                    out[name] = (t.round('h'), data[:, i[0]])
+                    out[name] = (t.round('h'), data[:, i[0]], ent[:, i[0]])
             break
     if mat is not None and len(out) < len(BEACHES):
         runs = mat[mat.run.dt.normalize() == fdate]
         if len(runs):
             one = mat[mat.run == runs.run.min()]
             for name in BEACHES:
-                out.setdefault(name, (pd.DatetimeIndex(one.valid_utc), one[name].to_numpy()))
+                dye = one[name].to_numpy()
+                out.setdefault(name, (pd.DatetimeIndex(one.valid_utc), dye, np.full(len(dye), np.nan)))
     return out or None
 
 
@@ -113,9 +122,10 @@ def make(first, last, full=False):
                 local = (date + pd.Timedelta(hours=hr)).tz_localize(TZ)
                 utc = local.tz_convert('UTC').tz_localize(None)
                 for name in BEACHES:
-                    t, dye = fc.get(name, ([], []))
+                    t, dye, ent = fc.get(name, ([], [], []))
                     k = np.flatnonzero(t == utc)
                     row[f'{name}_dye_{hr:02d}00'] = dye[k[0]] if len(k) else np.nan
+                    row[f'{name}_Ent_dye_{hr:02d}00'] = ent[k[0]] if len(k) else np.nan
             for name in BEACHES:
                 ent, tsample = ddpcr.get((name, date.date()), (np.nan, ''))
                 row[f'{name}_ddPCR_ENT'] = ent
@@ -125,12 +135,14 @@ def make(first, last, full=False):
         sys.exit('no forecasts found')
     out = pd.DataFrame(rows)
     span = f'{out.forecast_date.iloc[0].replace("-", "")}_{out.forecast_date.iloc[-1].replace("-", "")}'
-    # one file per beach: forecast / day / date, dye at each hour, ddPCR value and sample time
-    cols = [f'dye_{hr:02d}00' for hr in HOURS] + ['ddPCR_ENT', 'ddPCR_time']
+    # one file per beach: forecast / day / date, dye and Ent_dye at each hour, ddPCR value and sample time
+    ent_cols = [f'Ent_dye_{hr:02d}00' for hr in HOURS]
+    cols = [f'dye_{hr:02d}00' for hr in HOURS] + ent_cols + ['ddPCR_ENT', 'ddPCR_time']
     for b in BEACHES:
-        one = out[list(out.columns[:3]) + [f'{b}_{c}' for c in cols]]
+        one = out[list(out.columns[:3]) + [f'{b}_{c}' for c in cols]].copy()
         one.columns = list(out.columns[:3]) + cols
-        one['ddPCR_ENT'] = one['ddPCR_ENT'].round().astype('Int64')
+        for c in ent_cols + ['ddPCR_ENT']:   # copies/100 mL, whole numbers like ddPCR
+            one[c] = one[c].round().astype('Int64')
         out_csv = os.path.join(HERE, f'{b}_dye_forecast_{span}.csv')
         if full:   # drop the previous full-history file
             for old in glob.glob(os.path.join(HERE, f'{b}_dye_forecast_{ALL_FIRST:%Y%m%d}_*.csv')):
