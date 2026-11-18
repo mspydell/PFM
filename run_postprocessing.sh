@@ -60,12 +60,12 @@ echo "Now making the HF Radar plots"
 ./make_HFradar.sh
 
 # next make the ddPCR stuff
-cd /home/ffeddersen/PFM_NEW
+cd /home/ffeddersen/PFM_NEW/ddPCR_ENT
 echo "Now making the ddPCR plots"
 ./make_ddPCR_ENT_Plots.sh
 
 # next make the ddPCR/ENT comparison stuff
-cd /home/ffeddersen/PFM_NEW
+cd /home/ffeddersen/PFM_NEW/ddPCR_ENT
 echo "Now making the ENT-dye  plots"
 ./make_ENT_Dye_Plots.sh
 
@@ -85,3 +85,6 @@ cd /home/ffeddersen/PFM_NEW/ModelQC/Water_Level
 cd /home/ffeddersen/PFM_NEW/ModelQC/Moorings
 ./make_moorings_qc.sh
 
+# make current DA QC
+cd /home/ffeddersen/PFM_NEW/ModelQC_DA
+./make_modelqc_DA.sh
