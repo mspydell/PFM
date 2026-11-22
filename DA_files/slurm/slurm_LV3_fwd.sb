@@ -9,7 +9,7 @@
 
 #SBATCH --job-name=LV3_fwd
 #SBATCH --output=%j.out
-#SBATCH --partition=fast
+#SBATCH --partition=fast-hiprio   # 2026-11-19: was fast (see slurm_4dvar.sb)
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=128G
 #SBATCH --ntasks-per-node=36

@@ -15,7 +15,11 @@
 # ----- job resources --------------------------------------------------------
 #SBATCH --job-name=LV1_4dvar
 #SBATCH --output=%j.out
-#SBATCH --partition=fast
+#SBATCH --partition=fast-hiprio
+# 2026-11-19: was fast.  On fast this 9-node job waited all night behind another
+# user's 9-node job (the 11/19 DA never started and was cancelled at its
+# deadline).  fast-hiprio is PriorityTier 50 and preempts (cancels/requeues)
+# jobs on fast, the same as LV4_fwd and the operational forecast.
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=128G
 #SBATCH --ntasks-per-node=36

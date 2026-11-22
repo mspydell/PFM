@@ -23,7 +23,7 @@
 # ---------------------------------------------------------------------------
 #SBATCH --job-name=mk_incr
 #SBATCH --output=%j.out
-#SBATCH --partition=fast
+#SBATCH --partition=fast-hiprio   # 2026-11-19: was fast (see slurm_4dvar.sb)
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=36
