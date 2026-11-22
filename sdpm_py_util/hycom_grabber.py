@@ -84,11 +84,18 @@ LEAD_HOURS_SSH = list(range(0, 193, 1))
 LEAD_HOURS_3Z = list(range(0, 193, 3))
 
 KEEP_DAYS = 5          # retain the five most recent cycles, prune the rest
-MIRROR_KEEP_DAYS = 10  # the mirror keeps longer than the cache: it is the
+MIRROR_KEEP_DAYS = 15  # the mirror keeps longer than the cache: it is the
                        # fallback, and a cache bug that deletes something
-                       # should not be unrecoverable. 10 cycles is ~5 GB,
-                       # which /dataSIO will not notice, and hycom can always
-                       # be re-downloaded if we somehow need more than that.
+                       # should not be unrecoverable. ~0.5 GB per cycle, so
+                       # 15 cycles is ~7.5 GB, which /dataSIO will not notice.
+                       # Was 10.  Raised 2026-11-22: hycom stopped publishing
+                       # after the 2026-11-16T12 cycle, and six days later the
+                       # server held only 11-13..11-16 -- still pruning on
+                       # schedule while producing nothing.  "hycom can always
+                       # be re-downloaded" is exactly what stops being true in
+                       # an outage, and a 10 day window would have deleted our
+                       # last usable cycle on 2026-11-26 while it was still
+                       # the only ocean BC we had.
 DEFAULT_WORKERS = 10   # hycom's documented ceiling is 10 per IP
 DEFAULT_BUDGET_MIN = 45
 PROGRESS_EVERY_MIN = 5 # a 45 min run should say something in between
