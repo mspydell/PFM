@@ -2110,38 +2110,31 @@ def run_hind_simulation(t1str,lvl,pkl_fnm):
             sys.exit(1)
 
 def run_fore_simulation(lvl,pkl_fnm):
-    if lvl == 'LV1':
-        os.chdir('../driver')
-        print('starting LV1 forecast with subprocess...')
-        cmd_list = ['python','-u','-W','ignore','driver_functions.py','run_fore_LV1',pkl_fnm]
-        ret1 = subprocess.run(cmd_list)   
-        print('...finished LV1 forecast.')
-        print('return code: ' + str(ret1.returncode) + ' (0=good)')  
-        #run_fore_LV1(pkl_fnm)
-    if lvl == 'LV2':
-        os.chdir('../driver')
-        print('starting LV2 forecast with subprocess...')
-        cmd_list = ['python','-u','-W','ignore','driver_functions.py','run_fore_LV2',pkl_fnm]
-        ret1 = subprocess.run(cmd_list)   
-        print('...finished LV2 forecast.')
-        print('return code: ' + str(ret1.returncode) + ' (0=good)')  
-        #run_fore_LV2(pkl_fnm)
-    if lvl == 'LV3':
-        os.chdir('../driver')
-        print('starting LV3 forecast with subprocess...')
-        cmd_list = ['python','-u','-W','ignore','driver_functions.py','run_fore_LV3',pkl_fnm]
-        ret1 = subprocess.run(cmd_list)   
-        print('...finished LV3 forecast.')
-        print('return code: ' + str(ret1.returncode) + ' (0=good)')  
-        #run_fore_LV3(pkl_fnm)
-    if lvl == 'LV4':
-        os.chdir('../driver')
-        print('starting LV4 forecast with subprocess...')
-        cmd_list = ['python','-u','-W','ignore','driver_functions.py','run_fore_LV4',pkl_fnm]
-        ret1 = subprocess.run(cmd_list)   
-        print('...finished LV4 forecast.')
-        print('return code: ' + str(ret1.returncode) + ' (0=good)')  
-        #run_fore_LV4(pkl_fnm)
+    """Run one level as a subprocess and EXIT NON-ZERO if it failed.
+
+    The exit is the point.  The dispatcher at the bottom of this file calls
+    globals()[name](*args) and throws the return value away, so a function that
+    merely returns a code leaves the process exiting 0.  That is what happened
+    on 2026-11-22: hycom had published nothing since 2026-11-16T12, LV1 did
+    sys.exit("there was not enough hycom data.") as designed, and this function
+    printed "return code: 1" and exited 0 anyway.  driver_run_forecast_LV1234
+    saw 0, reported "ran correctly? 0", and went on to run LV2 and LV3 through
+    ROMS with no atmospheric forcing at all -- an hour of compute producing
+    output that meant nothing, after the run had already correctly decided to
+    stop.
+    """
+    if lvl not in ('LV1','LV2','LV3','LV4'):
+        print('run_fore_simulation: unknown level ' + str(lvl))
+        sys.exit(2)
+    os.chdir('../driver')
+    print('starting ' + lvl + ' forecast with subprocess...')
+    cmd_list = ['python','-u','-W','ignore','driver_functions.py','run_fore_' + lvl,pkl_fnm]
+    ret1 = subprocess.run(cmd_list)
+    print('...finished ' + lvl + ' forecast.')
+    print('return code: ' + str(ret1.returncode) + ' (0=good)')
+    if ret1.returncode != 0:
+        print(lvl + ' FAILED (exit ' + str(ret1.returncode) + ').  Not continuing.')
+        sys.exit(ret1.returncode)
 
 def run_fore_lv4_fillin(pkl_fnm):
     MI = initfuns.get_model_info(pkl_fnm)

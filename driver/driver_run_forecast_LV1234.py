@@ -38,6 +38,17 @@ def driver_run_forecast_LV1234( pkl_fnm ):
         ret1 = subprocess.run(cmd_list)     
         print('done with ' + lvl)
         print(lvl, ' forecast ran correctly? ' + str(ret1.returncode) + ' (0=yes)')
+        # Stop the whole forecast when a level fails.  Levels are nested --
+        # LV2 takes its boundary conditions from LV1 and so on down -- so once
+        # one level has failed, every level after it is running on missing or
+        # stale input and whatever it writes is worthless.  Continuing also
+        # costs the cluster an hour and leaves a history file that looks
+        # ordinary in the archive.  See run_fore_simulation for 2026-11-22.
+        if ret1.returncode != 0:
+            print('\n*** ' + lvl + ' failed (exit ' + str(ret1.returncode) +
+                  ').  Abandoning the forecast; later levels would run on'
+                  ' missing input. ***')
+            sys.exit(ret1.returncode)
         t2 = datetime.now()
         print('this took:')
         print(t2-t1)
